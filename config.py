@@ -1,5 +1,6 @@
 from typing import Any
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -35,6 +36,13 @@ class Settings(BaseSettings):
 
     # Admins
     ADMINS: list[int]
+
+    @field_validator("ADMINS", mode="before")
+    @classmethod
+    def parse_admins(cls, v: Any) -> Any:
+        if isinstance(v, str):
+            return [int(x.strip()) for x in v.split(",") if x.strip()]
+        return v
 
     # Tariffs (Default value, can be overridden but usually static)
     TARIFFS: dict[str, dict[int, dict[str, Any]]] = {
