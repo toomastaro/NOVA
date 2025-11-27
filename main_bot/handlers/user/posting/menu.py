@@ -1,3 +1,4 @@
+import time
 from aiogram import F, Router, types
 from aiogram.fsm.context import FSMContext
 
@@ -30,7 +31,51 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
 
 
 async def show_create_post(message: types.Message, state: FSMContext):
+    channels = await db.get_user_channels(user_id=message.chat.id, sort_by="subscribe")
+    
+    if not channels:
+        await message.answer(text("not_found_channels"))
+        return
+
     await message.answer(
+        text("choice_channels:post").format(len(channels), ""),
+        reply_markup=keyboards.choice_channels_for_post(channels=channels)
+    )
+    await state.set_state(Posting.choice_channel)
+
+
+async def process_choice_channel(call: types.CallbackQuery, state: FSMContext):
+    data = call.data.split("|")
+    action = data[1]
+
+    if action == "cancel":
+        await state.clear()
+        await call.message.delete()
+        await call.message.answer(
+            text("reply_menu:posting"), reply_markup=keyboards.posting_menu()
+        )
+        return
+
+    if action in ["next", "back"]:
+        remover = int(data[2])
+        channels = await db.get_user_channels(user_id=call.message.chat.id, sort_by="subscribe")
+        await call.message.edit_reply_markup(
+            reply_markup=keyboards.choice_channels_for_post(
+                channels=channels, remover=remover
+            )
+        )
+        return
+
+    channel_id = int(action)
+    channel = await db.get_channel_by_chat_id(chat_id=channel_id)
+
+    if not channel.subscribe or channel.subscribe < time.time():
+        await call.answer(text("error_sub_channel"), show_alert=True)
+        return
+
+    await state.update_data(channel_id=channel_id)
+    await call.message.delete()
+    await call.message.answer(
         text("input_message"), reply_markup=keyboards.cancel(data="InputPostCancel")
     )
     await state.set_state(Posting.input_message)
@@ -54,4 +99,5 @@ async def show_content(message: types.Message):
 def hand_add():
     router = Router()
     router.callback_query.register(choice, F.data.split("|")[0] == "MenuPosting")
+    router.callback_query.register(process_choice_channel, Posting.choice_channel, F.data.startswith("ChoiceChannelPost"))
     return router

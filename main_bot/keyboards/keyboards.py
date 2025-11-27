@@ -79,6 +79,57 @@ class InlinePosting(InlineKeyboardBuilder):
         return kb.as_markup()
 
     @classmethod
+    def choice_channels_for_post(
+        cls, channels: list[Channel], data: str = "ChoiceChannelPost", remover: int = 0
+    ):
+        kb = cls()
+        count_rows = 7
+
+        for a, idx in enumerate(range(remover, len(channels))):
+            if a < count_rows:
+                kb.add(
+                    InlineKeyboardButton(
+                        text=channels[idx].title,
+                        callback_data=f"{data}|{channels[idx].chat_id}",
+                    )
+                )
+
+        kb.adjust(2)
+
+        if len(channels) <= count_rows:
+            pass
+
+        elif len(channels) > count_rows > remover:
+            kb.row(
+                InlineKeyboardButton(
+                    text="➡️", callback_data=f"{data}|next|{remover + count_rows}"
+                )
+            )
+        elif remover + count_rows >= len(channels):
+            kb.row(
+                InlineKeyboardButton(
+                    text="⬅️", callback_data=f"{data}|back|{remover - count_rows}"
+                )
+            )
+        else:
+            kb.row(
+                InlineKeyboardButton(
+                    text="⬅️", callback_data=f"{data}|back|{remover - count_rows}"
+                ),
+                InlineKeyboardButton(
+                    text="➡️", callback_data=f"{data}|next|{remover + count_rows}"
+                ),
+            )
+
+        kb.row(
+            InlineKeyboardButton(
+                text=text("back:button"), callback_data=f"{data}|cancel"
+            )
+        )
+
+        return kb.as_markup()
+
+    @classmethod
     def manage_post(cls, post: Post, show_more: bool = False, is_edit: bool = False):
         kb = cls()
         hide = Hide(hide=post.hide) if post.hide else None

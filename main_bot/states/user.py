@@ -25,6 +25,7 @@ class Folder(StatesGroup):
 
 
 class Posting(StatesGroup):
+    choice_channel = State()
     input_send_time = State()
     input_value = State()
     input_message = State()

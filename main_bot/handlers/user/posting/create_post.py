@@ -65,15 +65,19 @@ async def get_message(message: types.Message, state: FSMContext):
         if message_options.caption:
             message_options.caption = message.html_text
 
+    data = await state.get_data()
+    channel_id = data.get("channel_id")
+    chat_ids = [channel_id] if channel_id else []
+
     post = await db.add_post(
         return_obj=True,
-        chat_ids=[],
+        chat_ids=chat_ids,
         admin_id=message.from_user.id,
         message_options=message_options.model_dump(),
     )
 
     await state.clear()
-    await state.update_data(show_more=False, post=post)
+    await state.update_data(show_more=False, post=post, chosen=chat_ids)
 
     await answer_post(message, state)
 
@@ -118,6 +122,23 @@ async def manage_post(call: types.CallbackQuery, state: FSMContext):
                     data.get("channel").title,
                 ),
                 reply_markup=keyboards.manage_remain_post(post=post),
+            )
+
+        chosen = data.get("chosen", [])
+        if chosen:
+            objects = await db.get_user_channels(
+                user_id=call.from_user.id, sort_by="posting"
+            )
+            return await call.message.edit_text(
+                text("manage:post:finish_params").format(
+                    len(chosen),
+                    "\n".join(
+                        text("resource_title").format(obj.emoji_id, obj.title)
+                        for obj in objects
+                        if obj.chat_id in chosen[:10]
+                    ),
+                ),
+                reply_markup=keyboards.finish_params(obj=post),
             )
 
         objects = await db.get_user_channels(
