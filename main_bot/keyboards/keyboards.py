@@ -401,12 +401,13 @@ class InlinePosting(InlineKeyboardBuilder):
                 callback_data="GetDeleteTimePost|off",
             )
         )
-        groups = [[1, 2, 3, 4], [6, 8, 10, 12], [18, 24, 36, 48], [72, 96, 120, 144]]
+        # Первое значение изменено на 1 минуту (0.017 ч) для удобства тестирования
+        groups = [[0.017, 2, 3, 4], [6, 8, 10, 12], [18, 24, 36, 48], [72, 96, 120, 144]]
         for group in groups:
             kb.row(
                 *[
                     InlineKeyboardButton(
-                        text=f"{h} ч.", callback_data=f"GetDeleteTimePost|{h * 3600}"
+                        text=f"{h} ч." if h >= 1 else "1 мин", callback_data=f"GetDeleteTimePost|{int(h * 3600) if h >= 1 else 60}"
                     )
                     for h in group
                 ]

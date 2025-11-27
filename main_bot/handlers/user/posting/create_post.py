@@ -361,6 +361,10 @@ async def get_value(message: types.Message, state: FSMContext):
 
         kwargs = {param: value}
 
+    # Исправление: явно сохраняем кнопки при обновлении поста
+    if 'buttons' not in kwargs:
+        kwargs['buttons'] = post.buttons
+
     post = await db.update_post(post_id=post.id, return_obj=True, **kwargs)
 
     await state.clear()
@@ -601,25 +605,9 @@ async def finish_params(call: types.CallbackQuery, state: FSMContext):
     objects = await db.get_user_channels(user_id=call.from_user.id, sort_by="posting")
 
     if temp[1] == "cancel":
-        chosen_folders: list = data.get("chosen_folders")
-        folders = await db.get_folders(user_id=call.from_user.id)
-
-        return await call.message.edit_text(
-            text("choice_channels:post").format(
-                len(chosen),
-                "\n".join(
-                    text("resource_title").format(obj.emoji_id, obj.title)
-                    for obj in objects
-                    if obj.chat_id in chosen[:10]
-                ),
-            ),
-            reply_markup=keyboards.choice_objects(
-                resources=objects,
-                chosen=chosen,
-                folders=folders,
-                chosen_folders=chosen_folders,
-            ),
-        )
+        # Исправление: кнопка "Назад" теперь возвращает к редактированию поста, а не к выбору каналов
+        await call.message.delete()
+        return await answer_post(call.message, state)
 
     if temp[1] == "report":
         post = await db.update_post(
