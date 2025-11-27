@@ -1,0 +1,70 @@
+services:
+  db:
+    image: postgres:15-alpine
+    restart: always
+    environment:
+      - POSTGRES_USER=${PG_USER}
+      - POSTGRES_PASSWORD=${PG_PASS}
+      - POSTGRES_DB=${PG_DATABASE}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${PG_USER} -d ${PG_DATABASE}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    networks:
+      - nova-network
+
+
+  app:
+    build: .
+    restart: always
+    ports:
+      - "8099:8099"
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - .env
+    # Если нужны тома для логов/сессий — раскомментируй:
+    volumes:
+       - ./logs:/app/logs
+       - ./main_bot/utils/sessions:/app/main_bot/utils/sessions
+       - ./main_bot/utils/temp:/app/main_bot/utils/temp
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8099/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    networks:
+      - nova-network
+
+  nginx:
+    image: nginx:alpine
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/conf:/etc/nginx/conf.d
+      - ./nginx/ssl:/etc/nginx/ssl
+    depends_on:
+      app:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - nova-network
+
+volumes:
+  postgres_data:
+
+networks:
+  nova-network:
+    driver: bridge

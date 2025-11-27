@@ -1,0 +1,191 @@
+import asyncio
+
+from aiogram import types, Router, F
+from aiogram.enums import ChatMemberStatus
+from aiogram.filters import CommandStart
+
+from hello_bot.utils.functions import answer_message_bot
+from instance_bot import bot
+from hello_bot.database.db import Database
+from hello_bot.database.settings.model import Setting
+from hello_bot.keyboards.keyboards import keyboards
+from hello_bot.utils.lang.language import text
+from hello_bot.utils.schemas import Protect, HelloAnswer, ByeAnswer
+from main_bot.database.user_bot.model import UserBot
+from utils.functions import create_emoji
+
+
+async def start(message: types.Message, db: Database, owner_id: int, settings: Setting):
+    user = await db.get_user(message.from_user.id)
+    if not user:
+        await db.add_user(id=message.from_user.id)
+        user = await db.get_user(message.from_user.id)
+
+    await db.get_count_users()
+
+    if user.id == owner_id:
+        if settings.channel_id:
+            return await message.answer(
+                text("start_text"),
+                reply_markup=keyboards.menu()
+            )
+
+        return await message.answer(
+            text("start_channel"),
+            reply_markup=keyboards.add_channel(
+                bot_username=(await message.bot.get_me()).username
+            )
+        )
+
+    await message.delete()
+
+
+async def set_menu(call: types.CallbackQuery):
+    await call.message.edit_text(
+        text("start_text"),
+        reply_markup=keyboards.menu()
+    )
+
+
+async def join(call: types.ChatJoinRequest, db: Database, settings: Setting):
+    if not settings.channel_id:
+        return
+
+    if settings.protect:
+        protect = Protect(**settings.protect)  # type: ignore
+
+        decline_geo = []
+        if protect.china:
+            decline_geo.append("zh")
+        if protect.arab:
+            decline_geo.append("ar")
+
+        if decline_geo:
+            try:
+                await call.decline()
+            except Exception as e:
+                print(e)
+
+            return
+
+    user = await db.get_user(call.from_user.id)
+    if not user:
+        await db.add_user(id=call.from_user.id)
+
+    if settings.auto_approve:
+        if settings.delay_approve:
+            await asyncio.sleep(settings.delay_approve)  # type: ignore
+
+        try:
+            await call.approve()
+        except Exception as e:
+            print(e)
+
+    hello = HelloAnswer(**settings.hello)
+    if not hello.active:
+        return
+
+    success = await answer_message_bot(call.bot, call.from_user.id, hello.message, None)
+    if success:
+        await db.update_setting(
+            output_messages=settings.output_messages + 1
+        )
+
+
+async def leave(call: types.ChatMemberUpdated, db: Database, settings: Setting):
+    if call.from_user.is_bot:
+        return
+    if call.new_chat_member.status != ChatMemberStatus.LEFT:
+        return
+    if not settings.channel_id:
+        return
+
+    user = await db.get_user(call.from_user.id)
+    if not user:
+        await db.add_user(id=call.from_user.id)
+
+    bye = ByeAnswer(**settings.bye)
+    if not bye.active:
+        return
+
+    success = await answer_message_bot(call.bot, call.from_user.id, bye.message, None)
+    if success:
+        await db.update_setting(
+            output_messages=settings.output_messages + 1
+        )
+
+
+async def set_channel(call: types.ChatMemberUpdated, db: Database, db_bot: UserBot, settings: Setting):
+    chat_id = call.chat.id
+    if call.new_chat_member.status == ChatMemberStatus.ADMINISTRATOR:
+        if settings.channel_id:
+            return
+
+        chat = await call.bot.get_chat(chat_id)
+        if chat.photo:
+            photo_bytes = await call.bot.download(chat.photo.big_file_id)
+        else:
+            photo_bytes = None
+
+        emoji_id = await create_emoji(call.from_user.id, photo_bytes)
+        await db.update_setting(
+            channel_id=chat_id,
+            channel_title=call.chat.title,
+            channel_emoji_id=emoji_id,
+        )
+
+        message_text = text('success_add_channel').format(
+            db_bot.emoji_id,
+            db_bot.title,
+            emoji_id,
+            call.chat.title
+        )
+    else:
+        if not settings.channel_id:
+            return
+        if settings.channel_id != chat_id:
+            return
+
+        await db.update_setting(
+            channel_id=None,
+            channel_title=None,
+            channel_emoji_id=None,
+        )
+
+        message_text = text('success_delete_channel').format(
+            db_bot.emoji_id,
+            db_bot.title,
+            settings.channel_emoji_id,
+            settings.channel_title
+        )
+
+    if call.from_user.is_bot:
+        return
+
+    try:
+        await bot.send_message(
+            chat_id=call.from_user.id,
+            text=message_text
+        )
+    except Exception as e:
+        print(e)
+
+
+async def set_active(call: types.ChatMemberUpdated, db: Database):
+    await db.update_user(
+        user_id=call.from_user.id,
+        is_active=call.new_chat_member.status != ChatMemberStatus.KICKED
+    )
+
+
+def hand_add():
+    router = Router()
+    router.message.register(start, CommandStart())
+    router.callback_query.register(set_menu, F.data.split("|")[0] == "BackAddChannel")
+
+    router.chat_join_request.register(join)
+    router.chat_member.register(leave, F.chat.type == "channel")
+    router.my_chat_member.register(set_channel, F.chat.type == 'channel')
+    router.my_chat_member.register(set_active, F.chat.type == 'private')
+
+    return router

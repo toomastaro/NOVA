@@ -1,0 +1,32 @@
+# 🐍 Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+
+# 🔐 Environment files
+.env
+.env.local
+.env.*.local
+
+# 💻 IDE / Editors
+.vscode/
+.idea/
+
+# 💾 System files
+.DS_Store
+Thumbs.db
+
+# 🧾 Logs
+logs/
+*.log
+
+# 🐳 Docker / build
+certs/
+data/
+
+# 🤖 Bot sessions
+main_bot/utils/sessions/
+
+backups/
