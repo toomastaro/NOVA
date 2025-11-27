@@ -39,10 +39,14 @@ class Settings(BaseSettings):
 
     @field_validator("ADMINS", mode="before")
     @classmethod
-    def parse_admins(cls, v: Any) -> Any:
+    def parse_admins(cls, v: Any) -> list[int]:
+        if not v:
+            return []
         if isinstance(v, str):
-            return [int(x.strip()) for x in v.split(",") if x.strip()]
-        return v
+            return [int(x) for x in v.split(",") if x.strip()]
+        if isinstance(v, list):
+            return v
+        raise ValueError("ADMINS must be a string or list")
 
     # Tariffs (Default value, can be overridden but usually static)
     TARIFFS: dict[str, dict[int, dict[str, Any]]] = {
