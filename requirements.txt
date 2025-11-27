@@ -80,7 +80,7 @@ win32_setctime==1.2.0
 yarl==1.22.0
 requests~=2.32.5
 
-# Development tools 1
+# Development tools 11
 ruff
 black
 mypy
