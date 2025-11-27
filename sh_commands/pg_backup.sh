@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # ===== Переходим в корень проекта (где docker-compose.yml) =====
-cd /root/bot
+cd /root/nova
 
 # ===== Опционально подтягиваем .env =====
 if [ -f .env ]; then
@@ -96,7 +96,7 @@ usage() {
   ./pg_backup.sh backup
   ./pg_backup.sh restore <backup.sql|backup.sql.gz>
 
-Настройки берутся из /root/bot/.env (или из окружения):
+Настройки берутся из /root/nova/.env (или из окружения):
   COMPOSE_SERVICE=db
   PG_USER=postgres
   PG_DATABASE=nova_bot_db
