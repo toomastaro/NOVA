@@ -1,4 +1,4 @@
-from sqlalchemy import BigInteger, String, ARRAY
+from sqlalchemy import ARRAY, BigInteger, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from main_bot.database import Base
@@ -6,7 +6,7 @@ from main_bot.database.types import FolderType
 
 
 class UserFolder(Base):
-    __tablename__ = 'user_folders'
+    __tablename__ = "user_folders"
 
     # Data
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)

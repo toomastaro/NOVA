@@ -2,7 +2,7 @@ import asyncio
 import random
 import time
 
-from aiogram import types, Router, F
+from aiogram import F, Router, types
 from aiogram.fsm.context import FSMContext
 from aiogram.types import LabeledPrice
 
@@ -20,30 +20,22 @@ from main_bot.utils.payments.crypto_bot import crypto_bot
 async def give_subscribes(state: FSMContext, user: User):
     data = await state.get_data()
 
-    cor = data.get('cor')
-    service = data.get('service')
-    object_type = data.get('object_type')
-    chosen: list = data.get('chosen')
-    total_days: int = data.get('total_days')
-    total_price: int = data.get('total_price')
-    promo_name: str = data.get('promo_name')
+    cor = data.get("cor")
+    service = data.get("service")
+    object_type = data.get("object_type")
+    chosen: list = data.get("chosen")
+    total_days: int = data.get("total_days")
+    total_price: int = data.get("total_price")
+    promo_name: str = data.get("promo_name")
 
     # database method in state / crud
-    objects = await cor(
-        user_id=user.id,
-        sort_by=service
-    )
-    chosen_objects = [
-        i for i in objects
-        if i.id in chosen
-    ]
+    objects = await cor(user_id=user.id, sort_by=service)
+    chosen_objects = [i for i in objects if i.id in chosen]
 
     added_time = 86400 * total_days
     for chosen_object in chosen_objects:
-        if object_type == 'channels':
-            channel = await db.get_channel_by_row_id(
-                row_id=chosen_object.id
-            )
+        if object_type == "channels":
+            channel = await db.get_channel_by_row_id(row_id=chosen_object.id)
             subscribe_value = channel.subscribe
 
             if not subscribe_value:
@@ -52,13 +44,10 @@ async def give_subscribes(state: FSMContext, user: User):
                 subscribe_value += added_time
 
             await db.update_channel_by_chat_id(
-                chat_id=channel.chat_id,
-                **{"subscribe": subscribe_value}
+                chat_id=channel.chat_id, **{"subscribe": subscribe_value}
             )
         else:
-            user_bot = await db.get_bot_by_id(
-                row_id=chosen_object.id
-            )
+            user_bot = await db.get_bot_by_id(row_id=chosen_object.id)
             subscribe_value = user_bot.subscribe
 
             if not subscribe_value:
@@ -66,10 +55,7 @@ async def give_subscribes(state: FSMContext, user: User):
             else:
                 subscribe_value += added_time
 
-            await db.update_bot_by_id(
-                row_id=user_bot.id,
-                subscribe=subscribe_value
-            )
+            await db.update_bot_by_id(row_id=user_bot.id, subscribe=subscribe_value)
 
     if promo_name:
         promo = await db.get_promo(promo_name)
@@ -87,119 +73,92 @@ async def give_subscribes(state: FSMContext, user: User):
         await db.update_user(
             user_id=ref_user.id,
             balance=ref_user.balance + total_ref_earn,
-            referral_earned=ref_user.referral_earned + total_ref_earn
+            referral_earned=ref_user.referral_earned + total_ref_earn,
         )
 
 
 async def choice(call: types.CallbackQuery, state: FSMContext, user: User):
-    temp = call.data.split('|')
+    temp = call.data.split("|")
     data = await state.get_data()
 
     if not data:
-        await call.answer(text('keys_data_error'))
+        await call.answer(text("keys_data_error"))
         return await call.message.delete()
 
-    if temp[1] == 'back':
-        cor = data.get('cor')
-        service = data.get('service')
-        object_type = data.get('object_type')
-        chosen: list = data.get('chosen')
+    if temp[1] == "back":
+        cor = data.get("cor")
+        service = data.get("service")
+        object_type = data.get("object_type")
+        chosen: list = data.get("chosen")
 
-        objects = await cor(
-            user_id=user.id,
-            sort_by=service
-        )
+        objects = await cor(user_id=user.id, sort_by=service)
         await call.message.delete()
         return await call.message.answer(
-            text(f'subscribe:chosen:{object_type}').format(
+            text(f"subscribe:chosen:{object_type}").format(
                 "\n".join(
-                    text("resource_title").format(
-                        obj.emoji_id,
-                        obj.title
-                    ) for obj in objects
+                    text("resource_title").format(obj.emoji_id, obj.title)
+                    for obj in objects
                     if obj.id in chosen[:10]
                 )
             ),
             reply_markup=keyboards.choice_object_subscribe(
                 resources=objects,
                 chosen=chosen,
-            )
+            ),
         )
 
     if temp[1] == "align_sub":
-        sub_objects = await db.get_subscribe_channels(
-            user_id=user.id
-        )
+        sub_objects = await db.get_subscribe_channels(user_id=user.id)
 
         if len(sub_objects) < 2:
-            return await call.answer(
-                text("error_align_sub")
-            )
+            return await call.answer(text("error_align_sub"))
 
-        await state.update_data(
-            align_chosen=[]
-        )
+        await state.update_data(align_chosen=[])
 
         return await call.message.edit_text(
             text("align_sub"),
-            reply_markup=keyboards.align_sub(
-                sub_objects=sub_objects,
-                chosen=[]
-            )
+            reply_markup=keyboards.align_sub(sub_objects=sub_objects, chosen=[]),
         )
 
-    if temp[1] == 'promo':
+    if temp[1] == "promo":
         input_message = await call.message.answer(
-            text('input_promo'),
-            reply_markup=keyboards.cancel(
-                data='SubscribePromoCancel'
-            )
+            text("input_promo"),
+            reply_markup=keyboards.cancel(data="SubscribePromoCancel"),
         )
         await call.answer()
 
         await state.update_data(
             message_id=call.message.message_id,
-            input_message_id=input_message.message_id
+            input_message_id=input_message.message_id,
         )
 
         return await state.set_state(Subscribe.input_promo)
 
-    if temp[1] == 'balance':
-        total_price = data.get('total_price')
+    if temp[1] == "balance":
+        total_price = data.get("total_price")
         if user.balance < total_price:
-            return await call.answer(
-                text('error_balance'),
-                show_alert=True
-            )
+            return await call.answer(text("error_balance"), show_alert=True)
 
-        await db.update_user(
-            user_id=user.id,
-            balance=user.balance - total_price
-        )
+        await db.update_user(user_id=user.id, balance=user.balance - total_price)
         await give_subscribes(state, user)
 
         await state.clear()
         await call.message.delete()
-        await call.message.answer(
-            text('success_subscribe_pay')
-        )
+        await call.message.answer(text("success_subscribe_pay"))
 
         return await profile(call.message)
 
     method = temp[1]
-    total_price = data.get('total_price')
-    await state.update_data(
-        method=method
-    )
+    total_price = data.get("total_price")
+    await state.update_data(method=method)
     method = method.upper()
 
     if method == PaymentMethod.CRYPTO_BOT:
         result = await crypto_bot.create_invoice(
-            amount=round(total_price * 1.03, 2),
-            asset='USDT'
+            amount=round(total_price * 1.03, 2), asset="USDT"
         )
-        pay_url = result.get('url')
-        order_id = result.get('invoice_id')
+        pay_url = result.get("url")
+        order_id = result.get("invoice_id")
 
     # stars
     else:
@@ -207,27 +166,23 @@ async def choice(call: types.CallbackQuery, state: FSMContext, user: User):
         prices = [LabeledPrice(label="XTR", amount=stars_amount)]
         order_id = str(random.randint(1, 999))
         pay_url = await call.bot.create_invoice_link(
-            title='Stars NovaTg',
-            description='Пополнение баланса',
+            title="Stars NovaTg",
+            description="Пополнение баланса",
             prices=prices,
-            provider_token='',
+            provider_token="",
             payload=order_id,
-            currency='XTR'
+            currency="XTR",
         )
 
     if not pay_url:
-        return await call.answer(
-            text('payment_method_not_available'),
-            show_alert=True
-        )
+        return await call.answer(text("payment_method_not_available"), show_alert=True)
 
     pay_info_text = await get_pay_info_text(state, user)
     await call.message.edit_text(
         pay_info_text,
         reply_markup=keyboards.wait_payment(
-            data="WaitSubscribePaymentBack",
-            pay_url=pay_url
-        )
+            data="WaitSubscribePaymentBack", pay_url=pay_url
+        ),
     )
 
     end_time = time.time() + 3600
@@ -240,10 +195,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext, user: User):
                 continue
 
         if method == PaymentMethod.STARS:
-            await state.update_data(
-                payment_to='subscribe',
-                stars_payment=True
-            )
+            await state.update_data(payment_to="subscribe", stars_payment=True)
             await state.set_state(Subscribe.pay_stars)
             return
 
@@ -251,9 +203,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext, user: User):
 
         await state.clear()
         await call.message.delete()
-        await call.message.answer(
-            text('success_subscribe_pay')
-        )
+        await call.message.answer(text("success_subscribe_pay"))
         await profile(call.message)
         return
 
@@ -263,20 +213,16 @@ async def align_subscribe(call: types.CallbackQuery, state: FSMContext, user: Us
     data = await state.get_data()
 
     if not data:
-        await call.answer(text('keys_data_error'))
+        await call.answer(text("keys_data_error"))
         return await call.message.delete()
 
     align_chosen: list = data.get("align_chosen")
-    sub_objects = await db.get_subscribe_channels(
-        user_id=user.id
-    )
+    sub_objects = await db.get_subscribe_channels(user_id=user.id)
 
     if temp[1] in ["next", "back"]:
         return await call.message.edit_reply_markup(
             reply_markup=keyboards.align_sub(
-                sub_objects=sub_objects,
-                chosen=align_chosen,
-                remover=int(temp[2])
+                sub_objects=sub_objects, chosen=align_chosen, remover=int(temp[2])
             )
         )
 
@@ -285,8 +231,7 @@ async def align_subscribe(call: types.CallbackQuery, state: FSMContext, user: Us
 
     if temp[1] == "align":
         chosen_objects = await db.get_user_channels(
-            user_id=user.id,
-            from_array=align_chosen
+            user_id=user.id, from_array=align_chosen
         )
 
         now = int(time.time())
@@ -298,23 +243,18 @@ async def align_subscribe(call: types.CallbackQuery, state: FSMContext, user: Us
             ]
         )
 
-        days_per_object = (total_remain_days / len(chosen_objects))
+        days_per_object = total_remain_days / len(chosen_objects)
         if not total_remain_days or days_per_object < 1:
-            return await call.answer(
-                text("error_align_not_have_days")
-            )
+            return await call.answer(text("error_align_not_have_days"))
 
         for chosen_object in chosen_objects:
             await db.update_channel_by_chat_id(
                 chat_id=chosen_object.chat_id,
-                subscribe=days_per_object * 86400 + int(time.time())
+                subscribe=days_per_object * 86400 + int(time.time()),
             )
 
         await call.answer(
-            text("success_align").format(
-                len(chosen_objects)
-            ),
-            show_alert=True
+            text("success_align").format(len(chosen_objects)), show_alert=True
         )
         return await back_to_method(call, state, user)
 
@@ -332,14 +272,10 @@ async def align_subscribe(call: types.CallbackQuery, state: FSMContext, user: Us
         else:
             align_chosen.append(resource_id)
 
-    await state.update_data(
-        align_chosen=align_chosen
-    )
+    await state.update_data(align_chosen=align_chosen)
     await call.message.edit_reply_markup(
         reply_markup=keyboards.align_sub(
-            sub_objects=sub_objects,
-            chosen=align_chosen,
-            remover=int(temp[2])
+            sub_objects=sub_objects, chosen=align_chosen, remover=int(temp[2])
         )
     )
 
@@ -355,20 +291,18 @@ async def cancel(call: types.CallbackQuery, state: FSMContext):
 async def back_to_method(call: types.CallbackQuery, state: FSMContext, user: User):
     data = await state.get_data()
     if not data:
-        await call.answer(text('keys_data_error'))
+        await call.answer(text("keys_data_error"))
         return await call.message.delete()
 
-    await state.update_data(
-        method=None
-    )
+    await state.update_data(method=None)
     pay_info_text = await get_pay_info_text(state, user)
     await call.message.edit_text(
         pay_info_text,
         reply_markup=keyboards.choice_payment_method(
-            data='ChoicePaymentMethodSubscribe',
+            data="ChoicePaymentMethodSubscribe",
             is_subscribe=True,
-            has_promo=data.get('has_promo')
-        )
+            has_promo=data.get("has_promo"),
+        ),
     )
 
 
@@ -376,10 +310,7 @@ async def get_promo(message: types.Message, state: FSMContext, user: User):
     data = await state.get_data()
 
     try:
-        await message.bot.delete_message(
-            message.chat.id,
-            data.get('input_message_id')
-        )
+        await message.bot.delete_message(message.chat.id, data.get("input_message_id"))
     except Exception as e:
         print(e)
 
@@ -388,29 +319,22 @@ async def get_promo(message: types.Message, state: FSMContext, user: User):
 
     if not promo:
         return await message.answer(
-            text('error_promo'),
-            reply_markup=keyboards.cancel(
-                data='SubscribePromoCancel'
-            )
+            text("error_promo"),
+            reply_markup=keyboards.cancel(data="SubscribePromoCancel"),
         )
 
     if not promo.discount:
         return await message.answer(
-            text('error_type_promo'),
-            reply_markup=keyboards.cancel(
-                data='SubscribePromoCancel'
-            )
+            text("error_type_promo"),
+            reply_markup=keyboards.cancel(data="SubscribePromoCancel"),
         )
 
-    old_total_price = data.get('total_price')
+    old_total_price = data.get("total_price")
     total_price = old_total_price - int(old_total_price / 100 * promo.discount)
-    message_id = data.get('message_id')
+    message_id = data.get("message_id")
 
     try:
-        await message.bot.delete_message(
-            message.chat.id,
-            message_id
-        )
+        await message.bot.delete_message(message.chat.id, message_id)
     except Exception as e:
         print(e)
 
@@ -418,7 +342,7 @@ async def get_promo(message: types.Message, state: FSMContext, user: User):
         old_total_price=old_total_price,
         total_price=total_price,
         has_promo=True,
-        promo_name=promo.name
+        promo_name=promo.name,
     )
     data = await state.get_data()
     pay_info_text = await get_pay_info_text(state, user)
@@ -426,50 +350,49 @@ async def get_promo(message: types.Message, state: FSMContext, user: User):
     await state.clear()
     await state.update_data(data)
 
-    await message.answer(
-        text('success_use_discount_promo').format(
-            promo.discount
-        )
-    )
+    await message.answer(text("success_use_discount_promo").format(promo.discount))
     await message.answer(
         pay_info_text,
         reply_markup=keyboards.choice_payment_method(
-            data='ChoicePaymentMethodSubscribe',
-            is_subscribe=True,
-            has_promo=True
-        )
+            data="ChoicePaymentMethodSubscribe", is_subscribe=True, has_promo=True
+        ),
     )
 
 
 async def success(message: types.Message, state: FSMContext, user: User):
     await message.bot.refund_star_payment(
-        message.from_user.id,
-        message.successful_payment.telegram_payment_charge_id
+        message.from_user.id, message.successful_payment.telegram_payment_charge_id
     )
 
     data = await state.get_data()
 
-    if not data.get('stars_payment'):
+    if not data.get("stars_payment"):
         return
-    if data.get('payment_to') != 'subscribe':
+    if data.get("payment_to") != "subscribe":
         return
 
     await give_subscribes(state, user)
 
     await state.clear()
     await message.delete()
-    await message.answer(
-        text('success_subscribe_pay')
-    )
+    await message.answer(text("success_subscribe_pay"))
     await profile(message)
 
 
 def hand_add():
     router = Router()
-    router.callback_query.register(choice, F.data.split("|")[0] == "ChoicePaymentMethodSubscribe")
-    router.callback_query.register(align_subscribe, F.data.split("|")[0] == "ChoiceResourceAlignSubscribe")
-    router.callback_query.register(cancel, F.data.split("|")[0] == "SubscribePromoCancel")
-    router.callback_query.register(back_to_method, F.data.split("|")[0] == "WaitSubscribePaymentBack")
+    router.callback_query.register(
+        choice, F.data.split("|")[0] == "ChoicePaymentMethodSubscribe"
+    )
+    router.callback_query.register(
+        align_subscribe, F.data.split("|")[0] == "ChoiceResourceAlignSubscribe"
+    )
+    router.callback_query.register(
+        cancel, F.data.split("|")[0] == "SubscribePromoCancel"
+    )
+    router.callback_query.register(
+        back_to_method, F.data.split("|")[0] == "WaitSubscribePaymentBack"
+    )
     router.message.register(get_promo, Subscribe.input_promo, F.text)
     router.message.register(success, Subscribe.pay_stars, F.successful_payment)
     return router

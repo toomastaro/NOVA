@@ -7,7 +7,7 @@ from main_bot.database import Base
 
 
 class Channel(Base):
-    __tablename__ = 'channels'
+    __tablename__ = "channels"
 
     # Data
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)

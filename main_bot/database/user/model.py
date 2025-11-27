@@ -7,7 +7,7 @@ from main_bot.database import Base
 
 
 class User(Base):
-    __tablename__ = 'users'
+    __tablename__ = "users"
 
     # Data
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)

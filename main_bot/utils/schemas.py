@@ -1,5 +1,3 @@
-from typing import Optional, List
-
 from aiogram.types import InlineKeyboardMarkup, ReplyKeyboardMarkup
 from pydantic import BaseModel
 
@@ -9,24 +7,24 @@ class Media(BaseModel):
 
 
 class MessageOptions(BaseModel):
-    animation: Optional[Media | str] = None
-    video: Optional[Media | str] = None
-    photo: Optional[Media | str] = None
-    show_caption_above_media: Optional[bool] = None
-    caption: Optional[str] = None
-    text: Optional[str] = None
+    animation: Media | str | None = None
+    video: Media | str | None = None
+    photo: Media | str | None = None
+    show_caption_above_media: bool | None = None
+    caption: str | None = None
+    text: str | None = None
     has_spoiler: bool = False
     disable_web_page_preview: bool = True
     disable_notification: bool = False
 
 
 class StoryOptions(BaseModel):
-    video: Optional[Media | str] = None
-    photo: Optional[Media | str] = None
-    caption: Optional[str] = None
-    noforwards: Optional[bool] = False
-    pinned: Optional[bool] = False
-    period: Optional[int] = 86400
+    video: Media | str | None = None
+    photo: Media | str | None = None
+    caption: str | None = None
+    noforwards: bool | None = False
+    pinned: bool | None = False
+    period: int | None = 86400
 
 
 class HideRow(BaseModel):
@@ -37,38 +35,38 @@ class HideRow(BaseModel):
 
 
 class Hide(BaseModel):
-    hide: List[HideRow]
+    hide: list[HideRow]
 
 
 class ReactRowInner(BaseModel):
     id: int
     react: str
-    users: List[int]
+    users: list[int]
 
 
 class ReactRow(BaseModel):
     id: int
-    reactions: List[ReactRowInner]
+    reactions: list[ReactRowInner]
 
 
 class React(BaseModel):
-    rows: List[ReactRow]
+    rows: list[ReactRow]
 
 
 class MessageOptionsCaptcha(BaseModel):
-    animation: Optional[Media | str] = None
-    video: Optional[Media | str] = None
-    photo: Optional[Media | str] = None
-    caption: Optional[str] = None
-    text: Optional[str] = None
-    reply_markup: Optional[ReplyKeyboardMarkup] = None
-    resize_markup: Optional[bool] = True
+    animation: Media | str | None = None
+    video: Media | str | None = None
+    photo: Media | str | None = None
+    caption: str | None = None
+    text: str | None = None
+    reply_markup: ReplyKeyboardMarkup | None = None
+    resize_markup: bool | None = True
 
 
 class CaptchaObj(BaseModel):
     id: int
     channel_id: int
-    message: Optional[MessageOptionsCaptcha] = None
+    message: MessageOptionsCaptcha | None = None
     delay: int
 
     class Config:
@@ -76,18 +74,18 @@ class CaptchaObj(BaseModel):
 
 
 class MessageOptionsHello(BaseModel):
-    animation: Optional[Media | str] = None
-    video: Optional[Media | str] = None
-    photo: Optional[Media | str] = None
-    caption: Optional[str] = None
-    text: Optional[str] = None
-    reply_markup: Optional[InlineKeyboardMarkup] = None
+    animation: Media | str | None = None
+    video: Media | str | None = None
+    photo: Media | str | None = None
+    caption: str | None = None
+    text: str | None = None
+    reply_markup: InlineKeyboardMarkup | None = None
 
 
 class HelloAnswer(BaseModel):
     id: int
     channel_id: int
-    message: Optional[MessageOptionsHello] = None
+    message: MessageOptionsHello | None = None
     delay: int = 0
     text_with_name: bool = False
     is_active: bool = True
@@ -97,7 +95,7 @@ class HelloAnswer(BaseModel):
 
 
 class ByeAnswer(BaseModel):
-    message: Optional[MessageOptionsHello] = None
+    message: MessageOptionsHello | None = None
     active: bool = False
 
 

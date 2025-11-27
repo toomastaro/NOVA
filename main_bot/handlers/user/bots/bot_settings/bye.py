@@ -1,20 +1,25 @@
-from aiogram import types, F, Router
+from aiogram import F, Router, types
 from aiogram.fsm.context import FSMContext
 
 from hello_bot.database.db import Database
 from hello_bot.handlers.user.menu import show_bye
-from hello_bot.states.user import Bye
-from hello_bot.utils.lang.language import text
 from hello_bot.keyboards.keyboards import keyboards
-from hello_bot.utils.schemas import Media, MessageOptions, ByeAnswer
+from hello_bot.states.user import Bye
 from hello_bot.utils.functions import answer_message
+from hello_bot.utils.lang.language import text
+from hello_bot.utils.schemas import ByeAnswer, Media, MessageOptions
 from main_bot.database.channel_bot_settings.model import ChannelBotSetting
 from main_bot.database.db import db
 from main_bot.handlers.user.bots.bot_settings.menu import show_channel_setting
 
 
-async def choice(call: types.CallbackQuery, state: FSMContext, db_obj: Database, channel_settings: ChannelBotSetting):
-    temp = call.data.split('|')
+async def choice(
+    call: types.CallbackQuery,
+    state: FSMContext,
+    db_obj: Database,
+    channel_settings: ChannelBotSetting,
+):
+    temp = call.data.split("|")
     hello = ByeAnswer(**channel_settings.bye)
     data = await state.get_data()
 
@@ -29,9 +34,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext, db_obj: Database,
             if not hello.message:
                 await call.message.edit_text(
                     text("input_bye_message"),
-                    reply_markup=keyboards.back(
-                        data="AddByeBack"
-                    )
+                    reply_markup=keyboards.back(data="AddByeBack"),
                 )
                 return await state.set_state(Bye.message)
 
@@ -40,33 +43,28 @@ async def choice(call: types.CallbackQuery, state: FSMContext, db_obj: Database,
                 hello.active = False
 
         if hello.active and not hello.message:
-            return await call.answer(
-                text("error:bye:add_message")
-            )
+            return await call.answer(text("error:bye:add_message"))
 
         await db.update_channel_bot_setting(
-            chat_id=data.get("chat_id"),
-            bye=hello.model_dump()
+            chat_id=data.get("chat_id"), bye=hello.model_dump()
         )
-        setting = await db.get_channel_bot_setting(
-            chat_id=data.get("chat_id")
-        )
+        setting = await db.get_channel_bot_setting(chat_id=data.get("chat_id"))
 
         await call.message.delete()
         return await show_bye(call.message, setting)
 
     if temp[1] == "check":
         if not hello.message:
-            return await call.answer(
-                text("error:bye:add_message")
-            )
+            return await call.answer(text("error:bye:add_message"))
 
         await call.message.delete()
         await answer_message(call.message, hello.message)
         await show_bye(call.message, channel_settings)
 
 
-async def back(call: types.CallbackQuery, state: FSMContext, channel_settings: ChannelBotSetting):
+async def back(
+    call: types.CallbackQuery, state: FSMContext, channel_settings: ChannelBotSetting
+):
     data = await state.get_data()
     await state.clear()
     await state.update_data(**data)
@@ -75,12 +73,12 @@ async def back(call: types.CallbackQuery, state: FSMContext, channel_settings: C
     return await show_bye(call.message, channel_settings)
 
 
-async def get_message(message: types.Message, state: FSMContext, channel_settings: ChannelBotSetting):
+async def get_message(
+    message: types.Message, state: FSMContext, channel_settings: ChannelBotSetting
+):
     message_text_length = len(message.caption or message.text or "")
     if message_text_length > 1024:
-        return await message.answer(
-            text('error_length_text')
-        )
+        return await message.answer(text("error_length_text"))
 
     dump_message = message.model_dump()
     if dump_message.get("photo"):
@@ -98,12 +96,9 @@ async def get_message(message: types.Message, state: FSMContext, channel_setting
 
     data = await state.get_data()
     await db.update_channel_bot_setting(
-        chat_id=data.get("chat_id"),
-        bye=hello.model_dump()
+        chat_id=data.get("chat_id"), bye=hello.model_dump()
     )
-    setting = await db.get_channel_bot_setting(
-        chat_id=data.get("chat_id")
-    )
+    setting = await db.get_channel_bot_setting(chat_id=data.get("chat_id"))
 
     await state.clear()
     await state.update_data(**data)
@@ -116,6 +111,8 @@ def hand_add():
     router = Router()
     router.callback_query.register(choice, F.data.split("|")[0] == "ManageBye")
     router.callback_query.register(back, F.data.split("|")[0] == "AddByeBack")
-    router.message.register(get_message, Bye.message, F.text | F.photo | F.video | F.animation)
+    router.message.register(
+        get_message, Bye.message, F.text | F.photo | F.video | F.animation
+    )
 
     return router

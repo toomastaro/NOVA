@@ -9,10 +9,10 @@ from instance_bot import bot
 
 
 async def create_emoji(user_id: int, photo_bytes=None):
-    emoji_id = '5393222813345663485'
+    emoji_id = "5393222813345663485"
 
     if not photo_bytes:
-        photo_bytes = 'main_bot/utils/no_photo.jpg'
+        photo_bytes = "main_bot/utils/no_photo.jpg"
 
     try:
         with Image.open(photo_bytes) as img:
@@ -20,8 +20,7 @@ async def create_emoji(user_id: int, photo_bytes=None):
             mask = Image.new("L", new_image.size)
             draw = ImageDraw.Draw(mask)
             draw.ellipse(
-                xy=(4, 4, new_image.size[0] - 4, new_image.size[1] - 4),
-                fill=255
+                xy=(4, 4, new_image.size[0] - 4, new_image.size[1] - 4), fill=255
             )
             mask = mask.filter(ImageFilter.GaussianBlur(2))
 
@@ -30,24 +29,26 @@ async def create_emoji(user_id: int, photo_bytes=None):
             result.putalpha(mask)
             result.save(output_path)
 
-            set_id = ''.join(random.sample(string.ascii_letters, k=10)) + '_by_' + (await bot.get_me()).username
+            set_id = (
+                "".join(random.sample(string.ascii_letters, k=10))
+                + "_by_"
+                + (await bot.get_me()).username
+            )
 
         try:
             await bot.create_new_sticker_set(
                 user_id=user_id,
                 name=set_id,
-                title='NovaTGEmoji',
+                title="NovaTGEmoji",
                 stickers=[
                     types.InputSticker(
-                        sticker=types.FSInputFile(
-                            path=output_path
-                        ),
-                        format='static',
-                        emoji_list=['🤩']
+                        sticker=types.FSInputFile(path=output_path),
+                        format="static",
+                        emoji_list=["🤩"],
                     )
                 ],
-                sticker_format='static',
-                sticker_type='custom_emoji'
+                sticker_format="static",
+                sticker_type="custom_emoji",
             )
             r = await bot.get_sticker_set(set_id)
             await bot.session.close()

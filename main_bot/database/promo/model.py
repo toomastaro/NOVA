@@ -4,7 +4,7 @@ from main_bot.database import Base
 
 
 class Promo(Base):
-    __tablename__ = 'promo'
+    __tablename__ = "promo"
 
     # Data
     name: Mapped[str] = mapped_column(primary_key=True)

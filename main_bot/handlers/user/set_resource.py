@@ -1,4 +1,4 @@
-from aiogram import types, F, Router
+from aiogram import F, Router, types
 from aiogram.enums import ChatMemberStatus
 
 from main_bot.database.db import db
@@ -19,7 +19,7 @@ async def set_admins(call: types.ChatMemberUpdated, chat_id: int, emoji_id: str)
                 admin.can_delete_messages,
                 admin.can_post_stories,
                 admin.can_edit_stories,
-                admin.can_delete_stories
+                admin.can_delete_stories,
             }
             if False in rights:
                 continue
@@ -28,15 +28,13 @@ async def set_admins(call: types.ChatMemberUpdated, chat_id: int, emoji_id: str)
             chat_id=chat_id,
             title=call.chat.title,
             admin_id=admin.user.id,
-            emoji_id=emoji_id
+            emoji_id=emoji_id,
         )
 
 
 async def set_channel(call: types.ChatMemberUpdated):
     chat_id = call.chat.id
-    channel = await db.get_channel_by_chat_id(
-        chat_id=chat_id
-    )
+    channel = await db.get_channel_by_chat_id(chat_id=chat_id)
 
     if call.new_chat_member.status == ChatMemberStatus.ADMINISTRATOR:
         if channel:
@@ -51,30 +49,21 @@ async def set_channel(call: types.ChatMemberUpdated):
         emoji_id = await create_emoji(call.from_user.id, photo_bytes)
         await set_admins(call, chat_id, emoji_id)
 
-        message_text = text('success_add_channel').format(
-            emoji_id,
-            call.chat.title
-        )
+        message_text = text("success_add_channel").format(emoji_id, call.chat.title)
     else:
         if not channel:
             return
 
-        await db.delete_channel(
-            chat_id=chat_id
-        )
+        await db.delete_channel(chat_id=chat_id)
 
-        message_text = text('success_delete_channel').format(
-            channel.emoji_id,
-            channel.title
+        message_text = text("success_delete_channel").format(
+            channel.emoji_id, channel.title
         )
 
     if call.from_user.is_bot:
         return
 
-    await call.bot.send_message(
-        chat_id=call.from_user.id,
-        text=message_text
-    )
+    await call.bot.send_message(chat_id=call.from_user.id, text=message_text)
 
 
 async def set_admin(call: types.ChatMemberUpdated):
@@ -83,10 +72,7 @@ async def set_admin(call: types.ChatMemberUpdated):
 
     chat_id = call.chat.id
     if call.new_chat_member.status == ChatMemberStatus.MEMBER:
-        await db.delete_channel(
-            chat_id=chat_id,
-            user_id=call.new_chat_member.user.id
-        )
+        await db.delete_channel(chat_id=chat_id, user_id=call.new_chat_member.user.id)
 
     if call.new_chat_member.status == ChatMemberStatus.ADMINISTRATOR:
         admin = call.new_chat_member
@@ -96,13 +82,10 @@ async def set_admin(call: types.ChatMemberUpdated):
             admin.can_delete_messages,
             admin.can_post_stories,
             admin.can_edit_stories,
-            admin.can_delete_stories
+            admin.can_delete_stories,
         }
         if False in rights:
-            return await db.delete_channel(
-                chat_id=chat_id,
-                user_id=admin.user.id
-            )
+            return await db.delete_channel(chat_id=chat_id, user_id=admin.user.id)
 
         channel = await db.get_channel_by_chat_id(chat_id)
         await db.add_channel(
@@ -112,20 +95,20 @@ async def set_admin(call: types.ChatMemberUpdated):
             subscribe=channel.subscribe,
             session_path=channel.session_path,
             emoji_id=channel.emoji_id,
-            created_timestamp=channel.created_timestamp
+            created_timestamp=channel.created_timestamp,
         )
 
 
 async def set_active(call: types.ChatMemberUpdated):
     await db.update_user(
         user_id=call.from_user.id,
-        is_active=call.new_chat_member.status != ChatMemberStatus.KICKED
+        is_active=call.new_chat_member.status != ChatMemberStatus.KICKED,
     )
 
 
 def hand_add():
     router = Router()
-    router.my_chat_member.register(set_channel, F.chat.type == 'channel')
-    router.my_chat_member.register(set_active, F.chat.type == 'private')
-    router.chat_member.register(set_admin, F.chat.type == 'channel')
+    router.my_chat_member.register(set_channel, F.chat.type == "channel")
+    router.my_chat_member.register(set_active, F.chat.type == "private")
+    router.chat_member.register(set_admin, F.chat.type == "channel")
     return router

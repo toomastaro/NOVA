@@ -1,16 +1,16 @@
 import asyncio
 from datetime import datetime
 
-from aiogram import types, F, Router
+from aiogram import F, Router, types
 from aiogram.fsm.context import FSMContext
 
 from hello_bot.database.db import Database
 from main_bot.database.user_bot.model import UserBot
 from main_bot.handlers.user.bots.bot_settings.menu import show_channel_setting
+from main_bot.keyboards.keyboards import keyboards
 from main_bot.states.user import Cleaner
 from main_bot.utils.bot_manager import BotManager
 from main_bot.utils.lang.language import text
-from main_bot.keyboards.keyboards import keyboards
 
 
 async def choice(call: types.CallbackQuery, state: FSMContext, db_obj: Database):
@@ -20,16 +20,12 @@ async def choice(call: types.CallbackQuery, state: FSMContext, db_obj: Database)
         await call.message.delete()
         return await show_channel_setting(call.message, db_obj, state)
 
-    await state.update_data(
-        cleaner_type=temp[1]
-    )
+    await state.update_data(cleaner_type=temp[1])
 
     await call.message.delete()
     await call.message.answer(
         text("input_period_clean"),
-        reply_markup=keyboards.back(
-            data="InputCleanerPeriod"
-        )
+        reply_markup=keyboards.back(data="InputCleanerPeriod"),
     )
     await state.set_state(Cleaner.period)
 
@@ -42,8 +38,7 @@ async def back(call: types.CallbackQuery, state: FSMContext):
 
     await call.message.delete()
     await call.message.answer(
-        text("cleaner"),
-        reply_markup=keyboards.choice_cleaner_type()
+        text("cleaner"), reply_markup=keyboards.choice_cleaner_type()
     )
 
 
@@ -66,7 +61,7 @@ async def start_clean(user_bot: UserBot, cleaner_type: str, users, chat_id: int)
 
 async def get_period(message: types.Message, state: FSMContext, db_obj: Database):
     try:
-        start, end = message.text.split('-')
+        start, end = message.text.split("-")
         start_date = datetime.strptime(start.strip(), "%d.%m.%Y %H:%M")
         end_date = datetime.strptime(end.strip(), "%d.%m.%Y %H:%M")
     except ValueError:
@@ -77,15 +72,12 @@ async def get_period(message: types.Message, state: FSMContext, db_obj: Database
         chat_id=data.get("chat_id"),
         start_time=start_date.timestamp(),
         end_time=end_date.timestamp(),
-        participant=data.get("cleaner_type") == "ban"
+        participant=data.get("cleaner_type") == "ban",
     )
 
     asyncio.create_task(
         start_clean(
-            data.get("user_bot"),
-            data.get("cleaner_type"),
-            users,
-            data.get("chat_id")
+            data.get("user_bot"), data.get("cleaner_type"), users, data.get("chat_id")
         )
     )
 

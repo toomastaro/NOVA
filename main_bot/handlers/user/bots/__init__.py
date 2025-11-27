@@ -1,8 +1,10 @@
 from aiogram import Router
 
 from utils.middleware import SetCrudMain
-from . import menu, settings, create_post, content
-from .bot_settings import application, hello, bye, menu as hmenu, captcha, cloner, cleaner
+
+from . import content, create_post, menu, settings
+from .bot_settings import application, bye, captcha, cleaner, cloner, hello
+from .bot_settings import menu as hmenu
 
 
 def get_router():
@@ -11,7 +13,6 @@ def get_router():
         settings.hand_add(),
         create_post.hand_add(),
         content.hand_add(),
-
         application.hand_add(),
         hello.hand_add(),
         captcha.hand_add(),
@@ -21,7 +22,7 @@ def get_router():
         hmenu.hand_add(),
     ]
 
-    router = Router(name='Bots')
+    router = Router(name="Bots")
     router.include_routers(*routers)
     router.message.middleware(SetCrudMain())
     router.callback_query.middleware(SetCrudMain())

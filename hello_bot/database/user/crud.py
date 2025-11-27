@@ -1,33 +1,33 @@
-from datetime import timedelta, datetime
+from datetime import datetime, timedelta
 
-from sqlalchemy import select, insert, update, func, and_
+from sqlalchemy import and_, func, insert, select, update
 from sqlalchemy.dialects.postgresql import insert as p_insert
 
-from utils.database_mixin import DatabaseMixin
 from hello_bot.database.user.model import User
+from utils.database_mixin import DatabaseMixin
 
 
 class UserCrud(DatabaseMixin):
     async def get_dump_users(self):
-        return await self.fetch(
-            select(User)
-        )
+        return await self.fetch(select(User))
 
     async def get_users(self, chat_id: int):
         return await self.fetch(
             select(User.id).where(
                 User.is_active.is_(True),
                 User.walk_captcha.is_(True),
-                User.channel_id == chat_id
+                User.channel_id == chat_id,
             )
         )
 
-    async def get_time_users(self, chat_id: int, start_time, end_time, participant: bool = True):
+    async def get_time_users(
+        self, chat_id: int, start_time, end_time, participant: bool = True
+    ):
         stmt = select(User).where(
             User.channel_id == chat_id,
             User.created_timestamp > start_time,
             User.created_timestamp < end_time,
-            User.is_approved.is_(participant)
+            User.is_approved.is_(participant),
         )
 
         return await self.fetch(stmt)
@@ -41,19 +41,36 @@ class UserCrud(DatabaseMixin):
 
         stmt = select(
             func.count(User.id).label("total_users"),
-            func.count().filter(
+            func.count()
+            .filter(
                 User.is_active.is_(True),
                 User.walk_captcha.is_(True),
-            ).label("active_users"),
-            func.count().filter(
-                and_(User.walk_captcha.is_(True), User.time_walk_captcha >= start_day.timestamp())
-            ).label("day_walks"),
-            func.count().filter(
-                and_(User.walk_captcha.is_(True), User.time_walk_captcha >= start_week.timestamp())
-            ).label("week_walks"),
-            func.count().filter(
-                and_(User.walk_captcha.is_(True), User.time_walk_captcha >= start_month.timestamp())
-            ).label("month_walks"),
+            )
+            .label("active_users"),
+            func.count()
+            .filter(
+                and_(
+                    User.walk_captcha.is_(True),
+                    User.time_walk_captcha >= start_day.timestamp(),
+                )
+            )
+            .label("day_walks"),
+            func.count()
+            .filter(
+                and_(
+                    User.walk_captcha.is_(True),
+                    User.time_walk_captcha >= start_week.timestamp(),
+                )
+            )
+            .label("week_walks"),
+            func.count()
+            .filter(
+                and_(
+                    User.walk_captcha.is_(True),
+                    User.time_walk_captcha >= start_month.timestamp(),
+                )
+            )
+            .label("month_walks"),
         )
 
         if chat_id:
@@ -80,19 +97,23 @@ class UserCrud(DatabaseMixin):
         end_day = now.replace(hour=23, minute=59, second=0, microsecond=0)
 
         stmt = select(
-            func.count().filter(
+            func.count()
+            .filter(
                 and_(
                     User.created_timestamp > start_day.timestamp(),
                     User.created_timestamp < end_day.timestamp(),
                 ),
-            ).label("give_captcha"),
-            func.count().filter(
+            )
+            .label("give_captcha"),
+            func.count()
+            .filter(
                 and_(
                     User.created_timestamp > start_day.timestamp(),
                     User.created_timestamp < end_day.timestamp(),
                 ),
-                User.time_walk_captcha.is_not(None)
-            ).label("walk_captcha")
+                User.time_walk_captcha.is_not(None),
+            )
+            .label("walk_captcha"),
         ).where(User.channel_id == chat_id)
 
         result = await self.fetchone(stmt)
@@ -111,12 +132,17 @@ class UserCrud(DatabaseMixin):
     async def get_count_not_approve_users(self, chat_id: int):
         return await self.fetchrow(
             select(func.count(User.id)).where(
-                User.channel_id == chat_id,
-                User.is_approved.is_(False)
+                User.channel_id == chat_id, User.is_approved.is_(False)
             )
         )
 
-    async def get_not_approve_users_by_chat_id(self, chat_id: int, get_url: bool = False, limit: int = None, invite_url: str = None):
+    async def get_not_approve_users_by_chat_id(
+        self,
+        chat_id: int,
+        get_url: bool = False,
+        limit: int = None,
+        invite_url: str = None,
+    ):
         stmt = select(User).where(User.channel_id == chat_id)
 
         if invite_url:
@@ -131,25 +157,19 @@ class UserCrud(DatabaseMixin):
             select(User.invite_url).where(
                 User.invite_url.is_not(None),
                 User.channel_id == chat_id,
-                User.is_approved.is_(False)
+                User.is_approved.is_(False),
             )
         )
 
     async def get_user(self, user_id: int) -> User:
-        return await self.fetchrow(
-            select(User).where(
-                User.id == user_id
-            )
-        )
+        return await self.fetchrow(select(User).where(User.id == user_id))
 
     async def add_user(self, **kwargs):
-        await self.execute(
-            insert(User).values(
-                **kwargs
-            )
-        )
+        await self.execute(insert(User).values(**kwargs))
 
-    async def update_user(self, user_id: int, return_obj: bool = False, **kwargs) -> User | None:
+    async def update_user(
+        self, user_id: int, return_obj: bool = False, **kwargs
+    ) -> User | None:
         stmt = update(User).where(User.id == user_id).values(**kwargs)
 
         if return_obj:
@@ -158,12 +178,8 @@ class UserCrud(DatabaseMixin):
         else:
             operation = self.execute
 
-        return await operation(stmt, **{'commit': return_obj} if return_obj else {})
+        return await operation(stmt, **{"commit": return_obj} if return_obj else {})
 
     async def many_insert_user(self, users: list[dict]):
         stmt = p_insert(User).values(users)
-        await self.execute(
-            stmt.on_conflict_do_nothing(
-                index_elements=['id']
-            )
-        )
+        await self.execute(stmt.on_conflict_do_nothing(index_elements=["id"]))

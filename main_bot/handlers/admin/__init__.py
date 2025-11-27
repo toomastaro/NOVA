@@ -1,6 +1,6 @@
 from aiogram import Router
 
-from . import start, promo, session
+from . import promo, session, start
 
 
 def get_router():
@@ -10,7 +10,7 @@ def get_router():
         session.hand_add(),
     ]
 
-    router = Router(name='Admin')
+    router = Router(name="Admin")
     router.include_routers(*routers)
 
     return router

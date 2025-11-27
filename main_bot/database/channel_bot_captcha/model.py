@@ -5,7 +5,7 @@ from main_bot.database import Base
 
 
 class ChannelCaptcha(Base):
-    __tablename__ = 'channel_captcha'
+    __tablename__ = "channel_captcha"
 
     # Data
     id: Mapped[int] = mapped_column(autoincrement=True, primary_key=True)

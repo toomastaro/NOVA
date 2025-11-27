@@ -5,7 +5,7 @@ from main_bot.database import Base
 
 
 class ChannelHelloMessage(Base):
-    __tablename__ = 'channel_hello_messages'
+    __tablename__ = "channel_hello_messages"
 
     # Data
     id: Mapped[int] = mapped_column(primary_key=True)

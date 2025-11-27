@@ -4,7 +4,6 @@ Run this to test the exchange rate fetching without the bot
 """
 
 import asyncio
-import sys
 import json
 from datetime import datetime
 
@@ -107,7 +106,12 @@ async def main():
     print("\n")
     print("╔" + "=" * 68 + "╗")
     print("║" + " " * 15 + "Exchange Rates Test Suite" + " " * 29 + "║")
-    print("║" + f" Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}" + " " * 33 + "║")
+    print(
+        "║"
+        + f" Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+        + " " * 33
+        + "║"
+    )
     print("╚" + "=" * 68 + "╝")
 
     # Run tests

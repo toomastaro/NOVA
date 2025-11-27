@@ -7,8 +7,8 @@ from pathlib import Path
 from aiogram import Bot, types
 from httpx import AsyncClient
 
-from instance_bot import bot
 from hello_bot.database.db import Database
+from instance_bot import bot
 from main_bot.database.bot_post.model import BotPost
 from main_bot.database.db import db
 from main_bot.database.post.model import Post
@@ -17,9 +17,9 @@ from main_bot.database.types import Status
 from main_bot.database.user_bot.model import UserBot
 from main_bot.keyboards.keyboards import keyboards
 from main_bot.utils.bot_manager import BotManager
-from main_bot.utils.functions import set_channel_session, get_path, get_path_video
+from main_bot.utils.functions import get_path, get_path_video, set_channel_session
 from main_bot.utils.lang.language import text
-from main_bot.utils.schemas import MessageOptions, StoryOptions, MessageOptionsHello
+from main_bot.utils.schemas import MessageOptions, MessageOptionsHello, StoryOptions
 from main_bot.utils.session_manager import SessionManager
 
 
@@ -72,14 +72,11 @@ async def send(post: Post):
         if not channel.subscribe:
             continue
 
-        options['chat_id'] = chat_id
+        options["chat_id"] = chat_id
 
         try:
             post_message = await cor(
-                **options,
-                reply_markup=keyboards.post_kb(
-                    post=post
-                )
+                **options, reply_markup=keyboards.post_kb(post=post)
             )
             await asyncio.sleep(0.25)
         except Exception as e:
@@ -101,46 +98,40 @@ async def send(post: Post):
                 "hide": post.hide or None,
                 "buttons": post.buttons or None,
                 "unpin_time": post.pin_time + current_time if post.pin_time else None,
-                "delete_time": post.delete_time + current_time if post.delete_time else None,
+                "delete_time": post.delete_time + current_time
+                if post.delete_time
+                else None,
                 "report": post.report,
-                "cpm_price": post.cpm_price
+                "cpm_price": post.cpm_price,
             }
         )
 
     if success_send:
-        await db.add_many_published_post(
-            posts=success_send
-        )
+        await db.add_many_published_post(posts=success_send)
 
-    await db.clear_posts(
-        post_ids=[post.id]
-    )
+    await db.clear_posts(post_ids=[post.id])
 
     if not post.report:
         return
 
     objects = await db.get_user_channels(
-        user_id=post.admin_id,
-        from_array=post.chat_ids
+        user_id=post.admin_id, from_array=post.chat_ids
     )
     success_str = "\n".join(
-        text("resource_title").format(
-            obj.emoji_id,
-            obj.title
-        ) for obj in objects
+        text("resource_title").format(obj.emoji_id, obj.title)
+        for obj in objects
         if obj.chat_id in [i.get("chat_id") for i in success_send[:10]]
     )
     error_str = "\n".join(
-        text("resource_title").format(
-            obj.emoji_id,
-            obj.title
-        ) + " \n{}".format(
+        text("resource_title").format(obj.emoji_id, obj.title)
+        + " \n{}".format(
             "".join(
                 row.get("error")
                 for row in error_send[:10]
                 if row.get("chat_id") == obj.chat_id
             )
-        ) for obj in objects
+        )
+        for obj in objects
         if obj.chat_id in [i.get("chat_id") for i in error_send[:10]]
     )
 
@@ -161,10 +152,7 @@ async def send(post: Post):
         message_text = "Unknown Post Notification Message"
 
     try:
-        await bot.send_message(
-            chat_id=post.admin_id,
-            text=message_text
-        )
+        await bot.send_message(chat_id=post.admin_id, text=message_text)
     except Exception as e:
         print(e)
 
@@ -182,8 +170,7 @@ async def unpin_posts():
     for post in posts:
         try:
             await bot.unpin_chat_message(
-                chat_id=post.chat_id,
-                message_id=post.message_id
+                chat_id=post.chat_id, message_id=post.message_id
             )
         except Exception as e:
             print(e)
@@ -217,12 +204,14 @@ async def delete_posts():
             posts[post.post_id] = []
 
         messages = posts[post.post_id]
-        messages.append({
-            "channel": channel,
-            "views": sum([i.views for i in views.views]) if views else 0,
-            "admin_id": post.admin_id,
-            "cpm_price": post.cpm_price
-        })
+        messages.append(
+            {
+                "channel": channel,
+                "views": sum([i.views for i in views.views]) if views else 0,
+                "admin_id": post.admin_id,
+                "cpm_price": post.cpm_price,
+            }
+        )
         posts[post.post_id] = messages
 
         try:
@@ -234,10 +223,8 @@ async def delete_posts():
                 await bot.send_message(
                     chat_id=post.admin_id,
                     text=text("error:post:delete").format(
-                        post.message_id,
-                        channel.emoji_id,
-                        channel.title
-                    )
+                        post.message_id, channel.emoji_id, channel.title
+                    ),
                 )
             except Exception as e:
                 print(e)
@@ -249,15 +236,16 @@ async def delete_posts():
         if not cpm_price:
             continue
 
-        async with AsyncClient() as client:
-            res = await client.get('https://api.coinbase.com/v2/prices/USD-RUB/spot')
-            usd_rate = float(res.json().get('data').get('amount'))
+        async with AsyncClient(timeout=10.0) as client:
+            res = await client.get("https://api.coinbase.com/v2/prices/USD-RUB/spot")
+            usd_rate = float(res.json().get("data").get("amount"))
 
         admin_id = message_objects[0]["admin_id"]
         total_views = sum(obj["views"] for obj in message_objects)
         rub_price = round(float(cpm_price * float(total_views / 1000)), 2)
         channels_text = "\n".join(
-            text("resource_title").format(obj["channel"].emoji_id, obj["channel"].title) + f" - 👀 {obj['views']}"
+            text("resource_title").format(obj["channel"].emoji_id, obj["channel"].title)
+            + f" - 👀 {obj['views']}"
             for obj in message_objects
         )
 
@@ -272,14 +260,12 @@ async def delete_posts():
                     rub_price,
                     round(rub_price / usd_rate, 2),
                     round(usd_rate, 2),
-                )
+                ),
             )
         except Exception as e:
             print(e)
 
-    await db.delete_published_posts(
-        row_ids=row_ids
-    )
+    await db.delete_published_posts(row_ids=row_ids)
 
 
 async def send_story(story: Story):
@@ -305,7 +291,7 @@ async def send_story(story: Story):
 
         print(session_path)
         if isinstance(session_path, dict):
-            session_path['chat_id'] = chat_id
+            session_path["chat_id"] = chat_id
             error_send.append(session_path)
             continue
 
@@ -313,22 +299,18 @@ async def send_story(story: Story):
         await manager.init_client()
 
         if not manager.client:
-            await db.update_channel_by_chat_id(
-                chat_id=chat_id,
-                session_path=None
-            )
+            await db.update_channel_by_chat_id(chat_id=chat_id, session_path=None)
             error_send.append({"chat_id": chat_id, "error": "Session Error"})
             continue
 
         input_file = None
         if options.video:
             input_file = "main_bot/utils/temp/{}".format(
-                (await bot.get_file(options.video)).file_path.split('/')[-1]
+                (await bot.get_file(options.video)).file_path.split("/")[-1]
             )
 
         media_bytes = await bot.download(
-            file=options.video or options.photo,
-            destination=input_file
+            file=options.video or options.photo, destination=input_file
         )
 
         if options.photo:
@@ -339,16 +321,12 @@ async def send_story(story: Story):
         if options.caption:
             caption = options.caption
             options.caption = caption.replace(
-                '<tg-emoji emoji-id', '<emoji id'
-            ).replace(
-                '</tg-emoji>', '</emoji>'
-            )
+                "<tg-emoji emoji-id", "<emoji id"
+            ).replace("</tg-emoji>", "</emoji>")
 
         try:
             await manager.send_story(
-                chat_id=chat_id,
-                filepath=filepath,
-                options=options
+                chat_id=chat_id, filepath=filepath, options=options
             )
             success_send.append({"chat_id": chat_id})
         except Exception as e:
@@ -360,35 +338,29 @@ async def send_story(story: Story):
             except Exception as e:
                 print(e)
 
-    await db.clear_story(
-        post_ids=[story.id]
-    )
+    await db.clear_story(post_ids=[story.id])
 
     if not story.report:
         return
 
     objects = await db.get_user_channels(
-        user_id=story.admin_id,
-        from_array=story.chat_ids
+        user_id=story.admin_id, from_array=story.chat_ids
     )
     success_str = "\n".join(
-        text("resource_title").format(
-            obj.emoji_id,
-            obj.title
-        ) for obj in objects
+        text("resource_title").format(obj.emoji_id, obj.title)
+        for obj in objects
         if obj.chat_id in [i.get("chat_id") for i in success_send[:10]]
     )
     error_str = "\n".join(
-        text("resource_title").format(
-            obj.emoji_id,
-            obj.title
-        ) + " \n{}".format(
+        text("resource_title").format(obj.emoji_id, obj.title)
+        + " \n{}".format(
             "".join(
                 row.get("error")
                 for row in error_send[:10]
                 if row.get("chat_id") == obj.chat_id
             )
-        ) for obj in objects
+        )
+        for obj in objects
         if obj.chat_id in [i.get("chat_id") for i in error_send[:10]]
     )
 
@@ -409,10 +381,7 @@ async def send_story(story: Story):
         message_text = "Unknown Story Notification Message"
 
     try:
-        await bot.send_message(
-            chat_id=story.admin_id,
-            text=message_text
-        )
+        await bot.send_message(chat_id=story.admin_id, text=message_text)
     except Exception as e:
         print(e)
 
@@ -453,7 +422,9 @@ async def start_delete_bot_posts():
 
         for bot_id in list(messages.keys()):
             user_bot = await db.get_bot_by_id(int(bot_id))
-            asyncio.create_task(delete_bot_posts(user_bot, messages[bot_id]["message_ids"]))
+            asyncio.create_task(
+                delete_bot_posts(user_bot, messages[bot_id]["message_ids"])
+            )
 
 
 async def send_bot_messages(other_bot: Bot, bot_post: BotPost, users, filepath):
@@ -537,10 +508,7 @@ async def process_bot(user_bot: UserBot, bot_post: BotPost, users, filepath):
             raise Exception("STATUS")
 
         return await send_bot_messages(
-            other_bot=bot_manager.bot,
-            bot_post=bot_post,
-            users=users,
-            filepath=filepath
+            other_bot=bot_manager.bot, bot_post=bot_post, users=users, filepath=filepath
         )
 
 
@@ -555,8 +523,12 @@ async def send_bot_post(bot_post: BotPost):
     message_options = MessageOptionsHello(**bot_post.message)
     attrs = ["photo", "video", "animation"]
     file_id = next(
-        (getattr(message_options, attr).file_id for attr in attrs if getattr(message_options, attr)),
-        None
+        (
+            getattr(message_options, attr).file_id
+            for attr in attrs
+            if getattr(message_options, attr)
+        ),
+        None,
     )
 
     filepath = None
@@ -574,12 +546,8 @@ async def send_bot_post(bot_post: BotPost):
         if not channel.subscribe:
             continue
 
-        channel_settings = await db.get_channel_bot_setting(
-            chat_id=channel.chat_id
-        )
-        user_bot = await db.get_bot_by_id(
-            row_id=channel_settings.bot_id
-        )
+        channel_settings = await db.get_channel_bot_setting(chat_id=channel.chat_id)
+        user_bot = await db.get_bot_by_id(row_id=channel_settings.bot_id)
 
         other_db = Database()
         other_db.schema = user_bot.schema
@@ -587,9 +555,7 @@ async def send_bot_post(bot_post: BotPost):
         users = await other_db.get_users(channel.chat_id)
         users_count += len(users)
 
-        tasks.append(
-            process_semaphore(user_bot, bot_post, users, filepath)
-        )
+        tasks.append(process_semaphore(user_bot, bot_post, users, filepath))
         user_bot_objects.append(channel)
 
     success_count = 0
@@ -621,8 +587,10 @@ async def send_bot_post(bot_post: BotPost):
         message_text = message_options.text or message_options.caption
 
         if message_text:
-            message_text = message_text.replace('tg-emoji emoji-id', '').replace('</tg-emoji>', '')
-            message_text = re.sub(r'<[^>]+>', '', message_text)
+            message_text = message_text.replace("tg-emoji emoji-id", "").replace(
+                "</tg-emoji>", ""
+            )
+            message_text = re.sub(r"<[^>]+>", "", message_text)
         else:
             message_text = "Медиа"
 
@@ -633,13 +601,11 @@ async def send_bot_post(bot_post: BotPost):
                     message_text,
                     len(bot_post.chat_ids),
                     "\n".join(
-                        text("resource_title").format(
-                            obj.emoji_id,
-                            obj.title
-                        ) for obj in user_bot_objects[:10]
+                        text("resource_title").format(obj.emoji_id, obj.title)
+                        for obj in user_bot_objects[:10]
                     ),
-                    success_count
-                )
+                    success_count,
+                ),
             )
         except Exception as e:
             print(e)
@@ -651,7 +617,7 @@ async def send_bot_post(bot_post: BotPost):
         start_timestamp=start_timestamp,
         end_timestamp=end_timestamp,
         status=Status.FINISH,
-        message_ids=message_ids or None
+        message_ids=message_ids or None,
     )
 
 
@@ -693,10 +659,10 @@ async def check_subscriptions():
                 continue
 
             if status == "expired":
-                msg = text(f"expire_off_sub").format(channel.emoji_id, channel.title)
+                msg = text("expire_off_sub").format(channel.emoji_id, channel.title)
                 await db.update_channel_by_id(channel.id, **{field: None})
             else:
-                msg = text(f"expire_sub").format(
+                msg = text("expire_sub").format(
                     channel.emoji_id,
                     channel.title,
                     days,

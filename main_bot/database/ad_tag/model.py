@@ -4,7 +4,7 @@ from main_bot.database import Base
 
 
 class AdTag(Base):
-    __tablename__ = 'ad_tags'
+    __tablename__ = "ad_tags"
 
     # Data
     name: Mapped[str] = mapped_column(primary_key=True)

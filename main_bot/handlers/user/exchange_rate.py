@@ -1,17 +1,16 @@
-from aiogram import types, F, Router
+from aiogram import F, Router, types
 from aiogram.fsm.context import FSMContext
-from datetime import datetime
 
 from main_bot.database.db import db
-from main_bot.database.user.model import User
 from main_bot.keyboards.keyboards import keyboards
 from main_bot.states.user import ExchangeRate
-from main_bot.utils.exchange_rates import get_exchange_rates_from_json, format_exchange_rate_from_db
 from main_bot.utils.lang.language import text
 from main_bot.utils.schedulers import update_exchange_rates_in_db
 
 
-async def _get_and_format_exchange_rate(user_id: int, state: FSMContext) -> tuple[dict | None, str | None]:
+async def _get_and_format_exchange_rate(
+    user_id: int, state: FSMContext
+) -> tuple[dict | None, str | None]:
     """
     Helper function to fetch and format exchange rate data.
     Returns tuple of (rate_data, formatted_text)
@@ -43,7 +42,7 @@ async def start_exchange_rate(message: types.Message, state: FSMContext):
     loading_msg = await message.answer(
         "⏳ Fetching exchange rates from multiple sources...",
         parse_mode="HTML",
-        reply_markup=keyboards.set_exchange_rate()
+        reply_markup=keyboards.set_exchange_rate(),
     )
 
     default_rate, formatted = await _get_and_format_exchange_rate(
@@ -52,9 +51,7 @@ async def start_exchange_rate(message: types.Message, state: FSMContext):
 
     if default_rate and formatted:
         await loading_msg.edit_text(
-            formatted,
-            parse_mode="HTML",
-            reply_markup=keyboards.set_exchange_rate()
+            formatted, parse_mode="HTML", reply_markup=keyboards.set_exchange_rate()
         )
 
 
@@ -63,7 +60,9 @@ async def settings_of_exchange_rate(call: types.CallbackQuery, state: FSMContext
     data = await state.get_data()
     await call.message.answer(
         text=text("exchange_rate:start_exchange_rate:settings"),
-        reply_markup=keyboards.choose_exchange_rate(data["all_rates"], chosen_exchange_rate_id=data["exchange_rate"].id)
+        reply_markup=keyboards.choose_exchange_rate(
+            data["all_rates"], chosen_exchange_rate_id=data["exchange_rate"].id
+        ),
     )
 
 
@@ -74,11 +73,13 @@ async def choice_of_exchange_resources(call: types.CallbackQuery, state: FSMCont
     await db.update_user(
         user_id=int(call.from_user.id),
         return_obj=False,
-        default_exchange_rate_id=int(exchange_rate_id)
+        default_exchange_rate_id=int(exchange_rate_id),
     )
 
-    await call.message.edit_reply_markup(reply_markup=keyboards.choose_exchange_rate(
-        data["all_rates"], chosen_exchange_rate_id=int(exchange_rate_id))
+    await call.message.edit_reply_markup(
+        reply_markup=keyboards.choose_exchange_rate(
+            data["all_rates"], chosen_exchange_rate_id=int(exchange_rate_id)
+        )
     )
 
 
@@ -88,7 +89,7 @@ async def back_to_start_exchange_rate(call: types.CallbackQuery, state: FSMConte
     loading_msg = await call.message.answer(
         "⏳ Fetching exchange rates from multiple sources...",
         parse_mode="HTML",
-        reply_markup=keyboards.set_exchange_rate()
+        reply_markup=keyboards.set_exchange_rate(),
     )
 
     default_rate, formatted = await _get_and_format_exchange_rate(
@@ -96,15 +97,13 @@ async def back_to_start_exchange_rate(call: types.CallbackQuery, state: FSMConte
     )
 
     await loading_msg.edit_text(
-        formatted,
-        parse_mode="HTML",
-        reply_markup=keyboards.set_exchange_rate()
+        formatted, parse_mode="HTML", reply_markup=keyboards.set_exchange_rate()
     )
 
 
 async def get_exchange_rate_of_custom_amount(message: types.Message, state: FSMContext):
     data = await state.get_data()
-    exchange_rate = data['exchange_rate'].rate
+    exchange_rate = data["exchange_rate"].rate
     amount = message.text
     if amount.replace(".", "").isdigit():
         msg_text = text("exchange_rate:start_exchange_rate:calculate_sum").format(
@@ -113,21 +112,27 @@ async def get_exchange_rate_of_custom_amount(message: types.Message, state: FSMC
             float(amount) / float(exchange_rate),
             float(amount),
             float(exchange_rate) * float(amount),
-            data['exchange_rate'].last_update.strftime("%H:%M %d.%m.%Y")
+            data["exchange_rate"].last_update.strftime("%H:%M %d.%m.%Y"),
         )
         await message.answer(msg_text, reply_markup=keyboards.menu())
 
 
 def hand_add():
     router = Router()
-    router.callback_query.register(back_to_start_exchange_rate,
-                                   F.data == "MenuExchangeRate|settings|back")
+    router.callback_query.register(
+        back_to_start_exchange_rate, F.data == "MenuExchangeRate|settings|back"
+    )
 
-    router.callback_query.register(choice_of_exchange_resources,
-                                    F.data.split("choose_exchange_rate")[0] == "MenuExchangeRate|settings|")
+    router.callback_query.register(
+        choice_of_exchange_resources,
+        F.data.split("choose_exchange_rate")[0] == "MenuExchangeRate|settings|",
+    )
 
-    router.callback_query.register(settings_of_exchange_rate,
-                                   F.data == "MenuExchangeRate|settings")
+    router.callback_query.register(
+        settings_of_exchange_rate, F.data == "MenuExchangeRate|settings"
+    )
 
-    router.message.register(get_exchange_rate_of_custom_amount, ExchangeRate.input_custom_amount, F.text)
+    router.message.register(
+        get_exchange_rate_of_custom_amount, ExchangeRate.input_custom_amount, F.text
+    )
     return router

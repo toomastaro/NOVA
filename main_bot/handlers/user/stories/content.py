@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 
-from aiogram import types, F, Router
+from aiogram import F, Router, types
 from aiogram.fsm.context import FSMContext
 
 from main_bot.database.channel.model import Channel
@@ -13,18 +13,17 @@ from main_bot.utils.lang.language import text
 
 
 async def choice_channel(call: types.CallbackQuery, state: FSMContext):
-    temp = call.data.split('|')
+    temp = call.data.split("|")
 
     if temp[1] in ["next", "back"]:
         channels = await db.get_user_channels(
-            user_id=call.from_user.id,
-            sort_by="stories"
+            user_id=call.from_user.id, sort_by="stories"
         )
         return await call.message.edit_reply_markup(
             reply_markup=keyboards.choice_object_content(
                 channels=channels,
                 remover=int(temp[2]),
-                data="ChoiceObjectContentStories"
+                data="ChoiceObjectContentStories",
             )
         )
 
@@ -37,13 +36,14 @@ async def choice_channel(call: types.CallbackQuery, state: FSMContext):
 
     day = datetime.today()
     posts = await db.get_stories(channel.chat_id, day)
-    day_values = (day.day, text("month").get(str(day.month)), day.year,)
+    day_values = (
+        day.day,
+        text("month").get(str(day.month)),
+        day.year,
+    )
 
     await state.update_data(
-        channel=channel,
-        day=day,
-        day_values=day_values,
-        show_more=False
+        channel=channel, day=day, day_values=day_values, show_more=False
     )
 
     await call.message.delete()
@@ -52,13 +52,13 @@ async def choice_channel(call: types.CallbackQuery, state: FSMContext):
             *day_values,
             channel.emoji_id,
             channel.title,
-            text("no_content:story") if not posts else text("has_content:story").format(len(posts))
+            text("no_content:story")
+            if not posts
+            else text("has_content:story").format(len(posts)),
         ),
         reply_markup=keyboards.choice_row_content(
-            posts=posts,
-            day=day,
-            data="ContentStories"
-        )
+            posts=posts, day=day, data="ContentStories"
+        ),
     )
 
 
@@ -66,7 +66,7 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
     temp = call.data.split("|")
     data = await state.get_data()
     if not data:
-        await call.answer(text('keys_data_error'))
+        await call.answer(text("keys_data_error"))
         return await call.message.delete()
 
     if temp[1] == "cancel":
@@ -77,36 +77,42 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
     show_more: bool = data.get("show_more")
     day: datetime = data.get("day")
 
-    if temp[1] in ['next_day', 'next_month', 'back_day', 'back_month', "choice_day", "show_more"]:
+    if temp[1] in [
+        "next_day",
+        "next_month",
+        "back_day",
+        "back_month",
+        "choice_day",
+        "show_more",
+    ]:
         if temp[1] == "choice_day":
-            day = datetime.strptime(temp[2], '%Y-%m-%d')
+            day = datetime.strptime(temp[2], "%Y-%m-%d")
         elif temp[1] == "show_more":
             show_more = not show_more
         else:
             day = day - timedelta(days=int(temp[2]))
 
         posts = await db.get_stories(channel.chat_id, day)
-        day_values = (day.day, text("month").get(str(day.month)), day.year,)
-
-        await state.update_data(
-            day=day,
-            day_values=day_values,
-            show_more=show_more
+        day_values = (
+            day.day,
+            text("month").get(str(day.month)),
+            day.year,
         )
+
+        await state.update_data(day=day, day_values=day_values, show_more=show_more)
 
         return await call.message.edit_text(
             text("channel:content").format(
                 *day_values,
                 channel.emoji_id,
                 channel.title,
-                text("no_content:story") if not posts else text("has_content:story").format(len(posts))
+                text("no_content:story")
+                if not posts
+                else text("has_content:story").format(len(posts)),
             ),
             reply_markup=keyboards.choice_row_content(
-                posts=posts,
-                day=day,
-                show_more=show_more,
-                data="ContentStories"
-            )
+                posts=posts, day=day, show_more=show_more, data="ContentStories"
+            ),
         )
 
     if temp[1] == "show_all":
@@ -115,12 +121,13 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
             text("channel:show_all:content").format(
                 channel.emoji_id,
                 channel.title,
-                text("no_content:story") if not posts else text("has_content:story").format(len(posts))
+                text("no_content:story")
+                if not posts
+                else text("has_content:story").format(len(posts)),
             ),
             reply_markup=keyboards.choice_time_objects(
-                objects=posts,
-                data="ChoiceTimeObjectContentStories"
-            )
+                objects=posts, data="ChoiceTimeObjectContentStories"
+            ),
         )
 
     if temp[1] == "...":
@@ -129,12 +136,12 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
     post_id = int(temp[1])
     post = await db.get_story(post_id)
     send_date = datetime.fromtimestamp(post.send_time)
-    send_date_values = (send_date.day, text("month").get(str(send_date.month)), send_date.year,)
-    await state.update_data(
-        post=post,
-        send_date_values=send_date_values,
-        is_edit=True
+    send_date_values = (
+        send_date.day,
+        text("month").get(str(send_date.month)),
+        send_date.year,
     )
+    await state.update_data(post=post, send_date_values=send_date_values, is_edit=True)
 
     post_message = await answer_story(call.message, state, from_edit=True)
     await state.update_data(
@@ -144,13 +151,9 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
     await call.message.delete()
     await call.message.answer(
         text("story:content").format(
-            *send_date_values,
-            channel.emoji_id,
-            channel.title
+            *send_date_values, channel.emoji_id, channel.title
         ),
-        reply_markup=keyboards.manage_remain_story(
-            post=post
-        )
+        reply_markup=keyboards.manage_remain_story(post=post),
     )
 
 
@@ -158,7 +161,7 @@ async def choice_time_objects(call: types.CallbackQuery, state: FSMContext):
     temp = call.data.split("|")
     data = await state.get_data()
     if not data:
-        await call.answer(text('keys_data_error'))
+        await call.answer(text("keys_data_error"))
         return await call.message.delete()
 
     channel: Channel = data.get("channel")
@@ -169,7 +172,7 @@ async def choice_time_objects(call: types.CallbackQuery, state: FSMContext):
             reply_markup=keyboards.choice_time_objects(
                 objects=posts,
                 remover=int(temp[2]),
-                data="ChoiceTimeObjectContentStories"
+                data="ChoiceTimeObjectContentStories",
             )
         )
 
@@ -183,26 +186,25 @@ async def choice_time_objects(call: types.CallbackQuery, state: FSMContext):
                 *data.get("day_values"),
                 channel.emoji_id,
                 channel.title,
-                text("no_content:story") if not posts else text("has_content:story").format(len(posts))
+                text("no_content:story")
+                if not posts
+                else text("has_content:story").format(len(posts)),
             ),
             reply_markup=keyboards.choice_row_content(
-                posts=posts,
-                day=day,
-                show_more=show_more,
-                data="ContentStories"
-            )
+                posts=posts, day=day, show_more=show_more, data="ContentStories"
+            ),
         )
 
 
 async def manage_remain_post(call: types.CallbackQuery, state: FSMContext):
-    temp = call.data.split('|')
+    temp = call.data.split("|")
     data = await state.get_data()
     if not data:
-        await call.answer(text('keys_data_error'))
+        await call.answer(text("keys_data_error"))
         return await call.message.delete()
 
     if temp[1] == "cancel":
-        day = data.get('day')
+        day = data.get("day")
         posts = await db.get_stories(data.get("channel").chat_id, day)
 
         await data.get("post_message").delete()
@@ -211,13 +213,13 @@ async def manage_remain_post(call: types.CallbackQuery, state: FSMContext):
                 *data.get("day_values"),
                 data.get("channel").emoji_id,
                 data.get("channel").title,
-                text("no_content:story") if not posts else text("has_content:story").format(len(posts))
+                text("no_content:story")
+                if not posts
+                else text("has_content:story").format(len(posts)),
             ),
             reply_markup=keyboards.choice_row_content(
-                posts=posts,
-                day=day,
-                data="ContentStories"
-            )
+                posts=posts, day=day, data="ContentStories"
+            ),
         )
 
     if temp[1] == "delete":
@@ -225,15 +227,14 @@ async def manage_remain_post(call: types.CallbackQuery, state: FSMContext):
             text("accept:delete:story"),
             reply_markup=keyboards.accept_delete_row_content(
                 data="AcceptDeleteStories"
-            )
+            ),
         )
 
     if temp[1] == "change":
         await call.message.delete()
         await data.get("post_message").edit_reply_markup(
             reply_markup=keyboards.manage_story(
-                post=data.get('post'),
-                is_edit=data.get('is_edit')
+                post=data.get("post"), is_edit=data.get("is_edit")
             )
         )
 
@@ -242,7 +243,7 @@ async def accept_delete_row_content(call: types.CallbackQuery, state: FSMContext
     temp = call.data.split("|")
     data = await state.get_data()
     if not data:
-        await call.answer(text('keys_data_error'))
+        await call.answer(text("keys_data_error"))
         return await call.message.delete()
 
     day = data.get("day")
@@ -254,13 +255,9 @@ async def accept_delete_row_content(call: types.CallbackQuery, state: FSMContext
     if temp[1] == "cancel":
         return await call.message.edit_text(
             text("story:content").format(
-                *send_date_values,
-                channel.emoji_id,
-                channel.title
+                *send_date_values, channel.emoji_id, channel.title
             ),
-            reply_markup=keyboards.manage_remain_story(
-                post=post
-            )
+            reply_markup=keyboards.manage_remain_story(post=post),
         )
 
     if temp[1] == "accept":
@@ -273,21 +270,31 @@ async def accept_delete_row_content(call: types.CallbackQuery, state: FSMContext
                 *day_values,
                 channel.emoji_id,
                 channel.title,
-                text("no_content:story") if not posts else text("has_content:story").format(len(posts))
+                text("no_content:story")
+                if not posts
+                else text("has_content:story").format(len(posts)),
             ),
             reply_markup=keyboards.choice_row_content(
-                posts=posts,
-                day=day,
-                data="ContentStories"
-            )
+                posts=posts, day=day, data="ContentStories"
+            ),
         )
 
 
 def hand_add():
     router = Router()
-    router.callback_query.register(choice_channel, F.data.split("|")[0] == "ChoiceObjectContentStories")
-    router.callback_query.register(choice_row_content, F.data.split("|")[0] == "ContentStories")
-    router.callback_query.register(choice_time_objects, F.data.split("|")[0] == "ChoiceTimeObjectContentStories")
-    router.callback_query.register(manage_remain_post, F.data.split("|")[0] == "ManageRemainStories")
-    router.callback_query.register(accept_delete_row_content, F.data.split("|")[0] == "AcceptDeleteStories")
+    router.callback_query.register(
+        choice_channel, F.data.split("|")[0] == "ChoiceObjectContentStories"
+    )
+    router.callback_query.register(
+        choice_row_content, F.data.split("|")[0] == "ContentStories"
+    )
+    router.callback_query.register(
+        choice_time_objects, F.data.split("|")[0] == "ChoiceTimeObjectContentStories"
+    )
+    router.callback_query.register(
+        manage_remain_post, F.data.split("|")[0] == "ManageRemainStories"
+    )
+    router.callback_query.register(
+        accept_delete_row_content, F.data.split("|")[0] == "AcceptDeleteStories"
+    )
     return router

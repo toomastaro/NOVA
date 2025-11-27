@@ -1,8 +1,8 @@
 import os
 from pathlib import Path
 
+from aiogram import F, Router, types
 from aiogram.fsm.context import FSMContext
-from aiogram import types, Router, F
 
 from main_bot.keyboards.keyboards import keyboards
 from main_bot.states.admin import Session
@@ -12,22 +12,17 @@ apps = {}
 
 
 async def choice(call: types.CallbackQuery, state: FSMContext):
-    temp = call.data.split('|')
+    temp = call.data.split("|")
 
-    if temp[1] == 'add':
+    if temp[1] == "add":
         await call.message.edit_text(
-            'Отправьте цифры сессии: ',
-            reply_markup=keyboards.back(
-                data="AdminSessionNumberBack"
-            )
+            "Отправьте цифры сессии: ",
+            reply_markup=keyboards.back(data="AdminSessionNumberBack"),
         )
         return await state.set_state(Session.phone)
 
-    if temp[1] == 'cancel':
-        await call.message.edit_text(
-            'Админ меню',
-            reply_markup=keyboards.admin()
-        )
+    if temp[1] == "cancel":
+        await call.message.edit_text("Админ меню", reply_markup=keyboards.admin())
 
 
 async def admin_session_back(call: types.CallbackQuery, state: FSMContext):
@@ -46,14 +41,13 @@ async def admin_session_back(call: types.CallbackQuery, state: FSMContext):
 
     await call.message.delete()
     await call.message.answer(
-        "Доступно сессий: {}".format(session_count),
-        reply_markup=keyboards.admin_sessions()
+        f"Доступно сессий: {session_count}", reply_markup=keyboards.admin_sessions()
     )
 
 
 async def get_number(message: types.Message, state: FSMContext):
     number = message.text
-    session_path = Path("main_bot/utils/sessions/{}.session".format(number))
+    session_path = Path(f"main_bot/utils/sessions/{number}.session")
     manager = SessionManager(session_path)
     await manager.init_client()
 
@@ -69,10 +63,8 @@ async def get_number(message: types.Message, state: FSMContext):
         await manager.close()
         os.remove(session_path)
         return await message.answer(
-            '❌ Неверный номер',
-            reply_markup=keyboards.cancel(
-                data="AdminSessionNumberBack"
-            )
+            "❌ Неверный номер",
+            reply_markup=keyboards.cancel(data="AdminSessionNumberBack"),
         )
 
     await state.update_data(
@@ -82,9 +74,7 @@ async def get_number(message: types.Message, state: FSMContext):
 
     await message.answer(
         "Дай цифры с уведомления:",
-        reply_markup=keyboards.cancel(
-            data="AdminSessionNumberBack"
-        )
+        reply_markup=keyboards.cancel(data="AdminSessionNumberBack"),
     )
     await state.set_state(Session.code)
 
@@ -96,11 +86,7 @@ async def get_code(message: types.Message, state: FSMContext):
     app: SessionManager = apps[number]
 
     try:
-        await app.client.sign_in(
-            number,
-            message.text,
-            phone_code_hash=hash_code
-        )
+        await app.client.sign_in(number, message.text, phone_code_hash=hash_code)
         await app.close()
 
     except Exception as e:
@@ -111,24 +97,23 @@ async def get_code(message: types.Message, state: FSMContext):
 
         await state.clear()
         return await message.answer(
-            '❌ Неверный код',
-            reply_markup=keyboards.cancel(
-                data="AdminSessionNumberBack"
-            )
+            "❌ Неверный код",
+            reply_markup=keyboards.cancel(data="AdminSessionNumberBack"),
         )
 
     await state.clear()
     session_count = len(os.listdir("main_bot/utils/sessions/"))
     await message.answer(
-        "Доступно сессий: {}".format(session_count),
-        reply_markup=keyboards.admin_sessions()
+        f"Доступно сессий: {session_count}", reply_markup=keyboards.admin_sessions()
     )
 
 
 def hand_add():
     router = Router()
-    router.callback_query.register(choice, F.data.split('|')[0] == "AdminSession")
-    router.callback_query.register(admin_session_back, F.data.split('|')[0] == "AdminSessionNumberBack")
+    router.callback_query.register(choice, F.data.split("|")[0] == "AdminSession")
+    router.callback_query.register(
+        admin_session_back, F.data.split("|")[0] == "AdminSessionNumberBack"
+    )
     router.message.register(get_number, Session.phone, F.text)
     router.message.register(get_code, Session.code, F.text)
     return router

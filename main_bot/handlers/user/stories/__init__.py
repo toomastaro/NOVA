@@ -1,5 +1,6 @@
 from aiogram import Router
-from . import menu, channels, create_post, content
+
+from . import channels, content, create_post, menu
 
 
 def get_router():
@@ -10,7 +11,7 @@ def get_router():
         content.hand_add(),
     ]
 
-    router = Router(name='Stories')
+    router = Router(name="Stories")
     router.include_routers(*routers)
 
     return router

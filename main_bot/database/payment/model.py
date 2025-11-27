@@ -8,7 +8,7 @@ from main_bot.database.types import PaymentMethod
 
 
 class Payment(Base):
-    __tablename__ = 'payments'
+    __tablename__ = "payments"
 
     # Data
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)

@@ -8,7 +8,7 @@ from main_bot.database.types import PaymentMethod, Service
 
 
 class Purchase(Base):
-    __tablename__ = 'purchases'
+    __tablename__ = "purchases"
 
     # Data
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)

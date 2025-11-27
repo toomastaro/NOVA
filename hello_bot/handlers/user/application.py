@@ -1,23 +1,21 @@
-from aiogram import types, F, Router
+from aiogram import F, Router, types
 from aiogram.fsm.context import FSMContext
-
 
 from hello_bot.database.db import Database
 from hello_bot.handlers.user.menu import show_application
+from hello_bot.keyboards.keyboards import keyboards
 from hello_bot.states.user import Application
 from hello_bot.utils.lang.language import text
-from hello_bot.keyboards.keyboards import keyboards
 from hello_bot.utils.schemas import Protect
 
 
 async def choice(call: types.CallbackQuery, state: FSMContext, db: Database, settings):
-    temp = call.data.split('|')
+    temp = call.data.split("|")
     protect = Protect(**settings.protect)
 
     if temp[1] == "cancel":
         return await call.message.edit_text(
-            text("start_text"),
-            reply_markup=keyboards.menu()
+            text("start_text"), reply_markup=keyboards.menu()
         )
 
     if temp[1] in ["protect_arab", "protect_china", "auto_approve"]:
@@ -31,7 +29,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext, db: Database, set
         settings = await db.update_setting(
             return_obj=True,
             protect=protect.model_dump(),
-            auto_approve=settings.auto_approve
+            auto_approve=settings.auto_approve,
         )
 
         await call.message.delete()
@@ -40,9 +38,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext, db: Database, set
     if temp[1] == "delay_approve":
         await call.message.edit_text(
             text("input_delay_approve"),
-            reply_markup=keyboards.back(
-                data="AddDelayBack"
-            )
+            reply_markup=keyboards.back(data="AddDelayBack"),
         )
         await state.set_state(Application.delay)
 
@@ -57,14 +53,9 @@ async def get_message(message: types.Message, state: FSMContext, db: Database):
     try:
         delay = int(message.text)
     except ValueError:
-        return await message.answer(
-            text('error_input')
-        )
+        return await message.answer(text("error_input"))
 
-    settings = await db.update_setting(
-        return_obj=True,
-        delay_approve=delay
-    )
+    settings = await db.update_setting(return_obj=True, delay_approve=delay)
 
     await state.clear()
     await show_application(message, settings)

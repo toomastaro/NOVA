@@ -1,8 +1,8 @@
 from aiogram import Bot
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
-from aiogram.utils.token import validate_token, TokenValidationError
 from aiogram.exceptions import TelegramUnauthorizedError
+from aiogram.utils.token import TokenValidationError, validate_token
 
 from config import Config
 
@@ -24,9 +24,7 @@ class BotManager:
         if not self.bot:
             self.bot = Bot(
                 token=self.token,
-                default=DefaultBotProperties(
-                    parse_mode=ParseMode.HTML
-                )
+                default=DefaultBotProperties(parse_mode=ParseMode.HTML),
             )
 
     async def close(self):
@@ -73,7 +71,7 @@ class BotManager:
                         "chat_member",
                         "my_chat_member",
                         "chat_join_request",
-                    ]
+                    ],
                 )
                 return result
             return True

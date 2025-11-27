@@ -2,7 +2,7 @@ import asyncio
 import random
 import time
 
-from aiogram import types, Router, F
+from aiogram import F, Router, types
 from aiogram.fsm.context import FSMContext
 from aiogram.types import LabeledPrice
 
@@ -18,35 +18,28 @@ from main_bot.utils.payments.crypto_bot import crypto_bot
 
 
 async def choice(call: types.CallbackQuery, state: FSMContext, user: User):
-    temp = call.data.split('|')
+    temp = call.data.split("|")
     data = await state.get_data()
 
     if not data:
-        await call.answer(text('keys_data_error'))
+        await call.answer(text("keys_data_error"))
         return await call.message.delete()
 
     await call.message.delete()
 
-    if temp[1] == 'back':
+    if temp[1] == "back":
         return await show_balance(call.message, user)
 
-    if temp[1] == 'promo':
+    if temp[1] == "promo":
         await call.message.answer(
-            text('input_promo'),
-            reply_markup=keyboards.cancel(
-                data='BalanceAmountCancel'
-            )
+            text("input_promo"),
+            reply_markup=keyboards.cancel(data="BalanceAmountCancel"),
         )
         return await state.set_state(Balance.input_promo)
 
-    await state.update_data(
-        method=temp[1]
-    )
+    await state.update_data(method=temp[1])
     await call.message.answer(
-        text('input_amount'),
-        reply_markup=keyboards.cancel(
-            data='BalanceAmountCancel'
-        )
+        text("input_amount"), reply_markup=keyboards.cancel(data="BalanceAmountCancel")
     )
     await state.set_state(Balance.input_amount)
 
@@ -66,34 +59,21 @@ async def get_promo(message: types.Message, state: FSMContext, user: User):
     promo = await db.get_promo(name)
     if not promo:
         return await message.answer(
-            text('error_promo'),
-            reply_markup=keyboards.cancel(
-                data='BalanceAmountCancel'
-            )
+            text("error_promo"),
+            reply_markup=keyboards.cancel(data="BalanceAmountCancel"),
         )
     if not promo.amount:
         return await message.answer(
-            text('error_type_promo'),
-            reply_markup=keyboards.cancel(
-                data='BalanceAmountCancel'
-            )
+            text("error_type_promo"),
+            reply_markup=keyboards.cancel(data="BalanceAmountCancel"),
         )
 
     await db.use_promo(promo)
-    await db.update_user(
-        user_id=user.id,
-        balance=user.balance + promo.amount
-    )
-    user = await db.get_user(
-        user_id=user.id
-    )
+    await db.update_user(user_id=user.id, balance=user.balance + promo.amount)
+    user = await db.get_user(user_id=user.id)
 
     await state.clear()
-    await message.answer(
-        text('success_use_balance_promo').format(
-            promo.amount
-        )
-    )
+    await message.answer(text("success_use_balance_promo").format(promo.amount))
     await show_balance(message, user)
 
 
@@ -102,33 +82,28 @@ async def get_amount(message: types.Message, state: FSMContext):
         amount = int(message.text)
     except ValueError:
         return await message.answer(
-            text('error_input'),
-            reply_markup=keyboards.cancel(
-                data='BalanceAmountCancel'
-            )
+            text("error_input"),
+            reply_markup=keyboards.cancel(data="BalanceAmountCancel"),
         )
     if amount < 10:
         return await message.answer(
-            text('error_min_amount'),
-            reply_markup=keyboards.cancel(
-                data='BalanceAmountCancel'
-            )
+            text("error_min_amount"),
+            reply_markup=keyboards.cancel(data="BalanceAmountCancel"),
         )
 
     data = await state.get_data()
     await state.clear()
 
-    method = data.get('method')
-    method_name = text('payment:method:{}'.format(method))
+    method = data.get("method")
+    method_name = text(f"payment:method:{method}")
     method = method.upper()
 
     if method == PaymentMethod.CRYPTO_BOT:
         result = await crypto_bot.create_invoice(
-            amount=round(amount * 1.03, 2),
-            asset='USDT'
+            amount=round(amount * 1.03, 2), asset="USDT"
         )
-        pay_url = result.get('url')
-        order_id = result.get('invoice_id')
+        pay_url = result.get("url")
+        order_id = result.get("invoice_id")
 
     # stars
     else:
@@ -136,32 +111,25 @@ async def get_amount(message: types.Message, state: FSMContext):
         prices = [LabeledPrice(label="XTR", amount=stars_amount)]
         order_id = str(random.randint(1, 999))
         pay_url = await message.bot.create_invoice_link(
-            title='Stars NovaTg',
-            description='Пополнение баланса',
+            title="Stars NovaTg",
+            description="Пополнение баланса",
             prices=prices,
-            provider_token='',
+            provider_token="",
             payload=order_id,
-            currency='XTR'
+            currency="XTR",
         )
 
     if not pay_url:
         return await message.answer(
-            text('payment_method_not_available'),
-            reply_markup=keyboards.back(
-                data='BalanceAmountCancel'
-            )
+            text("payment_method_not_available"),
+            reply_markup=keyboards.back(data="BalanceAmountCancel"),
         )
 
     wait_msg = await message.answer(
-        text('wait_payment').format(
-            amount,
-            method_name,
-            amount
-        ),
+        text("wait_payment").format(amount, method_name, amount),
         reply_markup=keyboards.wait_payment(
-            data="WaitBalancePaymentBack",
-            pay_url=pay_url
-        )
+            data="WaitBalancePaymentBack", pay_url=pay_url
+        ),
     )
 
     end_time = time.time() + 3600
@@ -175,33 +143,19 @@ async def get_amount(message: types.Message, state: FSMContext):
 
         if method == PaymentMethod.STARS:
             await state.update_data(
-                amount=amount,
-                payment_to='balance',
-                stars_payment=True
+                amount=amount, payment_to="balance", stars_payment=True
             )
             await state.set_state(Balance.pay_stars)
             return
 
-        user = await db.get_user(
-            user_id=message.from_user.id
-        )
+        user = await db.get_user(user_id=message.from_user.id)
         user = await db.update_user(
-            user_id=user.id,
-            return_obj=True,
-            balance=user.balance + amount
+            user_id=user.id, return_obj=True, balance=user.balance + amount
         )
-        await db.add_payment(
-            user_id=user.id,
-            amount=amount,
-            method=method
-        )
+        await db.add_payment(user_id=user.id, amount=amount, method=method)
 
         await wait_msg.delete()
-        await message.answer(
-            text('success_payment').format(
-                amount
-            )
-        )
+        await message.answer(text("success_payment").format(amount))
         await show_balance(message, user)
         return
 
@@ -212,47 +166,38 @@ async def process_pre_checkout_query(call: types.PreCheckoutQuery):
 
 async def success(message: types.Message, state: FSMContext):
     await message.bot.refund_star_payment(
-        message.from_user.id,
-        message.successful_payment.telegram_payment_charge_id
+        message.from_user.id, message.successful_payment.telegram_payment_charge_id
     )
 
     data = await state.get_data()
 
-    if not data.get('stars_payment'):
+    if not data.get("stars_payment"):
         return
-    if data.get('payment_to') != 'balance':
+    if data.get("payment_to") != "balance":
         return
 
-    amount = data.get('amount')
+    amount = data.get("amount")
     method = PaymentMethod.STARS
 
-    user = await db.get_user(
-        user_id=message.from_user.id
-    )
+    user = await db.get_user(user_id=message.from_user.id)
     user = await db.update_user(
-        user_id=user.id,
-        return_obj=True,
-        balance=user.balance + amount
+        user_id=user.id, return_obj=True, balance=user.balance + amount
     )
-    await db.add_payment(
-        user_id=user.id,
-        amount=amount,
-        method=method
-    )
+    await db.add_payment(user_id=user.id, amount=amount, method=method)
 
     await state.clear()
-    await message.answer(
-        text('success_payment').format(
-            amount
-        )
-    )
+    await message.answer(text("success_payment").format(amount))
     await show_balance(message, user)
 
 
 def hand_add():
     router = Router()
-    router.callback_query.register(choice, F.data.split("|")[0] == "ChoicePaymentMethod")
-    router.callback_query.register(cancel, F.data.split("|")[0] == "BalanceAmountCancel")
+    router.callback_query.register(
+        choice, F.data.split("|")[0] == "ChoicePaymentMethod"
+    )
+    router.callback_query.register(
+        cancel, F.data.split("|")[0] == "BalanceAmountCancel"
+    )
     router.message.register(get_promo, Balance.input_promo, F.text)
     router.message.register(get_amount, Balance.input_amount, F.text)
     router.pre_checkout_query.register(process_pre_checkout_query)

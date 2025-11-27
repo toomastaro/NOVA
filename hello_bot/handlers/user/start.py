@@ -1,19 +1,18 @@
 import asyncio
 import time
 
-from aiogram import types, Router, F, Bot
+from aiogram import Bot, F, Router, types
 from aiogram.enums import ChatMemberStatus
 
-from instance_bot import bot as main_bot_obj
 from hello_bot.database.db import Database
 from hello_bot.utils.lang.language import text
-
+from instance_bot import bot as main_bot_obj
 from main_bot.database.channel_bot_captcha.model import ChannelCaptcha
 from main_bot.database.channel_bot_hello.model import ChannelHelloMessage
-from main_bot.utils.functions import answer_message_bot
-from main_bot.utils.schemas import MessageOptionsCaptcha, MessageOptionsHello, ByeAnswer
-from main_bot.database.user_bot.model import UserBot
 from main_bot.database.db import db as main_db
+from main_bot.database.user_bot.model import UserBot
+from main_bot.utils.functions import answer_message_bot
+from main_bot.utils.schemas import ByeAnswer, MessageOptionsCaptcha, MessageOptionsHello
 from utils.functions import create_emoji
 
 
@@ -23,13 +22,13 @@ async def msg_handler(message: types.Message, db: Database):
         await db.add_user(
             id=message.from_user.id,
             walk_captcha=True,
-            time_walk_captcha=int(time.time())
+            time_walk_captcha=int(time.time()),
         )
     else:
         await db.update_user(
             user_id=message.from_user.id,
             walk_captcha=True,
-            time_walk_captcha=int(time.time())
+            time_walk_captcha=int(time.time()),
         )
 
     await message.delete()
@@ -37,7 +36,9 @@ async def msg_handler(message: types.Message, db: Database):
     await r.delete()
 
 
-async def send_captcha(user_bot, user_id: int, db_obj: Database, captcha: ChannelCaptcha):
+async def send_captcha(
+    user_bot, user_id: int, db_obj: Database, captcha: ChannelCaptcha
+):
     if captcha.delay:
         while True:
             user = await db_obj.get_user(user_id)
@@ -45,13 +46,19 @@ async def send_captcha(user_bot, user_id: int, db_obj: Database, captcha: Channe
             if not user or user.walk_captcha:
                 return
 
-            await answer_message_bot(user_bot, user_id, MessageOptionsCaptcha(**captcha.message))
+            await answer_message_bot(
+                user_bot, user_id, MessageOptionsCaptcha(**captcha.message)
+            )
             await asyncio.sleep(captcha.delay)  # type: ignore
 
-    await answer_message_bot(user_bot, user_id, MessageOptionsCaptcha(**captcha.message))
+    await answer_message_bot(
+        user_bot, user_id, MessageOptionsCaptcha(**captcha.message)
+    )
 
 
-async def send_hello(user_bot: Bot, user_id: int, db_obj: Database, hello_message: ChannelHelloMessage):
+async def send_hello(
+    user_bot: Bot, user_id: int, db_obj: Database, hello_message: ChannelHelloMessage
+):
     message_options = MessageOptionsHello(**hello_message.message)
 
     if hello_message.text_with_name:
@@ -89,14 +96,10 @@ async def join(call: types.ChatJoinRequest, db: Database):
     user = await db.get_user(call.from_user.id)
     if not user:
         await db.add_user(
-            id=call.from_user.id,
-            channel_id=chat_id,
-            invite_url=invite_url
+            id=call.from_user.id, channel_id=chat_id, invite_url=invite_url
         )
 
-    channel_settings = await main_db.get_channel_bot_setting(
-        chat_id=chat_id
-    )
+    channel_settings = await main_db.get_channel_bot_setting(chat_id=chat_id)
     if not channel_settings:
         return
 
@@ -134,13 +137,12 @@ async def join(call: types.ChatJoinRequest, db: Database):
                         user_bot=call.bot,
                         user_id=call.from_user.id,
                         db_obj=db,
-                        captcha=captcha
+                        captcha=captcha,
                     )
                 )
 
     active_hello_messages = await main_db.get_hello_messages(
-        chat_id=chat_id,
-        active=True
+        chat_id=chat_id, active=True
     )
     print(active_hello_messages)
 
@@ -152,7 +154,7 @@ async def join(call: types.ChatJoinRequest, db: Database):
                         user_bot=call.bot,
                         user_id=call.from_user.id,
                         db_obj=db,
-                        hello_message=hello_message
+                        hello_message=hello_message,
                     )
                 )
 
@@ -175,7 +177,7 @@ async def join(call: types.ChatJoinRequest, db: Database):
             await db.update_user(
                 user_id=call.from_user.id,
                 is_approved=True,
-                time_approved=int(time.time())
+                time_approved=int(time.time()),
             )
         except Exception as e:
             print(e)
@@ -187,9 +189,7 @@ async def leave(call: types.ChatMemberUpdated, db: Database):
     if call.new_chat_member.status != ChatMemberStatus.LEFT:
         return
 
-    settings = await main_db.get_channel_bot_setting(
-        chat_id=call.chat.id
-    )
+    settings = await main_db.get_channel_bot_setting(chat_id=call.chat.id)
     if not settings:
         return
 
@@ -207,15 +207,15 @@ async def leave(call: types.ChatMemberUpdated, db: Database):
 async def set_channel(call: types.ChatMemberUpdated, db_bot: UserBot):
     chat_id = call.chat.id
 
-    channel = await main_db.get_channel_by_chat_id(
-        chat_id=chat_id
-    )
+    channel = await main_db.get_channel_by_chat_id(chat_id=chat_id)
     if not channel:
         return
 
     exist = await main_db.get_channel_bot_setting(chat_id)
 
-    if call.new_chat_member.status == ChatMemberStatus.ADMINISTRATOR and (not exist or not exist.bot_id):
+    if call.new_chat_member.status == ChatMemberStatus.ADMINISTRATOR and (
+        not exist or not exist.bot_id
+    ):
         chat = await call.bot.get_chat(chat_id)
         if chat.photo:
             photo_bytes = await call.bot.download(chat.photo.big_file_id)
@@ -229,7 +229,7 @@ async def set_channel(call: types.ChatMemberUpdated, db_bot: UserBot):
                 id=chat_id,
                 bot_id=db_bot.id,
                 admin_id=db_bot.admin_id,
-                bye=ByeAnswer().model_dump()
+                bye=ByeAnswer().model_dump(),
             )
         else:
             await main_db.update_channel_bot_setting(
@@ -238,30 +238,18 @@ async def set_channel(call: types.ChatMemberUpdated, db_bot: UserBot):
                 admin_id=db_bot.admin_id,
             )
 
-        message_text = text('success_add_channel').format(
-            db_bot.emoji_id,
-            db_bot.title,
-            emoji_id,
-            call.chat.title
+        message_text = text("success_add_channel").format(
+            db_bot.emoji_id, db_bot.title, emoji_id, call.chat.title
         )
     else:
-        await main_db.update_channel_bot_setting(
-            chat_id=chat_id,
-            bot_id=None
-        )
+        await main_db.update_channel_bot_setting(chat_id=chat_id, bot_id=None)
 
-        message_text = text('success_delete_channel').format(
-            db_bot.emoji_id,
-            db_bot.title,
-            channel.emoji_id,
-            channel.title
+        message_text = text("success_delete_channel").format(
+            db_bot.emoji_id, db_bot.title, channel.emoji_id, channel.title
         )
 
     try:
-        await main_bot_obj.send_message(
-            chat_id=call.from_user.id,
-            text=message_text
-        )
+        await main_bot_obj.send_message(chat_id=call.from_user.id, text=message_text)
     except Exception as e:
         print(e)
 
@@ -269,7 +257,7 @@ async def set_channel(call: types.ChatMemberUpdated, db_bot: UserBot):
 async def set_active(call: types.ChatMemberUpdated, db: Database):
     await db.update_user(
         user_id=call.from_user.id,
-        is_active=call.new_chat_member.status != ChatMemberStatus.KICKED
+        is_active=call.new_chat_member.status != ChatMemberStatus.KICKED,
     )
 
 
@@ -279,7 +267,7 @@ def hand_add():
 
     router.chat_join_request.register(join)
     router.chat_member.register(leave, F.chat.type == "channel")
-    router.my_chat_member.register(set_channel, F.chat.type == 'channel')
-    router.my_chat_member.register(set_active, F.chat.type == 'private')
+    router.my_chat_member.register(set_channel, F.chat.type == "channel")
+    router.my_chat_member.register(set_active, F.chat.type == "private")
 
     return router

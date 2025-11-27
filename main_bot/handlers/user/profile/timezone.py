@@ -1,4 +1,4 @@
-from aiogram import types, Router, F
+from aiogram import F, Router, types
 from aiogram.fsm.context import FSMContext
 
 from main_bot.database.db import db
@@ -19,16 +19,11 @@ async def get_timezone(message: types.Message, state: FSMContext):
 
     except ValueError:
         return await message.answer(
-            text('error_input_timezone'),
-            reply_markup=keyboards.cancel(
-                data='InputTimezoneCancel'
-            )
+            text("error_input_timezone"),
+            reply_markup=keyboards.cancel(data="InputTimezoneCancel"),
         )
 
-    await db.update_user(
-        user_id=message.from_user.id,
-        timezone=timezone_value
-    )
+    await db.update_user(user_id=message.from_user.id, timezone=timezone_value)
 
     await state.clear()
     await show_setting(message)
@@ -43,5 +38,7 @@ async def cancel(call: types.CallbackQuery, state: FSMContext):
 def hand_add():
     router = Router()
     router.message.register(get_timezone, Setting.input_timezone, F.text)
-    router.callback_query.register(cancel, F.data.split('|')[0] == 'InputTimezoneCancel')
+    router.callback_query.register(
+        cancel, F.data.split("|")[0] == "InputTimezoneCancel"
+    )
     return router

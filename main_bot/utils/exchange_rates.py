@@ -1,14 +1,9 @@
 import asyncio
-from datetime import datetime
 import json
 import os
-from itertools import product
 
 import aiohttp
 from dotenv import load_dotenv
-import requests
-
-from main_bot.database.db import db
 
 load_dotenv()
 
@@ -16,21 +11,21 @@ root_dir = "/app/main_bot/utils"
 
 
 async def get_crypto_bot_usdt_rub_rate():
-    api_token = os.getenv('CRYPTO_BOT_API_TOKEN')
+    api_token = os.getenv("CRYPTO_BOT_API_TOKEN")
     url = "https://pay.crypt.bot/api/getExchangeRates"
 
     headers = {
         "Crypto-Pay-API-Token": api_token,
     }
 
-    async with aiohttp.ClientSession() as session:
+    async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10)) as session:
         async with session.get(url, headers=headers) as response:
             data = await response.json()
 
-            if data.get('ok'):
-                for rate in data.get('result', []):
-                    if rate.get('source') == 'USDT' and rate.get('target') == 'RUB':
-                        return float(rate.get('rate'))
+            if data.get("ok"):
+                for rate in data.get("result", []):
+                    if rate.get("source") == "USDT" and rate.get("target") == "RUB":
+                        return float(rate.get("rate"))
 
     return 0
 
@@ -45,7 +40,7 @@ async def get_best_change_usdt_rub_rate() -> dict[str, float | None]:
     }
     """
 
-    api_key = os.getenv('BEST_EXCHANGE_API')
+    api_key = os.getenv("BEST_EXCHANGE_API")
     sources_data = get_rates_sources_from_json()
 
     usdt, rub = sources_data[2]["api_data"].values()
@@ -61,7 +56,9 @@ async def get_best_change_usdt_rub_rate() -> dict[str, float | None]:
 
     async with aiohttp.ClientSession() as session:
         try:
-            async with session.get(url, timeout=aiohttp.ClientTimeout(total=5)) as response:
+            async with session.get(
+                url, timeout=aiohttp.ClientTimeout(total=5)
+            ) as response:
                 data = await response.json()
 
                 if isinstance(data, dict) and "rates" in data:
@@ -74,7 +71,13 @@ async def get_best_change_usdt_rub_rate() -> dict[str, float | None]:
                             pair_rates = rates_data[pair_key]
                             if isinstance(pair_rates, list) and len(pair_rates) > 0:
                                 # Extract rate from each changer
-                                sell_rates.extend([float(item["rate"]) for item in pair_rates if "rate" in item])
+                                sell_rates.extend(
+                                    [
+                                        float(item["rate"])
+                                        for item in pair_rates
+                                        if "rate" in item
+                                    ]
+                                )
 
                     # Extract rates for buy pairs (RUB->USDT)
                     buy_rates = []
@@ -83,24 +86,28 @@ async def get_best_change_usdt_rub_rate() -> dict[str, float | None]:
                             pair_rates = rates_data[pair_key]
                             if isinstance(pair_rates, list) and len(pair_rates) > 0:
                                 # Extract rate from each changer
-                                buy_rates.extend([float(item["rate"]) for item in pair_rates if "rate" in item])
+                                buy_rates.extend(
+                                    [
+                                        float(item["rate"])
+                                        for item in pair_rates
+                                        if "rate" in item
+                                    ]
+                                )
 
                     # Calculate averages
 
-                    sell = 1 / (sum(sell_rates) / len(sell_rates)) if sell_rates else None
+                    sell = (
+                        1 / (sum(sell_rates) / len(sell_rates)) if sell_rates else None
+                    )
                     buy = sum(buy_rates) / len(buy_rates) if buy_rates else None
                     average = ((sell + buy) / 2) if sell and buy else None
 
-                    return {
-                        'sell': sell,
-                        'buy': buy,
-                        'average': average
-                    }
+                    return {"sell": sell, "buy": buy, "average": average}
 
         except (aiohttp.ClientError, asyncio.TimeoutError, ValueError, KeyError):
             pass
 
-    return {'sell': 0, 'buy': 0, 'average': 0}
+    return {"sell": 0, "buy": 0, "average": 0}
 
 
 async def get_p2p_bybit_usdt_rub_rate() -> dict[str, float | None]:
@@ -110,21 +117,35 @@ async def get_p2p_bybit_usdt_rub_rate() -> dict[str, float | None]:
     headers = {"User-Agent": "Mozilla/5.0", "Content-Type": "application/json"}
 
     base_payload = {
-        "userId": "", "tokenId": "USDT", "currencyId": "RUB",
-        "payment": [], "size": "20", "page": "1", "amount": "10000",
-        "authMaker": False, "canTrade": False, "itemRegion": 2
+        "userId": "",
+        "tokenId": "USDT",
+        "currencyId": "RUB",
+        "payment": [],
+        "size": "20",
+        "page": "1",
+        "amount": "10000",
+        "authMaker": False,
+        "canTrade": False,
+        "itemRegion": 2,
     }
 
     async def fetch_rates(side: str) -> list[float]:
         payload = {**base_payload, "side": side}
         try:
             async with aiohttp.ClientSession() as session:
-                async with session.post(url, json=payload, headers=headers,
-                                        timeout=aiohttp.ClientTimeout(total=10)) as response:
+                async with session.post(
+                    url,
+                    json=payload,
+                    headers=headers,
+                    timeout=aiohttp.ClientTimeout(total=10),
+                ) as response:
                     if response.status == 200:
                         data = await response.json()
-                        return [float(ad["price"]) for ad in data.get("result", {}).get("items", [])
-                                if isinstance(ad.get("price"), (int, float, str))]
+                        return [
+                            float(ad["price"])
+                            for ad in data.get("result", {}).get("items", [])
+                            if isinstance(ad.get("price"), (int, float, str))
+                        ]
         except (aiohttp.ClientError, asyncio.TimeoutError, ValueError):
             pass
         return []
@@ -136,9 +157,9 @@ async def get_p2p_bybit_usdt_rub_rate() -> dict[str, float | None]:
     buy = sum(buy_rates) / len(buy_rates) if buy_rates else 0
 
     return {
-        'sell': sell,
-        'buy': buy,
-        'average': ((sell + buy) / 2) if sell and buy else 0
+        "sell": sell,
+        "buy": buy,
+        "average": ((sell + buy) / 2) if sell and buy else 0,
     }
 
 
@@ -165,22 +186,20 @@ async def format_exchange_rate_from_db(exchange_rates):
 
 
 def get_exchange_rates_from_json():
-    with open(f"{root_dir}/exchange_rate_data/exchange_rates.json", "r") as file:
+    with open(f"{root_dir}/exchange_rate_data/exchange_rates.json") as file:
         return json.load(file)
 
 
 def get_rates_sources_from_json():
-    with open(f"{root_dir}/exchange_rate_data/rates_sources.json", "r") as file:
+    with open(f"{root_dir}/exchange_rate_data/rates_sources.json") as file:
         return json.load(file)
 
 
 if __name__ == "__main__":
     import asyncio
 
-
     async def test():
         rate = await get_p2p_bybit_usdt_rub_rate()
         print(rate)
-
 
     asyncio.run(test())

@@ -2,11 +2,10 @@ from aiogram import BaseMiddleware
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Update
 
+from hello_bot.utils.functions import answer_message
 from hello_bot.utils.schemas import Answer
 from main_bot.database.db import db
-from hello_bot.utils.functions import answer_message
 from main_bot.utils.logger import logger
-
 
 created_db_objects = {}
 
@@ -23,9 +22,9 @@ class SetCrud(BaseMiddleware):
 
         await other_db.create_tables()
 
-        data['db'] = other_db
-        data['db_bot'] = db_bot
-        data['owner_id'] = db_bot.admin_id
+        data["db"] = other_db
+        data["db_bot"] = db_bot
+        data["owner_id"] = db_bot.admin_id
 
         return await handler(event, data)
 
@@ -68,10 +67,10 @@ class SetCrudMain(BaseMiddleware):
 
         await other_db.create_tables()
 
-        data['db_obj'] = other_db
-        data['db_bot'] = db_bot
-        data['owner_id'] = db_bot.admin_id
-        data['channel_settings'] = channel_settings
+        data["db_obj"] = other_db
+        data["db_bot"] = db_bot
+        data["owner_id"] = db_bot.admin_id
+        data["channel_settings"] = channel_settings
 
         created_db_objects[bot_id] = {
             "db_obj": other_db,
@@ -85,10 +84,10 @@ class SetCrudMain(BaseMiddleware):
 
 class AnswerMiddleware(BaseMiddleware):
     async def __call__(self, handler, event: Update, data):
-        other_db = data['db']
+        other_db = data["db"]
         settings = await other_db.get_setting()
 
-        data['settings'] = settings
+        data["settings"] = settings
         if not event.message:
             return await handler(event, data)
 
@@ -112,6 +111,4 @@ class ErrorMiddleware(BaseMiddleware):
         try:
             return await handler(event, data)
         except Exception as e:
-            logger.opt(exception=e).error(
-                f"Ошибка в обработчике {handler}"
-            )
+            logger.opt(exception=e).error(f"Ошибка в обработчике {handler}")

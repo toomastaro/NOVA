@@ -1,13 +1,13 @@
 import time
 
-from sqlalchemy import BigInteger, JSON, ARRAY
+from sqlalchemy import ARRAY, JSON, BigInteger
 from sqlalchemy.orm import Mapped, mapped_column
 
 from main_bot.database import Base
 
 
 class PublishedPost(Base):
-    __tablename__ = 'published_posts'
+    __tablename__ = "published_posts"
 
     # Data
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)

@@ -1,5 +1,3 @@
-from typing import Optional
-
 from pydantic import BaseModel
 
 
@@ -8,20 +6,20 @@ class Media(BaseModel):
 
 
 class MessageOptions(BaseModel):
-    animation: Optional[Media | str] = None
-    video: Optional[Media | str] = None
-    photo: Optional[Media | str] = None
-    caption: Optional[str] = None
-    text: Optional[str] = None
+    animation: Media | str | None = None
+    video: Media | str | None = None
+    photo: Media | str | None = None
+    caption: str | None = None
+    text: str | None = None
 
 
 class HelloAnswer(BaseModel):
-    message: Optional[MessageOptions] = None
+    message: MessageOptions | None = None
     active: bool = False
 
 
 class ByeAnswer(BaseModel):
-    message: Optional[MessageOptions] = None
+    message: MessageOptions | None = None
     active: bool = False
 
 

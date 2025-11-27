@@ -1,12 +1,12 @@
 import asyncio
 from pathlib import Path
-from typing import List
 
 from telethon import TelegramClient, functions, types, utils
-from telethon.errors import UserAlreadyParticipantError, FloodWaitError
+from telethon.errors import FloodWaitError, UserAlreadyParticipantError
 
 from config import Config
 from main_bot.utils.schemas import StoryOptions
+from utils.logger import logger
 
 
 class SessionManager:
@@ -33,7 +33,8 @@ class SessionManager:
             await self.client.connect()
             await asyncio.wait_for(self.client.get_me(), timeout=10)
         except Exception as e:
-            return print(e)
+            logger.error(f"Failed to init client: {e}")
+            return
 
     async def close(self):
         if self.client:
@@ -41,43 +42,34 @@ class SessionManager:
 
     async def me(self):
         return await self.client(
-            functions.users.GetUsersRequest(
-                [types.InputUserSelf()]
-            )
+            functions.users.GetUsersRequest([types.InputUserSelf()])
         )
 
     async def join(self, invite_url: str):
-        invite_hash = invite_url.split('/')[-1].replace('+', '')
+        invite_hash = invite_url.split("/")[-1].replace("+", "")
 
         try:
             return await self.client(
-                functions.messages.ImportChatInviteRequest(
-                   hash=invite_hash
-                )
+                functions.messages.ImportChatInviteRequest(hash=invite_hash)
             )
         except (UserAlreadyParticipantError, FloodWaitError, Exception) as e:
-            print(e)
+            logger.error(f"Failed to join chat: {e}")
 
     async def can_send_stories(self, chat_id: int):
         peer = await self.client.get_input_entity(chat_id)
         chat_info = await self.client(
             functions.channels.GetFullChannelRequest(
-                types.InputChannel(
-                    channel_id=chat_id,
-                    access_hash=peer.access_hash
-                )
+                types.InputChannel(channel_id=chat_id, access_hash=peer.access_hash)
             )
         )
         raw = chat_info.to_dict()
         return raw.get("chats", [{}])[0].get("stories_unavailable", False)
 
-    async def get_views(self, chat_id: int, messages_ids: List[int]):
+    async def get_views(self, chat_id: int, messages_ids: list[int]):
         peer = await self.client.get_input_entity(chat_id)
         return await self.client(
             functions.messages.GetMessagesViewsRequest(
-                peer=peer,
-                id=messages_ids,
-                increment=False
+                peer=peer, id=messages_ids, increment=False
             )
         )
 
@@ -94,7 +86,11 @@ class SessionManager:
             media = types.InputMediaUploadedDocument(
                 file=file,
                 mime_type="video/mp4",
-                attributes=[types.DocumentAttributeVideo(duration=15, w=720, h=1280, supports_streaming=True)]
+                attributes=[
+                    types.DocumentAttributeVideo(
+                        duration=15, w=720, h=1280, supports_streaming=True
+                    )
+                ],
             )
 
         await self.client(
@@ -106,7 +102,7 @@ class SessionManager:
                 caption=caption,
                 entities=entities,
                 pinned=options.pinned,
-                period=options.period
+                period=options.period,
             )
         )
 
@@ -136,5 +132,5 @@ async def main():
         print(sum([i.views for i in views.views]))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     asyncio.run(main())

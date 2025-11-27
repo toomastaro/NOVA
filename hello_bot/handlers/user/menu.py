@@ -1,41 +1,38 @@
 from datetime import datetime
 
-from aiogram import types, F, Router
+from aiogram import F, Router, types
 from aiogram.fsm.context import FSMContext
 
-
 from hello_bot.database.db import Database
+from hello_bot.keyboards.keyboards import keyboards
 from hello_bot.utils.functions import get_protect_tag
 from hello_bot.utils.lang.language import text
-from hello_bot.keyboards.keyboards import keyboards
-from hello_bot.utils.schemas import HelloAnswer, ByeAnswer, Protect
+from hello_bot.utils.schemas import ByeAnswer, HelloAnswer, Protect
 
 
 async def choice(call: types.CallbackQuery, state: FSMContext, db: Database, settings):
     await state.clear()
-    temp = call.data.split('|')
+    temp = call.data.split("|")
 
     menu = {
-        'stats': {
-            'cor': show_stats,
-            'args': (call.message, db, settings,)
+        "stats": {
+            "cor": show_stats,
+            "args": (
+                call.message,
+                db,
+                settings,
+            ),
         },
-        'answer': {
-            'cor': show_answers,
-            'args': (call.message, settings,)
+        "answer": {
+            "cor": show_answers,
+            "args": (
+                call.message,
+                settings,
+            ),
         },
-        'hello': {
-            'cor': show_hello,
-            'args': (call.message, settings)
-        },
-        'bye': {
-            'cor': show_bye,
-            'args': (call.message, settings)
-        },
-        'application': {
-            'cor': show_application,
-            'args': (call.message, settings)
-        },
+        "hello": {"cor": show_hello, "args": (call.message, settings)},
+        "bye": {"cor": show_bye, "args": (call.message, settings)},
+        "application": {"cor": show_application, "args": (call.message, settings)},
     }
 
     cor, args = menu[temp[1]].values()
@@ -53,20 +50,15 @@ async def show_stats(message: types.Message, db: Database, setting):
             *count_users.values(),
             setting.input_messages,
             setting.output_messages,
-            datetime.now().strftime("%d.%m.%Y %H:%M")
+            datetime.now().strftime("%d.%m.%Y %H:%M"),
         ),
-        reply_markup=keyboards.back(
-            data="StatsBack"
-        )
+        reply_markup=keyboards.back(data="StatsBack"),
     )
 
 
 async def show_answers(message: types.Message, setting):
     await message.answer(
-        text("answer_text"),
-        reply_markup=keyboards.answers(
-            settings=setting
-        )
+        text("answer_text"), reply_markup=keyboards.answers(settings=setting)
     )
 
 
@@ -78,9 +70,7 @@ async def show_hello(message: types.Message, setting):
             text("{}added".format("" if hello.message else "no_")),
             text("on" if hello.active else "off"),
         ),
-        reply_markup=keyboards.manage_answer_user(
-            obj=hello
-        )
+        reply_markup=keyboards.manage_answer_user(obj=hello),
     )
 
 
@@ -92,10 +82,7 @@ async def show_bye(message: types.Message, setting):
             text("{}added".format("" if hello.message else "no_")),
             text("on" if hello.active else "off"),
         ),
-        reply_markup=keyboards.manage_answer_user(
-            obj=hello,
-            data="ManageBye"
-        )
+        reply_markup=keyboards.manage_answer_user(obj=hello, data="ManageBye"),
     )
 
 
@@ -107,12 +94,10 @@ async def show_application(message: types.Message, setting):
         text("application_text").format(
             text("on" if setting.auto_approve else "off"),
             text("on" if protect.arab or protect.china else "off"),
-            text("protect:{}".format(protect_tag)) if protect_tag else "",
-            setting.delay_approve
+            text(f"protect:{protect_tag}") if protect_tag else "",
+            setting.delay_approve,
         ),
-        reply_markup=keyboards.manage_application(
-            setting=setting
-        )
+        reply_markup=keyboards.manage_application(setting=setting),
     )
 
 

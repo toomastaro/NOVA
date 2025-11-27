@@ -1,6 +1,6 @@
 import time
 
-from sqlalchemy import BigInteger, JSON
+from sqlalchemy import JSON, BigInteger
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -9,7 +9,7 @@ from main_bot.database.types import Status
 
 
 class BotPost(Base):
-    __tablename__ = 'bot_posts'
+    __tablename__ = "bot_posts"
 
     # Data
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)

@@ -1,4 +1,4 @@
-from aiogram import types, Bot
+from aiogram import Bot, types
 
 from hello_bot.utils.schemas import MessageOptions, Protect
 
@@ -16,7 +16,9 @@ def get_protect_tag(protect: Protect):
     return protect_tag
 
 
-async def answer_message_bot(bot: Bot, chat_id: int, message_options: MessageOptions, reply):
+async def answer_message_bot(
+    bot: Bot, chat_id: int, message_options: MessageOptions, reply
+):
     if message_options.text:
         cor = bot.send_message
     elif message_options.photo:
@@ -30,7 +32,7 @@ async def answer_message_bot(bot: Bot, chat_id: int, message_options: MessageOpt
         message_options.animation = message_options.animation.file_id
 
     dump = message_options.model_dump()
-    dump['chat_id'] = chat_id
+    dump["chat_id"] = chat_id
 
     if message_options.text:
         dump.pop("photo")
@@ -55,10 +57,7 @@ async def answer_message_bot(bot: Bot, chat_id: int, message_options: MessageOpt
         dump.pop("disable_web_page_preview")
 
     try:
-        post_message = await cor(
-            **dump,
-            reply_markup=reply
-        )
+        post_message = await cor(**dump, reply_markup=reply)
     except Exception as e:
         return print(e)
 

@@ -3,13 +3,13 @@ from aiogram.filters import CommandObject
 from aiogram.types import Update
 
 from main_bot.database.db import db
-from main_bot.utils.logger import logger
+from utils.logger import logger
 
 
 class StartMiddle(BaseMiddleware):
     async def __call__(self, handler, message: types.Message, data):
-        command: CommandObject = data.get('command')
-        if command.command != 'start':
+        command: CommandObject = data.get("command")
+        if command.command != "start":
             return
 
         user_obj = message.from_user
@@ -27,8 +27,8 @@ class StartMiddle(BaseMiddleware):
                     if ref_user:
                         referral_id = int(start_utm)
                 else:
-                    if 'utm' in start_utm:
-                        ads_tag = start_utm.replace('utm-', "")
+                    if "utm" in start_utm:
+                        ads_tag = start_utm.replace("utm-", "")
                         tag = await db.get_ad_tag(ads_tag)
 
                         if not tag:
@@ -38,7 +38,7 @@ class StartMiddle(BaseMiddleware):
                 id=user_obj.id,
                 is_premium=user_obj.is_premium or False,
                 referral_id=referral_id,
-                ads_tag=ads_tag
+                ads_tag=ads_tag,
             )
 
         return await handler(message, data)
@@ -55,7 +55,7 @@ class GetUserMiddleware(BaseMiddleware):
             user_id = event.callback_query.from_user.id
 
         user = await db.get_user(user_id)
-        data['user'] = user
+        data["user"] = user
 
         return await handler(event, data)
 
@@ -65,6 +65,4 @@ class ErrorMiddleware(BaseMiddleware):
         try:
             return await handler(event, data)
         except Exception as e:
-            logger.opt(exception=e).error(
-                f"Ошибка в обработчике {handler.__name__}"
-            )
+            logger.opt(exception=e).error(f"Ошибка в обработчике {handler.__name__}")

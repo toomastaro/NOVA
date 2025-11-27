@@ -1,7 +1,7 @@
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
-from hello_bot.utils.schemas import Answer, HelloAnswer, Protect
 from hello_bot.utils.lang.language import text
+from hello_bot.utils.schemas import Answer, HelloAnswer, Protect
 
 
 class Inline(InlineKeyboardBuilder):
@@ -9,10 +9,7 @@ class Inline(InlineKeyboardBuilder):
     def cancel(cls, data: str):
         kb = cls()
 
-        kb.button(
-            text=text('cancel'),
-            callback_data=data
-        )
+        kb.button(text=text("cancel"), callback_data=data)
 
         return kb.as_markup()
 
@@ -20,10 +17,7 @@ class Inline(InlineKeyboardBuilder):
     def back(cls, data: str):
         kb = cls()
 
-        kb.button(
-            text=text('back:button'),
-            callback_data=data
-        )
+        kb.button(text=text("back:button"), callback_data=data)
 
         return kb.as_markup()
 
@@ -32,13 +26,10 @@ class Inline(InlineKeyboardBuilder):
         kb = cls()
 
         kb.button(
-            text=text('add_channel:button'),
-            url=f'https://t.me/{bot_username}?startchannel&admin=invite_users'
+            text=text("add_channel:button"),
+            url=f"https://t.me/{bot_username}?startchannel&admin=invite_users",
         )
-        kb.button(
-            text=text('add_channel_later:button'),
-            callback_data=f'{data}|menu'
-        )
+        kb.button(text=text("add_channel_later:button"), callback_data=f"{data}|menu")
 
         kb.adjust(1)
         return kb.as_markup()
@@ -47,26 +38,11 @@ class Inline(InlineKeyboardBuilder):
     def menu(cls):
         kb = cls()
 
-        kb.button(
-            text=text("menu:stats"),
-            callback_data="Menu|stats"
-        )
-        kb.button(
-            text=text("menu:answer"),
-            callback_data="Menu|answer"
-        )
-        kb.button(
-            text=text("menu:hello"),
-            callback_data="Menu|hello"
-        )
-        kb.button(
-            text=text("menu:bye"),
-            callback_data="Menu|bye"
-        )
-        kb.button(
-            text=text("menu:application"),
-            callback_data="Menu|application"
-        )
+        kb.button(text=text("menu:stats"), callback_data="Menu|stats")
+        kb.button(text=text("menu:answer"), callback_data="Menu|answer")
+        kb.button(text=text("menu:hello"), callback_data="Menu|hello")
+        kb.button(text=text("menu:bye"), callback_data="Menu|bye")
+        kb.button(text=text("menu:application"), callback_data="Menu|application")
 
         kb.adjust(2, 2, 1)
         return kb.as_markup()
@@ -79,21 +55,12 @@ class Inline(InlineKeyboardBuilder):
             answer = Answer(**dict(answer))
 
             kb.button(
-                text="#{} - {}".format(
-                    answer.id,
-                    answer.key.split()[0]
-                ),
-                callback_data="Answer|{}".format(answer.id)
+                text=f"#{answer.id} - {answer.key.split()[0]}",
+                callback_data=f"Answer|{answer.id}",
             )
 
-        kb.button(
-            text=text("answer:add:button"),
-            callback_data="Answer|add"
-        )
-        kb.button(
-            text=text("back:button"),
-            callback_data="Answer|cancel"
-        )
+        kb.button(text=text("answer:add:button"), callback_data="Answer|add")
+        kb.button(text=text("back:button"), callback_data="Answer|cancel")
 
         kb.adjust(1)
         return kb.as_markup()
@@ -103,21 +70,13 @@ class Inline(InlineKeyboardBuilder):
         kb = cls()
 
         kb.button(
-            text=text("answer:change:keyword"),
-            callback_data="ManageAnswer|keyword"
+            text=text("answer:change:keyword"), callback_data="ManageAnswer|keyword"
         )
         kb.button(
-            text=text("answer:change:message"),
-            callback_data="ManageAnswer|message"
+            text=text("answer:change:message"), callback_data="ManageAnswer|message"
         )
-        kb.button(
-            text=text("answer:delete"),
-            callback_data="ManageAnswer|delete"
-        )
-        kb.button(
-            text=text("back:button"),
-            callback_data="ManageAnswer|cancel"
-        )
+        kb.button(text=text("answer:delete"), callback_data="ManageAnswer|delete")
+        kb.button(text=text("back:button"), callback_data="ManageAnswer|cancel")
 
         kb.adjust(1)
         return kb.as_markup()
@@ -126,14 +85,8 @@ class Inline(InlineKeyboardBuilder):
     def param_answers_back(cls, data: str = "BackAddAnswer"):
         kb = cls()
 
-        kb.button(
-            text=text('back:step'),
-            callback_data=f"{data}|step"
-        )
-        kb.button(
-            text=text('back:button'),
-            callback_data=F"{data}|cancel"
-        )
+        kb.button(text=text("back:step"), callback_data=f"{data}|step")
+        kb.button(text=text("back:button"), callback_data=f"{data}|cancel")
 
         kb.adjust(1)
         return kb.as_markup()
@@ -144,20 +97,14 @@ class Inline(InlineKeyboardBuilder):
 
         kb.button(
             text=text("{}:button".format("on" if obj.active else "off")),
-            callback_data=f"{data}|active"
+            callback_data=f"{data}|active",
         )
         kb.button(
             text=text("{}:button".format("add" if not obj.message else "delete")),
-            callback_data=f"{data}|message"
+            callback_data=f"{data}|message",
         )
-        kb.button(
-            text=text("check:button"),
-            callback_data=f"{data}|check"
-        )
-        kb.button(
-            text=text("back:button"),
-            callback_data=f"{data}|cancel"
-        )
+        kb.button(text=text("check:button"), callback_data=f"{data}|check")
+        kb.button(text=text("back:button"), callback_data=f"{data}|cancel")
 
         kb.adjust(2, 1)
         return kb.as_markup()
@@ -169,30 +116,27 @@ class Inline(InlineKeyboardBuilder):
 
         kb.button(
             text=text("application:delay:button"),
-            callback_data="ManageApplication|delay_approve"
+            callback_data="ManageApplication|delay_approve",
         )
         kb.button(
             text=text("application:protect:arab:button").format(
                 "✅" if protect.arab else "❌"
             ),
-            callback_data="ManageApplication|protect_arab"
+            callback_data="ManageApplication|protect_arab",
         )
         kb.button(
             text=text("application:protect:china:button").format(
                 "✅" if protect.china else "❌"
             ),
-            callback_data="ManageApplication|protect_china"
+            callback_data="ManageApplication|protect_china",
         )
         kb.button(
             text=text("application:approve:button").format(
                 "✅" if setting.auto_approve else "❌"
             ),
-            callback_data="ManageApplication|auto_approve"
+            callback_data="ManageApplication|auto_approve",
         )
-        kb.button(
-            text=text("back:button"),
-            callback_data=f"ManageApplication|cancel"
-        )
+        kb.button(text=text("back:button"), callback_data="ManageApplication|cancel")
 
         kb.adjust(1)
         return kb.as_markup()

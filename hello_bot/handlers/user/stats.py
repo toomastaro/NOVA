@@ -1,14 +1,11 @@
-from aiogram import types, F, Router
+from aiogram import F, Router, types
 
-from hello_bot.utils.lang.language import text
 from hello_bot.keyboards.keyboards import keyboards
+from hello_bot.utils.lang.language import text
 
 
 async def choice(call: types.CallbackQuery):
-    await call.message.edit_text(
-        text("start_text"),
-        reply_markup=keyboards.menu()
-    )
+    await call.message.edit_text(text("start_text"), reply_markup=keyboards.menu())
 
 
 def hand_add():

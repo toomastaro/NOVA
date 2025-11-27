@@ -1,6 +1,6 @@
 import time
 
-from sqlalchemy import BigInteger, JSON
+from sqlalchemy import JSON, BigInteger
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -8,7 +8,7 @@ from main_bot.database import Base
 
 
 class Post(Base):
-    __tablename__ = 'posts'
+    __tablename__ = "posts"
 
     # Data
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)

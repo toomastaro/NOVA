@@ -1,5 +1,16 @@
 from aiogram import Router
-from . import profile, balance, payment, subscribe, subscribe_payment, referral, settings, timezone, folders
+
+from . import (
+    balance,
+    folders,
+    payment,
+    profile,
+    referral,
+    settings,
+    subscribe,
+    subscribe_payment,
+    timezone,
+)
 
 
 def get_router():
@@ -15,7 +26,7 @@ def get_router():
         folders.hand_add(),
     ]
 
-    router = Router(name='Profile')
+    router = Router(name="Profile")
     router.include_routers(*routers)
 
     return router

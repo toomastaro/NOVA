@@ -1,6 +1,7 @@
-from aiogram import types, Router
+from aiogram import Router, types
 from aiogram.filters import CommandStart
 
+from config import settings
 from main_bot.keyboards.keyboards import keyboards
 from main_bot.utils.lang.language import text
 from main_bot.utils.middlewares import StartMiddle
@@ -8,8 +9,8 @@ from main_bot.utils.middlewares import StartMiddle
 
 async def start(message: types.Message):
     await message.answer(
-        text("start_text"),
-        reply_markup=keyboards.menu()
+        text("start_text") + f"\n\n<code>v{settings.VERSION}</code>",
+        reply_markup=keyboards.menu(),
     )
 
 

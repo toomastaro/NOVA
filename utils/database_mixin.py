@@ -1,11 +1,10 @@
-from typing import AsyncGenerator
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from config import Config
-
 
 DATABASE_URL = f"postgresql+asyncpg://{Config.PG_USER}:{Config.PG_PASS}@{Config.PG_HOST}/{Config.PG_DATABASE}"
 engine = create_async_engine(
@@ -17,9 +16,7 @@ engine = create_async_engine(
     pool_pre_ping=True,
 )
 async_session = async_sessionmaker(
-    bind=engine,
-    expire_on_commit=False,
-    class_=AsyncSession
+    bind=engine, expire_on_commit=False, class_=AsyncSession
 )
 
 

@@ -5,7 +5,7 @@ import string
 from pathlib import Path
 
 import ffmpeg
-from aiogram import types, Bot
+from aiogram import Bot, types
 from aiogram.fsm.context import FSMContext
 from PIL import Image, ImageDraw, ImageFilter
 
@@ -15,15 +15,21 @@ from main_bot.database.db import db
 from main_bot.database.post.model import Post
 from main_bot.database.story.model import Story
 from main_bot.keyboards.keyboards import keyboards
-from main_bot.utils.schemas import MessageOptions, StoryOptions, Protect, MessageOptionsHello, MessageOptionsCaptcha
+from main_bot.utils.schemas import (
+    MessageOptions,
+    MessageOptionsCaptcha,
+    MessageOptionsHello,
+    Protect,
+    StoryOptions,
+)
 from main_bot.utils.session_manager import SessionManager
 
 
 async def create_emoji(user_id: int, photo_bytes=None):
-    emoji_id = '5393222813345663485'
+    emoji_id = "5393222813345663485"
 
     if not photo_bytes:
-        photo_bytes = 'main_bot/utils/no_photo.jpg'
+        photo_bytes = "main_bot/utils/no_photo.jpg"
 
     try:
         with Image.open(photo_bytes) as img:
@@ -31,8 +37,7 @@ async def create_emoji(user_id: int, photo_bytes=None):
             mask = Image.new("L", new_image.size)
             draw = ImageDraw.Draw(mask)
             draw.ellipse(
-                xy=(4, 4, new_image.size[0] - 4, new_image.size[1] - 4),
-                fill=255
+                xy=(4, 4, new_image.size[0] - 4, new_image.size[1] - 4), fill=255
             )
             mask = mask.filter(ImageFilter.GaussianBlur(2))
 
@@ -41,24 +46,26 @@ async def create_emoji(user_id: int, photo_bytes=None):
             result.putalpha(mask)
             result.save(output_path)
 
-            set_id = ''.join(random.sample(string.ascii_letters, k=10)) + '_by_' + (await main_bot_obj.get_me()).username
+            set_id = (
+                "".join(random.sample(string.ascii_letters, k=10))
+                + "_by_"
+                + (await main_bot_obj.get_me()).username
+            )
 
         try:
             await main_bot_obj.create_new_sticker_set(
                 user_id=user_id,
                 name=set_id,
-                title='NovaTGEmoji',
+                title="NovaTGEmoji",
                 stickers=[
                     types.InputSticker(
-                        sticker=types.FSInputFile(
-                            path=output_path
-                        ),
-                        format='static',
-                        emoji_list=['🤩']
+                        sticker=types.FSInputFile(path=output_path),
+                        format="static",
+                        emoji_list=["🤩"],
                     )
                 ],
-                sticker_format='static',
-                sticker_type='custom_emoji'
+                sticker_format="static",
+                sticker_type="custom_emoji",
             )
             r = await main_bot_obj.get_sticker_set(set_id)
             await main_bot_obj.session.close()
@@ -94,7 +101,7 @@ async def get_editors(call: types.CallbackQuery, chat_id: int):
                     admin.can_delete_messages,
                     admin.can_post_stories,
                     admin.can_edit_stories,
-                    admin.can_delete_stories
+                    admin.can_delete_stories,
                 }
                 if False in rights:
                     continue
@@ -104,18 +111,22 @@ async def get_editors(call: types.CallbackQuery, chat_id: int):
         print(e)
         editors.append("Не удалось обнаружить")
 
-    return "\n".join(
-        "@{}".format(i.user.username)
-        if i.user.username else i.user.full_name
-        for i in editors
-    ) + "\n"
+    return (
+        "\n".join(
+            f"@{i.user.username}" if i.user.username else i.user.full_name
+            for i in editors
+        )
+        + "\n"
+    )
 
 
-async def answer_bot_post(message: types.Message, state: FSMContext, from_edit: bool = False):
+async def answer_bot_post(
+    message: types.Message, state: FSMContext, from_edit: bool = False
+):
     data = await state.get_data()
 
-    post: BotPost = data.get('post')
-    is_edit: bool = data.get('is_edit')
+    post: BotPost = data.get("post")
+    is_edit: bool = data.get("is_edit")
     message_options = MessageOptionsHello(**post.message)
 
     if message_options.text:
@@ -131,10 +142,7 @@ async def answer_bot_post(message: types.Message, state: FSMContext, from_edit: 
         message_options.animation = message_options.animation.file_id
 
     if not from_edit:
-        reply_markup = keyboards.manage_bot_post(
-            post=post,
-            is_edit=is_edit
-        )
+        reply_markup = keyboards.manage_bot_post(post=post, is_edit=is_edit)
         message_options.reply_markup = reply_markup
 
     post_message = await cor(
@@ -144,11 +152,13 @@ async def answer_bot_post(message: types.Message, state: FSMContext, from_edit: 
     return post_message
 
 
-async def answer_post(message: types.Message, state: FSMContext, from_edit: bool = False):
+async def answer_post(
+    message: types.Message, state: FSMContext, from_edit: bool = False
+):
     data = await state.get_data()
 
-    post: Post = data.get('post')
-    is_edit: bool = data.get('is_edit')
+    post: Post = data.get("post")
+    is_edit: bool = data.get("is_edit")
     message_options = MessageOptions(**post.message_options)
 
     if message_options.text:
@@ -164,29 +174,24 @@ async def answer_post(message: types.Message, state: FSMContext, from_edit: bool
         message_options.animation = message_options.animation.file_id
 
     if from_edit:
-        reply_markup = keyboards.post_kb(
-            post=post
-        )
+        reply_markup = keyboards.post_kb(post=post)
     else:
         reply_markup = keyboards.manage_post(
-            post=post,
-            show_more=data.get('show_more'),
-            is_edit=is_edit
+            post=post, show_more=data.get("show_more"), is_edit=is_edit
         )
 
-    post_message = await cor(
-        **message_options.model_dump(),
-        reply_markup=reply_markup
-    )
+    post_message = await cor(**message_options.model_dump(), reply_markup=reply_markup)
 
     return post_message
 
 
-async def answer_story(message: types.Message, state: FSMContext, from_edit: bool = False):
+async def answer_story(
+    message: types.Message, state: FSMContext, from_edit: bool = False
+):
     data = await state.get_data()
 
-    post: Story = data.get('post')
-    is_edit: bool = data.get('is_edit')
+    post: Story = data.get("post")
+    is_edit: bool = data.get("is_edit")
     story_options = StoryOptions(**post.story_options)
 
     if story_options.photo:
@@ -199,25 +204,18 @@ async def answer_story(message: types.Message, state: FSMContext, from_edit: boo
     if from_edit:
         reply_markup = None
     else:
-        reply_markup = keyboards.manage_story(
-            post=post,
-            is_edit=is_edit
-        )
+        reply_markup = keyboards.manage_story(post=post, is_edit=is_edit)
 
-    post_message = await cor(
-        **story_options.model_dump(),
-        reply_markup=reply_markup
-    )
+    post_message = await cor(**story_options.model_dump(), reply_markup=reply_markup)
 
     return post_message
 
 
 async def set_channel_session(chat_id: int):
-    folder_path = 'main_bot/utils/sessions/'
+    folder_path = "main_bot/utils/sessions/"
     sessions = os.listdir(folder_path)
     chat_invite_link = await main_bot_obj.create_chat_invite_link(
-        chat_id=chat_id,
-        member_limit=15
+        chat_id=chat_id, member_limit=15
     )
 
     for session in sessions:
@@ -227,9 +225,7 @@ async def set_channel_session(chat_id: int):
             if not manager:
                 continue
 
-            success_join = await manager.join(
-                invite_url=chat_invite_link.invite_link
-            )
+            success_join = await manager.join(invite_url=chat_invite_link.invite_link)
             if not success_join:
                 continue
 
@@ -247,7 +243,7 @@ async def set_channel_session(chat_id: int):
                 user_id=me[0].id,
                 can_edit_stories=True,
                 can_post_stories=True,
-                can_delete_stories=True
+                can_delete_stories=True,
             )
         except Exception as e:
             print(e)
@@ -255,8 +251,7 @@ async def set_channel_session(chat_id: int):
 
         if promote:
             await db.update_channel_by_chat_id(
-                chat_id=chat_id,
-                session_path=session_path
+                chat_id=chat_id, session_path=session_path
             )
             return Path(session_path)
 
@@ -264,15 +259,15 @@ async def set_channel_session(chat_id: int):
 
 
 def get_mode(image: Image) -> str:
-    if image.mode not in ['RGB', 'RGBA']:
-        return 'RGB'
+    if image.mode not in ["RGB", "RGBA"]:
+        return "RGB"
     return image.mode
 
 
 def get_color(image: Image):
     mode = get_mode(image)
     if mode != image.mode:
-        image = image.convert('RGB')
+        image = image.convert("RGB")
 
     red_total = 0
     green_total = 0
@@ -301,13 +296,12 @@ def get_color(image: Image):
         round(math.sqrt(red_total / alpha_total)),
         round(math.sqrt(green_total / alpha_total)),
         round(math.sqrt(blue_total / alpha_total)),
-        round(alpha_total / count)
+        round(alpha_total / count),
     )
 
 
 def get_path(photo, chat_id):
     with Image.open(photo) as img:
-
         mask = Image.new("RGBA", (540, 960), get_color(img))
 
         if img.width < 540:
@@ -319,13 +313,9 @@ def get_path(photo, chat_id):
 
         height = int(960 / 2 - img.height / 2)
 
-        mask.paste(
-            img,
-            (0, height),
-            img.convert('RGBA')
-        )
+        mask.paste(img, (0, height), img.convert("RGBA"))
 
-        path = str(chat_id) + '.png'
+        path = str(chat_id) + ".png"
         mask.save(path)
 
         return path
@@ -333,7 +323,7 @@ def get_path(photo, chat_id):
 
 def get_path_video(input_path: str, chat_id: int):
     base_name = f"{abs(chat_id)}"
-    extension = input_path.split('.')[1]
+    extension = input_path.split(".")[1]
     tmp_path = f"main_bot/utils/temp/{base_name}_tmp.{extension}"
     output_path = f"main_bot/utils/temp/{base_name}_final.{extension}"
 
@@ -346,15 +336,14 @@ def get_path_video(input_path: str, chat_id: int):
         width, height = stream["width"], stream["height"]
         if width >= height:
             (
-                ffmpeg
-                .input(input_path)
+                ffmpeg.input(input_path)
                 .filter("scale", "iw", "2*trunc(iw*16/18)")
                 .filter(
                     "boxblur",
                     "luma_radius=min(h\\,w)/5",
                     "luma_power=1",
                     "chroma_radius=min(cw\\,ch)/5",
-                    "chroma_power=1"
+                    "chroma_power=1",
                 )
                 .overlay(ffmpeg.input(input_path), x="(W-w)/2", y="(H-h)/2")
                 .filter("setsar", 1)
@@ -365,8 +354,7 @@ def get_path_video(input_path: str, chat_id: int):
             tmp_path = input_path
 
         (
-            ffmpeg
-            .input(tmp_path)
+            ffmpeg.input(tmp_path)
             .filter("scale", 540, 960)
             .output(output_path, loglevel="quiet", y=None)
             .run()
@@ -399,7 +387,9 @@ def get_protect_tag(protect: Protect):
     return protect_tag
 
 
-async def answer_message_bot(bot: Bot, chat_id: int, message_options: MessageOptionsHello | MessageOptionsCaptcha):
+async def answer_message_bot(
+    bot: Bot, chat_id: int, message_options: MessageOptionsHello | MessageOptionsCaptcha
+):
     if message_options.text:
         cor = bot.send_message
     elif message_options.photo:
@@ -411,9 +401,12 @@ async def answer_message_bot(bot: Bot, chat_id: int, message_options: MessageOpt
 
     attrs = ["photo", "video", "animation"]
     file_id = next(
-        (getattr(message_options, attr).file_id for attr in attrs
-         if getattr(message_options, attr)),
-        None
+        (
+            getattr(message_options, attr).file_id
+            for attr in attrs
+            if getattr(message_options, attr)
+        ),
+        None,
     )
 
     try:
@@ -428,7 +421,7 @@ async def answer_message_bot(bot: Bot, chat_id: int, message_options: MessageOpt
         return print(e)
 
     dump = message_options.model_dump()
-    dump['chat_id'] = chat_id
+    dump["chat_id"] = chat_id
 
     if isinstance(message_options, MessageOptionsCaptcha):
         dump.pop("resize_markup")
@@ -476,7 +469,9 @@ async def answer_message_bot(bot: Bot, chat_id: int, message_options: MessageOpt
     return post_message
 
 
-async def answer_message(message: types.Message, message_options: MessageOptionsHello | MessageOptionsCaptcha):
+async def answer_message(
+    message: types.Message, message_options: MessageOptionsHello | MessageOptionsCaptcha
+):
     if message_options.text:
         cor = message.answer
     elif message_options.photo:

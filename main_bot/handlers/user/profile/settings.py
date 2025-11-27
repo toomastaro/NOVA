@@ -1,6 +1,6 @@
-from datetime import timedelta, datetime
+from datetime import datetime, timedelta
 
-from aiogram import types, Router, F
+from aiogram import F, Router, types
 from aiogram.fsm.context import FSMContext
 
 from main_bot.database.db import db
@@ -12,16 +12,16 @@ from main_bot.utils.lang.language import text
 
 
 async def choice(call: types.CallbackQuery, state: FSMContext, user: User):
-    temp = call.data.split('|')
+    temp = call.data.split("|")
     await call.message.delete()
 
-    if temp[1] == 'back':
+    if temp[1] == "back":
         await profile(call.message)
 
-    if temp[1] == 'folders':
+    if temp[1] == "folders":
         await show_folders(call.message)
 
-    if temp[1] == 'timezone':
+    if temp[1] == "timezone":
         delta = timedelta(hours=abs(user.timezone))
 
         if user.timezone > 0:
@@ -30,13 +30,11 @@ async def choice(call: types.CallbackQuery, state: FSMContext, user: User):
             timezone = datetime.utcnow() - delta
 
         await call.message.answer(
-            text('input_timezone').format(
+            text("input_timezone").format(
                 f"+{user.timezone}" if user.timezone > 0 else user.timezone,
-                timezone.strftime('%H:%M')
+                timezone.strftime("%H:%M"),
             ),
-            reply_markup=keyboards.cancel(
-                data='InputTimezoneCancel'
-            )
+            reply_markup=keyboards.cancel(data="InputTimezoneCancel"),
         )
         await state.set_state(Setting.input_timezone)
 
@@ -45,10 +43,7 @@ async def show_folders(message: types.Message):
     folders = await db.get_folders(message.chat.id)
 
     await message.answer(
-        text('folders_text'),
-        reply_markup=keyboards.folders(
-            folders=folders
-        )
+        text("folders_text"), reply_markup=keyboards.folders(folders=folders)
     )
 
 

@@ -4,7 +4,7 @@ from main_bot.database import Base
 
 
 class Stats(Base):
-    __tablename__ = 'stats'
+    __tablename__ = "stats"
 
     # Data
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)

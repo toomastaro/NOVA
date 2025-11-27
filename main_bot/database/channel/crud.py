@@ -1,6 +1,6 @@
 from typing import Literal
 
-from sqlalchemy import insert, select, desc, update, delete, or_
+from sqlalchemy import delete, desc, insert, select, update
 
 from main_bot.database import DatabaseMixin
 from main_bot.database.channel.model import Channel
@@ -10,17 +10,16 @@ class ChannelCrud(DatabaseMixin):
     async def get_subscribe_channels(self, user_id: int):
         return await self.fetch(
             select(Channel).where(
-                Channel.admin_id == user_id,
-                Channel.subscribe.is_not(None)
+                Channel.admin_id == user_id, Channel.subscribe.is_not(None)
             )
         )
 
     async def get_user_channels(
-            self,
-            user_id: int,
-            limit: int = None,
-            sort_by: Literal['subscribe'] = None,
-            from_array: list = None
+        self,
+        user_id: int,
+        limit: int = None,
+        sort_by: Literal["subscribe"] = None,
+        from_array: list = None,
     ):
         stmt = select(Channel).where(Channel.admin_id == user_id)
 
@@ -35,38 +34,27 @@ class ChannelCrud(DatabaseMixin):
         return await self.fetch(stmt)
 
     async def get_channel_by_row_id(self, row_id: int) -> Channel:
-        return await self.fetchrow(
-            select(Channel).where(
-                Channel.id == row_id
-            )
-        )
+        return await self.fetchrow(select(Channel).where(Channel.id == row_id))
 
     async def get_channel_admin_row(self, chat_id: int, user_id: int) -> Channel:
         return await self.fetchrow(
             select(Channel).where(
-                Channel.chat_id == chat_id,
-                Channel.admin_id == user_id
+                Channel.chat_id == chat_id, Channel.admin_id == user_id
             )
         )
 
     async def get_channel_by_chat_id(self, chat_id: int) -> Channel:
         return await self.fetchrow(
-            select(Channel).where(
-                Channel.chat_id == chat_id
-            ).limit(1)
+            select(Channel).where(Channel.chat_id == chat_id).limit(1)
         )
 
     async def update_channel_by_chat_id(self, chat_id: int, **kwargs):
         await self.execute(
-            update(Channel).where(
-                Channel.chat_id == chat_id
-            ).values(**kwargs)
+            update(Channel).where(Channel.chat_id == chat_id).values(**kwargs)
         )
 
     async def add_channel(self, **kwargs):
-        await self.execute(
-            insert(Channel).values(**kwargs)
-        )
+        await self.execute(insert(Channel).values(**kwargs))
 
     async def delete_channel(self, chat_id: int, user_id: int = None):
         stmt = delete(Channel).where(Channel.chat_id == chat_id)
