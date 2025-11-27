@@ -5,7 +5,7 @@ from aiogram.types import Update
 from hello_bot.utils.functions import answer_message
 from hello_bot.utils.schemas import Answer
 from main_bot.database.db import db
-from main_bot.utils.logger import logger
+from utils.logger import logger
 
 created_db_objects = {}
 
