@@ -65,6 +65,22 @@ async def get_message(message: types.Message, state: FSMContext):
         if message_options.caption:
             message_options.caption = message.html_text
 
+    # Extract buttons from reply_markup if present
+    buttons_text = None
+    if message.reply_markup and hasattr(message.reply_markup, 'inline_keyboard'):
+        button_rows = []
+        for row in message.reply_markup.inline_keyboard:
+            button_items = []
+            for button in row:
+                # Only extract URL buttons (text—url format)
+                if button.url:
+                    button_items.append(f"{button.text}—{button.url}")
+            if button_items:
+                button_rows.append('|'.join(button_items))
+
+        if button_rows:
+            buttons_text = '\n'.join(button_rows)
+
     data = await state.get_data()
     channel_id = data.get("channel_id")
     chat_ids = [channel_id] if channel_id else []
@@ -74,6 +90,7 @@ async def get_message(message: types.Message, state: FSMContext):
         chat_ids=chat_ids,
         admin_id=message.from_user.id,
         message_options=message_options.model_dump(),
+        buttons=buttons_text,
     )
 
     await state.clear()
