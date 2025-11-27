@@ -87,7 +87,7 @@ async def get_message(message: types.Message, state: FSMContext):
 
     post = await db.add_post(
         return_obj=True,
-        chat_ids=chat_ids,
+        chat_ids=[],
         admin_id=message.from_user.id,
         message_options=message_options.model_dump(),
         buttons=buttons_text,
