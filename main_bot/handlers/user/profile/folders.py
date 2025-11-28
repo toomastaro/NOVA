@@ -22,7 +22,7 @@ async def show_manage_folder(message: types.Message, state: FSMContext):
     )
 
 
-async def choice(call: types.CallbackQuery, state: FSMContext):
+async def choice(call: types.CallbackQuery, state: FSMContext, user: User):
     temp = call.data.split("|")
 
     if temp[1] in ["next", "back"]:
@@ -38,45 +38,31 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
         return await show_setting(call.message)
 
     if temp[1] == "create":
-        return await call.message.answer(
-            text("choice_folder_type"), reply_markup=keyboards.choice_type_folder()
+        # Сразу переходим к созданию папки каналов
+        folder_type = FolderType.CHANNEL
+        await state.update_data(folder_type=folder_type)
+
+        cor = db.get_user_channels
+        object_type = "channels"
+
+        objects = await cor(
+            user_id=user.id,
         )
+        if not objects:
+            return await call.answer(text(f"not_found_{object_type}"), show_alert=True)
+
+        await state.update_data(object_type=object_type, cor=cor, chosen=[])
+
+        await call.message.answer(
+            text(f"folders:chosen:{object_type}").format(""),
+            reply_markup=keyboards.choice_object_folders(resources=objects, chosen=[]),
+        )
+        return
 
     folder_id = int(temp[1])
     await state.update_data(folder_id=folder_id)
 
     await show_manage_folder(call.message, state)
-
-
-async def choice_type(call: types.CallbackQuery, state: FSMContext, user: User):
-    temp = call.data.split("|")
-
-    if temp[1] == "back":
-        await call.message.delete()
-        return await show_folders(call.message)
-
-    await state.update_data(folder_type=temp[1])
-
-    if temp[1] == FolderType.BOT:
-        cor = db.get_user_bots
-        object_type = "bots"
-    else:
-        cor = db.get_user_channels
-        object_type = "channels"
-
-    objects = await cor(
-        user_id=user.id,
-    )
-    if not objects:
-        return await call.answer(text(f"not_found_{object_type}"), show_alert=True)
-
-    await state.update_data(object_type=object_type, cor=cor, chosen=[])
-
-    await call.message.delete()
-    await call.message.answer(
-        text(f"folders:chosen:{object_type}").format(""),
-        reply_markup=keyboards.choice_object_folders(resources=objects, chosen=[]),
-    )
 
 
 async def choice_object(call: types.CallbackQuery, state: FSMContext, user: User):
@@ -299,9 +285,7 @@ async def manage_folder(call: types.CallbackQuery, state: FSMContext, user: User
 def hand_add():
     router = Router()
     router.callback_query.register(choice, F.data.split("|")[0] == "ChoiceFolder")
-    router.callback_query.register(
-        choice_type, F.data.split("|")[0] == "ChoiceTypeFolder"
-    )
+    # choice_type удален, так как выбор типа больше не нужен
     router.callback_query.register(
         choice_object, F.data.split("|")[0] == "ChoiceResourceFolder"
     )

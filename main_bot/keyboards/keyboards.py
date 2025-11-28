@@ -80,32 +80,53 @@ class InlinePosting(InlineKeyboardBuilder):
 
     @classmethod
     def choice_channels_for_post(
-        cls, channels: list[Channel], data: str = "ChoiceChannelPost", remover: int = 0
+        cls,
+        channels: list[Channel],
+        folders: list[UserFolder] | None = None,
+        chosen: list[int] | None = None,
+        data: str = "ChoiceChannelPost",
+        remover: int = 0,
+        is_folder_view: bool = False,
     ):
         kb = cls()
         count_rows = 7
+        folders = folders or []
+        chosen = chosen or []
 
-        for a, idx in enumerate(range(remover, len(channels))):
+        # Объединяем ресурсы: сначала папки, потом каналы
+        # Используем кортежи (тип, объект) для различения
+        resources = [("folder", f) for f in folders] + [("channel", c) for c in channels]
+
+        for a, idx in enumerate(range(remover, len(resources))):
             if a < count_rows:
+                res_type, obj = resources[idx]
+                if res_type == "folder":
+                    text_btn = f"📁 {obj.title}"
+                    callback_data = f"{data}|folder|{obj.id}"
+                else:
+                    is_chosen = obj.chat_id in chosen
+                    text_btn = f"{'✅ ' if is_chosen else ''}{obj.title}"
+                    callback_data = f"{data}|channel|{obj.chat_id}"
+
                 kb.add(
                     InlineKeyboardButton(
-                        text=channels[idx].title,
-                        callback_data=f"{data}|{channels[idx].chat_id}",
+                        text=text_btn,
+                        callback_data=callback_data,
                     )
                 )
 
         kb.adjust(2)
 
-        if len(channels) <= count_rows:
+        # Пагинация
+        if len(resources) <= count_rows:
             pass
-
-        elif len(channels) > count_rows > remover:
+        elif len(resources) > count_rows > remover:
             kb.row(
                 InlineKeyboardButton(
                     text="➡️", callback_data=f"{data}|next|{remover + count_rows}"
                 )
             )
-        elif remover + count_rows >= len(channels):
+        elif remover + count_rows >= len(resources):
             kb.row(
                 InlineKeyboardButton(
                     text="⬅️", callback_data=f"{data}|back|{remover - count_rows}"
@@ -120,6 +141,25 @@ class InlinePosting(InlineKeyboardBuilder):
                     text="➡️", callback_data=f"{data}|next|{remover + count_rows}"
                 ),
             )
+
+        # Кнопки управления
+        control_buttons = []
+        # Кнопка "Выбрать все"
+        control_buttons.append(
+            InlineKeyboardButton(
+                text=text("choice_all"), callback_data=f"{data}|choice_all"
+            )
+        )
+        
+        # Кнопка "Готово" (если есть выбранные)
+        if chosen:
+             control_buttons.append(
+                InlineKeyboardButton(
+                    text=text("ready"), callback_data=f"{data}|confirm"
+                )
+            )
+        
+        kb.row(*control_buttons)
 
         kb.row(
             InlineKeyboardButton(

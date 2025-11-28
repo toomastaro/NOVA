@@ -15,6 +15,20 @@ from main_bot.utils.lang.language import text
 from main_bot.utils.schemas import Hide, Media, MessageOptions, React
 
 
+async def get_post_text(post: Post, send_date_values: tuple) -> str:
+    if len(post.chat_ids) == 1:
+        channel = await db.get_channel_by_chat_id(post.chat_ids[0])
+        return text("post:content").format(
+            *send_date_values,
+            channel.emoji_id,
+            channel.title,
+        )
+    return text("post:content:multi").format(
+        *send_date_values,
+        len(post.chat_ids),
+    )
+
+
 async def set_folder_content(resource_id, chosen, chosen_folders):
     folder = await db.get_folder_by_id(folder_id=resource_id)
     is_append = resource_id not in chosen_folders
@@ -82,12 +96,14 @@ async def get_message(message: types.Message, state: FSMContext):
             buttons_text = '\n'.join(button_rows)
 
     data = await state.get_data()
-    channel_id = data.get("channel_id")
-    chat_ids = [channel_id] if channel_id else []
+    chosen_channels = data.get("chosen_channels")
+    chat_ids = chosen_channels if chosen_channels else []
+    if not chat_ids and data.get("channel_id"):
+        chat_ids = [data.get("channel_id")]
 
     post = await db.add_post(
         return_obj=True,
-        chat_ids=[],
+        chat_ids=chat_ids,
         admin_id=message.from_user.id,
         message_options=message_options.model_dump(),
         buttons=buttons_text,
@@ -115,11 +131,7 @@ async def manage_post(call: types.CallbackQuery, state: FSMContext):
             await state.update_data(post_message=post_message, show_more=False)
             await call.message.delete()
             return await call.message.answer(
-                text("post:content").format(
-                    *data.get("send_date_values"),
-                    data.get("channel").emoji_id,
-                    data.get("channel").title,
-                ),
+                await get_post_text(post, data.get("send_date_values")),
                 reply_markup=keyboards.manage_remain_post(post=post),
             )
 
@@ -127,36 +139,6 @@ async def manage_post(call: types.CallbackQuery, state: FSMContext):
         await call.message.delete()
         return await show_create_post(call.message, state)
 
-    if temp[1] == "next":
-        if is_edit:
-            post_message = await answer_post(call.message, state, from_edit=True)
-            await state.update_data(post_message=post_message, show_more=False)
-            await call.message.delete()
-            return await call.message.answer(
-                text("post:content").format(
-                    *data.get("send_date_values"),
-                    data.get("channel").emoji_id,
-                    data.get("channel").title,
-                ),
-                reply_markup=keyboards.manage_remain_post(post=post),
-            )
-
-        chosen = data.get("chosen", [])
-        if chosen:
-            objects = await db.get_user_channels(
-                user_id=call.from_user.id, sort_by="posting"
-            )
-            return await call.message.edit_text(
-                text("manage:post:finish_params").format(
-                    len(chosen),
-                    "\n".join(
-                        text("resource_title").format(obj.emoji_id, obj.title)
-                        for obj in objects
-                        if obj.chat_id in chosen[:10]
-                    ),
-                ),
-                reply_markup=keyboards.finish_params(obj=post),
-            )
 
         objects = await db.get_user_channels(
             user_id=call.from_user.id, sort_by="posting"
@@ -672,11 +654,7 @@ async def choice_delete_time(call: types.CallbackQuery, state: FSMContext):
     is_edit: bool = data.get("is_edit")
     if is_edit:
         return await call.message.edit_text(
-            text("post:content").format(
-                *data.get("send_date_values"),
-                data.get("channel").emoji_id,
-                data.get("channel").title,
-            ),
+            await get_post_text(post, data.get("send_date_values")),
             reply_markup=keyboards.manage_remain_post(post=post),
         )
 
@@ -704,11 +682,7 @@ async def cancel_send_time(call: types.CallbackQuery, state: FSMContext):
     is_edit: bool = data.get("is_edit")
     if is_edit:
         return await call.message.edit_text(
-            text("post:content").format(
-                *data.get("send_date_values"),
-                data.get("channel").emoji_id,
-                data.get("channel").title,
-            ),
+            await get_post_text(data.get("post"), data.get("send_date_values")),
             reply_markup=keyboards.manage_remain_post(post=data.get("post")),
         )
 
@@ -776,11 +750,7 @@ async def get_send_time(message: types.Message, state: FSMContext):
         await state.update_data(data)
 
         return await message.answer(
-            text("post:content").format(
-                *send_date_values,
-                data.get("channel").emoji_id,
-                data.get("channel").title,
-            ),
+            await get_post_text(post, send_date_values),
             reply_markup=keyboards.manage_remain_post(post=post),
         )
 
@@ -853,12 +823,9 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
                 ),
             )
             reply_markup = keyboards.finish_params(obj=post)
+
         if is_edit:
-            message_text = text("post:content").format(
-                *data.get("send_date_values"),
-                data.get("channel").emoji_id,
-                data.get("channel").title,
-            )
+            message_text = await get_post_text(post, data.get("send_date_values"))
             reply_markup = keyboards.manage_remain_post(post=data.get("post"))
 
         return await call.message.edit_text(message_text, reply_markup=reply_markup)
@@ -866,8 +833,6 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
     date_values: tuple = data.get("date_values")
     kwargs = {"chat_ids": chosen}
 
-    if temp[1] == "send_time":
-        kwargs["send_time"] = send_time or post.send_time
     if temp[1] == "public":
         kwargs["send_time"] = None
 
