@@ -30,32 +30,8 @@ async def get_post_text(post: Post, send_date_values: tuple) -> str:
     )
 
 
-async def set_folder_content(resource_id, chosen, chosen_folders):
-    folder = await db.get_folder_by_id(folder_id=resource_id)
-    is_append = resource_id not in chosen_folders
-
-    if is_append:
-        chosen_folders.append(resource_id)
-    else:
-        chosen_folders.remove(resource_id)
-
-    for chat_id in folder.content:
-        chat_id = int(chat_id)
-
-        channel = await db.get_channel_by_chat_id(chat_id)
-        if not channel.subscribe:
-            return "subscribe", ""
-
-        if is_append:
-            if chat_id in chosen:
-                continue
-            chosen.append(chat_id)
-        else:
-            if chat_id not in chosen:
-                continue
-            chosen.remove(chat_id)
-
-    return chosen, chosen_folders
+# Функция set_folder_content удалена - больше не нужна для batch-отправки
+# Логика папок теперь обрабатывается в menu.py
 
 
 async def cancel_message(call: types.CallbackQuery, state: FSMContext):
@@ -507,115 +483,8 @@ async def get_for_member_text(message: types.Message, state: FSMContext):
     )
 
 
-async def choice_channels(call: types.CallbackQuery, state: FSMContext):
-    temp = call.data.split("|")
-    data = await state.get_data()
-    if not data:
-        await call.answer(text("keys_data_error"))
-        return await call.message.delete()
-
-    chosen: list = data.get("chosen")
-    chosen_folders: list = data.get("chosen_folders")
-
-    objects = await db.get_user_channels(user_id=call.from_user.id, sort_by="posting")
-
-    if temp[1] == "next_step":
-        if not chosen:
-            return await call.answer(text("error_min_choice"))
-
-        return await call.message.edit_text(
-            text("manage:post:finish_params").format(
-                len(chosen),
-                "\n".join(
-                    text("resource_title").format(obj.emoji_id, obj.title)
-                    for obj in objects
-                    if obj.chat_id in chosen[:10]
-                ),
-            ),
-            reply_markup=keyboards.finish_params(obj=data.get("post")),
-        )
-
-    folders = await db.get_folders(user_id=call.from_user.id)
-
-    if temp[1] == "cancel":
-        await call.message.delete()
-        return await answer_post(call.message, state)
-
-    if temp[1] in ["next", "back"]:
-        return await call.message.edit_reply_markup(
-            reply_markup=keyboards.choice_objects(
-                resources=objects,
-                chosen=chosen,
-                folders=folders,
-                chosen_folders=chosen_folders,
-            )
-        )
-
-    if temp[1] == "choice_all":
-        if len(chosen) == len(objects) and len(chosen_folders) == len(folders):
-            chosen.clear()
-            chosen_folders.clear()
-        else:
-            extend_list = [
-                i.chat_id for i in objects if i.chat_id not in chosen and i.subscribe
-            ]
-            if not extend_list:
-                return await call.answer(text("error_sub_all"))
-
-            chosen.extend(extend_list)
-            if folders:
-                for folder in folders:
-                    sub_channels = []
-                    for chat_id in folder.content:
-                        channel = await db.get_channel_by_chat_id(int(chat_id))
-
-                        if not channel.subscribe:
-                            continue
-
-                        sub_channels.append(int(chat_id))
-
-                    if len(sub_channels) == len(folder.content):
-                        chosen_folders.append(folder.id)
-
-            chosen = list(set(chosen))
-
-    if temp[1].replace("-", "").isdigit():
-        resource_id = int(temp[1])
-
-        if temp[3] == "channel":
-            if resource_id in chosen:
-                chosen.remove(resource_id)
-            else:
-                channel = await db.get_channel_by_chat_id(resource_id)
-                if not channel.subscribe:
-                    return await call.answer(text("error_sub_channel"))
-
-                chosen.append(resource_id)
-        else:
-            temp_chosen, temp_chosen_folders = await set_folder_content(
-                resource_id=resource_id, chosen=chosen, chosen_folders=chosen_folders
-            )
-            if temp_chosen == "subscribe":
-                return await call.answer(text("error_sub_channel_folder"))
-
-    await state.update_data(chosen=chosen, chosen_folders=chosen_folders)
-    await call.message.edit_text(
-        text("choice_channels:post").format(
-            len(chosen),
-            "\n".join(
-                text("resource_title").format(obj.emoji_id, obj.title)
-                for obj in objects
-                if obj.chat_id in chosen[:10]
-            ),
-        ),
-        reply_markup=keyboards.choice_objects(
-            resources=objects,
-            chosen=chosen,
-            folders=folders,
-            chosen_folders=chosen_folders,
-            remover=int(temp[2]),
-        ),
-    )
+# Функция choice_channels удалена - выбор каналов теперь происходит в menu.py
+# с использованием новых клавиатур choice_channels_for_post для batch-отправки
 
 
 async def finish_params(call: types.CallbackQuery, state: FSMContext):
@@ -979,10 +848,7 @@ def hand_add():
     router.message.register(get_button_name, AddHide.button_name, F.text)
     router.message.register(get_not_member_text, AddHide.not_member_text, F.text)
     router.message.register(get_for_member_text, AddHide.for_member_text, F.text)
-    # Choice
-    router.callback_query.register(
-        choice_channels, F.data.split("|")[0] == "ChoicePostChannels"
-    )
+    # Choice каналов перемещен в menu.py (batch-отправка)
     # Finish Params
     router.callback_query.register(
         finish_params, F.data.split("|")[0] == "FinishPostParams"
