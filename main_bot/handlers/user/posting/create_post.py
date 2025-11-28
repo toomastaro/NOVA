@@ -579,21 +579,48 @@ async def finish_params(call: types.CallbackQuery, state: FSMContext):
             reply_markup=keyboards.finish_params(obj=post)
         )
 
+    # Проверяем наличие медиа в посте для выбора метода редактирования
+    message_options = MessageOptions(**post.message_options)
+    has_media = bool(message_options.photo or message_options.video or message_options.animation)
+
+    async def safe_edit_message(message_text: str, reply_markup=None):
+        """Безопасное редактирование сообщения"""
+        if has_media:
+            try:
+                # Для медиа пробуем edit_caption
+                await call.message.edit_caption(
+                    caption=message_text,
+                    reply_markup=reply_markup
+                )
+            except Exception:
+                try:
+                    # Если нет caption, обновляем клавиатуру и сообщение отдельно
+                    if reply_markup:
+                        await call.message.edit_reply_markup(reply_markup=reply_markup)
+                    await call.message.answer(message_text)
+                except Exception:
+                    # Крайний случай
+                    await call.message.delete()
+                    await call.message.answer(message_text, reply_markup=reply_markup)
+        else:
+            # Для текстовых сообщений
+            await call.message.edit_text(message_text, reply_markup=reply_markup)
+
     if temp[1] == "delete_time":
-        await call.message.edit_text(
+        await safe_edit_message(
             text("manage:post:new:delete_time"),
             reply_markup=keyboards.choice_delete_time(),
         )
 
     if temp[1] == "send_time":
-        await call.message.edit_text(
+        await safe_edit_message(
             text("manage:post:new:send_time"),
             reply_markup=keyboards.back(data="BackSendTimePost"),
         )
         await state.set_state(Posting.input_send_time)
 
     if temp[1] == "public":
-        await call.message.edit_text(
+        await safe_edit_message(
             text("manage:post:accept:public").format(
                 "\n".join(
                     text("resource_title").format(obj.emoji_id, obj.title)
@@ -640,17 +667,37 @@ async def choice_delete_time(call: types.CallbackQuery, state: FSMContext):
     chosen: list = data.get("chosen")
     objects = await db.get_user_channels(user_id=call.from_user.id, sort_by="posting")
 
-    await call.message.edit_text(
-        text("manage:post:finish_params").format(
-            len(chosen),
-            "\n".join(
-                text("resource_title").format(obj.emoji_id, obj.title)
-                for obj in objects
-                if obj.chat_id in chosen[:10]
-            ),
+    message_text = text("manage:post:finish_params").format(
+        len(chosen),
+        "\n".join(
+            text("resource_title").format(obj.emoji_id, obj.title)
+            for obj in objects
+            if obj.chat_id in chosen[:10]
         ),
-        reply_markup=keyboards.finish_params(obj=data.get("post")),
     )
+
+    # Проверяем наличие медиа для выбора метода редактирования
+    message_options = MessageOptions(**post.message_options)
+    has_media = bool(message_options.photo or message_options.video or message_options.animation)
+
+    try:
+        if has_media:
+            await call.message.edit_caption(
+                caption=message_text,
+                reply_markup=keyboards.finish_params(obj=post),
+            )
+        else:
+            await call.message.edit_text(
+                message_text,
+                reply_markup=keyboards.finish_params(obj=post),
+            )
+    except Exception:
+        # В случае ошибки пересоздаём сообщение
+        await call.message.delete()
+        await call.message.answer(
+            message_text,
+            reply_markup=keyboards.finish_params(obj=post),
+        )
 
 
 async def cancel_send_time(call: types.CallbackQuery, state: FSMContext):
@@ -668,17 +715,37 @@ async def cancel_send_time(call: types.CallbackQuery, state: FSMContext):
     chosen: list = data.get("chosen")
     objects = await db.get_user_channels(user_id=call.from_user.id, sort_by="posting")
 
-    await call.message.edit_text(
-        text("manage:post:finish_params").format(
-            len(chosen),
-            "\n".join(
-                text("resource_title").format(obj.emoji_id, obj.title)
-                for obj in objects
-                if obj.chat_id in chosen[:10]
-            ),
+    message_text = text("manage:post:finish_params").format(
+        len(chosen),
+        "\n".join(
+            text("resource_title").format(obj.emoji_id, obj.title)
+            for obj in objects
+            if obj.chat_id in chosen[:10]
         ),
-        reply_markup=keyboards.finish_params(obj=data.get("post")),
     )
+
+    # Проверяем наличие медиа для выбора метода редактирования
+    message_options = MessageOptions(**data.get("post").message_options)
+    has_media = bool(message_options.photo or message_options.video or message_options.animation)
+
+    try:
+        if has_media:
+            await call.message.edit_caption(
+                caption=message_text,
+                reply_markup=keyboards.finish_params(obj=data.get("post")),
+            )
+        else:
+            await call.message.edit_text(
+                message_text,
+                reply_markup=keyboards.finish_params(obj=data.get("post")),
+            )
+    except Exception:
+        # В случае ошибки пересоздаём сообщение
+        await call.message.delete()
+        await call.message.answer(
+            message_text,
+            reply_markup=keyboards.finish_params(obj=data.get("post")),
+        )
 
 
 async def get_send_time(message: types.Message, state: FSMContext):
