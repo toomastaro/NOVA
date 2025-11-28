@@ -37,7 +37,12 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
         )
         await state.set_state(Promo.input)
 
-    return await call.answer()
+    if temp[1] == "backup":
+        await call.message.edit_text(
+            "💾 <b>Меню управления бэкап системой</b>",
+            reply_markup=keyboards.admin_backup(),
+            parse_mode="HTML"
+        )
 
     if temp[1] == "mail":
         pass
@@ -47,6 +52,8 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
 
     if temp[1] == "ads":
         pass
+
+    await call.answer()
 
     # if temp[1] == 'mail':
     #     await call.message.edit_text(

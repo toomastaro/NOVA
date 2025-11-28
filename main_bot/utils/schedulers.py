@@ -13,6 +13,7 @@ from main_bot.database.bot_post.model import BotPost
 from main_bot.database.db import db
 from main_bot.database.post.model import Post
 from main_bot.database.story.model import Story
+from main_bot.database.types.post_status import PostStatus
 from main_bot.database.types import Status
 from main_bot.database.user_bot.model import UserBot
 from main_bot.keyboards.keyboards import keyboards
@@ -21,140 +22,139 @@ from main_bot.utils.functions import get_path, get_path_video, set_channel_sessi
 from main_bot.utils.lang.language import text
 from main_bot.utils.schemas import MessageOptions, MessageOptionsHello, StoryOptions
 from main_bot.utils.session_manager import SessionManager
+from main_bot.utils.posting_service import PostingService
 
 
 async def send(post: Post):
+    """
+    Отправляет пост с использованием бэкап системы
+    """
+    posting_service = PostingService(bot)
+
+    # Подготавливаем опции сообщения
     message_options = MessageOptions(**post.message_options)
 
-    if message_options.text:
-        cor = bot.send_message
-    elif message_options.photo:
-        cor = bot.send_photo
+    # Конвертируем file_id в нужный формат
+    if message_options.photo:
         message_options.photo = message_options.photo.file_id
     elif message_options.video:
-        cor = bot.send_video
         message_options.video = message_options.video.file_id
-    else:
-        cor = bot.send_animation
+    elif message_options.animation:
         message_options.animation = message_options.animation.file_id
 
-    options = message_options.model_dump()
-    if message_options.text:
-        options.pop("photo")
-        options.pop("video")
-        options.pop("animation")
-        options.pop("show_caption_above_media")
-        options.pop("has_spoiler")
-        options.pop("caption")
-    elif message_options.photo:
-        options.pop("video")
-        options.pop("animation")
-        options.pop("text")
-        options.pop("disable_web_page_preview")
-    elif message_options.video:
-        options.pop("photo")
-        options.pop("animation")
-        options.pop("text")
-        options.pop("disable_web_page_preview")
-
-    # animation
-    else:
-        options.pop("photo")
-        options.pop("video")
-        options.pop("text")
-        options.pop("disable_web_page_preview")
-
-    error_send = []
-    success_send = []
-
+    # Получаем активные каналы
+    active_chat_ids = []
     for chat_id in post.chat_ids:
         channel = await db.get_channel_by_chat_id(chat_id)
-        if not channel.subscribe:
-            continue
+        if channel.subscribe:
+            active_chat_ids.append(chat_id)
 
-        options["chat_id"] = chat_id
-
-        try:
-            post_message = await cor(
-                **options, reply_markup=keyboards.post_kb(post=post)
-            )
-            await asyncio.sleep(0.25)
-        except Exception as e:
-            print(e)
-            error_send.append({"chat_id": chat_id, "error": str(e)})
-            continue
-
-        if post.pin_time:
-            await post_message.pin(message_options.disable_notification)
-
-        current_time = int(time.time())
-        success_send.append(
-            {
-                "post_id": post.id,
-                "chat_id": chat_id,
-                "message_id": post_message.message_id,
-                "admin_id": post.admin_id,
-                "reaction": post.reaction or None,
-                "hide": post.hide or None,
-                "buttons": post.buttons or None,
-                "unpin_time": post.pin_time + current_time if post.pin_time else None,
-                "delete_time": post.delete_time + current_time
-                if post.delete_time
-                else None,
-                "report": post.report,
-                "cpm_price": post.cpm_price,
-            }
-        )
-
-    if success_send:
-        await db.add_many_published_post(posts=success_send)
-
-    await db.clear_posts(post_ids=[post.id])
-
-    if not post.report:
+    if not active_chat_ids:
+        await db.clear_posts(post_ids=[post.id])
         return
 
-    objects = await db.get_user_channels(
-        user_id=post.admin_id, from_array=post.chat_ids
-    )
-    success_str = "\n".join(
-        text("resource_title").format(obj.emoji_id, obj.title)
-        for obj in objects
-        if obj.chat_id in [i.get("chat_id") for i in success_send[:10]]
-    )
-    error_str = "\n".join(
-        text("resource_title").format(obj.emoji_id, obj.title)
-        + " \n{}".format(
-            "".join(
-                row.get("error")
-                for row in error_send[:10]
-                if row.get("chat_id") == obj.chat_id
-            )
-        )
-        for obj in objects
-        if obj.chat_id in [i.get("chat_id") for i in error_send[:10]]
+    # Отправляем через бэкап систему
+    results = await posting_service.send_post_batch(
+        post_id=post.id,
+        chat_ids=active_chat_ids,
+        message_options=message_options.model_dump(),
+        admin_id=post.admin_id,
+        use_backup=True
     )
 
-    if success_send and error_send:
-        message_text = text("success_error:post:public").format(
-            success_str,
-            error_str,
-        )
-    elif success_send:
-        message_text = text("manage:post:success:public").format(
-            success_str,
-        )
-    elif error_send:
-        message_text = text("error:post:public").format(
-            error_str,
-        )
-    else:
-        message_text = "Unknown Post Notification Message"
+    # Обрабатываем закрепление постов
+    if post.pin_time and results['published_posts']:
+        for pub_post in results['published_posts']:
+            try:
+                await bot.pin_chat_message(
+                    chat_id=pub_post['chat_id'],
+                    message_id=pub_post['message_id'],
+                    disable_notification=message_options.disable_notification
+                )
+            except Exception as e:
+                print(f"Ошибка закрепления поста: {e}")
 
+    # Устанавливаем времена для unpin и delete
+    current_time = int(time.time())
+
+    # Обновляем записи в published_posts с временными метками
+    if results['published_posts']:
+        from main_bot.database.published_post.crud import PublishedPostCrud
+        async with PublishedPostCrud() as published_crud:
+            for pub_post in results['published_posts']:
+                # Находим созданную запись и обновляем
+                published_post = await published_crud.get_published_post(
+                    chat_id=pub_post['chat_id'],
+                    message_id=pub_post['message_id']
+                )
+                if published_post:
+                    await published_crud.update_published_post(
+                        post_id=published_post.id,
+                        unpin_time=post.pin_time + current_time if post.pin_time else None,
+                        delete_time=post.delete_time + current_time if post.delete_time else None
+                    )
+
+    # Обновляем статус поста на "отправлен" вместо удаления
+    from main_bot.database.post.crud import PostCrud
+    async with PostCrud() as post_crud:
+        await post_crud.update_post_status(
+            post_id=post.id,
+            status=PostStatus.POSTED,
+            posted_timestamp=int(time.time())
+        )
+
+    # Отправляем отчет администратору
+    if post.report:
+        await send_admin_report(post, results)
+
+
+async def send_admin_report(post: Post, results: dict):
+    """
+    Отправляет отчет администратору о результатах публикации
+    """
     try:
+        objects = await db.get_user_channels(
+            user_id=post.admin_id, from_array=post.chat_ids
+        )
+
+        # Успешно отправленные
+        success_chat_ids = [p['chat_id'] for p in results['published_posts']]
+        success_str = "\n".join(
+            text("resource_title").format(obj.emoji_id, obj.title)
+            for obj in objects
+            if obj.chat_id in success_chat_ids[:10]
+        )
+
+        # Ошибки
+        error_str = "\n".join(results['errors'][:10]) if results['errors'] else ""
+
+        # Формируем сообщение
+        if results['success_count'] > 0 and results['failed_count'] > 0:
+            message_text = text("success_error:post:public").format(
+                success_str,
+                error_str,
+            )
+        elif results['success_count'] > 0:
+            message_text = text("manage:post:success:public").format(
+                success_str,
+            )
+        elif results['failed_count'] > 0:
+            message_text = text("error:post:public").format(
+                error_str,
+            )
+        else:
+            message_text = "Неизвестная ошибка публикации"
+
+        # Добавляем информацию о бэкапе
+        if results['backup_created']:
+            message_text += "\n\n✅ Бэкап создан успешно"
+        else:
+            message_text += "\n\n⚠️ Бэкап не создан"
+
         await bot.send_message(chat_id=post.admin_id, text=message_text)
+
     except Exception as e:
-        print(e)
+        print(f"Ошибка отправки отчета администратору: {e}")
 
 
 async def send_posts():

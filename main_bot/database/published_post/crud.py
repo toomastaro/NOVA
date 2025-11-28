@@ -50,3 +50,16 @@ class PublishedPostCrud(DatabaseMixin):
             operation = self.execute
 
         return await operation(stmt, **{"commit": return_obj} if return_obj else {})
+
+    async def delete_older_than(self, timestamp: float) -> int:
+        """Удалить записи о публикациях старше указанной временной метки"""
+        result = await self.execute(
+            delete(PublishedPost).where(PublishedPost.created_timestamp < timestamp)
+        )
+        return result.rowcount
+
+    async def get_by_post_id(self, post_id: int) -> list[PublishedPost]:
+        """Получить все публикации поста"""
+        return await self.fetch(
+            select(PublishedPost).where(PublishedPost.post_id == post_id)
+        )

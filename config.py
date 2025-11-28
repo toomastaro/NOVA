@@ -37,6 +37,9 @@ class Settings(BaseSettings):
     # Admins
     ADMINS: list[int]
 
+    # Backup channel
+    NOVA_BKP: int
+
     @field_validator("ADMINS", mode="before")
     @classmethod
     def parse_admins(cls, v: Any) -> list[int]:

@@ -1,10 +1,11 @@
 import time
 
-from sqlalchemy import JSON, BigInteger
+from sqlalchemy import JSON, BigInteger, Enum
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import Mapped, mapped_column
 
 from main_bot.database import Base
+from main_bot.database.types.post_status import PostStatus
 
 
 class Post(Base):
@@ -26,5 +27,13 @@ class Post(Base):
     delete_time: Mapped[int | None] = mapped_column(default=None)
     report: Mapped[bool] = mapped_column(default=False)
     cpm_price: Mapped[int | None] = mapped_column(default=None)
+
+    # Backup channel fields
+    backup_chat_id: Mapped[int | None] = mapped_column(BigInteger, default=None)
+    backup_message_id: Mapped[int | None] = mapped_column(BigInteger, default=None)
+
+    # Post status
+    status: Mapped[PostStatus] = mapped_column(Enum(PostStatus), default=PostStatus.PENDING, index=True)
+    posted_timestamp: Mapped[int | None] = mapped_column(default=None)  # Время фактической отправки
 
     created_timestamp: Mapped[int] = mapped_column(default=time.time)

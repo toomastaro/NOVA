@@ -2224,6 +2224,7 @@ class InlineAdmin(InlineKeyboardBuilder):
         kb.button(text="📊 Статистика сервиса", callback_data="Admin|stats")
         kb.button(text="🎁 Создать промокод", callback_data="Admin|promo")
         kb.button(text="🦋 Рекламные ссылки", callback_data="Admin|ads")
+        kb.button(text="💾 Бэкап", callback_data="Admin|backup")
 
         kb.adjust(1)
         return kb.as_markup()
@@ -2234,6 +2235,20 @@ class InlineAdmin(InlineKeyboardBuilder):
 
         kb.button(text=text("add:button"), callback_data="AdminSession|add")
         kb.button(text=text("back:button"), callback_data="AdminSession|cancel")
+
+        kb.adjust(1)
+        return kb.as_markup()
+
+    @classmethod
+    def admin_backup(cls):
+        kb = cls()
+
+        kb.button(text="📊 Статистика бэкапа", callback_data="AdminBackup|backup_status")
+        kb.button(text="ℹ️ Информация о системе", callback_data="AdminBackup|backup_info")
+        kb.button(text="🧹 Очистить бэкапы", callback_data="AdminBackup|cleanup_backups")
+        kb.button(text="🧪 Тестовый бэкап", callback_data="AdminBackup|test_backup")
+        kb.button(text="⚠️ Предупреждение о хранении", callback_data="AdminBackup|retention_warning")
+        kb.button(text=text("back:button"), callback_data="AdminBackup|back")
 
         kb.adjust(1)
         return kb.as_markup()
@@ -2527,6 +2542,10 @@ class Inline(
             if isinstance(post, Post):
                 options = post.message_options
                 message_text = options.get("text") or options.get("caption")
+                # Показываем статус поста
+                if hasattr(post, 'status'):
+                    from main_bot.database.types.post_status import PostStatusRu
+                    emoji = PostStatusRu.get_emoji(post.status)
             elif isinstance(post, BotPost):
                 options = post.message
                 message_text = options.get("text") or options.get("caption")
@@ -2725,6 +2744,79 @@ class Inline(
         )
         kb.button(text=text("back:button"), callback_data=f"{data}|cancel")
 
+        kb.adjust(1)
+        return kb.as_markup()
+
+    # Backup system keyboards
+    @classmethod
+    def cancel_edit_backup(cls):
+        """Клавиатура для отмены редактирования через бэкап"""
+        kb = cls()
+        kb.button(text="❌ Отменить", callback_data="cancel_backup_edit")
+        kb.adjust(1)
+        return kb.as_markup()
+
+    @classmethod
+    def post_edit_complete(cls):
+        """Клавиатура после завершения редактирования"""
+        kb = cls()
+        kb.button(text="✅ Готово", callback_data="edit_complete")
+        kb.adjust(1)
+        return kb.as_markup()
+
+    @classmethod
+    def back_to_menu(cls):
+        """Кнопка возврата в меню"""
+        kb = cls()
+        kb.button(text="🏠 В меню", callback_data="back_to_main_menu")
+        kb.adjust(1)
+        return kb.as_markup()
+
+    @classmethod
+    def post_details(cls, post_info: dict):
+        """Клавиатура для деталей поста в календаре"""
+        kb = cls()
+        post_id = post_info['id']
+
+        # Предпросмотр (если доступен бэкап)
+        if post_info['backup_available']:
+            kb.button(text="🔍 Предпросмотр", callback_data=f"preview_post|{post_id}")
+
+        # Редактирование (если доступно)
+        if post_info['can_edit']:
+            kb.button(text="✏️ Редактировать", callback_data=f"edit_post|{post_id}")
+
+        # Удаление (если доступно)
+        if post_info['can_delete']:
+            kb.button(text="🗑 Удалить", callback_data=f"delete_post|{post_id}")
+
+        kb.button(text="⬅️ Назад", callback_data="back_to_calendar")
+
+        kb.adjust(1)
+        return kb.as_markup()
+
+    @classmethod
+    def cancel_post_edit(cls):
+        """Клавиатура для отмены редактирования поста"""
+        kb = cls()
+        kb.button(text="❌ Отменить", callback_data="cancel_post_edit")
+        kb.adjust(1)
+        return kb.as_markup()
+
+    @classmethod
+    def confirm_delete_post(cls, post_id: int):
+        """Клавиатура подтверждения удаления поста"""
+        kb = cls()
+        kb.button(text="✅ Да, удалить", callback_data=f"confirm_delete|{post_id}")
+        kb.button(text="❌ Отмена", callback_data="back_to_calendar")
+        kb.adjust(1)
+        return kb.as_markup()
+
+    @classmethod
+    def back_to_calendar(cls):
+        """Кнопка возврата к календарю"""
+        kb = cls()
+        kb.button(text="📅 К календарю", callback_data="back_to_calendar")
         kb.adjust(1)
         return kb.as_markup()
 

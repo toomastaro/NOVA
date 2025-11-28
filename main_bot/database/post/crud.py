@@ -5,6 +5,7 @@ from sqlalchemy import delete, func, insert, or_, select, update
 
 from main_bot.database import DatabaseMixin
 from main_bot.database.post.model import Post
+from main_bot.database.types.post_status import PostStatus
 
 
 class PostCrud(DatabaseMixin):
@@ -75,8 +76,88 @@ class PostCrud(DatabaseMixin):
             select(Post).where(
                 func.cardinality(Post.chat_ids) > 0,
                 or_(Post.send_time.is_(None), Post.send_time < current_time),
+                Post.status == PostStatus.PENDING  # Только ожидающие отправки
             )
         )
 
     async def clear_posts(self, post_ids: list[int]):
         await self.execute(delete(Post).where(Post.id.in_(post_ids)))
+
+    async def get_by_id(self, post_id: int) -> Post | None:
+        """Получить пост по ID"""
+        return await self.fetchrow(select(Post).where(Post.id == post_id))
+
+    async def update(self, post_id: int, **kwargs) -> bool:
+        """Обновить пост"""
+        result = await self.execute(
+            update(Post).where(Post.id == post_id).values(**kwargs)
+        )
+        return result.rowcount > 0
+
+    async def get_posts_older_than(self, timestamp: float) -> list[Post]:
+        """Получить посты старше указанной временной метки"""
+        return await self.fetch(
+            select(Post).where(Post.created_timestamp < timestamp)
+        )
+
+    async def update_post_status(self, post_id: int, status: PostStatus, posted_timestamp: int = None) -> bool:
+        """Обновить статус поста"""
+        update_data = {'status': status}
+        if posted_timestamp:
+            update_data['posted_timestamp'] = posted_timestamp
+
+        result = await self.execute(
+            update(Post).where(Post.id == post_id).values(**update_data)
+        )
+        return result.rowcount > 0
+
+    async def get_posts_by_status(self, status: PostStatus, admin_id: int = None) -> list[Post]:
+        """Получить посты по статусу"""
+        stmt = select(Post).where(Post.status == status)
+        if admin_id:
+            stmt = stmt.where(Post.admin_id == admin_id)
+        return await self.fetch(stmt)
+
+    async def get_posts_for_calendar(self, admin_id: int, current_day: datetime = None) -> list[Post]:
+        """Получить посты для календаря (включая отправленные)"""
+        # Ограничиваем 90 днями
+        cutoff_time = time.time() - (90 * 24 * 60 * 60)
+
+        stmt = select(Post).where(
+            Post.admin_id == admin_id,
+            Post.created_timestamp >= cutoff_time,
+            # Показываем все, кроме удаленных старше 7 дней
+            or_(
+                Post.status != PostStatus.DELETED,
+                Post.posted_timestamp >= (time.time() - (7 * 24 * 60 * 60))
+            )
+        )
+
+        if current_day:
+            start_day = int(
+                time.mktime(
+                    current_day.replace(
+                        hour=0, minute=0, second=0, microsecond=0
+                    ).timetuple()
+                )
+            )
+            end_day = start_day + 86400
+
+            # Для конкретного дня ищем по send_time или posted_timestamp
+            stmt = stmt.where(
+                or_(
+                    # Отложенные посты
+                    (Post.send_time.between(start_day, end_day)),
+                    # Отправленные посты
+                    (Post.posted_timestamp.between(start_day, end_day))
+                )
+            )
+
+        return await self.fetch(stmt.order_by(Post.created_timestamp.desc()))
+
+    async def delete_old_posts(self, cutoff_timestamp: float) -> int:
+        """Удалить посты старше 90 дней"""
+        result = await self.execute(
+            delete(Post).where(Post.created_timestamp < cutoff_timestamp)
+        )
+        return result.rowcount
