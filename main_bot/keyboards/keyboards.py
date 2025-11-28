@@ -2595,13 +2595,19 @@ class Inline(
                         PostStatus.DELETED: "🗑️"  # Удален
                     }
                     emoji = emoji_map.get(post.status, "⏳")
+                # Для Post используем timestamp для отображения
+                display_timestamp = post.send_time or post.created_timestamp
             elif isinstance(post, BotPost):
                 options = post.message
                 message_text = options.get("text") or options.get("caption")
                 emoji = "⏳" if post.status == Status.PENDING else "✅"
+                # Для BotPost используем start_timestamp
+                display_timestamp = post.send_time or post.start_timestamp
             else:
+                # Для Story
                 options = post.story_options
                 message_text = options.get("caption")
+                display_timestamp = post.send_time
 
             if message_text:
                 message_text = message_text.replace("tg-emoji emoji-id", "").replace(
@@ -2614,7 +2620,7 @@ class Inline(
                     text="{} {} | {}".format(
                         emoji,
                         datetime.fromtimestamp(
-                            post.send_time or post.start_timestamp
+                            display_timestamp
                         ).strftime("%d.%m.%Y %H:%M"),
                         message_text or "Медиа",
                     ),
