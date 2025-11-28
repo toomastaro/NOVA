@@ -21,7 +21,6 @@ async def get_post_text(post: Post, send_date_values: tuple) -> str:
         channel = await db.get_channel_by_chat_id(post.chat_ids[0])
         return text("post:content").format(
             *send_date_values,
-            channel.emoji_id,
             channel.title,
         )
     return text("post:content:multi").format(

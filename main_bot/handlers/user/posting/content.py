@@ -142,7 +142,7 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
 
     await call.message.delete()
     await call.message.answer(
-        text("post:content").format(*send_date_values, channel.emoji_id, channel.title),
+        text("post:content").format(*send_date_values, channel.title),
         reply_markup=keyboards.manage_remain_post(post=post),
     )
 
@@ -237,7 +237,7 @@ async def accept_delete_row_content(call: types.CallbackQuery, state: FSMContext
     if temp[1] == "cancel":
         return await call.message.edit_text(
             text("post:content").format(
-                *send_date_values, channel.emoji_id, channel.title
+                *send_date_values, channel.title
             ),
             reply_markup=keyboards.manage_remain_post(post=post),
         )

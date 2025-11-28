@@ -213,7 +213,6 @@ async def manage_post(call: types.CallbackQuery, state: FSMContext):
             return await call.message.answer(
                 text("bot_post:content").format(
                     *data.get("send_date_values"),
-                    data.get("channel").emoji_id,
                     data.get("channel").title,
                 ),
                 reply_markup=keyboards.manage_remain_bot_post(post=post),
@@ -233,7 +232,6 @@ async def manage_post(call: types.CallbackQuery, state: FSMContext):
             return await call.message.answer(
                 text("bot_post:content").format(
                     *data.get("send_date_values"),
-                    data.get("channel").emoji_id,
                     data.get("channel").title,
                 ),
                 reply_markup=keyboards.manage_remain_bot_post(post=post),
@@ -462,9 +460,8 @@ async def cancel_send_time(call: types.CallbackQuery, state: FSMContext):
     is_edit: bool = data.get("is_edit")
     if is_edit:
         return await call.message.edit_text(
-            text("post:content").format(
+            text("bot_post:content").format(
                 *data.get("send_date_values"),
-                data.get("channel").emoji_id,
                 data.get("channel").title,
             ),
             reply_markup=keyboards.manage_remain_bot_post(post=data.get("post")),
@@ -536,7 +533,6 @@ async def get_send_time(message: types.Message, state: FSMContext):
         return await message.answer(
             text("bot_post:content").format(
                 *send_date_values,
-                data.get("channel").emoji_id,
                 data.get("channel").title,
             ),
             reply_markup=keyboards.manage_remain_bot_post(post=post),
@@ -607,9 +603,8 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
             )
             reply_markup = keyboards.finish_bot_post_params(obj=post)
         if is_edit:
-            message_text = text("bot:content").format(
+            message_text = text("bot_post:content").format(
                 *data.get("send_date_values"),
-                data.get("channel").emoji_id,
                 data.get("channel").title,
             )
             reply_markup = keyboards.manage_remain_bot_post(post=data.get("post"))
