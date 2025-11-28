@@ -129,7 +129,8 @@ async def choice_object(call: types.CallbackQuery, state: FSMContext, user: User
         else:
             chosen.extend([obj.chat_id for obj in objects if obj.chat_id not in chosen])
 
-    if temp[1].isdigit():
+    # Обработка выбора отдельных каналов (включая отрицательные ID каналов)
+    if temp[1].lstrip('-').isdigit():  # Поддерживаем отрицательные ID каналов Telegram
         resource_id = int(temp[1])
         if resource_id in chosen:
             chosen.remove(resource_id)
@@ -144,10 +145,13 @@ async def choice_object(call: types.CallbackQuery, state: FSMContext, user: User
         if obj.chat_id in chosen[:10]
     )
 
+    # Получаем remover безопасно (для кнопок отдельных каналов может не быть temp[2])
+    remover = int(temp[2]) if len(temp) > 2 and temp[2].isdigit() else 0
+
     await call.message.edit_text(
         text(f"folders:chosen:{object_type}").format(selected_text),
         reply_markup=keyboards.choice_object_folders(
-            resources=objects, chosen=chosen, remover=int(temp[2])
+            resources=objects, chosen=chosen, remover=remover
         ),
     )
 
