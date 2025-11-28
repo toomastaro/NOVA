@@ -99,7 +99,7 @@ async def get_message(message: types.Message, state: FSMContext):
     data = await state.get_data()
     chosen_channels = data.get("chosen_channels")
 
-    # Если каналы уже выбраны в batch-режиме, создаем пост с этими каналами
+    # Если каналы уже выбраны в batch-режиме, создаем пост и переходим к финальным настройкам
     if chosen_channels:
         chat_ids = chosen_channels
 
@@ -114,7 +114,20 @@ async def get_message(message: types.Message, state: FSMContext):
         await state.clear()
         await state.update_data(show_more=False, post=post, chosen=chat_ids)
 
-        await answer_post(message, state)
+        # Переходим сразу к финальным настройкам (опубликовать/отложить)
+        objects = await db.get_user_channels(user_id=message.from_user.id, sort_by="posting")
+
+        await message.answer(
+            text("manage:post:finish_params").format(
+                len(chat_ids),
+                "\n".join(
+                    text("resource_title").format(obj.emoji_id, obj.title)
+                    for obj in objects
+                    if obj.chat_id in chat_ids[:10]
+                ),
+            ),
+            reply_markup=keyboards.finish_params(obj=post),
+        )
     else:
         # Если каналы не выбраны, создаем пост без каналов и переходим к выбору
         post = await db.add_post(
@@ -183,21 +196,6 @@ async def manage_post(call: types.CallbackQuery, state: FSMContext):
         await db.delete_post(data.get("post").id)
         await call.message.delete()
         return await show_create_post(call.message, state)
-
-
-        objects = await db.get_user_channels(
-            user_id=call.from_user.id, sort_by="posting"
-        )
-        folders = await db.get_folders(user_id=call.from_user.id)
-        await state.update_data(chosen=[], chosen_folders=[])
-
-        await call.message.delete()
-        return await call.message.answer(
-            text("choice_channels:post").format(0, ""),
-            reply_markup=keyboards.choice_objects(
-                resources=objects, chosen=[], folders=folders, chosen_folders=[]
-            ),
-        )
 
     if temp[1] == "show_more":
         await state.update_data(show_more=not data.get("show_more"))

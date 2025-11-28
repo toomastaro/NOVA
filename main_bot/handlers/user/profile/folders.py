@@ -38,7 +38,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext, user: User):
         return await show_setting(call.message)
 
     if temp[1] == "create":
-        # Создаём папку для каналов (упрощённый процесс)
+        # Папки создаются ТОЛЬКО для каналов (FolderType.CHANNEL)
         folder_type = FolderType.CHANNEL
         await state.update_data(folder_type=folder_type)
 
@@ -77,9 +77,8 @@ async def choice_object(call: types.CallbackQuery, state: FSMContext, user: User
         await call.message.delete()
 
         if not folder_edit:
-            await call.message.answer(
-                text("choice_folder_type"), reply_markup=keyboards.choice_type_folder()
-            )
+            # Папки используются ТОЛЬКО для каналов - возвращаемся к списку папок
+            await show_folders(call.message)
         else:
             await show_manage_folder(call.message, state)
 
@@ -154,37 +153,20 @@ async def choice_object(call: types.CallbackQuery, state: FSMContext, user: User
 
 
 async def cancel(call: types.CallbackQuery, state: FSMContext, user: User):
-    """Отмена выбора каналов для папки"""
+    """Отмена выбора каналов для папки (папки ТОЛЬКО для каналов)"""
     data = await state.get_data()
     if not data:
         await call.answer(text("keys_data_error"))
         return await call.message.delete()
 
-    await state.clear()
-    await state.update_data(data)
-
-    chosen = data.get("chosen")
-    object_type = data.get("object_type")
     folder_edit = data.get("folder_edit")
 
     await call.message.delete()
+    await state.clear()
 
     if not folder_edit:
-        # Возвращаемся к выбору каналов
-        objects = await db.get_user_channels(user_id=user.id)
-        selected_text = "\n".join(
-            text("resource_title").format(obj.emoji_id, obj.title)
-            for obj in objects
-            if obj.chat_id in chosen[:10]
-        )
-
-        await call.message.answer(
-            text(f"folders:chosen:{object_type}").format(selected_text),
-            reply_markup=keyboards.choice_object_folders(
-                resources=objects,
-                chosen=chosen,
-            ),
-        )
+        # Папки используются ТОЛЬКО для каналов - возвращаемся к списку папок
+        await show_folders(call.message)
     else:
         await show_manage_folder(call.message, state)
 
