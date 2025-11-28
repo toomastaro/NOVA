@@ -1,4 +1,5 @@
 import re
+import time
 from calendar import monthcalendar, monthrange
 from datetime import datetime
 
@@ -2596,18 +2597,18 @@ class Inline(
                     }
                     emoji = emoji_map.get(post.status, "⏳")
                 # Для Post используем timestamp для отображения
-                display_timestamp = post.send_time or post.created_timestamp
+                display_timestamp = post.send_time or post.posted_timestamp or post.created_timestamp
             elif isinstance(post, BotPost):
                 options = post.message
                 message_text = options.get("text") or options.get("caption")
                 emoji = "⏳" if post.status == Status.PENDING else "✅"
                 # Для BotPost используем start_timestamp
-                display_timestamp = post.send_time or post.start_timestamp
+                display_timestamp = post.send_time or post.start_timestamp or int(time.time())
             else:
                 # Для Story
                 options = post.story_options
                 message_text = options.get("caption")
-                display_timestamp = post.send_time
+                display_timestamp = post.send_time or int(time.time())
 
             if message_text:
                 message_text = message_text.replace("tg-emoji emoji-id", "").replace(
@@ -2621,7 +2622,7 @@ class Inline(
                         emoji,
                         datetime.fromtimestamp(
                             display_timestamp
-                        ).strftime("%d.%m.%Y %H:%M"),
+                        ).strftime("%d.%m.%Y %H:%M") if display_timestamp else "Нет даты",
                         message_text or "Медиа",
                     ),
                     callback_data=f"{data}|{post.id}",

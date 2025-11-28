@@ -42,14 +42,20 @@ async def show_post_details(call: types.CallbackQuery, bot: Bot):
         if len(content) > 100:
             content = content[:100] + '...'
             
-        # Форматируем время
-        if post_info['send_time']:
-            send_time_str = datetime.fromtimestamp(post_info['send_time']).strftime('%d.%m.%Y %H:%M')
+        # Форматируем время (с проверкой на None)
+        if post_info.get('send_time') and post_info['send_time'] is not None:
+            try:
+                send_time_str = datetime.fromtimestamp(post_info['send_time']).strftime('%d.%m.%Y %H:%M')
+            except (ValueError, TypeError, OSError):
+                send_time_str = 'Ошибка даты'
         else:
             send_time_str = 'Сразу'
             
-        if post_info['posted_timestamp']:
-            posted_time_str = datetime.fromtimestamp(post_info['posted_timestamp']).strftime('%d.%m.%Y %H:%M')
+        if post_info.get('posted_timestamp') and post_info['posted_timestamp'] is not None:
+            try:
+                posted_time_str = datetime.fromtimestamp(post_info['posted_timestamp']).strftime('%d.%m.%Y %H:%M')
+            except (ValueError, TypeError, OSError):
+                posted_time_str = 'Ошибка даты'
         else:
             posted_time_str = '—'
             
