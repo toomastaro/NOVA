@@ -33,44 +33,6 @@ class BackupManager:
             message_options: Опции сообщения (текст, медиа и т.д.)
             
         Returns:
-            Tuple (chat_id, message_id) бэкап поста или None при ошибке
-        """
-        try:
-            # Отправляем пост в бэкап канал
-            backup_message = await self._send_backup_message(message_options)
-            
-            if backup_message:
-                # Обновляем пост с информацией о бэкапе
-                async with PostCrud() as post_crud:
-                    await post_crud.update(
-                        post_id, 
-                        backup_chat_id=self.backup_chat_id,
-                        backup_message_id=backup_message.message_id
-                    )
-                
-                logger.info(f"Создан бэкап пост для post_id={post_id}, backup_message_id={backup_message.message_id}")
-                return (self.backup_chat_id, backup_message.message_id)
-            
-        except Exception as e:
-            logger.error(f"Ошибка создания бэкап поста для post_id={post_id}: {e}")
-            
-        return None
-
-    async def _send_backup_message(self, message_options: Dict[str, Any]) -> Optional[Message]:
-        """Отправляет сообщение в бэкап канал"""
-        try:
-            # Определяем тип контента и отправляем соответствующее сообщение
-            if 'photo' in message_options:
-                return await self.bot.send_photo(
-                    chat_id=self.backup_chat_id,
-                    photo=message_options['photo'],
-                    caption=message_options.get('caption'),
-                    parse_mode=message_options.get('parse_mode')
-                )
-            elif 'video' in message_options:
-                return await self.bot.send_video(
-                    chat_id=self.backup_chat_id,
-                    video=message_options['video'],
                     caption=message_options.get('caption'),
                     parse_mode=message_options.get('parse_mode')
                 )

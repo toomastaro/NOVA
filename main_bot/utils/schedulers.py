@@ -96,12 +96,12 @@ async def send(post: Post):
 
     # Обновляем статус поста на "отправлен" вместо удаления
     from main_bot.database.post.crud import PostCrud
-    async with PostCrud() as post_crud:
-        await post_crud.update_post_status(
-            post_id=post.id,
-            status=PostStatus.POSTED,
-            posted_timestamp=int(time.time())
-        )
+    post_crud = PostCrud()
+    await post_crud.update_post_status(
+        post_id=post.id,
+        status=PostStatus.POSTED,
+        posted_timestamp=int(time.time())
+    )
 
     # Отправляем отчет администратору
     if post.report:
