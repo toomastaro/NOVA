@@ -2348,7 +2348,7 @@ class Inline(
         )
         kb.row(
             InlineKeyboardButton(
-                text="🔍 Найти существующие", callback_data=f"{data}|scan"
+                text="🔍 Поиск каналов", callback_data=f"{data}|scan"
             )
         )
         kb.row(
