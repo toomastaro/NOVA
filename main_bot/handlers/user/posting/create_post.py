@@ -79,12 +79,17 @@ async def get_message(message: types.Message, state: FSMContext):
     if chosen_channels:
         chat_ids = chosen_channels
 
+        # ВАЖНО: устанавливаем send_time в далекое будущее, чтобы пост не отправился автоматически
+        # Планировщик отправляет посты где send_time=None или send_time < current_time
+        far_future_time = int(time.time()) + (365 * 24 * 60 * 60)  # +1 год
+
         post = await db.add_post(
             return_obj=True,
             chat_ids=chat_ids,
             admin_id=message.from_user.id,
             message_options=message_options.model_dump(),
             buttons=buttons_text,
+            send_time=far_future_time,  # Предотвращаем автоматическую отправку
         )
 
         await state.clear()
@@ -95,12 +100,16 @@ async def get_message(message: types.Message, state: FSMContext):
         await answer_post(message, state)
     else:
         # Если каналы не выбраны, создаем пост без каналов и переходим к выбору
+        # Устанавливаем send_time в далекое будущее для предотвращения автоматической отправки
+        far_future_time = int(time.time()) + (365 * 24 * 60 * 60)  # +1 год
+
         post = await db.add_post(
             return_obj=True,
             chat_ids=[],
             admin_id=message.from_user.id,
             message_options=message_options.model_dump(),
             buttons=buttons_text,
+            send_time=far_future_time,  # Предотвращаем автоматическую отправку
         )
 
         await state.clear()
@@ -308,6 +317,12 @@ async def get_value(message: types.Message, state: FSMContext):
         return await message.answer(text("error_value"))
 
     post: Post = data.get("post")
+
+    # Сохраняем важные данные состояния
+    chosen = data.get("chosen")
+    show_more = data.get("show_more")
+    is_edit = data.get("is_edit")
+
     if param in ["text", "media"]:
         message_options = MessageOptions(**post.message_options)
 
@@ -348,42 +363,53 @@ async def get_value(message: types.Message, state: FSMContext):
                 return await message.answer(text("error_value"))
         else:
             if param == "buttons":
-                post.buttons = value
-            else:
-                c = 0
-                dict_react = {"rows": []}
-                for a, row in enumerate(message.text.split("\n")):
-                    reactions = []
-                    for react in row.split("|"):
-                        reactions.append({"id": c, "react": react, "users": []})
-                        c += 1
-                    dict_react["rows"].append({"id": a, "reactions": reactions})
+                value = message.text
+            else:  # reaction
+                try:
+                    c = 0
+                    dict_react = {"rows": []}
+                    for a, row in enumerate(message.text.split("\n")):
+                        if not row.strip():
+                            continue
+                        reactions = []
+                        for react in row.split("|"):
+                            if react.strip():
+                                reactions.append({"id": c, "react": react.strip(), "users": []})
+                                c += 1
+                        if reactions:
+                            dict_react["rows"].append({"id": a, "reactions": reactions})
 
-                post.reaction = dict_react
-                value = dict_react
+                    if not dict_react["rows"]:
+                        return await message.answer(text("error_value"))
 
-            try:
-                post: Post = data.get("post")
-                check = await message.answer(
-                    "...", reply_markup=keyboards.manage_post(post)
-                )
-                await check.delete()
-            except (IndexError, TypeError):
-                return await message.answer(text("error_value"))
+                    value = dict_react
+                except Exception:
+                    return await message.answer(text("error_value"))
 
         kwargs = {param: value}
 
-    # Исправление: явно сохраняем кнопки при обновлении поста
+    # Явно сохраняем кнопки при обновлении поста
     if 'buttons' not in kwargs:
         kwargs['buttons'] = post.buttons
 
     post = await db.update_post(post_id=post.id, return_obj=True, **kwargs)
 
-    await state.clear()
-    data["post"] = post
-    await state.update_data(data)
+    # Удаляем сообщение с вводом
+    try:
+        await message.bot.delete_message(message.chat.id, data.get("input_msg_id"))
+    except Exception:
+        pass
 
-    await message.bot.delete_message(message.chat.id, data.get("input_msg_id"))
+    # Обновляем состояние с сохранением важных данных
+    await state.clear()
+    await state.update_data(
+        post=post,
+        chosen=chosen,
+        show_more=show_more or False,
+        is_edit=is_edit
+    )
+
+    # Возвращаемся к меню редактирования поста
     await answer_post(message, state)
 
 
@@ -757,7 +783,9 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
     kwargs = {"chat_ids": chosen}
 
     if temp[1] == "public":
-        kwargs["send_time"] = None
+        kwargs["send_time"] = None  # Опубликовать сейчас
+    elif send_time:
+        kwargs["send_time"] = send_time  # Отложенная публикация
 
     await db.update_post(post_id=post.id, **kwargs)
 
