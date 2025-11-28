@@ -29,7 +29,9 @@ async def send(post: Post):
     """
     Отправляет пост с использованием бэкап системы
     """
-    posting_service = PostingService(bot)
+    from main_bot.utils.backup_manager import BackupManager
+    backup_manager = BackupManager(bot)
+    posting_service = PostingService(bot, backup_manager)
 
     # Подготавливаем опции сообщения
     message_options = MessageOptions(**post.message_options)
@@ -53,11 +55,18 @@ async def send(post: Post):
         await db.clear_posts(post_ids=[post.id])
         return
 
+    # Подготавливаем message_options с кнопками
+    message_options_dict = message_options.model_dump()
+
+    # Добавляем кнопки, если они есть в посте
+    if post.buttons:
+        message_options_dict['buttons'] = post.buttons
+
     # Отправляем через бэкап систему
     results = await posting_service.send_post_batch(
         post_id=post.id,
         chat_ids=active_chat_ids,
-        message_options=message_options.model_dump(),
+        message_options=message_options_dict,
         admin_id=post.admin_id,
         use_backup=True
     )

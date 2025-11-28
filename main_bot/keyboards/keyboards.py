@@ -298,12 +298,13 @@ class InlinePosting(InlineKeyboardBuilder):
             for row in post.buttons.split("\n"):
                 buttons = []
                 for button in row.split("|"):
-                    if "—" in button:
-                        text_btn, url_btn = button.split("—", 1)
-                    elif " - " in button:
+                    # Определяем разделитель и разбираем кнопку
+                    if " - " in button:  # Основной формат: "text - url"
                         text_btn, url_btn = button.split(" - ", 1)
-                    elif "-" in button:
-                         text_btn, url_btn = button.split("-", 1)
+                    elif "—" in button:  # Альтернативный формат: "text—url"
+                        text_btn, url_btn = button.split("—", 1)
+                    elif "-" in button:  # Запасной формат: "text-url"
+                        text_btn, url_btn = button.split("-", 1)
                     else:
                         continue # Skip invalid buttons
 
@@ -313,7 +314,8 @@ class InlinePosting(InlineKeyboardBuilder):
                             url=url_btn.strip(),
                         )
                     )
-                kb.row(*buttons)
+                if buttons:  # Добавляем ряд только если есть валидные кнопки
+                    kb.row(*buttons)
 
         if reactions:
             for row in reactions.rows:
@@ -436,12 +438,13 @@ class InlinePosting(InlineKeyboardBuilder):
             for row in post.buttons.split("\n"):
                 buttons = []
                 for button in row.split("|"):
-                    if "—" in button:
-                        text_btn, url_btn = button.split("—", 1)
-                    elif " - " in button:
+                    # Определяем разделитель и разбираем кнопку
+                    if " - " in button:  # Основной формат: "text - url"
                         text_btn, url_btn = button.split(" - ", 1)
-                    elif "-" in button:
-                         text_btn, url_btn = button.split("-", 1)
+                    elif "—" in button:  # Альтернативный формат: "text—url"
+                        text_btn, url_btn = button.split("—", 1)
+                    elif "-" in button:  # Запасной формат: "text-url"
+                        text_btn, url_btn = button.split("-", 1)
                     else:
                         continue
 
@@ -451,7 +454,8 @@ class InlinePosting(InlineKeyboardBuilder):
                             url=url_btn.strip(),
                         )
                     )
-                kb.row(*buttons)
+                if buttons:  # Добавляем ряд только если есть валидные кнопки
+                    kb.row(*buttons)
 
         if not is_bot:
             hide = Hide(hide=post.hide) if post.hide else None
@@ -1419,13 +1423,26 @@ class InlineBotSetting(InlineKeyboardBuilder):
         kb = cls()
 
         for row in buttons.split("\n"):
-            buttons = [
-                InlineKeyboardButton(
-                    text=button.split("—")[0].strip(), url=button.split("—")[1].strip()
+            button_list = []
+            for button in row.split("|"):
+                # Определяем разделитель и разбираем кнопку
+                if " - " in button:  # Основной формат: "text - url"
+                    text_btn, url_btn = button.split(" - ", 1)
+                elif "—" in button:  # Альтернативный формат: "text—url"
+                    text_btn, url_btn = button.split("—", 1)
+                elif "-" in button:  # Запасной формат: "text-url"
+                    text_btn, url_btn = button.split("-", 1)
+                else:
+                    continue  # Пропускаем невалидные кнопки
+
+                button_list.append(
+                    InlineKeyboardButton(
+                        text=text_btn.strip(), url=url_btn.strip()
+                    )
                 )
-                for button in row.split("|")
-            ]
-            kb.row(*buttons)
+
+            if button_list:  # Добавляем ряд только если есть валидные кнопки
+                kb.row(*button_list)
 
         return kb.as_markup()
 

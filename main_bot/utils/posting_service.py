@@ -14,6 +14,63 @@ logger = logging.getLogger(__name__)
 
 
 class PostingService:
+    def __init__(self, bot: Bot, backup_manager: BackupManager = None):
+        self.bot = bot
+        self.backup_manager = backup_manager or BackupManager(bot)
+
+    async def send_post_batch(
+        self,
+        post_id: int,
+        chat_ids: List[int],
+        message_options: Dict[str, Any],
+        admin_id: int,
+        use_backup: bool = True
+    ) -> Dict[str, Any]:
+        """
+        Отправляет пост в несколько каналов с поддержкой бэкапа
+
+        Args:
+            post_id: ID поста
+            chat_ids: Список ID каналов
+            message_options: Опции сообщения
+            admin_id: ID администратора
+            use_backup: Использовать бэкап
+
+        Returns:
+            Результат отправки
+        """
+        results = {
+            'success_count': 0,
+            'failed_count': 0,
+            'errors': [],
+            'published_posts': [],
+            'backup_created': False
+        }
+
+        try:
+            # Отправляем в бэкап канал сначала (если нужно)
+            backup_message = None
+            if use_backup:
+                try:
+                    backup_message = await self.backup_manager.send_to_backup(
+                        post_id, message_options
+                    )
+                    if backup_message:
+                        results['backup_created'] = True
+                        logger.info(f"Пост {post_id} сохранён в бэкап")
+                except Exception as e:
+                    logger.warning(f"Не удалось создать бэкап: {e}")
+
+            # Отправляем в каналы
+            published_posts_data = []
+
+            for chat_id in chat_ids:
+                try:
+                    sent_message = await self._send_direct_message(chat_id, message_options)
+
+                    if sent_message:
+                        published_posts_data.append({
+                            'post_id': post_id,
                             'message_id': sent_message.message_id,
                             'chat_id': chat_id,
                             'admin_id': admin_id
@@ -55,42 +112,61 @@ class PostingService:
     ) -> Optional[Message]:
         """Отправляет сообщение напрямую"""
         try:
+            # Создаем клавиатуру с кнопками, если они есть
+            reply_markup = None
+            if 'buttons' in message_options and message_options['buttons']:
+                from main_bot.keyboards.keyboards import keyboards
+                # Создаем временный объект для использования с post_kb
+                class TempPost:
+                    def __init__(self, buttons):
+                        self.buttons = buttons
+                        self.hide = None
+                        self.reaction = None
+
+                temp_post = TempPost(message_options['buttons'])
+                reply_markup = keyboards.post_kb(temp_post, is_bot=True)
+
+            # Базовые параметры для всех типов сообщений
+            send_params = {
+                'chat_id': chat_id,
+                'parse_mode': message_options.get('parse_mode'),
+                'reply_markup': reply_markup
+            }
+
+            # Добавляем специфичные параметры в зависимости от типа медиа
             if 'photo' in message_options:
-                return await self.bot.send_photo(
-                    chat_id=chat_id,
-                    photo=message_options['photo'],
-                    caption=message_options.get('caption'),
-                    parse_mode=message_options.get('parse_mode')
-                )
+                send_params.update({
+                    'photo': message_options['photo'],
+                    'caption': message_options.get('caption')
+                })
+                return await self.bot.send_photo(**send_params)
+
             elif 'video' in message_options:
-                return await self.bot.send_video(
-                    chat_id=chat_id,
-                    video=message_options['video'],
-                    caption=message_options.get('caption'),
-                    parse_mode=message_options.get('parse_mode')
-                )
+                send_params.update({
+                    'video': message_options['video'],
+                    'caption': message_options.get('caption')
+                })
+                return await self.bot.send_video(**send_params)
+
             elif 'document' in message_options:
-                return await self.bot.send_document(
-                    chat_id=chat_id,
-                    document=message_options['document'],
-                    caption=message_options.get('caption'),
-                    parse_mode=message_options.get('parse_mode')
-                )
+                send_params.update({
+                    'document': message_options['document'],
+                    'caption': message_options.get('caption')
+                })
+                return await self.bot.send_document(**send_params)
+
             elif 'animation' in message_options:
-                return await self.bot.send_animation(
-                    chat_id=chat_id,
-                    animation=message_options['animation'],
-                    caption=message_options.get('caption'),
-                    parse_mode=message_options.get('parse_mode')
-                )
+                send_params.update({
+                    'animation': message_options['animation'],
+                    'caption': message_options.get('caption')
+                })
+                return await self.bot.send_animation(**send_params)
+
             else:
                 # Текстовое сообщение
-                return await self.bot.send_message(
-                    chat_id=chat_id,
-                    text=message_options.get('text', ''),
-                    parse_mode=message_options.get('parse_mode')
-                )
-                
+                send_params['text'] = message_options.get('text', '')
+                return await self.bot.send_message(**send_params)
+
         except Exception as e:
             logger.error(f"Ошибка отправки сообщения в канал {chat_id}: {e}")
             return None

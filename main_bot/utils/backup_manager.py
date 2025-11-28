@@ -56,44 +56,95 @@ class BackupManager:
             
         return None
 
+    async def send_to_backup(self, post_id: int, message_options: Dict[str, Any]) -> Optional[Message]:
+        """
+        Отправляет пост в бэкап канал и возвращает сообщение
+
+        Args:
+            post_id: ID поста
+            message_options: Опции сообщения
+
+        Returns:
+            Отправленное сообщение или None при ошибке
+        """
+        try:
+            # Отправляем пост в бэкап канал
+            backup_message = await self._send_backup_message(message_options)
+
+            if backup_message:
+                # Обновляем пост с информацией о бэкапе
+                post_crud = PostCrud()
+                await post_crud.update(
+                    post_id,
+                    backup_chat_id=self.backup_chat_id,
+                    backup_message_id=backup_message.message_id
+                )
+
+                logger.info(f"Отправлен пост в бэкап для post_id={post_id}, backup_message_id={backup_message.message_id}")
+                return backup_message
+
+        except Exception as e:
+            logger.error(f"Ошибка отправки поста в бэкап для post_id={post_id}: {e}")
+
+        return None
+
     async def _send_backup_message(self, message_options: Dict[str, Any]) -> Optional[Message]:
         """Отправляет сообщение в бэкап канал"""
         try:
+            # Создаем клавиатуру с кнопками, если они есть
+            reply_markup = None
+            if 'buttons' in message_options and message_options['buttons']:
+                from main_bot.keyboards.keyboards import keyboards
+                # Создаем временный объект для использования с post_kb
+                class TempPost:
+                    def __init__(self, buttons):
+                        self.buttons = buttons
+                        self.hide = None
+                        self.reaction = None
+
+                temp_post = TempPost(message_options['buttons'])
+                reply_markup = keyboards.post_kb(temp_post, is_bot=True)
+
             # Определяем тип контента и отправляем соответствующее сообщение
             if message_options.get('photo'):
                 return await self.bot.send_photo(
                     chat_id=self.backup_chat_id,
                     photo=message_options['photo'],
                     caption=message_options.get('caption'),
-                    parse_mode=message_options.get('parse_mode')
+                    parse_mode=message_options.get('parse_mode'),
+                    reply_markup=reply_markup
                 )
             elif message_options.get('video'):
                 return await self.bot.send_video(
                     chat_id=self.backup_chat_id,
                     video=message_options['video'],
                     caption=message_options.get('caption'),
-                    parse_mode=message_options.get('parse_mode')
+                    parse_mode=message_options.get('parse_mode'),
+                    reply_markup=reply_markup
                 )
             elif message_options.get('document'):
                 return await self.bot.send_document(
                     chat_id=self.backup_chat_id,
                     document=message_options['document'],
                     caption=message_options.get('caption'),
-                    parse_mode=message_options.get('parse_mode')
+                    parse_mode=message_options.get('parse_mode'),
+                    reply_markup=reply_markup
                 )
             elif message_options.get('animation'):
                 return await self.bot.send_animation(
                     chat_id=self.backup_chat_id,
                     animation=message_options['animation'],
                     caption=message_options.get('caption'),
-                    parse_mode=message_options.get('parse_mode')
+                    parse_mode=message_options.get('parse_mode'),
+                    reply_markup=reply_markup
                 )
             else:
                 # Текстовое сообщение
                 return await self.bot.send_message(
                     chat_id=self.backup_chat_id,
                     text=message_options.get('text', ''),
-                    parse_mode=message_options.get('parse_mode')
+                    parse_mode=message_options.get('parse_mode'),
+                    reply_markup=reply_markup
                 )
                 
         except Exception as e:
