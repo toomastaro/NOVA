@@ -80,7 +80,7 @@ class PostManagementService:
         # Можно удалять неотправленные и отправленные (отметка как удаленный)
         return post.status != PostStatus.DELETED
 
-    async def edit_post(self, post_id: int, new_message_options: Dict[str, Any], admin_id: int) -> Dict[str, Any]:
+    async def edit_post(self, post_id: int, new_message_options: Dict[str, Any], admin_id: int, buttons: str = None) -> Dict[str, Any]:
         """
         Редактирует пост с учетом его статуса
         
@@ -88,6 +88,7 @@ class PostManagementService:
             post_id: ID поста
             new_message_options: Новые опции сообщения
             admin_id: ID администратора
+            buttons: Строка с кнопками (опционально)
             
         Returns:
             Результат операции
@@ -116,12 +117,16 @@ class PostManagementService:
                 return result
             
             # Обновляем сам пост в БД
-            await post_crud.update(post_id, message_options=new_message_options)
+            update_kwargs = {"message_options": new_message_options}
+            if buttons is not None:
+                update_kwargs["buttons"] = buttons
+                
+            await post_crud.update(post_id, **update_kwargs)
             
             if post.status == PostStatus.POSTED:
                 # Если пост уже отправлен, редактируем через бэкап систему
                 edit_result = await self.posting_service.edit_post_batch(
-                    post_id, new_message_options
+                    post_id, new_message_options, buttons
                 )
                 
                 result['success'] = edit_result['backup_updated']

@@ -184,13 +184,14 @@ class BackupManager:
             logger.error(f"Ошибка копирования поста из бэкапа: {e}")
             return None
 
-    async def update_backup_post(self, post_id: int, new_message_options: Dict[str, Any]) -> bool:
+    async def update_backup_post(self, post_id: int, new_message_options: Dict[str, Any], buttons: str = None) -> bool:
         """
         Обновляет пост в бэкап канале
         
         Args:
             post_id: ID поста
             new_message_options: Новые опции сообщения
+            buttons: Строка с кнопками (опционально)
             
         Returns:
             True при успехе, False при ошибке
@@ -203,20 +204,42 @@ class BackupManager:
                 logger.error(f"Пост {post_id} не имеет бэкапа для обновления")
                 return False
             
+            # Подготавливаем клавиатуру
+            reply_markup = None
+            if buttons:
+                from main_bot.keyboards.keyboards import keyboards
+                class TempPost:
+                    def __init__(self, buttons):
+                        self.buttons = buttons
+                        self.hide = None
+                        self.reaction = None
+
+                temp_post = TempPost(buttons)
+                reply_markup = keyboards.post_kb(temp_post, is_bot=True)
+            
             # Обновляем сообщение в бэкап канале
             if 'text' in new_message_options:
                 await self.bot.edit_message_text(
                     chat_id=self.backup_chat_id,
                     message_id=post.backup_message_id,
                     text=new_message_options['text'],
-                    parse_mode=new_message_options.get('parse_mode')
+                    parse_mode=new_message_options.get('parse_mode'),
+                    reply_markup=reply_markup
                 )
             elif 'caption' in new_message_options:
                 await self.bot.edit_message_caption(
                     chat_id=self.backup_chat_id,
                     message_id=post.backup_message_id,
                     caption=new_message_options['caption'],
-                    parse_mode=new_message_options.get('parse_mode')
+                    parse_mode=new_message_options.get('parse_mode'),
+                    reply_markup=reply_markup
+                )
+            elif reply_markup:
+                # Если только кнопки обновились
+                await self.bot.edit_message_reply_markup(
+                    chat_id=self.backup_chat_id,
+                    message_id=post.backup_message_id,
+                    reply_markup=reply_markup
                 )
             
             logger.info(f"Обновлен бэкап пост для post_id={post_id}")

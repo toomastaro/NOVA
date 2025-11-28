@@ -9,6 +9,8 @@ from main_bot.database.post.model import Post
 from main_bot.database.types import FolderType
 from main_bot.handlers.user.menu import start_posting
 from main_bot.handlers.user.posting.menu import show_create_post
+from main_bot.database.types.post_status import PostStatus
+from main_bot.utils.post_management_service import PostManagementService
 from main_bot.keyboards.keyboards import keyboards
 from main_bot.states.user import AddHide, Posting
 from main_bot.utils.functions import answer_post
@@ -354,9 +356,20 @@ async def cancel_value(call: types.CallbackQuery, state: FSMContext):
         else:
             kwargs = {param: None}
 
-        post = await db.update_post(
-            post_id=data.get("post").id, return_obj=True, **kwargs
-        )
+        if data.get("post").status == PostStatus.POSTED:
+            service = PostManagementService(call.bot)
+            msg_opts = kwargs.get('message_options', data.get("post").message_options)
+            btns = kwargs.get('buttons', data.get("post").buttons)
+            
+            if 'message_options' in kwargs or 'buttons' in kwargs:
+                await service.edit_post(data.get("post").id, msg_opts, call.from_user.id, buttons=btns)
+                post = await db.get_post(data.get("post").id)
+            else:
+                post = await db.update_post(post_id=data.get("post").id, return_obj=True, **kwargs)
+        else:
+            post = await db.update_post(
+                post_id=data.get("post").id, return_obj=True, **kwargs
+            )
         await state.update_data(post=post)
         data = await state.get_data()
 
@@ -452,7 +465,18 @@ async def get_value(message: types.Message, state: FSMContext):
     if 'buttons' not in kwargs:
         kwargs['buttons'] = post.buttons
 
-    post = await db.update_post(post_id=post.id, return_obj=True, **kwargs)
+    if post.status == PostStatus.POSTED:
+        service = PostManagementService(message.bot)
+        msg_opts = kwargs.get('message_options', post.message_options)
+        btns = kwargs.get('buttons', post.buttons)
+        
+        if 'message_options' in kwargs or 'buttons' in kwargs:
+            await service.edit_post(post.id, msg_opts, message.from_user.id, buttons=btns)
+            post = await db.get_post(post.id)
+        else:
+            post = await db.update_post(post_id=post.id, return_obj=True, **kwargs)
+    else:
+        post = await db.update_post(post_id=post.id, return_obj=True, **kwargs)
 
     # Удаляем сообщение с вводом
     try:

@@ -1,5 +1,5 @@
 """
-Сервис для отправки постов с поддержкой бэкап канала
+Сервис для публикации постов
 """
 import logging
 from typing import List, Dict, Any, Optional
@@ -184,7 +184,8 @@ class PostingService:
     async def edit_post_batch(
         self,
         post_id: int,
-        new_message_options: Dict[str, Any]
+        new_message_options: Dict[str, Any],
+        buttons: str = None
     ) -> Dict[str, Any]:
         """
         Редактирует пост во всех каналах через бэкап
@@ -192,6 +193,7 @@ class PostingService:
         Args:
             post_id: ID поста
             new_message_options: Новые опции сообщения
+            buttons: Строка с кнопками (опционально)
             
         Returns:
             Результат редактирования
@@ -205,13 +207,26 @@ class PostingService:
         try:
             # Сначала обновляем бэкап
             backup_updated = await self.backup_manager.update_backup_post(
-                post_id, new_message_options
+                post_id, new_message_options, buttons
             )
             results['backup_updated'] = backup_updated
             
             if not backup_updated:
                 results['errors'].append("Не удалось обновить бэкап поста")
                 return results
+            
+            # Подготавливаем клавиатуру
+            reply_markup = None
+            if buttons:
+                from main_bot.keyboards.keyboards import keyboards
+                class TempPost:
+                    def __init__(self, buttons):
+                        self.buttons = buttons
+                        self.hide = None
+                        self.reaction = None
+
+                temp_post = TempPost(buttons)
+                reply_markup = keyboards.post_kb(temp_post, is_bot=True)
             
             # Затем обновляем во всех каналах
             published_crud = PublishedPostCrud()
@@ -225,14 +240,23 @@ class PostingService:
                             chat_id=pub_post.chat_id,
                             message_id=pub_post.message_id,
                             text=new_message_options['text'],
-                            parse_mode=new_message_options.get('parse_mode')
+                            parse_mode=new_message_options.get('parse_mode'),
+                            reply_markup=reply_markup
                         )
                     elif 'caption' in new_message_options:
                         await self.bot.edit_message_caption(
                             chat_id=pub_post.chat_id,
                             message_id=pub_post.message_id,
                             caption=new_message_options['caption'],
-                            parse_mode=new_message_options.get('parse_mode')
+                            parse_mode=new_message_options.get('parse_mode'),
+                            reply_markup=reply_markup
+                        )
+                    elif reply_markup:
+                        # Если только кнопки обновились
+                        await self.bot.edit_message_reply_markup(
+                            chat_id=pub_post.chat_id,
+                            message_id=pub_post.message_id,
+                            reply_markup=reply_markup
                         )
 
                     results['channels_updated'] += 1

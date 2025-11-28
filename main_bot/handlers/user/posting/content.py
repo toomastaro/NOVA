@@ -10,6 +10,7 @@ from main_bot.handlers.user.posting.menu import show_content
 from main_bot.keyboards.keyboards import keyboards
 from main_bot.utils.functions import answer_post
 from main_bot.utils.lang.language import text
+from main_bot.utils.post_management_service import PostManagementService
 
 
 async def choice_channel(call: types.CallbackQuery, state: FSMContext):
@@ -33,7 +34,7 @@ async def choice_channel(call: types.CallbackQuery, state: FSMContext):
     channel = await db.get_channel_by_chat_id(chat_id)
 
     day = datetime.today()
-    posts = await db.get_posts(channel.chat_id, day)
+    posts = await db.get_posts(channel.chat_id, day, include_deleted=True)
     day_values = (
         day.day,
         text("month").get(str(day.month)),
@@ -85,7 +86,7 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
         else:
             day = day - timedelta(days=int(temp[2]))
 
-        posts = await db.get_posts(channel.chat_id, day)
+        posts = await db.get_posts(channel.chat_id, day, include_deleted=True)
         day_values = (
             day.day,
             text("month").get(str(day.month)),
@@ -192,7 +193,7 @@ async def choice_time_objects(call: types.CallbackQuery, state: FSMContext):
     day: datetime = data.get("day")
 
     if temp[1] == "cancel":
-        posts = await db.get_posts(channel.chat_id, day)
+        posts = await db.get_posts(channel.chat_id, day, include_deleted=True)
         return await call.message.edit_text(
             text("channel:content").format(
                 *data.get("day_values"),
@@ -216,7 +217,7 @@ async def manage_remain_post(call: types.CallbackQuery, state: FSMContext):
 
     if temp[1] == "cancel":
         day = data.get("day")
-        posts = await db.get_posts(data.get("channel").chat_id, day)
+        posts = await db.get_posts(data.get("channel").chat_id, day, include_deleted=True)
 
         await data.get("post_message").delete()
         return await call.message.edit_text(
@@ -267,8 +268,12 @@ async def accept_delete_row_content(call: types.CallbackQuery, state: FSMContext
         )
 
     if temp[1] == "accept":
-        await db.delete_post(post.id)
-        posts = await db.get_posts(channel.chat_id, day)
+        # Используем сервис для правильного удаления (с сохранением в бэкапе)
+        service = PostManagementService(call.bot)
+        await service.delete_post(post.id, call.from_user.id, delete_from_backup=True)
+        
+        # Загружаем посты, включая удаленные, чтобы они оставались в календаре
+        posts = await db.get_posts(channel.chat_id, day, include_deleted=True)
 
         await data.get("post_message").delete()
         return await call.message.edit_text(

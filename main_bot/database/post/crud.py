@@ -39,7 +39,7 @@ class PostCrud(DatabaseMixin):
     async def delete_post(self, post_id: int):
         return await self.execute(delete(Post).where(Post.id == post_id))
 
-    async def get_posts(self, chat_id: int, current_day: datetime = None):
+    async def get_posts(self, chat_id: int, current_day: datetime = None, include_deleted: bool = False):
         # Показываем посты с этим каналом в списке каналов
         # включая отложенные и уже опубликованные
         stmt = select(Post).where(
@@ -67,8 +67,9 @@ class PostCrud(DatabaseMixin):
                 )
             )
 
-        # Показываем все, кроме удаленных
-        stmt = stmt.where(Post.status != PostStatus.DELETED)
+        # Показываем все, кроме удаленных (если не запрошено иное)
+        if not include_deleted:
+            stmt = stmt.where(Post.status != PostStatus.DELETED)
 
         return await self.fetch(stmt.order_by(Post.send_time.desc().nulls_last(), Post.created_timestamp.desc()))
 
