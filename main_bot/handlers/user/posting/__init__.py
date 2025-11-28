@@ -1,6 +1,6 @@
 from aiogram import Router
 
-from . import channels, content, create_post, menu
+from . import calendar_manager, channels, content, create_post, menu
 
 
 def get_router():
@@ -9,6 +9,7 @@ def get_router():
         channels.hand_add(),
         create_post.hand_add(),
         content.hand_add(),
+        calendar_manager.register_calendar_manager(),
     ]
 
     router = Router(name="Posting")

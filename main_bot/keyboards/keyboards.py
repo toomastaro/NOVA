@@ -15,6 +15,7 @@ from main_bot.database.post.model import Post
 from main_bot.database.published_post.model import PublishedPost
 from main_bot.database.story.model import Story
 from main_bot.database.types import FolderType, Status
+from main_bot.database.types.post_status import PostStatus
 from main_bot.database.user_bot.model import UserBot
 from main_bot.database.user_folder.model import UserFolder
 from main_bot.utils.lang.language import text
@@ -28,6 +29,7 @@ from main_bot.utils.schemas import (
     React,
     StoryOptions,
 )
+
 
 
 class Reply:
@@ -147,7 +149,7 @@ class InlinePosting(InlineKeyboardBuilder):
         # Кнопка "Выбрать все"
         control_buttons.append(
             InlineKeyboardButton(
-                text=text("choice_all"), callback_data=f"{data}|choice_all"
+                text="🔹 Выбрать всё", callback_data=f"{data}|choice_all"
             )
         )
         
@@ -155,7 +157,7 @@ class InlinePosting(InlineKeyboardBuilder):
         if chosen:
              control_buttons.append(
                 InlineKeyboardButton(
-                    text=text("ready"), callback_data=f"{data}|confirm"
+                    text="✅ Готово", callback_data=f"{data}|confirm"
                 )
             )
         
@@ -256,7 +258,7 @@ class InlinePosting(InlineKeyboardBuilder):
         # Кнопка "выбрать все" (всегда видна)
         kb.row(
             InlineKeyboardButton(
-                text=text("chosen:choice_all"),  # "🔹 Выбрать все" или "🚫 Очистить",
+                text="🔹 Выбрать всё",  # Временная заглушка
                 callback_data=f"{data}|choice_all"
             )
         )
@@ -2586,11 +2588,10 @@ class Inline(
                 message_text = options.get("text") or options.get("caption")
                 # Показываем статус поста
                 if hasattr(post, 'status') and post.status:
-                    from main_bot.database.types.post_status import PostStatus
                     emoji_map = {
                         PostStatus.PENDING: "⏳",  # Ожидание
                         PostStatus.POSTED: "✅",  # Опубликован
-                        PostStatus.FAILED: "❌",  # Ошибка
+                        PostStatus.POSTPONED: "⏸️",  # Отложен
                         PostStatus.DELETED: "🗑️"  # Удален
                     }
                     emoji = emoji_map.get(post.status, "⏳")
@@ -2865,6 +2866,22 @@ class Inline(
         """Кнопка возврата к календарю"""
         kb = cls()
         kb.button(text="📅 К календарю", callback_data="back_to_calendar")
+        kb.adjust(1)
+        return kb.as_markup()
+
+    @classmethod
+    def back_to_main_menu(cls):
+        """Кнопка возврата в главное меню"""
+        kb = cls()
+        kb.button(text="🏠 В главное меню", callback_data="back_to_main_menu")
+        kb.adjust(1)
+        return kb.as_markup()
+
+    @classmethod
+    def back_to_main_menu(cls):
+        """Кнопка возврата в главное меню"""
+        kb = cls()
+        kb.button(text="🏠 В главное меню", callback_data="back_to_main_menu")
         kb.adjust(1)
         return kb.as_markup()
 

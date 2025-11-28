@@ -10,7 +10,7 @@ from aiogram.fsm.context import FSMContext
 
 from main_bot.utils.post_management_service import PostManagementService
 from main_bot.utils.retention_filter import RetentionFilter
-from main_bot.database.types.post_status import PostStatus, PostStatusRu
+from main_bot.database.types.post_status import PostStatus
 from main_bot.keyboards.keyboards import keyboards
 
 logger = logging.getLogger(__name__)
