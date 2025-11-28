@@ -753,13 +753,15 @@ async def get_send_time(message: types.Message, state: FSMContext):
     parts = input_date.split()
 
     try:
+        # Вариант 1: DD.MM.YYYY HH:MM (20.03.2024 19:00)
         if len(parts) == 2 and len(parts[0].split(".")) == 3:
             date = datetime.strptime(input_date, "%d.%m.%Y %H:%M")
 
-        elif len(parts) == 2 and len(parts[0].split(".")) == 2:
-            year = datetime.now().year
-            date = datetime.strptime(f"{parts[0]}.{year} {parts[1]}", "%d.%m.%Y %H:%M")
+        # Вариант 2: HH:MM DD.MM.YYYY (19:00 20.03.2024)
+        elif len(parts) == 2 and len(parts[1].split(".")) == 3:
+            date = datetime.strptime(input_date, "%H:%M %d.%m.%Y")
 
+        # Вариант 3: HH:MM (19:00) - сегодня
         elif len(parts) == 1:
             today = datetime.now().strftime("%d.%m.%Y")
             date = datetime.strptime(f"{today} {parts[0]}", "%d.%m.%Y %H:%M")
