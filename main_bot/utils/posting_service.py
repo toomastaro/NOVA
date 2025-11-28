@@ -130,35 +130,45 @@ class PostingService:
             send_params = {
                 'chat_id': chat_id,
                 'parse_mode': message_options.get('parse_mode'),
-                'reply_markup': reply_markup
+                'reply_markup': reply_markup,
+                'disable_notification': message_options.get('disable_notification', False)
             }
 
+            # Убираем None значения
+            send_params = {k: v for k, v in send_params.items() if v is not None}
+
             # Добавляем специфичные параметры в зависимости от типа медиа
-            if 'photo' in message_options:
+            if 'photo' in message_options and message_options['photo']:
                 send_params.update({
                     'photo': message_options['photo'],
-                    'caption': message_options.get('caption')
+                    'caption': message_options.get('caption'),
+                    'has_spoiler': message_options.get('has_spoiler', False),
+                    'show_caption_above_media': message_options.get('show_caption_above_media', False)
                 })
                 return await self.bot.send_photo(**send_params)
 
-            elif 'video' in message_options:
+            elif 'video' in message_options and message_options['video']:
                 send_params.update({
                     'video': message_options['video'],
-                    'caption': message_options.get('caption')
+                    'caption': message_options.get('caption'),
+                    'has_spoiler': message_options.get('has_spoiler', False),
+                    'show_caption_above_media': message_options.get('show_caption_above_media', False)
                 })
                 return await self.bot.send_video(**send_params)
 
-            elif 'document' in message_options:
+            elif 'document' in message_options and message_options['document']:
                 send_params.update({
                     'document': message_options['document'],
                     'caption': message_options.get('caption')
                 })
                 return await self.bot.send_document(**send_params)
 
-            elif 'animation' in message_options:
+            elif 'animation' in message_options and message_options['animation']:
                 send_params.update({
                     'animation': message_options['animation'],
-                    'caption': message_options.get('caption')
+                    'caption': message_options.get('caption'),
+                    'has_spoiler': message_options.get('has_spoiler', False),
+                    'show_caption_above_media': message_options.get('show_caption_above_media', False)
                 })
                 return await self.bot.send_animation(**send_params)
 

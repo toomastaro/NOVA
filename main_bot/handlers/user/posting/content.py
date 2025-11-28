@@ -94,18 +94,40 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
 
         await state.update_data(day=day, day_values=day_values, show_more=show_more)
 
-        return await call.message.edit_text(
-                    text("channel:content").format(
+        # Проверяем, что содержимое действительно изменилось
+        new_text = text("channel:content").format(
             *day_values,
             channel.title,
-                text("no_content")
-                if not posts
-                else text("has_content").format(len(posts)),
-            ),
-            reply_markup=keyboards.choice_row_content(
-                posts=posts, day=day, show_more=show_more
-            ),
+            text("no_content")
+            if not posts
+            else text("has_content").format(len(posts)),
         )
+        new_markup = keyboards.choice_row_content(
+            posts=posts, day=day, show_more=show_more
+        )
+
+        try:
+            return await call.message.edit_text(
+                new_text,
+                reply_markup=new_markup,
+            )
+        except Exception as e:
+            # Если сообщение не изменилось, просто отвечаем на колбэк
+            if "message is not modified" in str(e).lower():
+                await call.answer()
+                return
+            else:
+                # Если другая ошибка, пересоздаём сообщение
+                try:
+                    await call.message.delete()
+                    return await call.message.answer(
+                        new_text,
+                        reply_markup=new_markup,
+                    )
+                except Exception:
+                    # В крайнем случае просто отвечаем на callback
+                    await call.answer("Ошибка обновления календаря")
+                    return
 
     if temp[1] == "show_all":
         posts = await db.get_posts(channel.chat_id)
@@ -167,7 +189,6 @@ async def choice_time_objects(call: types.CallbackQuery, state: FSMContext):
         return await call.message.edit_text(
             text("channel:content").format(
                 *data.get("day_values"),
-                channel.emoji_id,
                 channel.title,
                 text("no_content")
                 if not posts
@@ -194,7 +215,6 @@ async def manage_remain_post(call: types.CallbackQuery, state: FSMContext):
         return await call.message.edit_text(
             text("channel:content").format(
                 *data.get("day_values"),
-                data.get("channel").emoji_id,
                 data.get("channel").title,
                 text("no_content")
                 if not posts

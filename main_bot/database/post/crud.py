@@ -40,8 +40,10 @@ class PostCrud(DatabaseMixin):
         return await self.execute(delete(Post).where(Post.id == post_id))
 
     async def get_posts(self, chat_id: int, current_day: datetime = None):
+        # Показываем посты с этим каналом в списке каналов
+        # включая отложенные и уже опубликованные
         stmt = select(Post).where(
-            Post.chat_ids.contains([chat_id]), Post.send_time.isnot(None)
+            Post.chat_ids.contains([chat_id])
         )
 
         if current_day:
@@ -53,12 +55,22 @@ class PostCrud(DatabaseMixin):
                 )
             )
             end_day = start_day + 86400
+
+            # Ищем посты, которые запланированы на этот день
+            # или уже опубликованы в этот день
             stmt = stmt.where(
-                Post.send_time >= start_day,
-                Post.send_time < end_day,
+                or_(
+                    # Отложенные посты
+                    Post.send_time.between(start_day, end_day),
+                    # Опубликованные посты
+                    Post.posted_timestamp.between(start_day, end_day)
+                )
             )
 
-        return await self.fetch(stmt)
+        # Показываем все, кроме удаленных
+        stmt = stmt.where(Post.status != PostStatus.DELETED)
+
+        return await self.fetch(stmt.order_by(Post.send_time.desc().nulls_last(), Post.created_timestamp.desc()))
 
     async def clear_empty_posts(self):
         week_ago = int(time.time()) - 7 * 24 * 60 * 60

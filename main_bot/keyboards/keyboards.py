@@ -2585,9 +2585,15 @@ class Inline(
                 options = post.message_options
                 message_text = options.get("text") or options.get("caption")
                 # Показываем статус поста
-                if hasattr(post, 'status'):
-                    from main_bot.database.types.post_status import PostStatusRu
-                    emoji = PostStatusRu.get_emoji(post.status)
+                if hasattr(post, 'status') and post.status:
+                    from main_bot.database.types.post_status import PostStatus
+                    emoji_map = {
+                        PostStatus.PENDING: "⏳",  # Ожидание
+                        PostStatus.POSTED: "✅",  # Опубликован
+                        PostStatus.FAILED: "❌",  # Ошибка
+                        PostStatus.DELETED: "🗑️"  # Удален
+                    }
+                    emoji = emoji_map.get(post.status, "⏳")
             elif isinstance(post, BotPost):
                 options = post.message
                 message_text = options.get("text") or options.get("caption")

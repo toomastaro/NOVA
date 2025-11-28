@@ -37,12 +37,14 @@ async def send(post: Post):
     message_options = MessageOptions(**post.message_options)
 
     # Конвертируем file_id в нужный формат
+    message_options_dict = message_options.model_dump()
+
     if message_options.photo:
-        message_options.photo = message_options.photo.file_id
+        message_options_dict['photo'] = message_options.photo.file_id
     elif message_options.video:
-        message_options.video = message_options.video.file_id
+        message_options_dict['video'] = message_options.video.file_id
     elif message_options.animation:
-        message_options.animation = message_options.animation.file_id
+        message_options_dict['animation'] = message_options.animation.file_id
 
     # Получаем активные каналы
     active_chat_ids = []
@@ -55,18 +57,18 @@ async def send(post: Post):
         await db.clear_posts(post_ids=[post.id])
         return
 
-    # Подготавливаем message_options с кнопками
-    message_options_dict = message_options.model_dump()
-
     # Добавляем кнопки, если они есть в посте
     if post.buttons:
         message_options_dict['buttons'] = post.buttons
+
+    # Убираем пустые значения для корректной валидации
+    clean_options = {k: v for k, v in message_options_dict.items() if v is not None}
 
     # Отправляем через бэкап систему
     results = await posting_service.send_post_batch(
         post_id=post.id,
         chat_ids=active_chat_ids,
-        message_options=message_options_dict,
+        message_options=clean_options,
         admin_id=post.admin_id,
         use_backup=True
     )
