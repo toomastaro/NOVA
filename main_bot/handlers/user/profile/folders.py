@@ -26,7 +26,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext, user: User):
     temp = call.data.split("|")
 
     if temp[1] in ["next", "back"]:
-        folders = await db.get_folders()
+        folders = await db.get_folders(user_id=user.id)
 
         return await call.message.edit_reply_markup(
             reply_markup=keyboards.folders(folders=folders, remover=int(temp[2]))
@@ -38,24 +38,20 @@ async def choice(call: types.CallbackQuery, state: FSMContext, user: User):
         return await show_setting(call.message)
 
     if temp[1] == "create":
-        # Сразу переходим к созданию папки каналов
+        # Создаём папку для каналов (упрощённый процесс)
         folder_type = FolderType.CHANNEL
         await state.update_data(folder_type=folder_type)
 
-        cor = db.get_user_channels
-        object_type = "channels"
+        # Получаем каналы пользователя
+        channels = await db.get_user_channels(user_id=user.id)
+        if not channels:
+            return await call.answer(text("not_found_channels"), show_alert=True)
 
-        objects = await cor(
-            user_id=user.id,
-        )
-        if not objects:
-            return await call.answer(text(f"not_found_{object_type}"), show_alert=True)
-
-        await state.update_data(object_type=object_type, cor=cor, chosen=[])
+        await state.update_data(object_type="channels", chosen=[])
 
         await call.message.answer(
-            text(f"folders:chosen:{object_type}").format(""),
-            reply_markup=keyboards.choice_object_folders(resources=objects, chosen=[]),
+            text("folders:chosen:channels").format(""),
+            reply_markup=keyboards.choice_object_folders(resources=channels, chosen=[]),
         )
         return
 
@@ -66,13 +62,13 @@ async def choice(call: types.CallbackQuery, state: FSMContext, user: User):
 
 
 async def choice_object(call: types.CallbackQuery, state: FSMContext, user: User):
+    """Обработка выбора каналов для папки"""
     temp = call.data.split("|")
     data = await state.get_data()
     if not data:
         await call.answer(text("keys_data_error"))
         return await call.message.delete()
 
-    cor = data.get("cor")
     object_type = data.get("object_type")
     chosen: list = data.get("chosen")
     folder_edit = data.get("folder_edit")
@@ -89,20 +85,19 @@ async def choice_object(call: types.CallbackQuery, state: FSMContext, user: User
 
         return
 
-    objects = await cor(
-        user_id=user.id,
-    )
+    # Получаем каналы пользователя
+    objects = await db.get_user_channels(user_id=user.id)
 
     if temp[1] in ["next", "back"]:
+        # Формируем текст выбранных каналов
+        selected_text = "\n".join(
+            text("resource_title").format(obj.emoji_id, obj.title)
+            for obj in objects
+            if obj.chat_id in chosen[:10]
+        )
+
         return await call.message.edit_text(
-            text(f"folders:chosen:{object_type}").format(
-                "\n".join(
-                    text("resource_title").format(obj.emoji_id, obj.title)
-                    for obj in objects
-                    if getattr(obj, "id" if object_type == "bots" else "chat_id")
-                    in chosen[:10]
-                )
-            ),
+            text(f"folders:chosen:{object_type}").format(selected_text),
             reply_markup=keyboards.choice_object_folders(
                 resources=objects, chosen=chosen, remover=int(temp[2])
             ),
@@ -129,10 +124,11 @@ async def choice_object(call: types.CallbackQuery, state: FSMContext, user: User
         return
 
     if temp[1] == "choice_all":
+        # Выбрать/снять все каналы
         if len(objects) == len(chosen):
             chosen.clear()
         else:
-            chosen.extend([i.id for i in objects if i.id not in chosen])
+            chosen.extend([obj.chat_id for obj in objects if obj.chat_id not in chosen])
 
     if temp[1].isdigit():
         resource_id = int(temp[1])
@@ -142,15 +138,15 @@ async def choice_object(call: types.CallbackQuery, state: FSMContext, user: User
             chosen.append(resource_id)
 
     await state.update_data(chosen=chosen)
+    # Обновляем отображение выбранных каналов
+    selected_text = "\n".join(
+        text("resource_title").format(obj.emoji_id, obj.title)
+        for obj in objects
+        if obj.chat_id in chosen[:10]
+    )
+
     await call.message.edit_text(
-        text(f"folders:chosen:{object_type}").format(
-            "\n".join(
-                text("resource_title").format(obj.emoji_id, obj.title)
-                for obj in objects
-                if getattr(obj, "id" if object_type == "bots" else "chat_id")
-                in chosen[:10]
-            )
-        ),
+        text(f"folders:chosen:{object_type}").format(selected_text),
         reply_markup=keyboards.choice_object_folders(
             resources=objects, chosen=chosen, remover=int(temp[2])
         ),
@@ -158,6 +154,7 @@ async def choice_object(call: types.CallbackQuery, state: FSMContext, user: User
 
 
 async def cancel(call: types.CallbackQuery, state: FSMContext, user: User):
+    """Отмена выбора каналов для папки"""
     data = await state.get_data()
     if not data:
         await call.answer(text("keys_data_error"))
@@ -166,7 +163,6 @@ async def cancel(call: types.CallbackQuery, state: FSMContext, user: User):
     await state.clear()
     await state.update_data(data)
 
-    cor = data.get("cor")
     chosen = data.get("chosen")
     object_type = data.get("object_type")
     folder_edit = data.get("folder_edit")
@@ -174,16 +170,16 @@ async def cancel(call: types.CallbackQuery, state: FSMContext, user: User):
     await call.message.delete()
 
     if not folder_edit:
-        objects = await cor(user_id=user.id)
+        # Возвращаемся к выбору каналов
+        objects = await db.get_user_channels(user_id=user.id)
+        selected_text = "\n".join(
+            text("resource_title").format(obj.emoji_id, obj.title)
+            for obj in objects
+            if obj.chat_id in chosen[:10]
+        )
+
         await call.message.answer(
-            text(f"folders:chosen:{object_type}").format(
-                "\n".join(
-                    text("resource_title").format(obj.emoji_id, obj.title)
-                    for obj in objects
-                    if getattr(obj, "id" if object_type == "bots" else "chat_id")
-                    in chosen[:10]
-                )
-            ),
+            text(f"folders:chosen:{object_type}").format(selected_text),
             reply_markup=keyboards.choice_object_folders(
                 resources=objects,
                 chosen=chosen,
@@ -251,30 +247,27 @@ async def manage_folder(call: types.CallbackQuery, state: FSMContext, user: User
         await state.set_state(Folder.input_name)
 
     if temp[1] == "content":
+        # Редактируем содержимое папки (только каналы)
         folder = await db.get_folder_by_id(folder_id=data.get("folder_id"))
         chosen = [int(i) for i in folder.content]
-        if folder.type == FolderType.BOT:
-            cor = db.get_user_bots
-            object_type = "bots"
-        else:
-            cor = db.get_user_channels
-            object_type = "channels"
+        object_type = "channels"  # Теперь всегда только каналы
 
-        objects = await cor(user_id=user.id)
+        # Получаем каналы пользователя
+        objects = await db.get_user_channels(user_id=user.id)
         await state.update_data(
-            cor=cor,
             chosen=chosen,
             object_type=object_type,
         )
+
+        # Формируем текст выбранных каналов
+        selected_text = "\n".join(
+            text("resource_title").format(obj.emoji_id, obj.title)
+            for obj in objects
+            if obj.chat_id in chosen[:10]
+        )
+
         await call.message.answer(
-            text(f"folders:chosen:{object_type}").format(
-                "\n".join(
-                    text("resource_title").format(obj.emoji_id, obj.title)
-                    for obj in objects
-                    if getattr(obj, "id" if object_type == "bots" else "chat_id")
-                    in chosen[:10]
-                )
-            ),
+            text(f"folders:chosen:{object_type}").format(selected_text),
             reply_markup=keyboards.choice_object_folders(
                 resources=objects,
                 chosen=chosen,

@@ -2052,9 +2052,10 @@ class InlineProfile(InlineKeyboardBuilder):
 
         for a, idx in enumerate(range(remover, len(folders))):
             if a < count_rows:
+                # Все папки теперь только для каналов, используем единый значок
                 kb.add(
                     InlineKeyboardButton(
-                        text=f"{'📕' if folders[idx].type == FolderType.BOT else '📘'} {folders[idx].title}",
+                        text=f"📁 {folders[idx].title}",
                         callback_data=f"ChoiceFolder|{folders[idx].id}|{remover}",
                     )
                 )
@@ -2101,22 +2102,18 @@ class InlineProfile(InlineKeyboardBuilder):
 
     @classmethod
     def choice_type_folder(cls):
+        """Удалено - больше не нужно выбирать тип папки, только каналы"""
+        # Метод оставлен для обратной совместимости, но не используется
         kb = cls()
-
         kb.add(
             InlineKeyboardButton(
                 text=text("folder:type:channels"),
                 callback_data=f"ChoiceTypeFolder|{FolderType.CHANNEL}",
             ),
             InlineKeyboardButton(
-                text=text("folder:type:bots"),
-                callback_data=f"ChoiceTypeFolder|{FolderType.BOT}",
-            ),
-            InlineKeyboardButton(
                 text=text("back:button"), callback_data="ChoiceTypeFolder|back"
             ),
         )
-
         kb.adjust(1)
         return kb.as_markup()
 
