@@ -130,7 +130,7 @@ async def send_admin_report(post: Post, results: dict):
         # Успешно отправленные
         success_chat_ids = [p['chat_id'] for p in results['published_posts']]
         success_str = "\n".join(
-            text("resource_title").format(obj.emoji_id, obj.title)
+            text("resource_title").format(obj.title)
             for obj in objects
             if obj.chat_id in success_chat_ids[:10]
         )
@@ -232,8 +232,8 @@ async def delete_posts():
             try:
                 await bot.send_message(
                     chat_id=post.admin_id,
-                    text=text("error:post:delete").format(
-                        post.message_id, channel.emoji_id, channel.title
+                    text=                    text("error:post:delete").format(
+                        post.message_id, channel.title
                     ),
                 )
             except Exception as e:
@@ -254,7 +254,7 @@ async def delete_posts():
         total_views = sum(obj["views"] for obj in message_objects)
         rub_price = round(float(cpm_price * float(total_views / 1000)), 2)
         channels_text = "\n".join(
-            text("resource_title").format(obj["channel"].emoji_id, obj["channel"].title)
+            text("resource_title").format(obj["channel"].title)
             + f" - 👀 {obj['views']}"
             for obj in message_objects
         )
@@ -357,12 +357,12 @@ async def send_story(story: Story):
         user_id=story.admin_id, from_array=story.chat_ids
     )
     success_str = "\n".join(
-        text("resource_title").format(obj.emoji_id, obj.title)
+        text("resource_title").format(obj.title)
         for obj in objects
         if obj.chat_id in [i.get("chat_id") for i in success_send[:10]]
     )
     error_str = "\n".join(
-        text("resource_title").format(obj.emoji_id, obj.title)
+        text("resource_title").format(obj.title)
         + " \n{}".format(
             "".join(
                 row.get("error")
@@ -611,7 +611,7 @@ async def send_bot_post(bot_post: BotPost):
                     message_text,
                     len(bot_post.chat_ids),
                     "\n".join(
-                        text("resource_title").format(obj.emoji_id, obj.title)
+                        text("resource_title").format(obj.title)
                         for obj in user_bot_objects[:10]
                     ),
                     success_count,
@@ -669,11 +669,10 @@ async def check_subscriptions():
                 continue
 
             if status == "expired":
-                msg = text("expire_off_sub").format(channel.emoji_id, channel.title)
+                msg = text("expire_off_sub").format(channel.title)
                 await db.update_channel_by_id(channel.id, **{field: None})
             else:
                 msg = text("expire_sub").format(
-                    channel.emoji_id,
                     channel.title,
                     days,
                     time.strftime("%d.%m.%Y", time.localtime(expire_time)),

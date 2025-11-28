@@ -35,7 +35,7 @@ async def show_bot_manage(message: types.Message, user_bot: UserBot):
             user_bot.emoji_id,
             user_bot.title,
             "\n".join(
-                text("resource_title").format(channel.emoji_id, channel.title)
+                                  text("resource_title").format(channel.title)
                 for channel in channels
             )
             if channels

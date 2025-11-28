@@ -52,7 +52,7 @@ async def show_choice_channel(message: types.Message, state: FSMContext):
         text("choice_bots:post").format(
             len(chosen),
             "\n".join(
-                text("resource_title").format(obj.emoji_id, obj.title)
+                text("resource_title").format(obj.title)
                 for obj in objects
                 if obj.chat_id in chosen[:10]
             )

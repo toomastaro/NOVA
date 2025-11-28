@@ -77,7 +77,7 @@ async def choice(call: types.CallbackQuery):
     editors_str = await get_editors(call, channel.chat_id)
 
     await call.message.edit_text(
-        text("channel_info").format(channel.emoji_id, channel.title, editors_str),
+        text("channel_info").format(channel.title, editors_str),
         reply_markup=keyboards.manage_channel(),
     )
 

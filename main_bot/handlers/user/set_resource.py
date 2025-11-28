@@ -57,7 +57,7 @@ async def set_channel(call: types.ChatMemberUpdated):
         await db.delete_channel(chat_id=chat_id)
 
         message_text = text("success_delete_channel").format(
-            channel.emoji_id, channel.title
+            channel.title
         )
 
     if call.from_user.is_bot:

@@ -65,7 +65,7 @@ async def choice_bots(call: types.CallbackQuery, state: FSMContext):
             text("manage:post_bot:finish_params").format(
                 len(chosen),
                 "\n".join(
-                    text("resource_title").format(obj.emoji_id, obj.title)
+                    text("resource_title").format(obj.title)
                     for obj in objects
                     if obj.id in chosen[:10]
                 ),
@@ -142,7 +142,7 @@ async def choice_bots(call: types.CallbackQuery, state: FSMContext):
         text("choice_bots:post").format(
             len(chosen),
             "\n".join(
-                text("resource_title").format(obj.emoji_id, obj.title)
+                text("resource_title").format(obj.title)
                 for obj in objects
                 if obj.id in chosen[:10]
             ),
@@ -409,7 +409,7 @@ async def finish_params(call: types.CallbackQuery, state: FSMContext):
             text("choice_bots:post").format(
                 len(chosen),
                 "\n".join(
-                    text("resource_title").format(obj.emoji_id, obj.title)
+                    text("resource_title").format(obj.title)
                     for obj in objects
                     if obj.id in chosen[:10]
                 ),
@@ -443,7 +443,7 @@ async def finish_params(call: types.CallbackQuery, state: FSMContext):
         await call.message.edit_text(
             text("manage:post_bot:accept:public").format(
                 "\n".join(
-                    text("resource_title").format(obj.emoji_id, obj.title)
+                    text("resource_title").format(obj.title)
                     for obj in objects
                     if obj.id in chosen[:10]
                 )
@@ -474,7 +474,7 @@ async def cancel_send_time(call: types.CallbackQuery, state: FSMContext):
         text("manage:post_bot:finish_params").format(
             len(chosen),
             "\n".join(
-                text("resource_title").format(obj.emoji_id, obj.title)
+                text("resource_title").format(obj.title)
                 for obj in objects
                 if obj.id in chosen[:10]
             ),
@@ -564,7 +564,7 @@ async def get_send_time(message: types.Message, state: FSMContext):
         text("manage:post_bot:accept:date").format(
             *date_values,
             "\n".join(
-                text("resource_title").format(obj.emoji_id, obj.title)
+                text("resource_title").format(obj.title)
                 for obj in objects
                 if obj.id in chosen[:10]
             ),
@@ -596,7 +596,7 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
             message_text = text("manage:post_bot:finish_params").format(
                 len(chosen),
                 "\n".join(
-                    text("resource_title").format(obj.emoji_id, obj.title)
+                    text("resource_title").format(obj.title)
                     for obj in objects
                     if obj.id in chosen[:10]
                 ),
@@ -625,7 +625,7 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
         message_text = text("manage:post_bot:success:date").format(
             *date_values,
             "\n".join(
-                text("resource_title").format(obj.emoji_id, obj.title)
+                text("resource_title").format(obj.title)
                 for obj in objects
                 if obj.id in chosen[:10]
             ),
@@ -633,7 +633,7 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
     else:
         message_text = text("manage:post_bot:success:public").format(
             "\n".join(
-                text("resource_title").format(obj.emoji_id, obj.title)
+                text("resource_title").format(obj.title)
                 for obj in objects
                 if obj.id in chosen[:10]
             )

@@ -50,7 +50,6 @@ async def choice_channel(call: types.CallbackQuery, state: FSMContext):
     await call.message.answer(
         text("channel:content").format(
             *day_values,
-            channel.emoji_id,
             channel.title,
             text("no_content:story")
             if not posts
@@ -102,10 +101,9 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
         await state.update_data(day=day, day_values=day_values, show_more=show_more)
 
         return await call.message.edit_text(
-            text("channel:content").format(
-                *day_values,
-                channel.emoji_id,
-                channel.title,
+                    text("channel:content").format(
+            *day_values,
+            channel.title,
                 text("no_content:story")
                 if not posts
                 else text("has_content:story").format(len(posts)),
@@ -119,7 +117,6 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
         posts = await db.get_stories(channel.chat_id)
         return await call.message.edit_text(
             text("channel:show_all:content").format(
-                channel.emoji_id,
                 channel.title,
                 text("no_content:story")
                 if not posts
@@ -266,10 +263,9 @@ async def accept_delete_row_content(call: types.CallbackQuery, state: FSMContext
 
         await data.get("post_message").delete()
         return await call.message.edit_text(
-            text("channel:content").format(
-                *day_values,
-                channel.emoji_id,
-                channel.title,
+                    text("channel:content").format(
+            *day_values,
+            channel.title,
                 text("no_content:story")
                 if not posts
                 else text("has_content:story").format(len(posts)),
