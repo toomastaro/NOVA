@@ -33,11 +33,12 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
 
 async def show_create_post(message: types.Message, state: FSMContext):
     """
-    Обновленное меню создания поста с улучшенным выбором каналов и папок
+    Меню создания поста с поддержкой пакетной отправки (batch)
+    Папки используются ТОЛЬКО для каналов (FolderType.CHANNEL)
     """
     user_id = message.chat.id
 
-    # Получаем все каналы и папки
+    # Получаем все каналы и папки каналов (папки ботов не используются)
     channels = await db.get_user_channels(user_id=user_id, sort_by="subscribe")
     folders = await db.get_folders(user_id=user_id, folder_type=FolderType.CHANNEL)
 
@@ -45,7 +46,7 @@ async def show_create_post(message: types.Message, state: FSMContext):
         await message.answer(text("not_found_channels"))
         return
 
-    # Определяем каналы, которые уже есть в папках
+    # Определяем каналы, которые уже есть в папках каналов
     folder_channel_ids = set()
     for folder in folders:
         # folder.content - это список строк (chat_id каналов)
@@ -76,7 +77,8 @@ async def show_create_post(message: types.Message, state: FSMContext):
 
 async def process_choice_channel(call: types.CallbackQuery, state: FSMContext):
     """
-    Обработчик выбора каналов с поддержкой папок и batch-операций
+    Обработчик выбора каналов с поддержкой папок и пакетной отправки (batch)
+    Папки используются ТОЛЬКО для каналов. Все выбранные каналы образуют одну batch-отправку.
     """
     data = call.data.split("|")
     action = data[1]
@@ -91,7 +93,7 @@ async def process_choice_channel(call: types.CallbackQuery, state: FSMContext):
     all_folders = await db.get_folders(user_id=user_id, folder_type=FolderType.CHANNEL)
 
     def get_current_view_objects():
-        """Получаем текущие объекты для отображения"""
+        """Получаем текущие объекты для отображения: папки каналов и отдельные каналы"""
         if current_folder_id:
             # Показываем содержимое конкретной папки
             folder = next((f for f in all_folders if f.id == current_folder_id), None)
@@ -102,7 +104,7 @@ async def process_choice_channel(call: types.CallbackQuery, state: FSMContext):
             folder_channels = [c for c in all_channels if c.chat_id in folder_content_ids]
             return [], folder_channels
         else:
-            # Показываем корневое меню: папки + каналы не в папках
+            # Показываем корневое меню: папки каналов + каналы не в папках
             folder_channel_ids = set()
             for f in all_folders:
                 for chat_id in f.content:
@@ -196,14 +198,14 @@ async def process_choice_channel(call: types.CallbackQuery, state: FSMContext):
         return
 
     if action == "choice_all":
-        # Выбор/снятие всех каналов с подпиской
+        # Выбор/снятие всех каналов с подпиской для batch-отправки
         subscribed_channels = [c.chat_id for c in all_channels if c.subscribe]
 
         if set(subscribed_channels).issubset(set(chosen)):
-            # Убираем выделение со всех
+            # Убираем выделение со всех каналов
             chosen = []
         else:
-            # Выбираем все доступные
+            # Выбираем все доступные каналы для пакетной отправки
             chosen = list(set(chosen) | set(subscribed_channels))
 
         await state.update_data(chosen=chosen)
@@ -224,10 +226,11 @@ async def process_choice_channel(call: types.CallbackQuery, state: FSMContext):
              await call.answer(text("error_min_choice"), show_alert=True)
              return
 
-        # Сохраняем список выбранных каналов для пакетной отправки
+        # Сохраняем список выбранных каналов для batch-отправки
+        # Все каналы получат одинаковый контент (один пост)
         await state.update_data(chosen_channels=chosen)
 
-        # Показываем сводку выбранных каналов
+        # Показываем сводку выбранных каналов для batch-отправки
         selected_channels = [c for c in all_channels if c.chat_id in chosen]
         summary_text = text("batch_summary").format(
             len(chosen),

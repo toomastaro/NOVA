@@ -6,6 +6,7 @@ from aiogram.fsm.context import FSMContext
 
 from main_bot.database.db import db
 from main_bot.database.post.model import Post
+from main_bot.database.types import FolderType
 from main_bot.handlers.user.menu import start_posting
 from main_bot.handlers.user.posting.menu import show_create_post
 from main_bot.keyboards.keyboards import keyboards
@@ -97,22 +98,66 @@ async def get_message(message: types.Message, state: FSMContext):
 
     data = await state.get_data()
     chosen_channels = data.get("chosen_channels")
-    chat_ids = chosen_channels if chosen_channels else []
-    if not chat_ids and data.get("channel_id"):
-        chat_ids = [data.get("channel_id")]
 
-    post = await db.add_post(
-        return_obj=True,
-        chat_ids=chat_ids,
-        admin_id=message.from_user.id,
-        message_options=message_options.model_dump(),
-        buttons=buttons_text,
-    )
+    # Если каналы уже выбраны в batch-режиме, создаем пост с этими каналами
+    if chosen_channels:
+        chat_ids = chosen_channels
 
-    await state.clear()
-    await state.update_data(show_more=False, post=post, chosen=chat_ids)
+        post = await db.add_post(
+            return_obj=True,
+            chat_ids=chat_ids,
+            admin_id=message.from_user.id,
+            message_options=message_options.model_dump(),
+            buttons=buttons_text,
+        )
 
-    await answer_post(message, state)
+        await state.clear()
+        await state.update_data(show_more=False, post=post, chosen=chat_ids)
+
+        await answer_post(message, state)
+    else:
+        # Если каналы не выбраны, создаем пост без каналов и переходим к выбору
+        post = await db.add_post(
+            return_obj=True,
+            chat_ids=[],
+            admin_id=message.from_user.id,
+            message_options=message_options.model_dump(),
+            buttons=buttons_text,
+        )
+
+        await state.clear()
+        await state.update_data(show_more=False, post=post, chosen=[])
+
+        # Переходим к выбору каналов для batch-отправки
+        # Получаем все каналы и папки каналов
+        channels = await db.get_user_channels(user_id=message.from_user.id, sort_by="subscribe")
+        folders = await db.get_folders(user_id=message.from_user.id, folder_type=FolderType.CHANNEL)
+
+        # Определяем каналы, которые уже есть в папках
+        folder_channel_ids = set()
+        for folder in folders:
+            for chat_id_str in folder.content:
+                if chat_id_str.lstrip('-').isdigit():
+                    folder_channel_ids.add(int(chat_id_str))
+
+        # Каналы для корневого отображения
+        root_channels = [c for c in channels if c.chat_id not in folder_channel_ids]
+
+        await state.update_data(chosen=[], current_folder_id=None)
+
+        await message.answer(
+            text("choice_channels:post_new").format(
+                len(channels),
+                "📁 " + ", ".join(f.title for f in folders[:3]) + ("..." if len(folders) > 3 else "") if folders else "Нет папок"
+            ),
+            reply_markup=keyboards.choice_channels_for_post(
+                channels=root_channels,
+                folders=folders,
+                chosen=[],
+                is_folder_view=False
+            )
+        )
+        await state.set_state(Posting.choice_channel)
 
 
 async def manage_post(call: types.CallbackQuery, state: FSMContext):
