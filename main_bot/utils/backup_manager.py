@@ -95,6 +95,7 @@ class BackupManager:
             logger.error(f"Ошибка копирования поста из бэкапа: {e}")
             return None
 
+
     async def update_backup_post(self, post_id: int, new_message_options: Dict[str, Any]) -> bool:
         """
         Обновляет пост в бэкап канале
