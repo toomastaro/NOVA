@@ -244,7 +244,7 @@ async def manage_post(call: types.CallbackQuery, state: FSMContext):
 
     # Обработка кнопки "Далее" - переход к финальным параметрам
     if temp[1] == "next":
-        chosen = data.get("chosen", post.chat_ids)
+        chosen = data.get("chosen", post.chat_ids) or []
         # Проверяем выбор каналов только если мы НЕ в режиме редактирования
         if not is_edit and not chosen:
             await call.answer(text("error_min_choice"), show_alert=True)
@@ -253,11 +253,11 @@ async def manage_post(call: types.CallbackQuery, state: FSMContext):
         objects = await db.get_user_channels(user_id=call.from_user.id, sort_by="posting")
 
         message_text = text("manage:post:finish_params").format(
-            len(chosen),
+            len(chosen or []),
             "\n".join(
                 text("resource_title").format(obj.title)
                 for obj in objects
-                if obj.chat_id in chosen[:10]
+                if obj.chat_id in (chosen or [])[:10]
             ),
         )
 
@@ -379,7 +379,7 @@ async def get_value(message: types.Message, state: FSMContext):
     post: Post = data.get("post")
 
     # Сохраняем важные данные состояния
-    chosen = data.get("chosen")
+    chosen = data.get("chosen") or []
     show_more = data.get("show_more")
     is_edit = data.get("is_edit")
 
@@ -592,7 +592,7 @@ async def finish_params(call: types.CallbackQuery, state: FSMContext):
         return await call.message.delete()
 
     post: Post = data.get("post")
-    chosen: list = data.get("chosen", post.chat_ids)
+    chosen: list = data.get("chosen", post.chat_ids) or []
     objects = await db.get_user_channels(user_id=call.from_user.id, sort_by="posting")
 
     if temp[1] == "cancel":
@@ -655,7 +655,7 @@ async def finish_params(call: types.CallbackQuery, state: FSMContext):
                 "\n".join(
                     text("resource_title").format(obj.title)
                     for obj in objects
-                    if obj.chat_id in chosen[:10]
+                    if obj.chat_id in (chosen or [])[:10]
                 ),
                 f"{int(post.delete_time / 3600)} ч."  # type: ignore
                 if post.delete_time
@@ -698,11 +698,11 @@ async def choice_delete_time(call: types.CallbackQuery, state: FSMContext):
     objects = await db.get_user_channels(user_id=call.from_user.id, sort_by="posting")
 
     message_text = text("manage:post:finish_params").format(
-        len(chosen),
+        len(chosen or []),
         "\n".join(
             text("resource_title").format(obj.title)
             for obj in objects
-            if obj.chat_id in chosen[:10]
+            if obj.chat_id in (chosen or [])[:10]
         ),
     )
 
@@ -746,11 +746,11 @@ async def cancel_send_time(call: types.CallbackQuery, state: FSMContext):
     objects = await db.get_user_channels(user_id=call.from_user.id, sort_by="posting")
 
     message_text = text("manage:post:finish_params").format(
-        len(chosen),
+        len(chosen or []),
         "\n".join(
             text("resource_title").format(obj.title)
             for obj in objects
-            if obj.chat_id in chosen[:10]
+            if obj.chat_id in (chosen or [])[:10]
         ),
     )
 
@@ -868,7 +868,7 @@ async def get_send_time(message: types.Message, state: FSMContext):
             "\n".join(
                 text("resource_title").format(obj.title)
                 for obj in objects
-                if obj.chat_id in chosen[:10]
+                if obj.chat_id in (chosen or [])[:10]
             ),
             f"{int(post.delete_time / 3600)} ч."  # type: ignore
             if post.delete_time
@@ -886,7 +886,7 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
         return await call.message.delete()
 
     post: Post = data.get("post")
-    chosen: list = data.get("chosen", post.chat_ids)
+    chosen: list = data.get("chosen", post.chat_ids) or []
     send_time: int = data.get("send_time")
     is_edit: bool = data.get("is_edit")
     objects = await db.get_user_channels(user_id=call.from_user.id, sort_by="posting")
@@ -899,11 +899,11 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
             await state.set_state(Posting.input_send_time)
         else:
             message_text = text("manage:post:finish_params").format(
-                len(chosen),
+                len(chosen or []),
                 "\n".join(
                     text("resource_title").format(obj.title)
                     for obj in objects
-                    if obj.chat_id in chosen[:10]
+                    if obj.chat_id in (chosen or [])[:10]
                 ),
             )
             reply_markup = keyboards.finish_params(obj=post)
@@ -915,7 +915,7 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
         return await call.message.edit_text(message_text, reply_markup=reply_markup)
 
     date_values: tuple = data.get("date_values")
-    kwargs = {"chat_ids": chosen}
+    kwargs = {"chat_ids": chosen or []}
 
     if temp[1] == "public":
         kwargs["send_time"] = None  # Опубликовать сейчас
@@ -930,7 +930,7 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
             "\n".join(
                 text("resource_title").format(obj.title)
                 for obj in objects
-                if obj.chat_id in chosen[:10]
+                if obj.chat_id in (chosen or [])[:10]
             ),
         )
     else:
@@ -938,7 +938,7 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
             "\n".join(
                 text("resource_title").format(obj.title)
                 for obj in objects
-                if obj.chat_id in chosen[:10]
+                if obj.chat_id in (chosen or [])[:10]
             )
         )
 

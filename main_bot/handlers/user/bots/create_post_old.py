@@ -51,7 +51,7 @@ async def choice_bots(call: types.CallbackQuery, state: FSMContext):
         await call.answer(text("keys_data_error"))
         return await call.message.delete()
 
-    chosen: list = data.get("chosen")
+    chosen: list = data.get("chosen") or []
     chosen_folders: list = data.get("chosen_folders")
 
     channel_ids = await db.get_bot_channels(call.from_user.id)
@@ -63,11 +63,11 @@ async def choice_bots(call: types.CallbackQuery, state: FSMContext):
 
         return await call.message.edit_text(
             text("manage:post_bot:finish_params").format(
-                len(chosen),
+                len(chosen or []),
                 "\n".join(
                     text("resource_title").format(obj.title)
                     for obj in objects
-                    if obj.id in chosen[:10]
+                    if obj.id in (chosen or [])[:10]
                 ),
             ),
             reply_markup=keyboards.finish_bot_post_params(obj=data.get("post")),
@@ -140,11 +140,11 @@ async def choice_bots(call: types.CallbackQuery, state: FSMContext):
     await state.update_data(chosen=chosen, chosen_folders=chosen_folders)
     await call.message.edit_text(
         text("choice_bots:post").format(
-            len(chosen),
+            len(chosen or []),
             "\n".join(
                 text("resource_title").format(obj.title)
                 for obj in objects
-                if obj.id in chosen[:10]
+                if obj.id in (chosen or [])[:10]
             ),
         ),
         reply_markup=keyboards.choice_objects(
@@ -396,7 +396,7 @@ async def finish_params(call: types.CallbackQuery, state: FSMContext):
         return await call.message.delete()
 
     post: BotPost = data.get("post")
-    chosen: list = data.get("chosen", post.bot_ids)
+    chosen: list = data.get("chosen", post.bot_ids) or []
     objects = await db.get_user_bots(user_id=call.from_user.id, sort_by=True)
 
     if temp[1] == "cancel":
@@ -407,11 +407,11 @@ async def finish_params(call: types.CallbackQuery, state: FSMContext):
 
         return await call.message.edit_text(
             text("choice_bots:post").format(
-                len(chosen),
+                len(chosen or []),
                 "\n".join(
                     text("resource_title").format(obj.title)
                     for obj in objects
-                    if obj.id in chosen[:10]
+                    if obj.id in (chosen or [])[:10]
                 ),
             ),
             reply_markup=keyboards.choice_objects(
@@ -445,7 +445,7 @@ async def finish_params(call: types.CallbackQuery, state: FSMContext):
                 "\n".join(
                     text("resource_title").format(obj.title)
                     for obj in objects
-                    if obj.id in chosen[:10]
+                    if obj.id in (chosen or [])[:10]
                 )
             ),
             reply_markup=keyboards.accept_public(data="AcceptBotPost"),
@@ -467,16 +467,16 @@ async def cancel_send_time(call: types.CallbackQuery, state: FSMContext):
             reply_markup=keyboards.manage_remain_bot_post(post=data.get("post")),
         )
 
-    chosen: list = data.get("chosen")
+    chosen: list = data.get("chosen") or []
     objects = await db.get_user_bots(user_id=call.from_user.id, sort_by=True)
 
     await call.message.edit_text(
         text("manage:post_bot:finish_params").format(
-            len(chosen),
+            len(chosen or []),
             "\n".join(
                 text("resource_title").format(obj.title)
                 for obj in objects
-                if obj.id in chosen[:10]
+                if obj.id in (chosen or [])[:10]
             ),
         ),
         reply_markup=keyboards.finish_bot_post_params(obj=data.get("post")),
@@ -560,7 +560,7 @@ async def get_send_time(message: types.Message, state: FSMContext):
     await state.clear()
     await state.update_data(data)
 
-    chosen: list = data.get("chosen")
+    chosen: list = data.get("chosen") or []
 
     objects = await db.get_user_bots(user_id=message.from_user.id, sort_by=True)
 
@@ -570,7 +570,7 @@ async def get_send_time(message: types.Message, state: FSMContext):
             "\n".join(
                 text("resource_title").format(obj.title)
                 for obj in objects
-                if obj.id in chosen[:10]
+                if obj.id in (chosen or [])[:10]
             ),
         ),
         reply_markup=keyboards.accept_date(data="AcceptBotPost"),
@@ -585,7 +585,7 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
         return await call.message.delete()
 
     post: BotPost = data.get("post")
-    chosen: list = data.get("chosen", post.bot_ids)
+    chosen: list = data.get("chosen", post.bot_ids) or []
     send_time: int = data.get("send_time")
     is_edit: bool = data.get("is_edit")
     objects = await db.get_user_bots(user_id=call.from_user.id, sort_by=True)
@@ -598,11 +598,11 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
             await state.set_state(Bots.input_send_time)
         else:
             message_text = text("manage:post_bot:finish_params").format(
-                len(chosen),
+                len(chosen or []),
                 "\n".join(
                     text("resource_title").format(obj.title)
                     for obj in objects
-                    if obj.id in chosen[:10]
+                    if obj.id in (chosen or [])[:10]
                 ),
             )
             reply_markup = keyboards.finish_bot_post_params(obj=post)
@@ -616,7 +616,7 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
         return await call.message.edit_text(message_text, reply_markup=reply_markup)
 
     date_values: tuple = data.get("date_values")
-    kwargs = {"bot_ids": chosen}
+    kwargs = {"bot_ids": chosen or []}
 
     if temp[1] == "send_time":
         kwargs["send_time"] = send_time or post.send_time
@@ -631,7 +631,7 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
             "\n".join(
                 text("resource_title").format(obj.title)
                 for obj in objects
-                if obj.id in chosen[:10]
+                if obj.id in (chosen or [])[:10]
             ),
         )
     else:
@@ -639,7 +639,7 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
             "\n".join(
                 text("resource_title").format(obj.title)
                 for obj in objects
-                if obj.id in chosen[:10]
+                if obj.id in (chosen or [])[:10]
             )
         )
 

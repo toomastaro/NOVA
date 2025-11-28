@@ -52,7 +52,7 @@ async def choice_bots(call: types.CallbackQuery, state: FSMContext):
         await call.answer(text("keys_data_error"))
         return await call.message.delete()
 
-    chosen: list = data.get("chosen")
+    chosen: list = data.get("chosen") or []
     chosen_folders: list = data.get("chosen_folders")
 
     channels = await db.get_bot_channels(call.from_user.id)
@@ -149,11 +149,11 @@ async def choice_bots(call: types.CallbackQuery, state: FSMContext):
 
     await call.message.edit_text(
         text("choice_bots:post").format(
-            len(chosen),
+            len(chosen or []),
             "\n".join(
                 text("resource_title").format(obj.title)
                 for obj in objects
-                if obj.chat_id in chosen[:10]
+                if obj.chat_id in (chosen or [])[:10]
             ),
             available,
         ),
@@ -252,7 +252,7 @@ async def manage_post(call: types.CallbackQuery, state: FSMContext):
                 reply_markup=keyboards.manage_remain_bot_post(post=post),
             )
 
-        chosen: list = data.get("chosen")
+        chosen: list = data.get("chosen") or []
         available: int = data.get("available")
         channels = await db.get_bot_channels(call.from_user.id)
         objects = await db.get_user_channels(
@@ -262,11 +262,11 @@ async def manage_post(call: types.CallbackQuery, state: FSMContext):
         await call.message.delete()
         return await call.message.answer(
             text("manage:post_bot:finish_params").format(
-                len(chosen),
+                len(chosen or []),
                 "\n".join(
                     text("resource_title").format(obj.title)
                     for obj in objects
-                    if obj.chat_id in chosen[:10]
+                    if obj.chat_id in (chosen or [])[:10]
                 ),
                 available,
             ),
@@ -428,7 +428,7 @@ async def finish_params(call: types.CallbackQuery, state: FSMContext):
         return await call.message.delete()
 
     post: BotPost = data.get("post")
-    chosen: list = data.get("chosen", post.chat_ids)
+    chosen: list = data.get("chosen", post.chat_ids) or []
 
     channels = await db.get_bot_channels(call.from_user.id)
     objects = await db.get_user_channels(
@@ -487,7 +487,7 @@ async def finish_params(call: types.CallbackQuery, state: FSMContext):
                 "\n".join(
                     text("resource_title").format(obj.title)
                     for obj in objects
-                    if obj.chat_id in chosen[:10]
+                    if obj.chat_id in (chosen or [])[:10]
                 ),
             ),
             reply_markup=keyboards.accept_public(data="AcceptBotPost"),
@@ -527,7 +527,7 @@ async def choice_delete_time(call: types.CallbackQuery, state: FSMContext):
             reply_markup=keyboards.manage_remain_bot_post(post=post),
         )
 
-    chosen: list = data.get("chosen")
+    chosen: list = data.get("chosen") or []
     channels = await db.get_bot_channels(call.from_user.id)
     objects = await db.get_user_channels(
         call.from_user.id, from_array=[i.id for i in channels]
@@ -535,11 +535,11 @@ async def choice_delete_time(call: types.CallbackQuery, state: FSMContext):
 
     await call.message.edit_text(
         text("manage:post_bot:finish_params").format(
-            len(chosen),
+            len(chosen or []),
             "\n".join(
                 text("resource_title").format(obj.title)
                 for obj in objects
-                if obj.chat_id in chosen[:10]
+                if obj.chat_id in (chosen or [])[:10]
             ),
             available,
         ),
@@ -565,7 +565,7 @@ async def send_time_inline(call: types.CallbackQuery, state: FSMContext):
                 reply_markup=keyboards.manage_remain_bot_post(post=data.get("post")),
             )
 
-        chosen: list = data.get("chosen")
+        chosen: list = data.get("chosen") or []
         channels = await db.get_bot_channels(call.from_user.id)
         objects = await db.get_user_channels(
             call.from_user.id, from_array=[i.id for i in channels]
@@ -573,11 +573,11 @@ async def send_time_inline(call: types.CallbackQuery, state: FSMContext):
 
         return await call.message.edit_text(
             text("manage:post_bot:finish_params").format(
-                len(chosen),
+                len(chosen or []),
                 "\n".join(
                     text("resource_title").format(obj.title)
                     for obj in objects
-                    if obj.chat_id in chosen[:10]
+                    if obj.chat_id in (chosen or [])[:10]
                 ),
                 data.get("available"),
             ),
@@ -696,7 +696,7 @@ async def get_send_time(message: types.Message, state: FSMContext):
     await state.clear()
     await state.update_data(data)
 
-    chosen: list = data.get("chosen")
+    chosen: list = data.get("chosen") or []
 
     channels = await db.get_bot_channels(message.from_user.id)
     objects = await db.get_user_channels(
@@ -709,7 +709,7 @@ async def get_send_time(message: types.Message, state: FSMContext):
             "\n".join(
                 text("resource_title").format(obj.title)
                 for obj in objects
-                if obj.chat_id in chosen[:10]
+                if obj.chat_id in (chosen or [])[:10]
             ),
         ),
         reply_markup=keyboards.accept_date(data="AcceptBotPost"),
@@ -724,7 +724,7 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
         return await call.message.delete()
 
     post: BotPost = data.get("post")
-    chosen: list = data.get("chosen", post.chat_ids)
+    chosen: list = data.get("chosen", post.chat_ids) or []
     send_time: int = data.get("send_time")
     is_edit: bool = data.get("is_edit")
     channels = await db.get_bot_channels(call.from_user.id)
@@ -742,11 +742,11 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
             await state.set_state(Bots.input_send_time)
         else:
             message_text = text("manage:post_bot:finish_params").format(
-                len(chosen),
+                len(chosen or []),
                 "\n".join(
                     text("resource_title").format(obj.title)
                     for obj in objects
-                    if obj.chat_id in chosen[:10]
+                    if obj.chat_id in (chosen or [])[:10]
                 ),
                 data.get("available"),
             )
@@ -777,7 +777,7 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
             "\n".join(
                 text("resource_title").format(obj.title)
                 for obj in objects
-                if obj.chat_id in chosen[:10]
+                if obj.chat_id in (chosen or [])[:10]
             ),
         )
     else:
@@ -785,7 +785,7 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
             "\n".join(
                 text("resource_title").format(obj.title)
                 for obj in objects
-                if obj.chat_id in chosen[:10]
+                if obj.chat_id in (chosen or [])[:10]
             )
         )
 
