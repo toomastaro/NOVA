@@ -250,11 +250,19 @@ async def execute_delete_post(call: types.CallbackQuery, bot: Bot):
         post_id = int(temp[1])
         
         management_service = PostManagementService(bot)
-        result = await management_service.delete_post(post_id, call.from_user.id)
-        
+        # Удаляем с delete_from_backup=True, так как это ручное удаление
+        result = await management_service.delete_post(post_id, call.from_user.id, delete_from_backup=True)
+
         if result['success']:
+            # Формируем детальное сообщение
+            message_text = f"✅ {result['message']}"
+            if result.get('deleted_from_backup'):
+                message_text += "\n🗑️ Пост полностью удален из всех мест"
+            elif result.get('deleted_from_channels', 0) > 0:
+                message_text += "\n📅 Пост оставлен в календаре для истории"
+
             await call.message.edit_text(
-                f"✅ {result['message']}",
+                message_text,
                 reply_markup=keyboards.back_to_calendar()
             )
         else:

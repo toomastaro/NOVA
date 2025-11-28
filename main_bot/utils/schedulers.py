@@ -115,6 +115,8 @@ async def send(post: Post):
         posted_timestamp=int(time.time())
     )
 
+    # НЕ удаляем пост из бэкап канала - он должен оставаться в календаре
+
     # Отправляем отчет администратору
     if post.report:
         await send_admin_report(post, results)
@@ -189,6 +191,11 @@ async def unpin_posts():
 
 
 async def delete_posts():
+    """
+    Удаляет посты по расписанию (по delete_time)
+    Посты удаляются из каналов, но НЕ из бэкап канала,
+    чтобы оставаться в календаре
+    """
     db_posts = await db.get_posts_for_delete()
 
     row_ids = []
@@ -226,15 +233,16 @@ async def delete_posts():
         )
         posts[post.post_id] = messages
 
+        # Удаляем из канала (НО НЕ из бэкап канала!)
         try:
             await bot.delete_message(post.chat_id, post.message_id)
         except Exception as e:
-            print(e)
+            print(f"Ошибка удаления поста {post.message_id} из канала {post.chat_id}: {e}")
 
             try:
                 await bot.send_message(
                     chat_id=post.admin_id,
-                    text=                    text("error:post:delete").format(
+                    text=text("error:post:delete").format(
                         post.message_id, channel.title
                     ),
                 )
@@ -243,6 +251,7 @@ async def delete_posts():
 
         row_ids.append(post.id)
 
+    # Обрабатываем отчеты по CPM
     for post_id, message_objects in posts.items():
         cpm_price = message_objects[0]["cpm_price"]
         if not cpm_price:
@@ -277,6 +286,8 @@ async def delete_posts():
         except Exception as e:
             print(e)
 
+    # Удаляем записи о публикациях (НО НЕ сами посты!)
+    # Посты остаются в основной таблице для календаря
     await db.delete_published_posts(row_ids=row_ids)
 
 

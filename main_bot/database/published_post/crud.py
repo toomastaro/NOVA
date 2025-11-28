@@ -63,3 +63,10 @@ class PublishedPostCrud(DatabaseMixin):
         return await self.fetch(
             select(PublishedPost).where(PublishedPost.post_id == post_id)
         )
+
+    async def delete_by_post_id(self, post_id: int) -> int:
+        """Удалить все публикации поста"""
+        result = await self.execute(
+            delete(PublishedPost).where(PublishedPost.post_id == post_id)
+        )
+        return result.rowcount

@@ -144,21 +144,23 @@ class PostManagementService:
             
         return result
 
-    async def delete_post(self, post_id: int, admin_id: int) -> Dict[str, Any]:
+    async def delete_post(self, post_id: int, admin_id: int, delete_from_backup: bool = True) -> Dict[str, Any]:
         """
         Удаляет пост или помечает как удаленный
         
         Args:
             post_id: ID поста
             admin_id: ID администратора
-            
+            delete_from_backup: Удалять ли из бэкап канала (True для ручного удаления, False для автоматического)
+
         Returns:
             Результат операции
         """
         result = {
             'success': False,
             'message': '',
-            'deleted_from_channels': 0
+            'deleted_from_channels': 0,
+            'deleted_from_backup': False
         }
         
         try:
@@ -184,12 +186,39 @@ class PostManagementService:
                 result['message'] = 'Пост удален'
                 
             elif post.status == PostStatus.POSTED:
-                # Отправленные посты помечаем как удаленные и удаляем из каналов
-                # TODO: Добавить логику удаления из каналов через published_posts
+                # Отправленные посты удаляем из каналов и опционально из бэкапа
+                deleted_count = await self._delete_from_channels(post_id)
+                result['deleted_from_channels'] = deleted_count
+
+                # Удаляем из бэкап канала только если это ручное удаление
+                if delete_from_backup and post.backup_message_id:
+                    from main_bot.utils.backup_manager import BackupManager
+                    backup_manager = BackupManager(self.bot)
+                    try:
+                        await self.bot.delete_message(
+                            chat_id=post.backup_chat_id,
+                            message_id=post.backup_message_id
+                        )
+                        # Очищаем ссылки на бэкап
+                        await post_crud.update(
+                            post_id,
+                            backup_chat_id=None,
+                            backup_message_id=None
+                        )
+                        result['deleted_from_backup'] = True
+                        logger.info(f"Удален пост {post_id} из бэкап канала (ручное удаление)")
+                    except Exception as e:
+                        logger.error(f"Ошибка удаления поста {post_id} из бэкап канала: {e}")
+
+                # Помечаем пост как удаленный
                 await post_crud.update_post_status(post_id, PostStatus.DELETED)
                 result['success'] = True
-                result['message'] = 'Пост помечен как удаленный'
-                
+
+                if delete_from_backup:
+                    result['message'] = f'Пост удален из каналов и бэкапа (каналов: {deleted_count})'
+                else:
+                    result['message'] = f'Пост удален из каналов, но сохранен в календаре (каналов: {deleted_count})'
+
         except Exception as e:
             logger.error(f"Ошибка удаления поста {post_id}: {e}")
             result['message'] = f'Ошибка: {str(e)}'
@@ -258,6 +287,43 @@ class PostManagementService:
             return None
             
         return await self.posting_service.get_post_preview_url(post_id)
+
+    async def _delete_from_channels(self, post_id: int) -> int:
+        """
+        Удаляет пост из всех каналов через published_posts
+
+        Args:
+            post_id: ID поста
+
+        Returns:
+            Количество каналов, из которых удален пост
+        """
+        try:
+            from main_bot.database.published_post.crud import PublishedPostCrud
+            published_crud = PublishedPostCrud()
+
+            # Получаем все публикации этого поста
+            published_posts = await published_crud.get_by_post_id(post_id)
+            deleted_count = 0
+
+            for pub_post in published_posts:
+                try:
+                    await self.bot.delete_message(
+                        chat_id=pub_post.chat_id,
+                        message_id=pub_post.message_id
+                    )
+                    deleted_count += 1
+                except Exception as e:
+                    logger.error(f"Ошибка удаления сообщения {pub_post.message_id} из канала {pub_post.chat_id}: {e}")
+
+            # Удаляем записи о публикациях
+            await published_crud.delete_by_post_id(post_id)
+
+            return deleted_count
+
+        except Exception as e:
+            logger.error(f"Ошибка удаления поста {post_id} из каналов: {e}")
+            return 0
 
     async def cleanup_old_posts(self) -> Dict[str, int]:
         """
