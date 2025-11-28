@@ -222,17 +222,47 @@ async def manage_post(call: types.CallbackQuery, state: FSMContext):
 
         objects = await db.get_user_channels(user_id=call.from_user.id, sort_by="posting")
 
-        await call.message.edit_text(
-            text("manage:post:finish_params").format(
-                len(chosen),
-                "\n".join(
-                    text("resource_title").format(obj.emoji_id, obj.title)
-                    for obj in objects
-                    if obj.chat_id in chosen[:10]
-                ),
+        message_text = text("manage:post:finish_params").format(
+            len(chosen),
+            "\n".join(
+                text("resource_title").format(obj.emoji_id, obj.title)
+                for obj in objects
+                if obj.chat_id in chosen[:10]
             ),
-            reply_markup=keyboards.finish_params(obj=post),
         )
+
+        # Проверяем есть ли медиа в посте
+        message_options = MessageOptions(**post.message_options)
+        has_media = bool(message_options.photo or message_options.video or message_options.animation)
+
+        if has_media:
+            # Для медиа-сообщений сначала пробуем edit_caption, потом edit_reply_markup
+            try:
+                await call.message.edit_caption(
+                    caption=message_text,
+                    reply_markup=keyboards.finish_params(obj=post),
+                )
+            except Exception as e:
+                try:
+                    # Если нет caption, пробуем обновить только клавиатуру
+                    await call.message.edit_reply_markup(
+                        reply_markup=keyboards.finish_params(obj=post)
+                    )
+                    # Отправляем текст отдельным сообщением
+                    await call.message.answer(message_text)
+                except Exception:
+                    # Крайний случай: удаляем сообщение и создаём новое
+                    await call.message.delete()
+                    await call.message.answer(
+                        message_text,
+                        reply_markup=keyboards.finish_params(obj=post),
+                    )
+        else:
+            # Для текстовых сообщений используем edit_text
+            await call.message.edit_text(
+                message_text,
+                reply_markup=keyboards.finish_params(obj=post),
+            )
         return
 
     await state.update_data(param=temp[1])
