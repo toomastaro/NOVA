@@ -2348,6 +2348,11 @@ class Inline(
         )
         kb.row(
             InlineKeyboardButton(
+                text="🔍 Найти существующие", callback_data=f"{data}|scan"
+            )
+        )
+        kb.row(
+            InlineKeyboardButton(
                 text=text("back:button"), callback_data=f"{data}|cancel"
             )
         )
