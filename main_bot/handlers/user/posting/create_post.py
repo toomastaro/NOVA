@@ -62,7 +62,8 @@ async def get_message(message: types.Message, state: FSMContext):
             message_options.parse_mode = "HTML"
         elif message.caption:
             # Для подписей к медиа используем caption с HTML
-            message_options.caption = message.caption if not message.entities else message.html_text
+            # ВАЖНО: проверяем caption_entities, а не entities!
+            message_options.caption = message.caption if not message.caption_entities else message.html_text
             message_options.parse_mode = "HTML"
 
     # Extract buttons from reply_markup if present
