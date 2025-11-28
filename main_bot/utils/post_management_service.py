@@ -184,40 +184,20 @@ class PostManagementService:
                 await post_crud.delete_post(post_id)
                 result['success'] = True
                 result['message'] = 'Пост удален'
-                
+
             elif post.status == PostStatus.POSTED:
                 # Отправленные посты удаляем из каналов и опционально из бэкапа
                 deleted_count = await self._delete_from_channels(post_id)
                 result['deleted_from_channels'] = deleted_count
 
-                # Удаляем из бэкап канала только если это ручное удаление
-                if delete_from_backup and post.backup_message_id:
-                    from main_bot.utils.backup_manager import BackupManager
-                    backup_manager = BackupManager(self.bot)
-                    try:
-                        await self.bot.delete_message(
-                            chat_id=post.backup_chat_id,
-                            message_id=post.backup_message_id
-                        )
-                        # Очищаем ссылки на бэкап
-                        await post_crud.update(
-                            post_id,
-                            backup_chat_id=None,
-                            backup_message_id=None
-                        )
-                        result['deleted_from_backup'] = True
-                        logger.info(f"Удален пост {post_id} из бэкап канала (ручное удаление)")
-                    except Exception as e:
-                        logger.error(f"Ошибка удаления поста {post_id} из бэкап канала: {e}")
-
+                # ВАЖНО: По требованию, пост НИКОГДА не удаляется из бэкап канала
+                # даже при ручном удалении. Он должен оставаться в календаре.
+                
                 # Помечаем пост как удаленный
                 await post_crud.update_post_status(post_id, PostStatus.DELETED)
                 result['success'] = True
 
-                if delete_from_backup:
-                    result['message'] = f'Пост удален из каналов и бэкапа (каналов: {deleted_count})'
-                else:
-                    result['message'] = f'Пост удален из каналов, но сохранен в календаре (каналов: {deleted_count})'
+                result['message'] = f'Пост удален из каналов, но сохранен в календаре (каналов: {deleted_count})'
 
         except Exception as e:
             logger.error(f"Ошибка удаления поста {post_id}: {e}")

@@ -230,6 +230,7 @@
     "input_folder_name": "<b>Введите название папки</b>",
     "error_exist_folder_name": "<b>❌ Папка с данным названием уже существует</b>",
     "error_symbol_folder_name": "<b>❌ Название папки не должно превышать 20 символов</b>",
+    "error_max_channels_folder": "❌ Максимальное количество каналов в папке - 12",
     "manage:folder": "<b>Выберите действие, которое хотите выполнить с папкой «{}»</b>",
     "manage:folder:content:button": "🗂 Изменить содержимое",
     "manage:folder:title:button": "🏷 Изменить название",

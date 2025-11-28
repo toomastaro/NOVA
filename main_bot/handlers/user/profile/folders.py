@@ -128,7 +128,14 @@ async def choice_object(call: types.CallbackQuery, state: FSMContext, user: User
         if len(objects) == len(chosen):
             chosen.clear()
         else:
-            chosen.extend([obj.chat_id for obj in objects if obj.chat_id not in chosen])
+            to_add = [obj.chat_id for obj in objects if obj.chat_id not in chosen]
+            # Ограничиваем количество каналов до 12
+            remaining_slots = 12 - len(chosen)
+            if remaining_slots > 0:
+                chosen.extend(to_add[:remaining_slots])
+            
+            if len(to_add) > remaining_slots:
+                await call.answer(text("error_max_channels_folder"), show_alert=True)
 
     # Обработка выбора отдельных каналов (включая отрицательные ID каналов)
     if temp[1].lstrip('-').isdigit():  # Поддерживаем отрицательные ID каналов Telegram
@@ -136,6 +143,8 @@ async def choice_object(call: types.CallbackQuery, state: FSMContext, user: User
         if resource_id in chosen:
             chosen.remove(resource_id)
         else:
+            if len(chosen) >= 12:
+                return await call.answer(text("error_max_channels_folder"), show_alert=True)
             chosen.append(resource_id)
 
     await state.update_data(chosen=chosen)
