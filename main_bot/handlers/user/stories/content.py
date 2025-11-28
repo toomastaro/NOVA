@@ -132,7 +132,14 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
 
     post_id = int(temp[1])
     post = await db.get_story(post_id)
-    send_date = datetime.fromtimestamp(post.send_time)
+
+    # Проверяем, есть ли время отправки
+    if post.send_time is not None:
+        send_date = datetime.fromtimestamp(post.send_time)
+    else:
+        # Если времени отправки нет, используем текущее время
+        send_date = datetime.now()
+
     send_date_values = (
         send_date.day,
         text("month").get(str(send_date.month)),

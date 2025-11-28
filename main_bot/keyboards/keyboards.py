@@ -656,10 +656,14 @@ class InlinePosting(InlineKeyboardBuilder):
     def manage_remain_post(cls, post: Post):
         kb = cls()
 
+        # Проверяем наличие времени отправки
+        if post.send_time is not None:
+            send_time_text = datetime.fromtimestamp(post.send_time).strftime("%d.%m.%Y %H:%M")
+        else:
+            send_time_text = "Не установлено"
+
         kb.button(
-            text=text("manage:post:send_time").format(
-                datetime.fromtimestamp(post.send_time).strftime("%d.%m.%Y %H:%M")
-            ),
+            text=text("manage:post:send_time").format(send_time_text),
             callback_data="FinishPostParams|send_time",
         )
         kb.button(
@@ -782,10 +786,14 @@ class InlineStories(InlineKeyboardBuilder):
         kb = cls()
         options = StoryOptions(**post.story_options)
 
+        # Проверяем наличие времени отправки
+        if post.send_time is not None:
+            send_time_text = datetime.fromtimestamp(post.send_time).strftime("%d.%m.%Y %H:%M")
+        else:
+            send_time_text = "Не установлено"
+
         kb.button(
-            text=text("manage:post:send_time").format(
-                datetime.fromtimestamp(post.send_time).strftime("%d.%m.%Y %H:%M")
-            ),
+            text=text("manage:post:send_time").format(send_time_text),
             callback_data="FinishStoriesParams|send_time",
         )
         kb.button(
@@ -1048,10 +1056,14 @@ class InlineBots(InlineKeyboardBuilder):
     def manage_remain_bot_post(cls, post: BotPost):
         kb = cls()
 
+        # Проверяем наличие времени отправки
+        if post.send_time is not None:
+            send_time_text = datetime.fromtimestamp(post.send_time).strftime("%d.%m.%Y %H:%M")
+        else:
+            send_time_text = "Не установлено"
+
         kb.button(
-            text=text("manage:post:send_time").format(
-                datetime.fromtimestamp(post.send_time).strftime("%d.%m.%Y %H:%M")
-            ),
+            text=text("manage:post:send_time").format(send_time_text),
             callback_data="FinishBotPostParams|send_time",
         )
         kb.button(
@@ -2743,13 +2755,17 @@ class Inline(
                     ).replace("</tg-emoji>", "")
                     message_text = re.sub(r"<[^>]+>", "", message_text)
 
+                # Проверяем наличие времени отправки
+                if objects[idx].send_time is not None:
+                    time_text = datetime.fromtimestamp(objects[idx].send_time).strftime("%d.%m.%Y %H:%M")
+                else:
+                    time_text = "Не установлено"
+
                 kb.row(
                     InlineKeyboardButton(
                         text="{} {} | {}".format(
                             emoji,
-                            datetime.fromtimestamp(objects[idx].send_time).strftime(
-                                "%d.%m.%Y %H:%M"
-                            ),
+                            time_text,
                             message_text or "Медиа",
                         ),
                         callback_data=f"{obj_data}|{objects[idx].id}",

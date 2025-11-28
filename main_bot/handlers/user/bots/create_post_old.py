@@ -519,7 +519,11 @@ async def get_send_time(message: types.Message, state: FSMContext):
         post = await db.update_bot_post(
             post_id=post.id, return_obj=True, send_time=send_time
         )
-        send_date = datetime.fromtimestamp(post.send_time)
+        # Проверяем наличие времени отправки
+        if post.send_time is not None:
+            send_date = datetime.fromtimestamp(post.send_time)
+        else:
+            send_date = datetime.fromtimestamp(post.start_timestamp or int(time.time()))
         send_date_values = (
             send_date.day,
             text("month").get(str(send_date.month)),

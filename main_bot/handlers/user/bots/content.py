@@ -1,3 +1,4 @@
+import time
 from datetime import datetime, timedelta
 
 from aiogram import F, Router, types
@@ -135,7 +136,9 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
     post_id = int(temp[1])
     post = await db.get_bot_post(post_id)
 
-    send_date = datetime.fromtimestamp(post.send_time or post.start_timestamp)
+    # Проверяем наличие времени отправки
+    timestamp = post.send_time or post.start_timestamp or int(time.time())
+    send_date = datetime.fromtimestamp(timestamp)
     send_date_values = (
         send_date.day,
         text("month").get(str(send_date.month)),
