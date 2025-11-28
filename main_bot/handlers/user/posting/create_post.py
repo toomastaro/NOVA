@@ -41,6 +41,9 @@ async def cancel_message(call: types.CallbackQuery, state: FSMContext):
 
 
 async def get_message(message: types.Message, state: FSMContext):
+    import logging
+    logger = logging.getLogger(__name__)
+    
     message_text_length = len(message.caption or message.text or "")
     if message_text_length > 1024:
         return await message.answer(text("error_length_text"))
@@ -50,11 +53,17 @@ async def get_message(message: types.Message, state: FSMContext):
         dump_message["photo"] = Media(file_id=message.photo[-1].file_id)
 
     message_options = MessageOptions(**dump_message)
+    
+    # Правильно извлекаем HTML-форматированный текст
     if message_text_length:
-        if message_options.text:
+        if message.text:
+            # Для текстовых сообщений используем html_text
             message_options.text = message.html_text
-        if message_options.caption:
-            message_options.caption = message.html_text
+            message_options.parse_mode = "HTML"
+        elif message.caption:
+            # Для подписей к медиа используем caption с HTML
+            message_options.caption = message.caption if not message.entities else message.html_text
+            message_options.parse_mode = "HTML"
 
     # Extract buttons from reply_markup if present
     buttons_text = None
@@ -71,6 +80,18 @@ async def get_message(message: types.Message, state: FSMContext):
 
         if button_rows:
             buttons_text = '\n'.join(button_rows)
+
+    # ЛОГИРОВАНИЕ: Что пришло от пользователя
+    logger.info("=" * 80)
+    logger.info("📥 ВХОДЯЩЕЕ СООБЩЕНИЕ:")
+    logger.info(f"  message.text: {message.text}")
+    logger.info(f"  message.caption: {message.caption}")
+    logger.info(f"  message.html_text: {message.html_text}")
+    logger.info(f"  message.entities: {message.entities}")
+    logger.info(f"  message.caption_entities: {message.caption_entities}")
+    logger.info(f"  message.reply_markup: {message.reply_markup}")
+    logger.info(f"  Извлеченные кнопки: {buttons_text}")
+    logger.info("=" * 80)
 
     data = await state.get_data()
     chosen_channels = data.get("chosen_channels")
@@ -91,6 +112,14 @@ async def get_message(message: types.Message, state: FSMContext):
             buttons=buttons_text,
             send_time=far_future_time,  # Предотвращаем автоматическую отправку
         )
+
+        # ЛОГИРОВАНИЕ: Что сохранилось в БД
+        logger.info("=" * 80)
+        logger.info("💾 СОХРАНЕННЫЙ ПОСТ:")
+        logger.info(f"  post.id: {post.id}")
+        logger.info(f"  post.message_options: {post.message_options}")
+        logger.info(f"  post.buttons: {post.buttons}")
+        logger.info("=" * 80)
 
         await state.clear()
         await state.update_data(show_more=False, post=post, chosen=chat_ids)
