@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     """
     # App
     DEBUG: bool = False
-    VERSION: str = "1.0.8"
+    VERSION: str = "1.0.9"
 
     # Bot
     BOT_TOKEN: str
