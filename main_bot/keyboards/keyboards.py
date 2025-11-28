@@ -2886,6 +2886,46 @@ class Inline(
         return kb.as_markup()
 
 
+    @classmethod
+    def post_details(cls, post_info: dict):
+        """Клавиатура для деталей поста в календаре"""
+        kb = cls()
+        post_id = post_info['id']
+
+        # Предпросмотр (если доступен бэкап)
+        if post_info.get('backup_available'):
+            kb.button(text="🔍 Предпросмотр", callback_data=f"preview_post|{post_id}")
+
+        # Редактирование (если доступно)
+        if post_info.get('can_edit'):
+            kb.button(text="✏️ Редактировать", callback_data=f"edit_post|{post_id}")
+
+        # Удаление (если доступно)
+        if post_info.get('can_delete'):
+            kb.button(text="🗑 Удалить", callback_data=f"delete_post|{post_id}")
+
+        kb.button(text="⬅️ Назад", callback_data="back_to_calendar")
+
+        kb.adjust(1)
+        return kb.as_markup()
+
+    @classmethod
+    def cancel_post_edit(cls):
+        """Клавиатура для отмены редактирования поста"""
+        kb = cls()
+        kb.button(text="❌ Отменить", callback_data="cancel_post_edit")
+        kb.adjust(1)
+        return kb.as_markup()
+
+    @classmethod
+    def post_edit_complete(cls):
+        """Клавиатура после завершения редактирования"""
+        kb = cls()
+        kb.button(text="✅ Готово", callback_data="edit_complete")
+        kb.adjust(1)
+        return kb.as_markup()
+
+
 class Keyboards(Reply, Inline):
     pass
 

@@ -142,4 +142,169 @@ async def process_post_edit_content(message: types.Message, state: FSMContext, b
             return
             
         # Подготавливаем новые опции сообщения
-        new_message_options = {}\n        \n        if message.text:\n            new_message_options['text'] = message.html_text\n        elif message.caption:\n            new_message_options['caption'] = message.html_text\n            \n        # Добавляем медиа если есть\n        if message.photo:\n            new_message_options['photo'] = message.photo[-1].file_id\n        elif message.video:\n            new_message_options['video'] = message.video.file_id\n        elif message.animation:\n            new_message_options['animation'] = message.animation.file_id\n            \n        new_message_options['parse_mode'] = 'HTML'\n        \n        # Применяем изменения\n        management_service = PostManagementService(bot)\n        result = await management_service.edit_post(\n            post_id, new_message_options, message.from_user.id\n        )\n        \n        # Формируем отчет\n        if result['success']:\n            report_text = f\"✅ <b>Пост #{post_id} обновлен!</b>\\n\\n{result['message']}\"\n            \n            if result['updated_channels'] > 0:\n                report_text += f\"\\n📺 Обновлено каналов: {result['updated_channels']}\"\n                \n            if result['errors']:\n                report_text += \"\\n\\n⚠️ <b>Предупреждения:</b>\\n\"\n                for error in result['errors'][:3]:\n                    report_text += f\"• {error}\\n\"\n        else:\n            report_text = f\"❌ <b>Ошибка обновления поста #{post_id}</b>\\n\\n{result['message']}\"\n            \n        await message.answer(\n            report_text,\n            parse_mode=\"HTML\",\n            reply_markup=keyboards.post_edit_complete()\n        )\n        \n        await state.clear()\n        \n    except Exception as e:\n        logger.error(f\"Ошибка обработки редактирования поста: {e}\")\n        await message.answer(\n            \"❌ Произошла ошибка при обновлении поста\",\n            reply_markup=keyboards.post_edit_complete()\n        )\n        await state.clear()\n\n\n@router.callback_query(F.data.startswith(\"delete_post|\"))\nasync def confirm_delete_post(call: types.CallbackQuery, bot: Bot):\n    \"\"\"Подтверждение удаления поста\"\"\"\n    try:\n        temp = call.data.split(\"|\")\n        post_id = int(temp[1])\n        \n        management_service = PostManagementService(bot)\n        posts = await management_service.get_posts_for_calendar(call.from_user.id)\n        post_info = next((p for p in posts if p['id'] == post_id), None)\n        \n        if not post_info:\n            await call.answer(\"❌ Пост не найден\", show_alert=True)\n            return\n            \n        if not post_info['can_delete']:\n            await call.answer(\"❌ Пост недоступен для удаления\", show_alert=True)\n            return\n            \n        delete_text = (\n            f\"❓ <b>Удалить пост #{post_id}?</b>\\n\\n\"\n            f\"Статус: {post_info['status_display']}\\n\"\n        )\n        \n        if post_info['status'] == PostStatus.POSTED:\n            delete_text += \"\\n⚠️ Пост уже отправлен. Он будет помечен как удаленный.\"\n        else:\n            delete_text += \"\\n🗑 Пост будет полностью удален.\"\n            \n        await call.message.edit_text(\n            delete_text,\n            parse_mode=\"HTML\",\n            reply_markup=keyboards.confirm_delete_post(post_id)\n        )\n        \n    except Exception as e:\n        logger.error(f\"Ошибка подтверждения удаления поста: {e}\")\n        await call.answer(\"❌ Ошибка удаления поста\", show_alert=True)\n\n\n@router.callback_query(F.data.startswith(\"confirm_delete|\"))\nasync def execute_delete_post(call: types.CallbackQuery, bot: Bot):\n    \"\"\"Выполняет удаление поста\"\"\"\n    try:\n        temp = call.data.split(\"|\")\n        post_id = int(temp[1])\n        \n        management_service = PostManagementService(bot)\n        result = await management_service.delete_post(post_id, call.from_user.id)\n        \n        if result['success']:\n            await call.message.edit_text(\n                f\"✅ {result['message']}\",\n                reply_markup=keyboards.back_to_calendar()\n            )\n        else:\n            await call.message.edit_text(\n                f\"❌ {result['message']}\",\n                reply_markup=keyboards.back_to_calendar()\n            )\n            \n    except Exception as e:\n        logger.error(f\"Ошибка выполнения удаления поста: {e}\")\n        await call.answer(\"❌ Ошибка при удалении поста\", show_alert=True)\n\n\n@router.callback_query(F.data.startswith(\"preview_post|\"))\nasync def show_post_preview(call: types.CallbackQuery, bot: Bot):\n    \"\"\"Показывает предпросмотр поста\"\"\"\n    try:\n        temp = call.data.split(\"|\")\n        post_id = int(temp[1])\n        \n        management_service = PostManagementService(bot)\n        preview_url = await management_service.get_post_preview_url(post_id)\n        \n        if preview_url:\n            await call.answer(\n                f\"🔗 Ссылка на предпросмотр:\\n{preview_url}\",\n                show_alert=True\n            )\n        else:\n            await call.answer(\n                \"❌ Предпросмотр недоступен (нет бэкапа или пост старше 90 дней)\",\n                show_alert=True\n            )\n            \n    except Exception as e:\n        logger.error(f\"Ошибка показа предпросмотра поста: {e}\")\n        await call.answer(\"❌ Ошибка получения предпросмотра\", show_alert=True)\n\n\n@router.callback_query(F.data.in_([\"cancel_post_edit\", \"edit_complete\", \"back_to_calendar\"]))\nasync def handle_navigation(call: types.CallbackQuery, state: FSMContext):\n    \"\"\"Обрабатывает навигационные кнопки\"\"\"\n    await state.clear()\n    \n    if call.data == \"cancel_post_edit\":\n        await call.message.edit_text(\n            \"❌ Редактирование отменено\",\n            reply_markup=keyboards.back_to_calendar()\n        )\n    elif call.data in [\"edit_complete\", \"back_to_calendar\"]:\n        await call.message.edit_text(\n            \"📅 Возврат к календарю...\",\n            reply_markup=keyboards.back_to_main_menu()\n        )\n\n\ndef register_calendar_manager() -> Router:\n    \"\"\"Регистрация обработчиков календаря\"\"\"\n    return router
+        new_message_options = {}
+        
+        if message.text:
+            new_message_options['text'] = message.html_text
+        elif message.caption:
+            new_message_options['caption'] = message.html_text
+            
+        # Добавляем медиа если есть
+        if message.photo:
+            new_message_options['photo'] = message.photo[-1].file_id
+        elif message.video:
+            new_message_options['video'] = message.video.file_id
+        elif message.animation:
+            new_message_options['animation'] = message.animation.file_id
+            
+        new_message_options['parse_mode'] = 'HTML'
+        
+        # Применяем изменения
+        management_service = PostManagementService(bot)
+        result = await management_service.edit_post(
+            post_id, new_message_options, message.from_user.id
+        )
+        
+        # Формируем отчет
+        if result['success']:
+            report_text = f"✅ <b>Пост #{post_id} обновлен!</b>\n\n{result['message']}"
+            
+            if result['updated_channels'] > 0:
+                report_text += f"\n📺 Обновлено каналов: {result['updated_channels']}"
+                
+            if result['errors']:
+                report_text += "\n\n⚠️ <b>Предупреждения:</b>\n"
+                for error in result['errors'][:3]:
+                    report_text += f"• {error}\n"
+        else:
+            report_text = f"❌ <b>Ошибка обновления поста #{post_id}</b>\n\n{result['message']}"
+            
+        await message.answer(
+            report_text,
+            parse_mode="HTML",
+            reply_markup=keyboards.post_edit_complete()
+        )
+        
+        await state.clear()
+        
+    except Exception as e:
+        logger.error(f"Ошибка обработки редактирования поста: {e}")
+        await message.answer(
+            "❌ Произошла ошибка при обновлении поста",
+            reply_markup=keyboards.post_edit_complete()
+        )
+        await state.clear()
+
+
+@router.callback_query(F.data.startswith("delete_post|"))
+async def confirm_delete_post(call: types.CallbackQuery, bot: Bot):
+    """Подтверждение удаления поста"""
+    try:
+        temp = call.data.split("|")
+        post_id = int(temp[1])
+        
+        management_service = PostManagementService(bot)
+        posts = await management_service.get_posts_for_calendar(call.from_user.id)
+        post_info = next((p for p in posts if p['id'] == post_id), None)
+        
+        if not post_info:
+            await call.answer("❌ Пост не найден", show_alert=True)
+            return
+            
+        if not post_info['can_delete']:
+            await call.answer("❌ Пост недоступен для удаления", show_alert=True)
+            return
+            
+        delete_text = (
+            f"❓ <b>Удалить пост #{post_id}?</b>\n\n"
+            f"Статус: {post_info['status_display']}\n"
+        )
+        
+        if post_info['status'] == PostStatus.POSTED:
+            delete_text += "\n⚠️ Пост уже отправлен. Он будет помечен как удаленный."
+        else:
+            delete_text += "\n🗑 Пост будет полностью удален."
+            
+        await call.message.edit_text(
+            delete_text,
+            parse_mode="HTML",
+            reply_markup=keyboards.confirm_delete_post(post_id)
+        )
+        
+    except Exception as e:
+        logger.error(f"Ошибка подтверждения удаления поста: {e}")
+        await call.answer("❌ Ошибка удаления поста", show_alert=True)
+
+
+@router.callback_query(F.data.startswith("confirm_delete|"))
+async def execute_delete_post(call: types.CallbackQuery, bot: Bot):
+    """Выполняет удаление поста"""
+    try:
+        temp = call.data.split("|")
+        post_id = int(temp[1])
+        
+        management_service = PostManagementService(bot)
+        result = await management_service.delete_post(post_id, call.from_user.id)
+        
+        if result['success']:
+            await call.message.edit_text(
+                f"✅ {result['message']}",
+                reply_markup=keyboards.back_to_calendar()
+            )
+        else:
+            await call.message.edit_text(
+                f"❌ {result['message']}",
+                reply_markup=keyboards.back_to_calendar()
+            )
+            
+    except Exception as e:
+        logger.error(f"Ошибка выполнения удаления поста: {e}")
+        await call.answer("❌ Ошибка при удалении поста", show_alert=True)
+
+
+@router.callback_query(F.data.startswith("preview_post|"))
+async def show_post_preview(call: types.CallbackQuery, bot: Bot):
+    """Показывает предпросмотр поста"""
+    try:
+        temp = call.data.split("|")
+        post_id = int(temp[1])
+        
+        management_service = PostManagementService(bot)
+        preview_url = await management_service.get_post_preview_url(post_id)
+        
+        if preview_url:
+            await call.answer(
+                f"🔗 Ссылка на предпросмотр:\n{preview_url}",
+                show_alert=True
+            )
+        else:
+            await call.answer(
+                "❌ Предпросмотр недоступен (нет бэкапа или пост старше 90 дней)",
+                show_alert=True
+            )
+            
+    except Exception as e:
+        logger.error(f"Ошибка показа предпросмотра поста: {e}")
+        await call.answer("❌ Ошибка получения предпросмотра", show_alert=True)
+
+
+@router.callback_query(F.data.in_(["cancel_post_edit", "edit_complete", "back_to_calendar"]))
+async def handle_navigation(call: types.CallbackQuery, state: FSMContext):
+    """Обрабатывает навигационные кнопки"""
+    await state.clear()
+    
+    if call.data == "cancel_post_edit":
+        await call.message.edit_text(
+            "❌ Редактирование отменено",
+            reply_markup=keyboards.back_to_calendar()
+        )
+    elif call.data in ["edit_complete", "back_to_calendar"]:
+        await call.message.edit_text(
+            "📅 Возврат к календарю...",
+            reply_markup=keyboards.back_to_main_menu()
+        )
+
+
+def register_calendar_manager() -> Router:
+    """Регистрация обработчиков календаря"""
+    return router
