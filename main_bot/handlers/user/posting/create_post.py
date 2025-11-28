@@ -245,7 +245,8 @@ async def manage_post(call: types.CallbackQuery, state: FSMContext):
     # Обработка кнопки "Далее" - переход к финальным параметрам
     if temp[1] == "next":
         chosen = data.get("chosen", post.chat_ids)
-        if not chosen:
+        # Проверяем выбор каналов только если мы НЕ в режиме редактирования
+        if not is_edit and not chosen:
             await call.answer(text("error_min_choice"), show_alert=True)
             return
 
@@ -699,7 +700,7 @@ async def choice_delete_time(call: types.CallbackQuery, state: FSMContext):
     message_text = text("manage:post:finish_params").format(
         len(chosen),
         "\n".join(
-            text("resource_title").format(obj.emoji_id, obj.title)
+            text("resource_title").format(obj.title)
             for obj in objects
             if obj.chat_id in chosen[:10]
         ),
@@ -747,7 +748,7 @@ async def cancel_send_time(call: types.CallbackQuery, state: FSMContext):
     message_text = text("manage:post:finish_params").format(
         len(chosen),
         "\n".join(
-            text("resource_title").format(obj.emoji_id, obj.title)
+            text("resource_title").format(obj.title)
             for obj in objects
             if obj.chat_id in chosen[:10]
         ),
