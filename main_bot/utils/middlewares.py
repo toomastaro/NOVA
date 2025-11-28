@@ -141,7 +141,7 @@ class StartMiddle(BaseMiddleware):
             )
 
             await message.answer(
-                f"✅ Канал <tg-emoji emoji-id=\"{emoji_id}\">👤</tg-emoji> {chat.title} успешно добавлен!\n\n"
+                f"✅ Канал 👤 {chat.title} успешно добавлен!\n\n"
                 f"Теперь вы можете использовать его для постинга. Перейдите в меню 📝 Постинг для создания постов.",
                 parse_mode="HTML"
             )

@@ -185,7 +185,7 @@ async def handle_forwarded_channel_message(message: types.Message):
         )
 
         await message.answer(
-            f"✅ Канал <tg-emoji emoji-id=\"{emoji_id}\">👤</tg-emoji> {chat.title} успешно добавлен!",
+            f"✅ Канал 👤 {chat.title} успешно добавлен!",
             parse_mode="HTML"
         )
 
@@ -276,7 +276,7 @@ async def handle_channel_id_message(message: types.Message):
         )
 
         await message.answer(
-            f"✅ Канал <tg-emoji emoji-id=\"{emoji_id}\">👤</tg-emoji> {chat.title} успешно добавлен!",
+            f"✅ Канал 👤 {chat.title} успешно добавлен!",
             parse_mode="HTML"
         )
 
