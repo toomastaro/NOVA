@@ -63,9 +63,9 @@ async def get_message(message: types.Message, state: FSMContext):
         for row in message.reply_markup.inline_keyboard:
             button_items = []
             for button in row:
-                # Only extract URL buttons (text—url format)
+                # Only extract URL buttons (text - url format)
                 if button.url:
-                    button_items.append(f"{button.text}—{button.url}")
+                    button_items.append(f"{button.text} - {button.url}")
             if button_items:
                 button_rows.append('|'.join(button_items))
 

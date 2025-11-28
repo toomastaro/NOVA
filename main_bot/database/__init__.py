@@ -33,8 +33,9 @@ class DatabaseMixin:
         async with get_session() as session:
             session: AsyncSession
 
-            await session.execute(sql)
+            res = await session.execute(sql)
             await session.commit()
+            return res
 
     @staticmethod
     async def execute_many(list_sql):

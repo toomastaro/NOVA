@@ -52,7 +52,7 @@
     "manage:post:new:cpm_price": "Введите новую сумму в рублях за 1000 показов:",
     "manage:post:new:text": "📝 <b>Отправьте новое описание</b>",
     "manage:post:new:media": "🖼 <b>Отправьте новое медиа</b>",
-    "manage:post:new:buttons": "💽 <b>Отправьте список URL-кнопок в следующем формате:</b>\n\n<i>Кнопка 1 — https://example.com/\nКнопка 2 — https://example.com/</i>\n\n<b>Чтобы добавить до восьми кнопок в один ряд, используйте разделитель \"|\", допустимо 15 рядов:</b>\n\n<i>Кнопка 1 — https://example.com/ | Кнопка 2 — https://example.com/\nКнопка 3 — https://example.com/ | Кнопка 4 — https://example.com/</i>",
+    "manage:post:new:buttons": "💽 <b>Отправьте список URL-кнопок в следующем формате:</b>\n\n<i>Кнопка 1 - https://example.com/\nКнопка 2 - https://example.com/</i>\n\n<b>Чтобы добавить до восьми кнопок в один ряд, используйте разделитель \"|\", допустимо 15 рядов:</b>\n\n<i>Кнопка 1 - https://example.com/ | Кнопка 2 - https://example.com/\nКнопка 3 - https://example.com/ | Кнопка 4 - https://example.com/</i>",
     "manage:post:new:reaction": "👁 <b>Вы можете настроить реакции для поста, которые будут отображены в виде кнопок</b>\n<a href=\"https://telegra.ph/file/41643d69b8141df0d8327.png\"> </a>\nЧтобы добавить реакции, отправьте реакции с разделителем \"|\", также вы можете создать несколько рядов реакций, например:\n👍🏻|👎🏻\nNova|🔥",
     "manage:post:new:hide": "🗺 <b>Вы можете добавить скрытое продолжение для поста в виде кнопки</b>",
     "manage:post:new:pin_time": "<b>Введите время закрепа поста в минутах</b>",
