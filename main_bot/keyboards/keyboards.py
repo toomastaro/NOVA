@@ -170,6 +170,118 @@ class InlinePosting(InlineKeyboardBuilder):
         return kb.as_markup()
 
     @classmethod
+    def choice_channels_for_post(
+        cls,
+        channels: list[Channel],
+        folders: list[UserFolder] = None,
+        chosen: list[int] = None,
+        data: str = "ChoiceChannelPost",
+        remover: int = 0,
+        is_folder_view: bool = False
+    ):
+        """
+        Клавиатура для выбора каналов с поддержкой папок
+        """
+        kb = cls()
+        folders = folders or []
+        chosen = chosen or []
+        count_rows = 7
+
+        # Если мы в папке, показываем только каналы
+        if is_folder_view:
+            for a, idx in enumerate(range(remover, len(channels))):
+                if a < count_rows:
+                    channel = channels[idx]
+                    selected = "🔹 " if channel.chat_id in chosen else ""
+                    kb.add(
+                        InlineKeyboardButton(
+                            text=f"{selected}{channel.title}",
+                            callback_data=f"{data}|channel|{channel.chat_id}"
+                        )
+                    )
+        else:
+            # Показываем папки сверху
+            for folder in folders:
+                kb.add(
+                    InlineKeyboardButton(
+                        text=f"📁 {folder.title}",
+                        callback_data=f"{data}|folder|{folder.id}"
+                    )
+                )
+
+            # Затем каналы не в папках
+            for a, idx in enumerate(range(remover, len(channels))):
+                if a < count_rows - len(folders):  # Оставляем место для папок
+                    channel = channels[idx]
+                    selected = "🔹 " if channel.chat_id in chosen else ""
+                    kb.add(
+                        InlineKeyboardButton(
+                            text=f"{selected}{channel.title}",
+                            callback_data=f"{data}|channel|{channel.chat_id}"
+                        )
+                    )
+
+        kb.adjust(1)
+
+        # Кнопки навигации для каналов (только если слишком много)
+        if not is_folder_view:
+            max_items = count_rows - len(folders)
+        else:
+            max_items = count_rows
+
+        if len(channels) > max_items:
+            # Логика навигации по страницам
+            if len(channels) > max_items > remover:
+                kb.row(
+                    InlineKeyboardButton(
+                        text="➡️", callback_data=f"{data}|next|{remover + max_items}"
+                    )
+                )
+            elif remover + max_items >= len(channels):
+                kb.row(
+                    InlineKeyboardButton(
+                        text="⬅️", callback_data=f"{data}|back|{remover - max_items}"
+                    )
+                )
+            else:
+                kb.row(
+                    InlineKeyboardButton(
+                        text="⬅️", callback_data=f"{data}|back|{remover - max_items}"
+                    ),
+                    InlineKeyboardButton(
+                        text="➡️", callback_data=f"{data}|next|{remover + max_items}"
+                    )
+                )
+
+        # Кнопка "выбрать все" (всегда видна)
+        kb.row(
+            InlineKeyboardButton(
+                text=text("chosen:choice_all"),  # "🔹 Выбрать все" или "🚫 Очистить",
+                callback_data=f"{data}|choice_all"
+            )
+        )
+
+        # Нижняя панель: Назад и Подтвердить (если что-то выбрано)
+        back_text = text("back:button") if is_folder_view else text("cancel")
+        bottom_row = [
+            InlineKeyboardButton(
+                text=back_text,
+                callback_data=f"{data}|cancel"
+            )
+        ]
+
+        if chosen:  # Показываем кнопку подтверждения только когда что-то выбрано
+            bottom_row.append(
+                InlineKeyboardButton(
+                    text=f"✅ Подтвердить ({len(chosen)})",
+                    callback_data=f"{data}|confirm"
+                )
+            )
+
+        kb.row(*bottom_row)
+        return kb.as_markup()
+
+    @classmethod
     def manage_post(cls, post: Post, show_more: bool = False, is_edit: bool = False):
         kb = cls()
         hide = Hide(hide=post.hide) if post.hide else None

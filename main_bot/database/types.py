@@ -1,9 +1,11 @@
 from enum import Enum
 
 
+# Упрощаем FolderType - теперь только для каналов
+# Для обратной совместимости оставляем enum, но используем только CHANNEL
 class FolderType(str, Enum):
-    BOT = "BOTS"
     CHANNEL = "CHANNELS"
+    # BOT = "BOTS"  # Убрано - теперь папки только для каналов
 
     def __str__(self):
         return self.value

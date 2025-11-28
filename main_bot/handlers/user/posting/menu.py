@@ -3,6 +3,7 @@ from aiogram import F, Router, types
 from aiogram.fsm.context import FSMContext
 
 from main_bot.database.db import db
+from main_bot.database.types import FolderType
 from main_bot.keyboards.keyboards import keyboards
 from main_bot.states.user import Posting
 from main_bot.utils.lang.language import text
@@ -31,10 +32,15 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
 
 
 async def show_create_post(message: types.Message, state: FSMContext):
+    """
+    Обновленное меню создания поста с улучшенным выбором каналов и папок
+    """
     user_id = message.chat.id
-    folders = await db.get_folders(user_id=user_id)
+
+    # Получаем все каналы и папки
     channels = await db.get_user_channels(user_id=user_id, sort_by="subscribe")
-    
+    folders = await db.get_folders(user_id=user_id, folder_type=FolderType.CHANNEL)
+
     if not channels:
         await message.answer(text("not_found_channels"))
         return
@@ -42,18 +48,22 @@ async def show_create_post(message: types.Message, state: FSMContext):
     # Определяем каналы, которые уже есть в папках
     folder_channel_ids = set()
     for folder in folders:
-        # folder.content - это список строк (ID каналов)
-        for chat_id in folder.content:
-            if chat_id.isdigit(): # Проверка на всякий случай
-                 folder_channel_ids.add(int(chat_id))
+        # folder.content - это список строк (chat_id каналов)
+        for chat_id_str in folder.content:
+            if chat_id_str.lstrip('-').isdigit():  # Проверка на число (может быть отрицательным)
+                folder_channel_ids.add(int(chat_id_str))
 
     # Каналы для корневого отображения (те, которых нет ни в одной папке)
     root_channels = [c for c in channels if c.chat_id not in folder_channel_ids]
 
+    # Инициализируем состояние
     await state.update_data(chosen=[], current_folder_id=None)
     
     await message.answer(
-        text("choice_channels:post").format(len(channels), ""),
+        text("choice_channels:post_new").format(
+            len(channels),
+            "📁 " + ", ".join(f.title for f in folders[:3]) + ("..." if len(folders) > 3 else "") if folders else "Нет папок"
+        ),
         reply_markup=keyboards.choice_channels_for_post(
             channels=root_channels,
             folders=folders,
@@ -65,6 +75,9 @@ async def show_create_post(message: types.Message, state: FSMContext):
 
 
 async def process_choice_channel(call: types.CallbackQuery, state: FSMContext):
+    """
+    Обработчик выбора каналов с поддержкой папок и batch-операций
+    """
     data = call.data.split("|")
     action = data[1]
     user_id = call.message.chat.id
@@ -73,26 +86,27 @@ async def process_choice_channel(call: types.CallbackQuery, state: FSMContext):
     chosen = state_data.get("chosen", [])
     current_folder_id = state_data.get("current_folder_id")
 
-    # Получаем все данные заново, чтобы быть уверенными в актуальности
-    # (можно оптимизировать, но для надежности лучше так)
+    # Получаем актуальные данные
     all_channels = await db.get_user_channels(user_id=user_id, sort_by="subscribe")
-    all_folders = await db.get_folders(user_id=user_id)
+    all_folders = await db.get_folders(user_id=user_id, folder_type=FolderType.CHANNEL)
 
-    # Вспомогательная функция для получения текущего списка отображения
     def get_current_view_objects():
+        """Получаем текущие объекты для отображения"""
         if current_folder_id:
+            # Показываем содержимое конкретной папки
             folder = next((f for f in all_folders if f.id == current_folder_id), None)
             if not folder:
-                return [], [] # Папка удалена?
-            
-            folder_content_ids = [int(x) for x in folder.content if x.isdigit()]
+                return [], []  # Папка удалена
+
+            folder_content_ids = [int(x) for x in folder.content if x.lstrip('-').isdigit()]
             folder_channels = [c for c in all_channels if c.chat_id in folder_content_ids]
             return [], folder_channels
         else:
+            # Показываем корневое меню: папки + каналы не в папках
             folder_channel_ids = set()
             for f in all_folders:
                 for chat_id in f.content:
-                    if chat_id.isdigit():
+                    if chat_id.lstrip('-').isdigit():
                         folder_channel_ids.add(int(chat_id))
             root_channels = [c for c in all_channels if c.chat_id not in folder_channel_ids]
             return all_folders, root_channels
@@ -103,22 +117,19 @@ async def process_choice_channel(call: types.CallbackQuery, state: FSMContext):
         if current_folder_id:
             # Выход из папки в корень
             await state.update_data(current_folder_id=None)
-            current_folders, current_channels = get_current_view_objects() # Обновляем для корня
-            # Нужно заново получить корневые объекты, так как мы только что переключились
-            # (код выше уже имеет логику для None, просто вызовем get_current_view_objects после update_data? 
-            # Нет, update_data асинхронный, но локальная переменная current_folder_id старая.
-            # Проще пересчитать.)
-            
-            # Пересчитываем для корня
+
             folder_channel_ids = set()
             for f in all_folders:
                 for chat_id in f.content:
-                    if chat_id.isdigit():
+                    if chat_id.lstrip('-').isdigit():
                         folder_channel_ids.add(int(chat_id))
             root_channels = [c for c in all_channels if c.chat_id not in folder_channel_ids]
             
             await call.message.edit_text(
-                text=text("choice_channels:post").format(len(all_channels), ""),
+                text=text("choice_channels:post_new").format(
+                    len(all_channels),
+                    "📁 " + ", ".join(f.title for f in all_folders[:3]) + ("..." if len(all_folders) > 3 else "") if all_folders else "Нет папок"
+                ),
                 reply_markup=keyboards.choice_channels_for_post(
                     channels=root_channels,
                     folders=all_folders,
@@ -128,7 +139,7 @@ async def process_choice_channel(call: types.CallbackQuery, state: FSMContext):
             )
             return
         else:
-            # Выход в меню
+            # Отмена создания поста
             await state.clear()
             await call.message.delete()
             await call.message.answer(
@@ -137,17 +148,17 @@ async def process_choice_channel(call: types.CallbackQuery, state: FSMContext):
             return
 
     if action == "folder":
+        # Вход в папку
         folder_id = int(data[2])
         await state.update_data(current_folder_id=folder_id)
         
-        # Получаем каналы папки
         folder = next((f for f in all_folders if f.id == folder_id), None)
         if folder:
-            folder_content_ids = [int(x) for x in folder.content if x.isdigit()]
+            folder_content_ids = [int(x) for x in folder.content if x.lstrip('-').isdigit()]
             folder_channels = [c for c in all_channels if c.chat_id in folder_content_ids]
             
             await call.message.edit_text(
-                text=text("choice_channels:post").format(len(all_channels), f"\n📁 {folder.title}"),
+                text=text("choice_channels:folder").format(folder.title, len(folder_channels)),
                 reply_markup=keyboards.choice_channels_for_post(
                     channels=folder_channels,
                     folders=[],
@@ -158,7 +169,15 @@ async def process_choice_channel(call: types.CallbackQuery, state: FSMContext):
         return
 
     if action == "channel":
+        # Переключение выбора канала
         channel_id = int(data[2])
+
+        # Проверяем субскрипцию
+        channel = next((c for c in all_channels if c.chat_id == channel_id), None)
+        if channel and not channel.subscribe:
+            await call.answer(text("error_sub_channel"), show_alert=True)
+            return
+
         if channel_id in chosen:
             chosen.remove(channel_id)
         else:
@@ -171,29 +190,22 @@ async def process_choice_channel(call: types.CallbackQuery, state: FSMContext):
                 channels=current_channels,
                 folders=current_folders,
                 chosen=chosen,
-                is_folder_view=bool(current_folder_id),
-                remover=int(data[3]) if len(data) > 3 and data[3].isdigit() else 0 # Сохраняем пагинацию если есть?
-                # В текущей реализации keyboards.py remover передается в next/back, но не в channel click.
-                # При клике на канал мы обычно остаемся на той же странице, но remover надо знать.
-                # Пока сбросим на 0 или попробуем сохранить, если передадим в callback.
-                # В keyboards.py callback_data=f"{data}|channel|{obj.chat_id}". Нет remover.
-                # Значит сбросится на 0. Это не критично для MVP, но можно улучшить.
+                is_folder_view=bool(current_folder_id)
             )
         )
         return
 
     if action == "choice_all":
-        # Выбрать все каналы (вообще все, по ТЗ)
-        # "эта кнопка работает как выбор всех каналов и тех что внутри папок"
-        all_ids = [c.chat_id for c in all_channels]
-        
-        # Если уже все выбраны - снять выделение? Или просто выбрать все?
-        # Обычно toggle. Если все выбраны -> очистить. Иначе -> выбрать все.
-        if set(all_ids).issubset(set(chosen)):
+        # Выбор/снятие всех каналов с подпиской
+        subscribed_channels = [c.chat_id for c in all_channels if c.subscribe]
+
+        if set(subscribed_channels).issubset(set(chosen)):
+            # Убираем выделение со всех
             chosen = []
         else:
-            chosen = list(set(chosen) | set(all_ids)) # Добавляем все
-            
+            # Выбираем все доступные
+            chosen = list(set(chosen) | set(subscribed_channels))
+
         await state.update_data(chosen=chosen)
         
         await call.message.edit_reply_markup(
@@ -207,23 +219,32 @@ async def process_choice_channel(call: types.CallbackQuery, state: FSMContext):
         return
 
     if action == "confirm":
+        # Подтверждение выбора и переход к созданию поста
         if not chosen:
              await call.answer(text("error_min_choice"), show_alert=True)
              return
 
-        # Сохраняем выбранные каналы как channel_id (для совместимости) или список
-        # В create_post.py ожидается channel_id или список?
-        # Надо проверить create_post.py. Пока сохраним chosen.
-        await state.update_data(chosen_channels=chosen) # Используем новое имя, чтобы не путать с channel_id
-        
+        # Сохраняем список выбранных каналов для пакетной отправки
+        await state.update_data(chosen_channels=chosen)
+
+        # Показываем сводку выбранных каналов
+        selected_channels = [c for c in all_channels if c.chat_id in chosen]
+        summary_text = text("batch_summary").format(
+            len(chosen),
+            "\n".join(f"• {c.title}" for c in selected_channels[:10]),
+            "..." if len(chosen) > 10 else ""
+        )
+
         await call.message.delete()
         await call.message.answer(
-            text("input_message"), reply_markup=keyboards.cancel(data="InputPostCancel")
+            summary_text + "\n\n" + text("input_message"),
+            reply_markup=keyboards.cancel(data="InputPostCancel")
         )
         await state.set_state(Posting.input_message)
         return
 
     if action in ["next", "back"]:
+        # Навигация по страницам
         remover = int(data[2])
         await call.message.edit_reply_markup(
             reply_markup=keyboards.choice_channels_for_post(
