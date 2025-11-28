@@ -110,8 +110,8 @@ class PostingService:
             
             # Сохраняем информацию о публикациях в БД
             if published_posts_data:
-                async with PublishedPostCrud() as published_crud:
-                    await published_crud.add_many_published_post(published_posts_data)
+                published_crud = PublishedPostCrud()
+                await published_crud.add_many_published_post(published_posts_data)
                     
         except Exception as e:
             error_msg = f"Критическая ошибка при отправке поста {post_id}: {str(e)}"
@@ -200,33 +200,33 @@ class PostingService:
                 return results
             
             # Затем обновляем во всех каналах
-            async with PublishedPostCrud() as published_crud:
-                published_posts = await published_crud.get_by_post_id(post_id)
+            published_crud = PublishedPostCrud()
+            published_posts = await published_crud.get_by_post_id(post_id)
 
-                for pub_post in published_posts:
-                    try:
-                        # Обновляем сообщение в канале
-                        if 'text' in new_message_options:
-                            await self.bot.edit_message_text(
-                                chat_id=pub_post.chat_id,
-                                message_id=pub_post.message_id,
-                                text=new_message_options['text'],
-                                parse_mode=new_message_options.get('parse_mode')
-                            )
-                        elif 'caption' in new_message_options:
-                            await self.bot.edit_message_caption(
-                                chat_id=pub_post.chat_id,
-                                message_id=pub_post.message_id,
-                                caption=new_message_options['caption'],
-                                parse_mode=new_message_options.get('parse_mode')
-                            )
+            for pub_post in published_posts:
+                try:
+                    # Обновляем сообщение в канале
+                    if 'text' in new_message_options:
+                        await self.bot.edit_message_text(
+                            chat_id=pub_post.chat_id,
+                            message_id=pub_post.message_id,
+                            text=new_message_options['text'],
+                            parse_mode=new_message_options.get('parse_mode')
+                        )
+                    elif 'caption' in new_message_options:
+                        await self.bot.edit_message_caption(
+                            chat_id=pub_post.chat_id,
+                            message_id=pub_post.message_id,
+                            caption=new_message_options['caption'],
+                            parse_mode=new_message_options.get('parse_mode')
+                        )
 
-                        results['channels_updated'] += 1
+                    results['channels_updated'] += 1
 
-                    except Exception as e:
-                        error_msg = f"Ошибка обновления в канале {pub_post.chat_id}: {str(e)}"
-                        results['errors'].append(error_msg)
-                        logger.error(error_msg)
+                except Exception as e:
+                    error_msg = f"Ошибка обновления в канале {pub_post.chat_id}: {str(e)}"
+                    results['errors'].append(error_msg)
+                    logger.error(error_msg)
 
         except Exception as e:
             error_msg = f"Ошибка редактирования поста {post_id}: {str(e)}"

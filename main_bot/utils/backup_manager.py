@@ -33,17 +33,55 @@ class BackupManager:
             message_options: Опции сообщения (текст, медиа и т.д.)
             
         Returns:
+            Tuple (chat_id, message_id) бэкап поста или None при ошибке
+        """
+        try:
+            # Отправляем пост в бэкап канал
+            backup_message = await self._send_backup_message(message_options)
+            
+            if backup_message:
+                # Обновляем пост с информацией о бэкапе
+                post_crud = PostCrud()
+                await post_crud.update(
+                    post_id, 
+                    backup_chat_id=self.backup_chat_id,
+                    backup_message_id=backup_message.message_id
+                )
+                
+                logger.info(f"Создан бэкап пост для post_id={post_id}, backup_message_id={backup_message.message_id}")
+                return (self.backup_chat_id, backup_message.message_id)
+            
+        except Exception as e:
+            logger.error(f"Ошибка создания бэкап поста для post_id={post_id}: {e}")
+            
+        return None
+
+    async def _send_backup_message(self, message_options: Dict[str, Any]) -> Optional[Message]:
+        """Отправляет сообщение в бэкап канал"""
+        try:
+            # Определяем тип контента и отправляем соответствующее сообщение
+            if message_options.get('photo'):
+                return await self.bot.send_photo(
+                    chat_id=self.backup_chat_id,
+                    photo=message_options['photo'],
                     caption=message_options.get('caption'),
                     parse_mode=message_options.get('parse_mode')
                 )
-            elif 'document' in message_options:
+            elif message_options.get('video'):
+                return await self.bot.send_video(
+                    chat_id=self.backup_chat_id,
+                    video=message_options['video'],
+                    caption=message_options.get('caption'),
+                    parse_mode=message_options.get('parse_mode')
+                )
+            elif message_options.get('document'):
                 return await self.bot.send_document(
                     chat_id=self.backup_chat_id,
                     document=message_options['document'],
                     caption=message_options.get('caption'),
                     parse_mode=message_options.get('parse_mode')
                 )
-            elif 'animation' in message_options:
+            elif message_options.get('animation'):
                 return await self.bot.send_animation(
                     chat_id=self.backup_chat_id,
                     animation=message_options['animation'],
@@ -74,27 +112,26 @@ class BackupManager:
             Скопированное сообщение или None при ошибке
         """
         try:
-            async with PostCrud() as post_crud:
-                post = await post_crud.get_by_id(post_id)
-                
-                if not post or not post.backup_message_id:
-                    logger.error(f"Пост {post_id} не имеет бэкапа")
-                    return None
-                
-                # Копируем сообщение из бэкап канала
-                copied_message = await self.bot.copy_message(
-                    chat_id=target_chat_id,
-                    from_chat_id=self.backup_chat_id,
-                    message_id=post.backup_message_id
-                )
-                
-                logger.info(f"Скопирован пост из бэкапа: post_id={post_id}, target_chat={target_chat_id}")
-                return copied_message
-                
+            post_crud = PostCrud()
+            post = await post_crud.get_by_id(post_id)
+            
+            if not post or not post.backup_message_id:
+                logger.error(f"Пост {post_id} не имеет бэкапа")
+                return None
+            
+            # Копируем сообщение из бэкап канала
+            copied_message = await self.bot.copy_message(
+                chat_id=target_chat_id,
+                from_chat_id=self.backup_chat_id,
+                message_id=post.backup_message_id
+            )
+            
+            logger.info(f"Скопирован пост из бэкапа: post_id={post_id}, target_chat={target_chat_id}")
+            return copied_message
+            
         except Exception as e:
             logger.error(f"Ошибка копирования поста из бэкапа: {e}")
             return None
-
 
     async def update_backup_post(self, post_id: int, new_message_options: Dict[str, Any]) -> bool:
         """
@@ -108,32 +145,32 @@ class BackupManager:
             True при успехе, False при ошибке
         """
         try:
-            async with PostCrud() as post_crud:
-                post = await post_crud.get_by_id(post_id)
-                
-                if not post or not post.backup_message_id:
-                    logger.error(f"Пост {post_id} не имеет бэкапа для обновления")
-                    return False
-                
-                # Обновляем сообщение в бэкап канале
-                if 'text' in new_message_options:
-                    await self.bot.edit_message_text(
-                        chat_id=self.backup_chat_id,
-                        message_id=post.backup_message_id,
-                        text=new_message_options['text'],
-                        parse_mode=new_message_options.get('parse_mode')
-                    )
-                elif 'caption' in new_message_options:
-                    await self.bot.edit_message_caption(
-                        chat_id=self.backup_chat_id,
-                        message_id=post.backup_message_id,
-                        caption=new_message_options['caption'],
-                        parse_mode=new_message_options.get('parse_mode')
-                    )
-                
-                logger.info(f"Обновлен бэкап пост для post_id={post_id}")
-                return True
-                
+            post_crud = PostCrud()
+            post = await post_crud.get_by_id(post_id)
+            
+            if not post or not post.backup_message_id:
+                logger.error(f"Пост {post_id} не имеет бэкапа для обновления")
+                return False
+            
+            # Обновляем сообщение в бэкап канале
+            if 'text' in new_message_options:
+                await self.bot.edit_message_text(
+                    chat_id=self.backup_chat_id,
+                    message_id=post.backup_message_id,
+                    text=new_message_options['text'],
+                    parse_mode=new_message_options.get('parse_mode')
+                )
+            elif 'caption' in new_message_options:
+                await self.bot.edit_message_caption(
+                    chat_id=self.backup_chat_id,
+                    message_id=post.backup_message_id,
+                    caption=new_message_options['caption'],
+                    parse_mode=new_message_options.get('parse_mode')
+                )
+            
+            logger.info(f"Обновлен бэкап пост для post_id={post_id}")
+            return True
+            
         except Exception as e:
             logger.error(f"Ошибка обновления бэкап поста: {e}")
             return False
@@ -149,17 +186,17 @@ class BackupManager:
             URL сообщения или None
         """
         try:
-            async with PostCrud() as post_crud:
-                post = await post_crud.get_by_id(post_id)
-                
-                if not post or not post.backup_message_id:
-                    return None
-                
-                # Формируем URL (для приватных каналов нужен особый подход)
-                # Для приватных каналов URL будет работать только для участников канала
-                chat_id_str = str(self.backup_chat_id).replace('-100', '')
-                return f"https://t.me/c/{chat_id_str}/{post.backup_message_id}"
-                
+            post_crud = PostCrud()
+            post = await post_crud.get_by_id(post_id)
+            
+            if not post or not post.backup_message_id:
+                return None
+            
+            # Формируем URL (для приватных каналов нужен особый подход)
+            # Для приватных каналов URL будет работать только для участников канала
+            chat_id_str = str(self.backup_chat_id).replace('-100', '')
+            return f"https://t.me/c/{chat_id_str}/{post.backup_message_id}"
+            
         except Exception as e:
             logger.error(f"Ошибка получения URL бэкап сообщения: {e}")
             return None
@@ -175,38 +212,38 @@ class BackupManager:
             cutoff_time = time.time() - (self.BACKUP_RETENTION_DAYS * 24 * 60 * 60)
             cleaned_count = 0
             
-            async with PostCrud() as post_crud:
-                # Получаем старые посты с бэкапами
-                old_posts = await post_crud.get_posts_older_than(cutoff_time)
-                
-                for post in old_posts:
-                    if post.backup_message_id:
-                        try:
-                            # Удаляем сообщение из бэкап канала
-                            await self.bot.delete_message(
-                                chat_id=self.backup_chat_id,
-                                message_id=post.backup_message_id
-                            )
-                            
-                            # Очищаем ссылки на бэкап
-                            await post_crud.update(
-                                post.id,
-                                backup_chat_id=None,
-                                backup_message_id=None
-                            )
-                            
-                            cleaned_count += 1
-                            
-                        except Exception as e:
-                            logger.error(f"Ошибка удаления бэкап сообщения {post.backup_message_id}: {e}")
-                            continue
-                
-                # Также удаляем записи о публикациях старше 90 дней
-                async with PublishedPostCrud() as published_crud:
-                    await published_crud.delete_older_than(cutoff_time)
+            post_crud = PostCrud()
+            # Получаем старые посты с бэкапами
+            old_posts = await post_crud.get_posts_older_than(cutoff_time)
+            
+            for post in old_posts:
+                if post.backup_message_id:
+                    try:
+                        # Удаляем сообщение из бэкап канала
+                        await self.bot.delete_message(
+                            chat_id=self.backup_chat_id,
+                            message_id=post.backup_message_id
+                        )
+                        
+                        # Очищаем ссылки на бэкап
+                        await post_crud.update(
+                            post.id,
+                            backup_chat_id=None,
+                            backup_message_id=None
+                        )
+                        
+                        cleaned_count += 1
+                        
+                    except Exception as e:
+                        logger.error(f"Ошибка удаления бэкап сообщения {post.backup_message_id}: {e}")
+                        continue
+            
+            # Также удаляем записи о публикациях старше 90 дней
+            published_crud = PublishedPostCrud()
+            await published_crud.delete_older_than(cutoff_time)
 
-                # Удаляем сами посты старше 90 дней
-                deleted_posts = await post_crud.delete_old_posts(cutoff_time)
+            # Удаляем сами посты старше 90 дней
+            deleted_posts = await post_crud.delete_old_posts(cutoff_time)
 
             logger.info(f"Очищено {cleaned_count} старых бэкапов")
             return cleaned_count
@@ -228,14 +265,14 @@ class BackupManager:
         try:
             cutoff_time = time.time() - (self.BACKUP_RETENTION_DAYS * 24 * 60 * 60)
             
-            async with PostCrud() as post_crud:
-                post = await post_crud.get_by_id(post_id)
-                
-                if not post:
-                    return False
-                
-                return post.created_timestamp > cutoff_time
-                
+            post_crud = PostCrud()
+            post = await post_crud.get_by_id(post_id)
+            
+            if not post:
+                return False
+            
+            return post.created_timestamp > cutoff_time
+            
         except Exception as e:
             logger.error(f"Ошибка проверки периода хранения поста {post_id}: {e}")
             return False
