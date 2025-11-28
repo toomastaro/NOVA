@@ -51,28 +51,28 @@ async def show_backup_status(call: CallbackQuery):
         # Получаем статистику
         cutoff_time = RetentionFilter.get_cutoff_timestamp()
         
-        async with PostCrud() as post_crud:
-            # Общее количество постов
-            total_posts_result = await post_crud.execute(
-                "SELECT COUNT(*) FROM posts WHERE created_timestamp > %s",
-                (cutoff_time,)
-            )
-            total_posts = total_posts_result.scalar() if total_posts_result else 0
-            
-            # Посты с бэкапами
-            backup_posts_result = await post_crud.execute(
-                "SELECT COUNT(*) FROM posts WHERE backup_message_id IS NOT NULL AND created_timestamp > %s",
-                (cutoff_time,)
-            )
-            backup_posts = backup_posts_result.scalar() if backup_posts_result else 0
+        post_crud = PostCrud()
+        # Общее количество постов
+        total_posts_result = await post_crud.execute(
+            "SELECT COUNT(*) FROM posts WHERE created_timestamp > %s",
+            (cutoff_time,)
+        )
+        total_posts = total_posts_result.scalar() if total_posts_result else 0
         
-        async with PublishedPostCrud() as pub_crud:
-            # Общее количество публикаций
-            total_publications_result = await pub_crud.execute(
-                "SELECT COUNT(*) FROM published_posts WHERE created_timestamp > %s",
-                (cutoff_time,)
-            )
-            total_publications = total_publications_result.scalar() if total_publications_result else 0
+        # Посты с бэкапами
+        backup_posts_result = await post_crud.execute(
+            "SELECT COUNT(*) FROM posts WHERE backup_message_id IS NOT NULL AND created_timestamp > %s",
+            (cutoff_time,)
+        )
+        backup_posts = backup_posts_result.scalar() if backup_posts_result else 0
+    
+        pub_crud = PublishedPostCrud()
+        # Общее количество публикаций
+        total_publications_result = await pub_crud.execute(
+            "SELECT COUNT(*) FROM published_posts WHERE created_timestamp > %s",
+            (cutoff_time,)
+        )
+        total_publications = total_publications_result.scalar() if total_publications_result else 0
         
         status_text = (
             f"📊 <b>Статус бэкап системы</b>\n\n"

@@ -34,8 +34,8 @@ class PostManagementService:
         Returns:
             Список постов с дополнительной информацией о статусе
         """
-        async with PostCrud() as post_crud:
-            posts = await post_crud.get_posts_for_calendar(admin_id, target_date)
+        post_crud = PostCrud()
+        posts = await post_crud.get_posts_for_calendar(admin_id, target_date)
             
         result = []
         for post in posts:
@@ -100,44 +100,44 @@ class PostManagementService:
         }
         
         try:
-            async with PostCrud() as post_crud:
-                post = await post_crud.get_by_id(post_id)
+            post_crud = PostCrud()
+            post = await post_crud.get_by_id(post_id)
+            
+            if not post:
+                result['message'] = 'Пост не найден'
+                return result
+            
+            if post.admin_id != admin_id:
+                result['message'] = 'Нет прав на редактирование этого поста'
+                return result
+            
+            if not self._can_edit_post(post):
+                result['message'] = 'Пост недоступен для редактирования'
+                return result
+            
+            # Обновляем сам пост в БД
+            await post_crud.update(post_id, message_options=new_message_options)
+            
+            if post.status == PostStatus.POSTED:
+                # Если пост уже отправлен, редактируем через бэкап систему
+                edit_result = await self.posting_service.edit_post_batch(
+                    post_id, new_message_options
+                )
                 
-                if not post:
-                    result['message'] = 'Пост не найден'
-                    return result
+                result['success'] = edit_result['backup_updated']
+                result['updated_channels'] = edit_result['channels_updated']
+                result['errors'] = edit_result['errors']
                 
-                if post.admin_id != admin_id:
-                    result['message'] = 'Нет прав на редактирование этого поста'
-                    return result
-                
-                if not self._can_edit_post(post):
-                    result['message'] = 'Пост недоступен для редактирования'
-                    return result
-                
-                # Обновляем сам пост в БД
-                await post_crud.update(post_id, message_options=new_message_options)
-                
-                if post.status == PostStatus.POSTED:
-                    # Если пост уже отправлен, редактируем через бэкап систему
-                    edit_result = await self.posting_service.edit_post_batch(
-                        post_id, new_message_options
-                    )
-                    
-                    result['success'] = edit_result['backup_updated']
-                    result['updated_channels'] = edit_result['channels_updated']
-                    result['errors'] = edit_result['errors']
-                    
-                    if edit_result['backup_updated']:
-                        result['message'] = f'Пост обновлен в {edit_result["channels_updated"]} каналах'
-                    else:
-                        result['message'] = 'Ошибка обновления поста'
-                        
+                if edit_result['backup_updated']:
+                    result['message'] = f'Пост обновлен в {edit_result["channels_updated"]} каналах'
                 else:
-                    # Если пост еще не отправлен, просто обновляем в БД
-                    result['success'] = True
-                    result['message'] = 'Пост обновлен (будет применено при отправке)'
+                    result['message'] = 'Ошибка обновления поста'
                     
+            else:
+                # Если пост еще не отправлен, просто обновляем в БД
+                result['success'] = True
+                result['message'] = 'Пост обновлен (будет применено при отправке)'
+                
         except Exception as e:
             logger.error(f"Ошибка редактирования поста {post_id}: {e}")
             result['message'] = f'Ошибка: {str(e)}'
@@ -162,34 +162,34 @@ class PostManagementService:
         }
         
         try:
-            async with PostCrud() as post_crud:
-                post = await post_crud.get_by_id(post_id)
+            post_crud = PostCrud()
+            post = await post_crud.get_by_id(post_id)
+            
+            if not post:
+                result['message'] = 'Пост не найден'
+                return result
+            
+            if post.admin_id != admin_id:
+                result['message'] = 'Нет прав на удаление этого поста'
+                return result
+            
+            if not self._can_delete_post(post):
+                result['message'] = 'Пост недоступен для удаления'
+                return result
+            
+            if post.status == PostStatus.PENDING or post.status == PostStatus.POSTPONED:
+                # Неотправленные посты можно удалить полностью
+                await post_crud.delete_post(post_id)
+                result['success'] = True
+                result['message'] = 'Пост удален'
                 
-                if not post:
-                    result['message'] = 'Пост не найден'
-                    return result
+            elif post.status == PostStatus.POSTED:
+                # Отправленные посты помечаем как удаленные и удаляем из каналов
+                # TODO: Добавить логику удаления из каналов через published_posts
+                await post_crud.update_post_status(post_id, PostStatus.DELETED)
+                result['success'] = True
+                result['message'] = 'Пост помечен как удаленный'
                 
-                if post.admin_id != admin_id:
-                    result['message'] = 'Нет прав на удаление этого поста'
-                    return result
-                
-                if not self._can_delete_post(post):
-                    result['message'] = 'Пост недоступен для удаления'
-                    return result
-                
-                if post.status == PostStatus.PENDING or post.status == PostStatus.POSTPONED:
-                    # Неотправленные посты можно удалить полностью
-                    await post_crud.delete_post(post_id)
-                    result['success'] = True
-                    result['message'] = 'Пост удален'
-                    
-                elif post.status == PostStatus.POSTED:
-                    # Отправленные посты помечаем как удаленные и удаляем из каналов
-                    # TODO: Добавить логику удаления из каналов через published_posts
-                    await post_crud.update_post_status(post_id, PostStatus.DELETED)
-                    result['success'] = True
-                    result['message'] = 'Пост помечен как удаленный'
-                    
         except Exception as e:
             logger.error(f"Ошибка удаления поста {post_id}: {e}")
             result['message'] = f'Ошибка: {str(e)}'
@@ -214,28 +214,28 @@ class PostManagementService:
         }
         
         try:
-            async with PostCrud() as post_crud:
-                post = await post_crud.get_by_id(post_id)
-                
-                if not post:
-                    result['message'] = 'Пост не найден'
-                    return result
-                
-                if post.admin_id != admin_id:
-                    result['message'] = 'Нет прав на изменение этого поста'
-                    return result
-                
-                if post.status != PostStatus.PENDING:
-                    result['message'] = 'Можно откладывать только ожидающие отправки посты'
-                    return result
-                
-                # Обновляем время отправки и статус
-                await post_crud.update(post_id, send_time=new_send_time)
-                await post_crud.update_post_status(post_id, PostStatus.POSTPONED)
-                
-                result['success'] = True
-                result['message'] = 'Пост отложен'
-                
+            post_crud = PostCrud()
+            post = await post_crud.get_by_id(post_id)
+            
+            if not post:
+                result['message'] = 'Пост не найден'
+                return result
+            
+            if post.admin_id != admin_id:
+                result['message'] = 'Нет прав на изменение этого поста'
+                return result
+            
+            if post.status != PostStatus.PENDING:
+                result['message'] = 'Можно откладывать только ожидающие отправки посты'
+                return result
+            
+            # Обновляем время отправки и статус
+            await post_crud.update(post_id, send_time=new_send_time)
+            await post_crud.update_post_status(post_id, PostStatus.POSTPONED)
+            
+            result['success'] = True
+            result['message'] = 'Пост отложен'
+            
         except Exception as e:
             logger.error(f"Ошибка откладывания поста {post_id}: {e}")
             result['message'] = f'Ошибка: {str(e)}'
@@ -268,8 +268,8 @@ class PostManagementService:
         """
         cutoff_time = time.time() - (90 * 24 * 60 * 60)
         
-        async with PostCrud() as post_crud:
-            deleted_count = await post_crud.delete_old_posts(cutoff_time)
+        post_crud = PostCrud()
+        deleted_count = await post_crud.delete_old_posts(cutoff_time)
             
         return {
             'deleted_posts': deleted_count,

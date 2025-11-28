@@ -80,7 +80,8 @@ async def send(post: Post):
     # Обновляем записи в published_posts с временными метками
     if results['published_posts']:
         from main_bot.database.published_post.crud import PublishedPostCrud
-        async with PublishedPostCrud() as published_crud:
+        published_crud = PublishedPostCrud()
+        if True: # preserving indentation level for following block
             for pub_post in results['published_posts']:
                 # Находим созданную запись и обновляем
                 published_post = await published_crud.get_published_post(
@@ -96,12 +97,12 @@ async def send(post: Post):
 
     # Обновляем статус поста на "отправлен" вместо удаления
     from main_bot.database.post.crud import PostCrud
-    async with PostCrud() as post_crud:
-        await post_crud.update_post_status(
-            post_id=post.id,
-            status=PostStatus.POSTED,
-            posted_timestamp=int(time.time())
-        )
+    post_crud = PostCrud()
+    await post_crud.update_post_status(
+        post_id=post.id,
+        status=PostStatus.POSTED,
+        posted_timestamp=int(time.time())
+    )
 
     # Отправляем отчет администратору
     if post.report:

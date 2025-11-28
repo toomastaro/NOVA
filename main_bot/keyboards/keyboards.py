@@ -296,13 +296,23 @@ class InlinePosting(InlineKeyboardBuilder):
 
         if post.buttons:
             for row in post.buttons.split("\n"):
-                buttons = [
-                    InlineKeyboardButton(
-                        text=button.split("—")[0].strip(),
-                        url=button.split("—")[1].strip(),
+                buttons = []
+                for button in row.split("|"):
+                    if "—" in button:
+                        text_btn, url_btn = button.split("—", 1)
+                    elif " - " in button:
+                        text_btn, url_btn = button.split(" - ", 1)
+                    elif "-" in button:
+                         text_btn, url_btn = button.split("-", 1)
+                    else:
+                        continue # Skip invalid buttons
+
+                    buttons.append(
+                        InlineKeyboardButton(
+                            text=text_btn.strip(),
+                            url=url_btn.strip(),
+                        )
                     )
-                    for button in row.split("|")
-                ]
                 kb.row(*buttons)
 
         if reactions:
@@ -424,13 +434,23 @@ class InlinePosting(InlineKeyboardBuilder):
 
         if post.buttons:
             for row in post.buttons.split("\n"):
-                buttons = [
-                    InlineKeyboardButton(
-                        text=button.split("—")[0].strip(),
-                        url=button.split("—")[1].strip(),
+                buttons = []
+                for button in row.split("|"):
+                    if "—" in button:
+                        text_btn, url_btn = button.split("—", 1)
+                    elif " - " in button:
+                        text_btn, url_btn = button.split(" - ", 1)
+                    elif "-" in button:
+                         text_btn, url_btn = button.split("-", 1)
+                    else:
+                        continue
+
+                    buttons.append(
+                        InlineKeyboardButton(
+                            text=text_btn.strip(),
+                            url=url_btn.strip(),
+                        )
                     )
-                    for button in row.split("|")
-                ]
                 kb.row(*buttons)
 
         if not is_bot:

@@ -34,15 +34,15 @@ class RetentionFilter:
         """Получает посты администратора за последние 90 дней"""
         cutoff_time = cls.get_cutoff_timestamp()
         
-        async with PostCrud() as post_crud:
-            # Получаем все посты админа
-            posts = await post_crud.fetch(
-                post_crud.select(Post).where(
-                    Post.admin_id == admin_id,
-                    Post.created_timestamp > cutoff_time
-                ).order_by(Post.created_timestamp.desc())
-            )
-            return posts
+        post_crud = PostCrud()
+        # Получаем все посты админа
+        posts = await post_crud.fetch(
+            post_crud.select(Post).where(
+                Post.admin_id == admin_id,
+                Post.created_timestamp > cutoff_time
+            ).order_by(Post.created_timestamp.desc())
+        )
+        return posts
     
     @classmethod
     async def get_post_if_accessible(cls, post_id: int) -> Optional[Post]:
@@ -55,16 +55,16 @@ class RetentionFilter:
         Returns:
             Post если доступен, None если старше 90 дней или не существует
         """
-        async with PostCrud() as post_crud:
-            post = await post_crud.get_by_id(post_id)
+        post_crud = PostCrud()
+        post = await post_crud.get_by_id(post_id)
+        
+        if not post:
+            return None
+        
+        if not cls.is_within_retention(post.created_timestamp):
+            return None
             
-            if not post:
-                return None
-            
-            if not cls.is_within_retention(post.created_timestamp):
-                return None
-                
-            return post
+        return post
     
     @classmethod
     def format_retention_warning(cls) -> str:

@@ -14,78 +14,6 @@ logger = logging.getLogger(__name__)
 
 
 class PostingService:
-    """Сервис для управления отправкой постов"""
-
-    def __init__(self, bot: Bot):
-        self.bot = bot
-        self.backup_manager = BackupManager(bot)
-
-    async def send_post_batch(
-        self, 
-        post_id: int,
-        chat_ids: List[int],
-        message_options: Dict[str, Any],
-        admin_id: int,
-        use_backup: bool = True
-    ) -> Dict[str, Any]:
-        """
-        Отправляет пост в несколько каналов с созданием бэкапа
-        
-        Args:
-            post_id: ID поста
-            chat_ids: Список ID каналов для отправки
-            message_options: Опции сообщения
-            admin_id: ID администратора
-            use_backup: Использовать ли бэкап канал
-            
-        Returns:
-            Результат отправки с информацией о статусе
-        """
-        results = {
-            'success_count': 0,
-            'failed_count': 0,
-            'backup_created': False,
-            'published_posts': [],
-            'errors': []
-        }
-        
-        backup_info = None
-        
-        try:
-            # Сначала создаем бэкап (если нужно)
-            if use_backup:
-                backup_info = await self.backup_manager.create_backup_post(
-                    post_id, message_options
-                )
-                if backup_info:
-                    results['backup_created'] = True
-                    logger.info(f"Создан бэкап для поста {post_id}")
-                else:
-                    logger.warning(f"Не удалось создать бэкап для поста {post_id}")
-
-            # Отправляем в каналы
-            published_posts_data = []
-            
-            for chat_id in chat_ids:
-                try:
-                    sent_message = None
-                    
-                    # Выбираем способ отправки
-                    if backup_info and use_backup:
-                        # Копируем из бэкап канала (быстрее и меньше нагрузка)
-                        sent_message = await self.backup_manager.copy_from_backup(
-                            post_id, chat_id
-                        )
-                    else:
-                        # Отправляем напрямую
-                        sent_message = await self._send_direct_message(
-                            chat_id, message_options
-                        )
-                    
-                    if sent_message:
-                        # Записываем информацию о публикации
-                        published_posts_data.append({
-                            'post_id': post_id,
                             'message_id': sent_message.message_id,
                             'chat_id': chat_id,
                             'admin_id': admin_id
@@ -110,8 +38,8 @@ class PostingService:
             
             # Сохраняем информацию о публикациях в БД
             if published_posts_data:
-                async with PublishedPostCrud() as published_crud:
-                    await published_crud.add_many_published_post(published_posts_data)
+                published_crud = PublishedPostCrud()
+                await published_crud.add_many_published_post(published_posts_data)
                     
         except Exception as e:
             error_msg = f"Критическая ошибка при отправке поста {post_id}: {str(e)}"
@@ -200,33 +128,33 @@ class PostingService:
                 return results
             
             # Затем обновляем во всех каналах
-            async with PublishedPostCrud() as published_crud:
-                published_posts = await published_crud.get_by_post_id(post_id)
+            published_crud = PublishedPostCrud()
+            published_posts = await published_crud.get_by_post_id(post_id)
 
-                for pub_post in published_posts:
-                    try:
-                        # Обновляем сообщение в канале
-                        if 'text' in new_message_options:
-                            await self.bot.edit_message_text(
-                                chat_id=pub_post.chat_id,
-                                message_id=pub_post.message_id,
-                                text=new_message_options['text'],
-                                parse_mode=new_message_options.get('parse_mode')
-                            )
-                        elif 'caption' in new_message_options:
-                            await self.bot.edit_message_caption(
-                                chat_id=pub_post.chat_id,
-                                message_id=pub_post.message_id,
-                                caption=new_message_options['caption'],
-                                parse_mode=new_message_options.get('parse_mode')
-                            )
+            for pub_post in published_posts:
+                try:
+                    # Обновляем сообщение в канале
+                    if 'text' in new_message_options:
+                        await self.bot.edit_message_text(
+                            chat_id=pub_post.chat_id,
+                            message_id=pub_post.message_id,
+                            text=new_message_options['text'],
+                            parse_mode=new_message_options.get('parse_mode')
+                        )
+                    elif 'caption' in new_message_options:
+                        await self.bot.edit_message_caption(
+                            chat_id=pub_post.chat_id,
+                            message_id=pub_post.message_id,
+                            caption=new_message_options['caption'],
+                            parse_mode=new_message_options.get('parse_mode')
+                        )
 
-                        results['channels_updated'] += 1
+                    results['channels_updated'] += 1
 
-                    except Exception as e:
-                        error_msg = f"Ошибка обновления в канале {pub_post.chat_id}: {str(e)}"
-                        results['errors'].append(error_msg)
-                        logger.error(error_msg)
+                except Exception as e:
+                    error_msg = f"Ошибка обновления в канале {pub_post.chat_id}: {str(e)}"
+                    results['errors'].append(error_msg)
+                    logger.error(error_msg)
 
         except Exception as e:
             error_msg = f"Ошибка редактирования поста {post_id}: {str(e)}"

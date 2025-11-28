@@ -16,6 +16,7 @@ class MessageOptions(BaseModel):
     has_spoiler: bool = False
     disable_web_page_preview: bool = True
     disable_notification: bool = False
+    parse_mode: str | None = None  # HTML, Markdown, MarkdownV2
 
 
 class StoryOptions(BaseModel):
