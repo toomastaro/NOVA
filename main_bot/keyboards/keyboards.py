@@ -455,6 +455,23 @@ class InlinePosting(InlineKeyboardBuilder):
     def manage_remain_post(cls, post: Post, is_published: bool = False):
         kb = cls()
 
+        # Check for deleted status
+        is_deleted = getattr(post, 'status', 'active') == 'deleted'
+
+        if is_deleted:
+            deleted_at = getattr(post, 'deleted_at', None)
+            del_time_str = datetime.fromtimestamp(deleted_at).strftime("%d.%m.%Y %H:%M") if deleted_at else "N/A"
+            kb.button(
+                text=f"🗑 Удален: {del_time_str}",
+                callback_data="noop"
+            )
+            kb.button(
+                text=text("back:button"),
+                callback_data="ManageRemainPost|cancel"
+            )
+            kb.adjust(1)
+            return kb.as_markup()
+
         if not is_published:
             kb.button(
                 text=text("manage:post:send_time").format(
