@@ -264,9 +264,10 @@ async def manage_remain_post(call: types.CallbackQuery, state: FSMContext):
         )
 
     if temp[1] == "delete":
+        callback_data = "AcceptDeletePublishedPost" if data.get("is_published") else "AcceptDeletePost"
         await call.message.edit_text(
             text("accept:delete:post"),
-            reply_markup=keyboards.accept_delete_row_content()
+            reply_markup=keyboards.accept_delete_row_content(data=callback_data)
         )
 
     if temp[1] == "change":

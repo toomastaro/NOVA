@@ -413,10 +413,17 @@ async def get_value(message: types.Message, state: FSMContext):
     if param in ["text", "media", "buttons", "reaction"]:
         await edit_backup_message(post)
         
+        # Refresh post object to get updated backup_message_id if fallback occurred
+        if data.get("is_published"):
+            post = await db.get_published_post_by_id(post.id)
+        else:
+            post = await db.get_post_by_id(post.id)
+
         # Update live messages if published
         if data.get("is_published"):
             message_options = MessageOptions(**post.message_options)
-            await update_live_messages(post.post_id, message_options)
+            reply_markup = keyboards.post_kb(post=post)
+            await update_live_messages(post.post_id, message_options, reply_markup=reply_markup)
 
     await state.clear()
     data['post'] = post
@@ -796,11 +803,20 @@ async def choice_delete_time(call: types.CallbackQuery, state: FSMContext):
         delete_time = None
 
     if post.delete_time != delete_time:
-        post = await db.update_post(
-            post_id=post.id,
-            return_obj=True,
-            delete_time=delete_time
-        )
+        if data.get("is_published"):
+            await db.update_published_posts_by_post_id(
+                post_id=post.post_id,
+                delete_time=delete_time
+            )
+            # Refresh post object
+            post = await db.get_published_post_by_id(post.id)
+        else:
+            post = await db.update_post(
+                post_id=post.id,
+                return_obj=True,
+                delete_time=delete_time
+            )
+        
         await state.update_data(
             post=post
         )
@@ -815,7 +831,8 @@ async def choice_delete_time(call: types.CallbackQuery, state: FSMContext):
                 data.get("channel").title
             ),
             reply_markup=keyboards.manage_remain_post(
-                post=post
+                post=post,
+                is_published=data.get("is_published")
             )
         )
 
