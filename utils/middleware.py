@@ -4,8 +4,10 @@ from aiogram.types import Update
 
 from hello_bot.utils.schemas import Answer
 from main_bot.database.db import db
+import logging
 from hello_bot.utils.functions import answer_message
-from main_bot.utils.logger import logger
+
+logger = logging.getLogger(__name__)
 
 
 created_db_objects = {}
@@ -112,6 +114,7 @@ class ErrorMiddleware(BaseMiddleware):
         try:
             return await handler(event, data)
         except Exception as e:
-            logger.opt(exception=e).error(
-                f"Ошибка в обработчике {handler}"
+            logger.error(
+                f"Ошибка в обработчике {handler}",
+                exc_info=True
             )

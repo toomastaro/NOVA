@@ -2,8 +2,10 @@ from aiogram import BaseMiddleware, types
 from aiogram.filters import CommandObject
 from aiogram.types import Update
 
+import logging
 from main_bot.database.db import db
-from main_bot.utils.logger import logger
+
+logger = logging.getLogger(__name__)
 
 
 class StartMiddle(BaseMiddleware):
@@ -65,6 +67,7 @@ class ErrorMiddleware(BaseMiddleware):
         try:
             return await handler(event, data)
         except Exception as e:
-            logger.opt(exception=e).error(
-                f"Ошибка в обработчике {handler.__name__}"
+            logger.error(
+                f"Ошибка в обработчике {handler.__name__}",
+                exc_info=True
             )
