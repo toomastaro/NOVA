@@ -163,7 +163,8 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
                 channel.title
             ),
             reply_markup=keyboards.manage_remain_post(
-                post=post
+                post=post,
+                is_published=True
             )
         )
         return
@@ -295,7 +296,8 @@ async def accept_delete_row_content(call: types.CallbackQuery, state: FSMContext
                 channel.title
             ),
             reply_markup=keyboards.manage_remain_post(
-                post=post
+                post=post,
+                is_published=data.get("is_published")
             )
         )
 
