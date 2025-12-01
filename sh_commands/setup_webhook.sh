@@ -1,14 +1,14 @@
 #!/bin/bash
 set -Eeuo pipefail
 
-# Работаем из директории проекта (теперь /root/bot)
-cd /root/bot || { echo "❌ Не найден каталог /root/bot"; exit 1; }
+# Работаем из директории проекта (теперь /root/nova)
+cd /root/nova || { echo "❌ Не найден каталог /root/nova"; exit 1; }
 
 # Получаем токен из .env (берём первую строку BOT_TOKEN=..., убираем кавычки и пробелы)
 if [[ -f .env ]]; then
   BOT_TOKEN=$(grep -m1 '^BOT_TOKEN=' .env | cut -d '=' -f2- | tr -d "\"'[:space:]\r")
 else
-  echo "❌ Файл .env не найден в /root/bot"
+  echo "❌ Файл .env не найден в /root/nova"
   exit 1
 fi
 
