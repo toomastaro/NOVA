@@ -2,6 +2,8 @@ from aiogram import Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
+from apscheduler.triggers.interval import IntervalTrigger
+
 
 from main_bot.database.db import db
 from main_bot.utils.middlewares import GetUserMiddleware, ErrorMiddleware
