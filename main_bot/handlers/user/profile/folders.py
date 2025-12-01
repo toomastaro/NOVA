@@ -26,7 +26,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
     temp = call.data.split('|')
 
     if temp[1] in ['next', 'back']:
-        folders = await db.get_folders()
+        folders = await db.get_folders(call.from_user.id)
 
         return await call.message.edit_reply_markup(
             reply_markup=keyboards.folders(
@@ -41,10 +41,21 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
         return await show_setting(call.message)
 
     if temp[1] == 'create':
-        return await call.message.answer(
-            text('choice_folder_type'),
-            reply_markup=keyboards.choice_type_folder()
+        # Direct flow for creating channel collection
+        # Start with inputting name
+        await call.message.answer(
+            text('input_folder_name'),
+            reply_markup=keyboards.back(
+                data='InputFolderName'
+            )
         )
+        await state.update_data(
+            folder_type=FolderType.CHANNEL,
+            chosen=[],
+            folder_edit=False
+        )
+        await state.set_state(Folder.input_name)
+        return
 
     folder_id = int(temp[1])
     await state.update_data(
@@ -54,49 +65,13 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
     await show_manage_folder(call.message, state)
 
 
+# Deprecated/Removed choice_type handler logic, but keeping function signature if needed or removing it. 
+# Since we removed the call to it in `choice`, we can remove it or leave it as dead code for now.
+# Better to remove it to clean up.
+
 async def choice_type(call: types.CallbackQuery, state: FSMContext, user: User):
-    temp = call.data.split('|')
-
-    if temp[1] == 'back':
-        await call.message.delete()
-        return await show_folders(call.message)
-
-    await state.update_data(
-        folder_type=temp[1]
-    )
-
-    if temp[1] == FolderType.BOT:
-        cor = db.get_user_bots
-        object_type = 'bots'
-    else:
-        cor = db.get_user_channels
-        object_type = 'channels'
-
-    objects = await cor(
-        user_id=user.id,
-    )
-    if not objects:
-        return await call.answer(
-            text(f'not_found_{object_type}'),
-            show_alert=True
-        )
-
-    await state.update_data(
-        object_type=object_type,
-        cor=cor,
-        chosen=[]
-    )
-
-    await call.message.delete()
-    await call.message.answer(
-        text(f'folders:chosen:{object_type}').format(
-            ""
-        ),
-        reply_markup=keyboards.choice_object_folders(
-            resources=objects,
-            chosen=[]
-        )
-    )
+    # This handler is no longer used in the new flow
+    pass
 
 
 async def choice_object(call: types.CallbackQuery, state: FSMContext, user: User):
@@ -106,8 +81,9 @@ async def choice_object(call: types.CallbackQuery, state: FSMContext, user: User
         await call.answer(text('keys_data_error'))
         return await call.message.delete()
 
-    cor = data.get('cor')
-    object_type = data.get('object_type')
+    # Always channels
+    cor = db.get_user_channels
+    object_type = 'channels'
     chosen: list = data.get('chosen')
     folder_edit = data.get('folder_edit')
 
@@ -115,10 +91,8 @@ async def choice_object(call: types.CallbackQuery, state: FSMContext, user: User
         await call.message.delete()
 
         if not folder_edit:
-            await call.message.answer(
-                text('choice_folder_type'),
-                reply_markup=keyboards.choice_type_folder()
-            )
+            # Cancel creation -> go back to settings
+            return await show_setting(call.message)
         else:
             await show_manage_folder(call.message, state)
 
@@ -136,7 +110,7 @@ async def choice_object(call: types.CallbackQuery, state: FSMContext, user: User
                         obj.emoji_id,
                         obj.title
                     ) for obj in objects
-                    if getattr(obj, "id" if object_type == "bots" else "chat_id") in chosen[:10]
+                    if obj.chat_id in chosen[:10]
                 )
             ),
             reply_markup=keyboards.choice_object_folders(
@@ -147,22 +121,18 @@ async def choice_object(call: types.CallbackQuery, state: FSMContext, user: User
         )
 
     if temp[1] == 'next_step':
-        if not chosen:
-            return await call.answer(
-                text('error_min_choice'),
-                show_alert=True
-            )
-
-        await call.message.delete()
-
+        # If editing, save content. If creating, we are done (since name is already input)
+        # Wait, original flow was Name -> Content.
+        # New flow: Name -> Content -> Save?
+        # The user said: "After creating collection immediately propose content management".
+        # So: Input Name -> Save Folder (empty) -> Manage Folder -> Content.
+        # But here we are in choice_object.
+        # If we are here, it means we are selecting content.
+        
         if not folder_edit:
-            await call.message.answer(
-                text('input_folder_name'),
-                reply_markup=keyboards.back(
-                    data='InputFolderName'
-                )
-            )
-            await state.set_state(Folder.input_name)
+            # This block shouldn't be reached if we follow "Name -> Save -> Manage" flow strictly.
+            # But if we want "Name -> Content -> Save", then:
+            pass
         else:
             await db.update_folder(
                 folder_id=data.get('folder_id'),
@@ -173,15 +143,17 @@ async def choice_object(call: types.CallbackQuery, state: FSMContext, user: User
         return
 
     if temp[1] == 'choice_all':
-        if len(objects) == len(chosen):
+        # objects are Channels, they have chat_id
+        current_ids = [i.chat_id for i in objects]
+        if len(current_ids) == len(chosen):
             chosen.clear()
         else:
-            chosen.extend(
-                [i.id for i in objects
-                 if i.id not in chosen]
-            )
+            # Add all that are not in chosen
+            for i in objects:
+                if i.chat_id not in chosen:
+                    chosen.append(i.chat_id)
 
-    if temp[1].isdigit():
+    if temp[1].lstrip('-').isdigit(): # chat_id can be negative
         resource_id = int(temp[1])
         if resource_id in chosen:
             chosen.remove(resource_id)
@@ -198,54 +170,35 @@ async def choice_object(call: types.CallbackQuery, state: FSMContext, user: User
                     obj.emoji_id,
                     obj.title
                 ) for obj in objects
-                if getattr(obj, "id" if object_type == "bots" else "chat_id") in chosen[:10]
+                if obj.chat_id in chosen[:10]
             )
         ),
         reply_markup=keyboards.choice_object_folders(
             resources=objects,
             chosen=chosen,
-            remover=int(temp[2])
+            remover=int(temp[2]) if temp[1] in ['choice_all'] or temp[1].lstrip('-').isdigit() else 0
         )
     )
 
 
 async def cancel(call: types.CallbackQuery, state: FSMContext, user: User):
+    # This is for InputFolderName cancel
     data = await state.get_data()
-    if not data:
-        await call.answer(text('keys_data_error'))
-        return await call.message.delete()
-
+    
     await state.clear()
-    await state.update_data(data)
-
-    cor = data.get('cor')
-    chosen = data.get('chosen')
-    object_type = data.get('object_type')
-    folder_edit = data.get('folder_edit')
-
+    # If we were editing, restore data? 
+    # Actually, InputFolderName is used for both creating and renaming.
+    
     await call.message.delete()
-
-    if not folder_edit:
-        objects = await cor(
-            user_id=user.id
-        )
-        await call.message.answer(
-            text(f'folders:chosen:{object_type}').format(
-                "\n".join(
-                    text("resource_title").format(
-                        obj.emoji_id,
-                        obj.title
-                    ) for obj in objects
-                    if getattr(obj, "id" if object_type == "bots" else "chat_id") in chosen[:10]
-                )
-            ),
-            reply_markup=keyboards.choice_object_folders(
-                resources=objects,
-                chosen=chosen,
-            )
-        )
-    else:
+    
+    folder_edit = data.get('folder_edit')
+    if folder_edit:
+        # Restore folder_id
+        await state.update_data(folder_id=data.get('folder_id'))
         await show_manage_folder(call.message, state)
+    else:
+        # Cancel creation -> back to settings
+        await show_setting(call.message)
 
 
 async def get_folder_name(message: types.Message, state: FSMContext, user: User):
@@ -262,16 +215,15 @@ async def get_folder_name(message: types.Message, state: FSMContext, user: User)
         )
 
     data = await state.get_data()
-    folder_type = data.get('folder_type')
-    chosen = data.get('chosen')
     folder_edit = data.get('folder_edit')
 
     if not folder_edit:
+        # Creating new folder
         await db.add_folder(
             user_id=user.id,
             title=title,
-            type=folder_type,
-            content=[str(i) for i in chosen]
+            type=FolderType.CHANNEL,
+            content=[]
         )
     else:
         folder_id = data.get('folder_id')
@@ -288,7 +240,43 @@ async def get_folder_name(message: types.Message, state: FSMContext, user: User)
     await state.update_data(
         folder_id=folder.id,
     )
-    await show_manage_folder(message, state)
+    
+    # After creating/renaming, go to manage folder
+    # If it was new, we want to immediately propose content management?
+    # The user said: "After creating collection immediately propose content management".
+    # So we should trigger 'content' action of manage_folder.
+    
+    if not folder_edit:
+        # Simulate clicking "Content"
+        # We need to set up state for content management
+        chosen = []
+        cor = db.get_user_channels
+        object_type = 'channels'
+        
+        objects = await cor(user_id=user.id)
+        
+        await state.update_data(
+            folder_id=folder.id,
+            folder_edit=True, # Now we are in edit mode effectively
+            cor=cor, # Store coroutine function? No, we can't store async func in state easily if it's not pickleable, but here it was stored before.
+            # Actually, previous code stored 'cor'. Let's avoid storing functions in state if possible, but if it works...
+            # 'db.get_user_channels' is a bound method.
+            # Better to just store 'object_type' and deduce 'cor' in handlers.
+            chosen=chosen,
+            object_type=object_type
+        )
+        
+        await message.answer(
+            text(f'folders:chosen:{object_type}').format(
+                ""
+            ),
+            reply_markup=keyboards.choice_object_folders(
+                resources=objects,
+                chosen=chosen,
+            )
+        )
+    else:
+        await show_manage_folder(message, state)
 
 
 async def manage_folder(call: types.CallbackQuery, state: FSMContext, user: User):
@@ -325,21 +313,19 @@ async def manage_folder(call: types.CallbackQuery, state: FSMContext, user: User
         folder = await db.get_folder_by_id(
             folder_id=data.get('folder_id')
         )
+        # Content is list of strings (chat_ids)
         chosen = [
             int(i) for i in folder.content
         ]
-        if folder.type == FolderType.BOT:
-            cor = db.get_user_bots
-            object_type = 'bots'
-        else:
-            cor = db.get_user_channels
-            object_type = 'channels'
+        
+        # Always channels
+        cor = db.get_user_channels
+        object_type = 'channels'
 
         objects = await cor(
             user_id=user.id
         )
         await state.update_data(
-            cor=cor,
             chosen=chosen,
             object_type=object_type,
         )
@@ -350,7 +336,7 @@ async def manage_folder(call: types.CallbackQuery, state: FSMContext, user: User
                         obj.emoji_id,
                         obj.title
                     ) for obj in objects
-                    if getattr(obj, "id" if object_type == "bots" else "chat_id") in chosen[:10]
+                    if obj.chat_id in chosen[:10]
                 )
             ),
             reply_markup=keyboards.choice_object_folders(

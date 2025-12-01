@@ -84,3 +84,28 @@ class ChannelCrud(DatabaseMixin):
             .order_by(Channel.id.asc())
         )
         return await self.fetch(stmt)
+
+    async def get_user_channels_without_folders(self, user_id: int):
+        from main_bot.database.user_folder.model import UserFolder
+        from main_bot.database.types import FolderType
+
+        # Get all chat_ids from user folders
+        stmt_folders = select(UserFolder.content).where(
+            UserFolder.user_id == user_id,
+            UserFolder.type == FolderType.CHANNEL
+        )
+        folders_content = await self.fetch(stmt_folders)
+        
+        # Flatten the list of lists and convert to int
+        excluded_chat_ids = []
+        for content in folders_content:
+            if content:
+                excluded_chat_ids.extend([int(c) for c in content])
+        
+        # Get channels not in excluded_chat_ids
+        stmt = select(Channel).where(Channel.admin_id == user_id)
+        
+        if excluded_chat_ids:
+            stmt = stmt.where(Channel.chat_id.notin_(excluded_chat_ids))
+            
+        return await self.fetch(stmt)

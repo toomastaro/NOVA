@@ -2103,7 +2103,7 @@ class InlineProfile(InlineKeyboardBuilder):
             if a < count_rows:
                 kb.add(
                     InlineKeyboardButton(
-                        text=f'{"📕" if folders[idx].type == FolderType.BOT else "📘"} {folders[idx].title}',
+                        text=f'📁 {folders[idx].title}',
                         callback_data=f'ChoiceFolder|{folders[idx].id}|{remover}'
                     )
                 )
@@ -2154,37 +2154,13 @@ class InlineProfile(InlineKeyboardBuilder):
 
         return kb.as_markup()
 
-    @classmethod
-    def choice_type_folder(cls):
-        kb = cls()
-
-        kb.add(
-            InlineKeyboardButton(
-                text=text('folder:type:channels'),
-                callback_data='ChoiceTypeFolder|{}'.format(
-                    FolderType.CHANNEL
-                )
-            ),
-            InlineKeyboardButton(
-                text=text('folder:type:bots'),
-                callback_data='ChoiceTypeFolder|{}'.format(
-                    FolderType.BOT
-                )
-            ),
-            InlineKeyboardButton(
-                text=text('back:button'),
-                callback_data='ChoiceTypeFolder|back'
-            )
-        )
-
-        kb.adjust(1)
-        return kb.as_markup()
+    # choice_type_folder removed
 
     @classmethod
     def choice_object_folders(
             cls,
-            resources: List[Channel | UserBot],
-            chosen: List[Channel | UserBot],
+            resources: List[Channel],
+            chosen: List[int],
             remover: int = 0
     ):
         kb = cls()
@@ -2192,10 +2168,7 @@ class InlineProfile(InlineKeyboardBuilder):
 
         for a, idx in enumerate(range(remover, len(resources))):
             if a < count_rows:
-                if isinstance(resources[idx], Channel):
-                    resource_id = resources[idx].chat_id
-                else:
-                    resource_id = resources[idx].id
+                resource_id = resources[idx].chat_id
 
                 kb.add(
                     InlineKeyboardButton(
