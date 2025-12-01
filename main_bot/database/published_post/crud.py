@@ -25,12 +25,24 @@ class PublishedPostCrud(DatabaseMixin):
             )
         )
 
+    async def soft_delete_published_posts(self, row_ids: List[int]):
+        logger.info(f"Soft deleting published posts: {row_ids}")
+        await self.execute(
+            update(PublishedPost).where(
+                PublishedPost.id.in_(row_ids)
+            ).values(
+                status='deleted',
+                deleted_at=int(time.time())
+            )
+        )
+
     async def get_posts_for_unpin(self):
         current_time = int(time.time())
 
         return await self.fetch(
             select(PublishedPost).where(
                 PublishedPost.unpin_time < current_time,
+                PublishedPost.status == 'active'
             )
         )
 
@@ -40,6 +52,7 @@ class PublishedPostCrud(DatabaseMixin):
         return await self.fetch(
             select(PublishedPost).where(
                 PublishedPost.delete_time < current_time,
+                PublishedPost.status == 'active'
             )
         )
 

@@ -388,8 +388,8 @@ async def accept_delete_published_post(call: types.CallbackQuery, state: FSMCont
             logger.error(f"Error deleting message {post.message_id} from {post.chat_id}: {e}", exc_info=True)
             # print(f"Error deleting message {post.message_id} from {post.chat_id}: {e}")
 
-        # Delete from DB
-        await db.delete_published_posts([post.id])
+        # Soft Delete from DB
+        await db.soft_delete_published_posts([post.id])
         
         posts = await db.get_posts(channel.chat_id, day)
 

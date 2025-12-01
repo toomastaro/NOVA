@@ -30,3 +30,5 @@ class PublishedPost(Base):
     backup_message_id: Mapped[int | None] = mapped_column(BigInteger, default=None)
 
     created_timestamp: Mapped[int] = mapped_column(default=time.time)
+    status: Mapped[str] = mapped_column(default='active')
+    deleted_at: Mapped[int | None] = mapped_column(default=None)

@@ -68,6 +68,8 @@ async def send(post: Post):
         options.pop("text")
         options.pop("disable_web_page_preview")
 
+    options['parse_mode'] = 'HTML'
+
     error_send = []
     success_send = []
 
@@ -330,7 +332,7 @@ async def delete_posts():
         except Exception as e:
             logger.error(f"Error sending CPM report to admin {admin_id}: {e}", exc_info=True)
 
-    await db.delete_published_posts(
+    await db.soft_delete_published_posts(
         row_ids=row_ids
     )
 
@@ -552,6 +554,8 @@ async def send_bot_messages(other_bot: Bot, bot_post: BotPost, users, filepath):
         options.pop("photo")
         options.pop("video")
         options.pop("text")
+
+    options['parse_mode'] = 'HTML'
 
     success = 0
     message_ids = []

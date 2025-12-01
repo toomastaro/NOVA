@@ -143,6 +143,7 @@ async def answer_bot_post(message: types.Message, state: FSMContext, from_edit: 
 
     post_message = await cor(
         **message_options.model_dump(),
+        parse_mode='HTML'
     )
 
     return post_message
@@ -196,7 +197,8 @@ async def answer_post(message: types.Message, state: FSMContext, from_edit: bool
 
     post_message = await cor(
         **message_options.model_dump(),
-        reply_markup=reply_markup
+        reply_markup=reply_markup,
+        parse_mode='HTML'
     )
     logger.info(f"Preview for post {post.id} generated locally")
 
@@ -450,6 +452,7 @@ async def answer_message_bot(bot: Bot, chat_id: int, message_options: MessageOpt
 
     dump = message_options.model_dump()
     dump['chat_id'] = chat_id
+    dump['parse_mode'] = 'HTML'
 
     if isinstance(message_options, MessageOptionsCaptcha):
         dump.pop("resize_markup")
@@ -512,6 +515,7 @@ async def answer_message(message: types.Message, message_options: MessageOptions
 
     post_message = await cor(
         **message_options.model_dump(),
+        parse_mode='HTML'
     )
 
     return post_message
