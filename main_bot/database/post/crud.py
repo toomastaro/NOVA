@@ -89,7 +89,7 @@ class PostCrud(DatabaseMixin):
             all_posts.append(p)
         
         for p in published:
-            p.status = "published"
+            # p.status = "published"  <-- Removed to preserve DB status ('active'/'deleted')
             # Map created_timestamp to send_time for consistent sorting/display if needed
             # But PublishedPost doesn't have send_time in the same way, it has created_timestamp
             # We will use a property or just handle it in the sort key
