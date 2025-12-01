@@ -113,7 +113,63 @@ async def edit_backup_message(post: Post | PublishedPost, message_options: Messa
                 )
                 
     except Exception as e:
-        logger.error(f"Error editing backup message {message_id} in {chat_id}: {e}", exc_info=True)
+        logger.error(f"Error editing backup message {message_id} in {chat_id}: {e}. Attempting fallback (delete and resend).")
+        try:
+            # Fallback: Delete and Resend to Backup
+            try:
+                await bot.delete_message(chat_id, message_id)
+            except Exception as del_e:
+                logger.warning(f"Failed to delete backup message {message_id}: {del_e}")
+
+            # Send new message to backup
+            # We need to construct options for send_message/photo/etc.
+            # Reuse send_to_backup logic or similar? 
+            # send_to_backup takes a Post object. We have Post or PublishedPost.
+            # Let's construct a temporary Post object or just use the options manually.
+            
+            # Helper to send based on options
+            if message_options.text:
+                cor = bot.send_message
+                send_options = message_options.model_dump(exclude={"photo", "video", "animation", "show_caption_above_media", "has_spoiler", "caption"})
+            elif message_options.photo:
+                cor = bot.send_photo
+                send_options = message_options.model_dump(exclude={"video", "animation", "text", "disable_web_page_preview"})
+                send_options["photo"] = message_options.photo.file_id if isinstance(message_options.photo, Media) else message_options.photo
+            elif message_options.video:
+                cor = bot.send_video
+                send_options = message_options.model_dump(exclude={"photo", "animation", "text", "disable_web_page_preview"})
+                send_options["video"] = message_options.video.file_id if isinstance(message_options.video, Media) else message_options.video
+            else:
+                cor = bot.send_animation
+                send_options = message_options.model_dump(exclude={"photo", "video", "text", "disable_web_page_preview"})
+                send_options["animation"] = message_options.animation.file_id if isinstance(message_options.animation, Media) else message_options.animation
+
+            send_options['chat_id'] = chat_id
+            send_options['parse_mode'] = 'HTML'
+            send_options['reply_markup'] = reply_markup
+
+            new_backup_msg = await cor(**send_options)
+            new_backup_message_id = new_backup_msg.message_id
+            
+            # Update DB
+            post_id = post.post_id if isinstance(post, PublishedPost) else post.id
+            
+            # Update Post
+            await db.update_post(
+                post_id=post_id,
+                backup_message_id=new_backup_message_id
+            )
+            
+            # Update all PublishedPosts
+            await db.update_published_posts_by_post_id(
+                post_id=post_id,
+                backup_message_id=new_backup_message_id
+            )
+            
+            logger.info(f"Backup fallback successful: Replaced {message_id} with {new_backup_message_id} for post {post_id}")
+
+        except Exception as fallback_e:
+            logger.error(f"Backup fallback failed for post {post.id if hasattr(post, 'id') else '?'}: {fallback_e}", exc_info=True)
 
 async def update_live_messages(post_id: int, message_options: MessageOptions, reply_markup=None):
     """
@@ -148,6 +204,33 @@ async def update_live_messages(post_id: int, message_options: MessageOptions, re
                         reply_markup=reply_markup
                     )
         except Exception as e:
-            logger.error(f"Error updating live message {post.message_id} in {post.chat_id}: {e}", exc_info=True)
+            logger.error(f"Error updating live message {post.message_id} in {post.chat_id}: {e}. Attempting fallback (delete and repost).")
+            try:
+                # Fallback: Delete and Copy from Backup
+                try:
+                    await bot.delete_message(post.chat_id, post.message_id)
+                except Exception as del_e:
+                    logger.warning(f"Failed to delete message {post.message_id} in {post.chat_id}: {del_e}")
+
+                if post.backup_chat_id and post.backup_message_id:
+                    new_msg = await bot.copy_message(
+                        chat_id=post.chat_id,
+                        from_chat_id=post.backup_chat_id,
+                        message_id=post.backup_message_id,
+                        reply_markup=reply_markup,
+                        parse_mode='HTML'
+                    )
+                    
+                    # Update PublishedPost with new message_id
+                    await db.update_published_post(
+                        post_id=post.id,
+                        message_id=new_msg.message_id
+                    )
+                    logger.info(f"Fallback successful: Replaced message {post.message_id} with {new_msg.message_id} in {post.chat_id}")
+                else:
+                    logger.error(f"Fallback failed: No backup info for post {post.id}")
+
+            except Exception as fallback_e:
+                logger.error(f"Fallback failed for {post.chat_id}: {fallback_e}", exc_info=True)
             
     logger.info(f"Updated {len(published_posts)} live messages for post {post_id}")
