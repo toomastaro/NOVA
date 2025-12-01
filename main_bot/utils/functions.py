@@ -17,6 +17,10 @@ from main_bot.database.story.model import Story
 from main_bot.keyboards.keyboards import keyboards
 from main_bot.utils.schemas import MessageOptions, StoryOptions, Protect, MessageOptionsHello, MessageOptionsCaptcha
 from main_bot.utils.session_manager import SessionManager
+from config import Config
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 async def create_emoji(user_id: int, photo_bytes=None):
@@ -174,10 +178,27 @@ async def answer_post(message: types.Message, state: FSMContext, from_edit: bool
             is_edit=is_edit
         )
 
+    # Backup Preview Logic
+    if post.backup_message_id and Config.BACKUP_CHAT_ID:
+        try:
+            post_message = await message.bot.copy_message(
+                chat_id=message.chat.id,
+                from_chat_id=Config.BACKUP_CHAT_ID,
+                message_id=post.backup_message_id,
+                reply_markup=reply_markup,
+                parse_mode='HTML'
+            )
+            logger.info(f"Preview for post {post.id} loaded from backup (msg {post.backup_message_id})")
+            return post_message
+        except Exception as e:
+            logger.error(f"Failed to load preview from backup for post {post.id}: {e}", exc_info=True)
+            # Fallback to local construction
+
     post_message = await cor(
         **message_options.model_dump(),
         reply_markup=reply_markup
     )
+    logger.info(f"Preview for post {post.id} generated locally")
 
     return post_message
 
