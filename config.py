@@ -4,10 +4,12 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-VERSION = "1.0.2"
 
 
 class Config:
+
+VERSION = "1.0.2"
+
     # Bot
     BOT_TOKEN = os.getenv('BOT_TOKEN')
     ADMIN_SUPPORT = int(os.getenv("ADMIN_SUPPORT"))
