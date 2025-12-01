@@ -46,6 +46,13 @@ class PublishedPostCrud(DatabaseMixin):
             )
         )
 
+    async def get_published_post_by_id(self, post_id: int) -> PublishedPost:
+        return await self.fetchrow(
+            select(PublishedPost).where(
+                PublishedPost.id == post_id
+            )
+        )
+
     async def update_published_post(self, post_id: int, return_obj: bool = False, **kwargs) -> PublishedPost | None:
         stmt = update(PublishedPost).where(PublishedPost.id == post_id).values(**kwargs)
 

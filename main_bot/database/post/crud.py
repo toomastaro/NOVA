@@ -6,6 +6,7 @@ from sqlalchemy import insert, select, update, delete, func, or_
 
 from main_bot.database import DatabaseMixin
 from main_bot.database.post.model import Post
+from main_bot.database.published_post.model import PublishedPost
 
 
 class PostCrud(DatabaseMixin):
@@ -42,20 +43,50 @@ class PostCrud(DatabaseMixin):
         )
 
     async def get_posts(self, chat_id: int, current_day: datetime = None):
-        stmt = select(Post).where(
+        # Scheduled posts
+        stmt_posts = select(Post).where(
             Post.chat_ids.contains([chat_id]),
             Post.send_time.isnot(None)
+        )
+
+        # Published posts
+        stmt_published = select(PublishedPost).where(
+            PublishedPost.chat_id == chat_id
         )
 
         if current_day:
             start_day = int(time.mktime(current_day.replace(hour=0, minute=0, second=0, microsecond=0).timetuple()))
             end_day = start_day + 86400
-            stmt = stmt.where(
+            
+            stmt_posts = stmt_posts.where(
                 Post.send_time >= start_day,
                 Post.send_time < end_day,
             )
+            stmt_published = stmt_published.where(
+                PublishedPost.created_timestamp >= start_day,
+                PublishedPost.created_timestamp < end_day,
+            )
 
-        return await self.fetch(stmt)
+        posts = await self.fetch(stmt_posts)
+        published = await self.fetch(stmt_published)
+
+        # Combine and sort
+        all_posts = []
+        for p in posts:
+            p.status = "scheduled"
+            all_posts.append(p)
+        
+        for p in published:
+            p.status = "published"
+            # Map created_timestamp to send_time for consistent sorting/display if needed
+            # But PublishedPost doesn't have send_time in the same way, it has created_timestamp
+            # We will use a property or just handle it in the sort key
+            p.send_time = p.created_timestamp 
+            all_posts.append(p)
+
+        all_posts.sort(key=lambda x: x.send_time)
+        
+        return all_posts
 
     async def clear_empty_posts(self):
         week_ago = int(time.time()) - 7 * 24 * 60 * 60

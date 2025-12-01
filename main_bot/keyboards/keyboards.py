@@ -488,6 +488,22 @@ class InlinePosting(InlineKeyboardBuilder):
         kb.adjust(1, 1, 2)
         return kb.as_markup()
 
+    @classmethod
+    def manage_published_post(cls, post: PublishedPost):
+        kb = cls()
+
+        kb.button(
+            text=text("manage:post:delete:button"),
+            callback_data="ManagePublishedPost|delete"
+        )
+        kb.button(
+            text=text("back:button"),
+            callback_data="ManagePublishedPost|cancel"
+        )
+
+        kb.adjust(1)
+        return kb.as_markup()
+
 
 class InlineStories(InlineKeyboardBuilder):
     @classmethod
@@ -2617,13 +2633,29 @@ class Inline(
             if isinstance(post, Post):
                 options = post.message_options
                 message_text = options.get("text") or options.get("caption")
+                callback = f"{data}|{post.id}"
+            elif isinstance(post, PublishedPost):
+                options = MessageOptions(**post.reaction) if post.reaction else MessageOptions() # PublishedPost doesn't store full options directly in same format? 
+                # Wait, PublishedPost has reaction, hide, buttons. It doesn't seem to have the message text stored directly in the model shown earlier?
+                # Let's check PublishedPost model again.
+                # It has post_id, message_id, chat_id. It does NOT have the text.
+                # So we can't show the text easily unless we fetch the original Post (which is deleted) or it's stored elsewhere.
+                # Ah, the original Post is deleted.
+                # So we can't show the text. We can only show "Опубликовано".
+                # Or maybe we can fetch the message from Telegram? No, that's too slow.
+                # Let's check if PublishedPost has any content info.
+                message_text = "Опубликовано"
+                emoji = "✅"
+                callback = f"ContentPublishedPost|{post.id}"
             elif isinstance(post, BotPost):
                 options = post.message
                 message_text = options.get("text") or options.get("caption")
                 emoji = "⏳" if post.status == Status.PENDING else "✅"
+                callback = f"{data}|{post.id}"
             else:
                 options = post.story_options
                 message_text = options.get("caption")
+                callback = f"{data}|{post.id}"
 
             if message_text:
                 message_text = message_text.replace('tg-emoji emoji-id', '').replace('</tg-emoji>', '')
@@ -2638,7 +2670,7 @@ class Inline(
                         ),
                         message_text or "Медиа"
                     ),
-                    callback_data=f"{data}|{post.id}"
+                    callback_data=callback
                 )
             )
 
@@ -2751,6 +2783,10 @@ class Inline(
                     options = objects[idx].message_options
                     message_text = options.get("text") or options.get("caption")
                     obj_data = "ContentPost"
+                elif isinstance(objects[idx], PublishedPost):
+                    message_text = "Опубликовано"
+                    obj_data = "ContentPublishedPost"
+                    emoji = "✅"
                 elif isinstance(objects[idx], BotPost):
                     options = objects[idx].message
                     message_text = options.get("text") or options.get("caption")
