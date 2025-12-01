@@ -114,7 +114,7 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
         )
 
     if temp[1] == "show_all":
-        posts = await db.get_posts(channel.chat_id)
+        posts = await db.get_posts(channel.chat_id, only_scheduled=True)
         return await call.message.edit_text(
             text("channel:show_all:content").format(
                 channel.emoji_id,

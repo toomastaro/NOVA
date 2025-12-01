@@ -47,16 +47,11 @@ class PostCrud(DatabaseMixin):
             delete(Post).where(Post.id == post_id)
         )
 
-    async def get_posts(self, chat_id: int, current_day: datetime = None):
+    async def get_posts(self, chat_id: int, current_day: datetime = None, only_scheduled: bool = False):
         # Scheduled posts
         stmt_posts = select(Post).where(
             Post.chat_ids.contains([chat_id]),
             Post.send_time.isnot(None)
-        )
-
-        # Published posts
-        stmt_published = select(PublishedPost).where(
-            PublishedPost.chat_id == chat_id
         )
 
         if current_day:
@@ -67,13 +62,25 @@ class PostCrud(DatabaseMixin):
                 Post.send_time >= start_day,
                 Post.send_time < end_day,
             )
-            stmt_published = stmt_published.where(
-                PublishedPost.created_timestamp >= start_day,
-                PublishedPost.created_timestamp < end_day,
-            )
 
         posts = await self.fetch(stmt_posts)
-        published = await self.fetch(stmt_published)
+        
+        published = []
+        if not only_scheduled:
+            # Published posts
+            stmt_published = select(PublishedPost).where(
+                PublishedPost.chat_id == chat_id
+            )
+            
+            if current_day:
+                start_day = int(time.mktime(current_day.replace(hour=0, minute=0, second=0, microsecond=0).timetuple()))
+                end_day = start_day + 86400
+                
+                stmt_published = stmt_published.where(
+                    PublishedPost.created_timestamp >= start_day,
+                    PublishedPost.created_timestamp < end_day,
+                )
+            published = await self.fetch(stmt_published)
 
         # Combine and sort
         all_posts = []
