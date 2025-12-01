@@ -1,3 +1,5 @@
+import os
+
 from aiogram import Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
