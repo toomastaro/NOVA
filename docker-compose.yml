@@ -17,6 +17,23 @@ services:
     networks:
       - nova-network
 
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: pgadmin
+    restart: always
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=${PGADMIN_EMAIL}
+      - PGADMIN_DEFAULT_PASSWORD=${PGADMIN_PASS}
+    ports:
+      - "8077:80"        # снаружи будет доступно http://IP_СЕРВЕРА:8080
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - nova-network
+
 
   app:
     build: .
@@ -64,6 +81,7 @@ services:
 
 volumes:
   postgres_data:
+  pgadmin_data:
 
 networks:
   nova-network:

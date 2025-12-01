@@ -107,7 +107,3 @@ async def other_update(request: Request, token: str):
 
 if __name__ == '__main__':
     uvicorn.run(app, host="0.0.0.0", port=8099)
-
-@app.get('/health')
-async def health_check():
-    return {"status": "ok", "message": "Service is running"}
