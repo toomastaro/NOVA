@@ -6,7 +6,7 @@ from apscheduler.triggers.cron import CronTrigger
 from main_bot.database.db import db
 from main_bot.utils.middlewares import GetUserMiddleware, ErrorMiddleware
 from main_bot.utils.schedulers import send_posts, unpin_posts, delete_posts, send_stories, send_bot_posts, \
-    check_subscriptions, start_delete_bot_posts
+    check_subscriptions, start_delete_bot_posts, update_exchange_rates_in_db
 from .user import get_router as user_router
 from .admin import get_router as admin_router
 
@@ -93,5 +93,12 @@ def set_scheduler():
             second="*/10"
         )
     )
+    sch.add_job(
+        func=update_exchange_rates_in_db,
+        trigger=IntervalTrigger(
+            seconds=int(RUB_USDT_TIMER)
+        )
+    )
+
     sch.start()
     sch.print_jobs()
