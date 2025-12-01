@@ -411,7 +411,7 @@ async def accept_delete_published_post(call: types.CallbackQuery, state: FSMCont
 def hand_add():
     router = Router()
     router.callback_query.register(choice_channel, F.data.split("|")[0] == "ChoiceObjectContentPost")
-    router.callback_query.register(choice_row_content, F.data.split("|")[0] == "ContentPost")
+    router.callback_query.register(choice_row_content, F.data.split("|")[0].in_({"ContentPost", "ContentPublishedPost"}))
     router.callback_query.register(choice_time_objects, F.data.split("|")[0] == "ChoiceTimeObjectContentPost")
     router.callback_query.register(manage_remain_post, F.data.split("|")[0] == "ManageRemainPost")
     router.callback_query.register(manage_published_post, F.data.split("|")[0] == "ManagePublishedPost")

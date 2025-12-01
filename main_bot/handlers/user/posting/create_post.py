@@ -71,11 +71,25 @@ async def get_message(message: types.Message, state: FSMContext):
         if message_options.caption:
             message_options.caption = message.html_text
 
+    buttons_str = None
+    if message.reply_markup and message.reply_markup.inline_keyboard:
+        rows = []
+        for row in message.reply_markup.inline_keyboard:
+            buttons = []
+            for button in row:
+                if button.url:
+                    buttons.append(f"{button.text} — {button.url}")
+            if buttons:
+                rows.append("|".join(buttons))
+        if rows:
+            buttons_str = "\n".join(rows)
+
     post = await db.add_post(
         return_obj=True,
         chat_ids=[],
         admin_id=message.from_user.id,
         message_options=message_options.model_dump(),
+        buttons=buttons_str
     )
 
     await state.clear()
