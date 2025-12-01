@@ -149,3 +149,5 @@ async def update_live_messages(post_id: int, message_options: MessageOptions, re
                     )
         except Exception as e:
             logger.error(f"Error updating live message {post.message_id} in {post.chat_id}: {e}", exc_info=True)
+            
+    logger.info(f"Updated {len(published_posts)} live messages for post {post_id}")

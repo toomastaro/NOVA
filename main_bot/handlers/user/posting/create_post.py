@@ -13,7 +13,8 @@ from main_bot.utils.lang.language import text
 from main_bot.utils.schemas import MessageOptions, Media, Hide, React
 from main_bot.keyboards.keyboards import keyboards
 from main_bot.states.user import Posting, AddHide
-from main_bot.utils.backup_utils import send_to_backup, edit_backup_message
+from main_bot.states.user import Posting, AddHide
+from main_bot.utils.backup_utils import send_to_backup, edit_backup_message, update_live_messages
 
 
 async def set_folder_content(resource_id, chosen, chosen_folders):
@@ -208,6 +209,10 @@ async def manage_post(call: types.CallbackQuery, state: FSMContext):
         
         # Update backup message
         await edit_backup_message(post)
+        
+        # Update live messages if published
+        if data.get("is_published"):
+            await update_live_messages(post.post_id, message_options)
 
         await state.update_data(
             post=post
@@ -393,6 +398,11 @@ async def get_value(message: types.Message, state: FSMContext):
     # Update backup message if content changed
     if param in ["text", "media", "buttons", "reaction"]:
         await edit_backup_message(post)
+        
+        # Update live messages if published
+        if data.get("is_published"):
+            message_options = MessageOptions(**post.message_options)
+            await update_live_messages(post.post_id, message_options)
 
     await state.clear()
     data['post'] = post
