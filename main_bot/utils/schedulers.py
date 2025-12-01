@@ -8,6 +8,7 @@ from pathlib import Path
 from aiogram import Bot, types
 from httpx import AsyncClient
 
+from config import Config
 from instance_bot import bot
 from hello_bot.database.db import Database
 from main_bot.database.bot_post.model import BotPost
@@ -70,20 +71,62 @@ async def send(post: Post):
     error_send = []
     success_send = []
 
+    # Backup Logic
+    backup_message_id = post.backup_message_id
+    if Config.BACKUP_CHAT_ID:
+        if not backup_message_id:
+            try:
+                options['chat_id'] = Config.BACKUP_CHAT_ID
+                # Ensure parse_mode is HTML
+                options['parse_mode'] = 'HTML'
+                
+                backup_msg = await cor(
+                    **options,
+                    reply_markup=keyboards.post_kb(post=post)
+                )
+                backup_message_id = backup_msg.message_id
+                
+                # Update Post with backup info
+                await db.update_post(
+                    post_id=post.id,
+                    backup_chat_id=Config.BACKUP_CHAT_ID,
+                    backup_message_id=backup_message_id
+                )
+                logger.info(f"Created backup for post {post.id}: chat={Config.BACKUP_CHAT_ID}, msg={backup_message_id}")
+            except Exception as e:
+                logger.error(f"Error creating backup for post {post.id}: {e}", exc_info=True)
+                # Fallback to direct send if backup fails? 
+                # User didn't specify, but safer to proceed with direct send if backup fails, 
+                # OR fail completely. Given "critical data" is low, we proceed but log error.
+                # However, user said "use copyMessage from backup". If backup fails, copyMessage fails.
+                # So we must have backup_message_id. If failed, we can try direct send as fallback.
+                pass
+
     for chat_id in post.chat_ids:
         channel = await db.get_channel_by_chat_id(chat_id)
         if not channel.subscribe:
             continue
 
-        options['chat_id'] = chat_id
-
         try:
-            post_message = await cor(
-                **options,
-                reply_markup=keyboards.post_kb(
-                    post=post
+            if backup_message_id and Config.BACKUP_CHAT_ID:
+                # Use copyMessage
+                post_message = await bot.copy_message(
+                    chat_id=chat_id,
+                    from_chat_id=Config.BACKUP_CHAT_ID,
+                    message_id=backup_message_id,
+                    reply_markup=keyboards.post_kb(post=post),
+                    parse_mode='HTML'
                 )
-            )
+                logger.info(f"Copied post {post.id} (backup {backup_message_id}) to {chat_id} (msg {post_message.message_id})")
+            else:
+                # Fallback to direct send
+                options['chat_id'] = chat_id
+                post_message = await cor(
+                    **options,
+                    reply_markup=keyboards.post_kb(post=post)
+                )
+                logger.info(f"Directly sent post {post.id} to {chat_id} (msg {post_message.message_id})")
+
             await asyncio.sleep(0.25)
         except Exception as e:
             logger.error(f"Error sending post {post.id} to {chat_id}: {e}", exc_info=True)
@@ -91,7 +134,10 @@ async def send(post: Post):
             continue
 
         if post.pin_time:
-            await post_message.pin(message_options.disable_notification)
+            try:
+                await post_message.pin(message_options.disable_notification)
+            except Exception as e:
+                logger.error(f"Error pinning message {post_message.message_id} in {chat_id}: {e}", exc_info=True)
 
         current_time = int(time.time())
         success_send.append(
@@ -106,7 +152,9 @@ async def send(post: Post):
                 "unpin_time": post.pin_time + current_time if post.pin_time else None,
                 "delete_time": post.delete_time + current_time if post.delete_time else None,
                 "report": post.report,
-                "cpm_price": post.cpm_price
+                "cpm_price": post.cpm_price,
+                "backup_chat_id": Config.BACKUP_CHAT_ID if backup_message_id else None,
+                "backup_message_id": backup_message_id
             }
         )
 
