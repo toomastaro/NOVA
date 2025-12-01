@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timedelta
 
 from aiogram import types, F, Router
@@ -11,6 +12,9 @@ from main_bot.handlers.user.posting.menu import show_content
 from main_bot.keyboards.keyboards import keyboards
 from main_bot.utils.functions import answer_post
 from main_bot.utils.lang.language import text
+
+
+logger = logging.getLogger(__name__)
 
 
 async def choice_channel(call: types.CallbackQuery, state: FSMContext):
@@ -33,6 +37,7 @@ async def choice_channel(call: types.CallbackQuery, state: FSMContext):
         return await start_posting(call.message)
 
     chat_id = int(temp[1])
+    logger.info(f"User {call.from_user.id} selected channel {chat_id} for content view")
     channel = await db.get_channel_by_chat_id(chat_id)
 
     day = datetime.today()
@@ -65,6 +70,7 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
     temp = call.data.split("|")
     data = await state.get_data()
     if not data:
+        logger.warning(f"No state data found for user {call.from_user.id} in choice_row_content")
         await call.answer(text('keys_data_error'))
         return await call.message.delete()
 
@@ -126,6 +132,7 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
     # Handle PublishedPost
     if call.data.startswith("ContentPublishedPost"):
         post_id = int(temp[1])
+        logger.info(f"User {call.from_user.id} viewing published post {post_id}")
         post = await db.get_published_post_by_id(post_id)
         # Use created_timestamp as send_time for display
         send_date = datetime.fromtimestamp(post.created_timestamp)
@@ -348,6 +355,7 @@ async def accept_delete_published_post(call: types.CallbackQuery, state: FSMCont
     temp = call.data.split("|")
     data = await state.get_data()
     if not data:
+        logger.warning(f"No state data found for user {call.from_user.id} in accept_delete_published_post")
         await call.answer(text('keys_data_error'))
         return await call.message.delete()
 
@@ -370,11 +378,13 @@ async def accept_delete_published_post(call: types.CallbackQuery, state: FSMCont
         )
 
     if temp[1] == "accept":
+        logger.info(f"User {call.from_user.id} deleting published post {post.id} (message_id: {post.message_id})")
         # Delete from Telegram
         try:
             await call.bot.delete_message(post.chat_id, post.message_id)
         except Exception as e:
-            print(f"Error deleting message {post.message_id} from {post.chat_id}: {e}")
+            logger.error(f"Error deleting message {post.message_id} from {post.chat_id}: {e}", exc_info=True)
+            # print(f"Error deleting message {post.message_id} from {post.chat_id}: {e}")
 
         # Delete from DB
         await db.delete_published_posts([post.id])

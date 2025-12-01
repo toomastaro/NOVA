@@ -1,36 +1,23 @@
+import logging
 import sys
 
-from loguru import logger
-
-logger.configure(
-    handlers=[
-        {
-            "sink": "logs/app.log",
-            "rotation": "10 MB",
-            "level": "INFO",
-            "backtrace": True
-        },
-        {
-            "sink": sys.stderr,
-            "format": "<red>{time:HH:mm:ss}</red> | {level} | <level>{message}</level>",
-            "level": "INFO"
-        }
-    ]
-)
-
-
-def handle_exception(exc_type, exc_value, exc_traceback):
-    if issubclass(exc_type, KeyboardInterrupt):
-        sys.__excepthook__(exc_type, exc_value, exc_traceback)
-        return
-
-    logger.opt(exception=(exc_type, exc_value, exc_traceback)).critical(
-        "Unhandled exception"
+def setup_logging():
+    """
+    Setup central logging configuration.
+    """
+    # Configure root logger
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        handlers=[
+            logging.StreamHandler(sys.stdout)
+        ]
     )
 
+    # Set specific levels for third-party libraries to reduce noise
+    logging.getLogger("aiogram").setLevel(logging.WARNING)
+    logging.getLogger("sqlalchemy").setLevel(logging.WARNING)
+    logging.getLogger("httpx").setLevel(logging.WARNING)
 
-sys.excepthook = handle_exception
-if sys.version_info >= (3, 8):
-    sys.unraisablehook = lambda exc: logger.error(
-        "Unraisable exception", exc=exc.exc_type, exc_info=exc.exc_value
-    )
+    logger = logging.getLogger(__name__)
+    logger.info("Logging configuration setup complete.")

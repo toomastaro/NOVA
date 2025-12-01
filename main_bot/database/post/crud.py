@@ -1,3 +1,4 @@
+import logging
 import time
 from datetime import datetime
 from typing import List
@@ -7,6 +8,9 @@ from sqlalchemy import insert, select, update, delete, func, or_
 from main_bot.database import DatabaseMixin
 from main_bot.database.post.model import Post
 from main_bot.database.published_post.model import PublishedPost
+
+
+logger = logging.getLogger(__name__)
 
 
 class PostCrud(DatabaseMixin):
@@ -38,6 +42,7 @@ class PostCrud(DatabaseMixin):
         return await operation(stmt, **{'commit': return_obj} if return_obj else {})
 
     async def delete_post(self, post_id: int):
+        logger.info(f"Deleting post {post_id}")
         return await self.execute(
             delete(Post).where(Post.id == post_id)
         )
@@ -112,6 +117,7 @@ class PostCrud(DatabaseMixin):
         )
 
     async def clear_posts(self, post_ids: List[int]):
+        logger.info(f"Clearing posts: {post_ids}")
         await self.execute(
             delete(Post).where(
                 Post.id.in_(post_ids)

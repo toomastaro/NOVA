@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import os
 import re
 import time
@@ -21,6 +22,8 @@ from main_bot.utils.functions import set_channel_session, get_path, get_path_vid
 from main_bot.utils.lang.language import text
 from main_bot.utils.schemas import MessageOptions, StoryOptions, MessageOptionsHello
 from main_bot.utils.session_manager import SessionManager
+
+logger = logging.getLogger(__name__)
 
 
 async def send(post: Post):
@@ -83,7 +86,7 @@ async def send(post: Post):
             )
             await asyncio.sleep(0.25)
         except Exception as e:
-            print(e)
+            logger.error(f"Error sending post {post.id} to {chat_id}: {e}", exc_info=True)
             error_send.append({"chat_id": chat_id, "error": str(e)})
             continue
 
@@ -166,7 +169,7 @@ async def send(post: Post):
             text=message_text
         )
     except Exception as e:
-        print(e)
+        logger.error(f"Error sending report to admin {post.admin_id}: {e}", exc_info=True)
 
 
 async def send_posts():
@@ -186,7 +189,7 @@ async def unpin_posts():
                 message_id=post.message_id
             )
         except Exception as e:
-            print(e)
+            logger.error(f"Error unpinning message {post.message_id} in {post.chat_id}: {e}", exc_info=True)
 
 
 async def delete_posts():
@@ -228,7 +231,7 @@ async def delete_posts():
         try:
             await bot.delete_message(post.chat_id, post.message_id)
         except Exception as e:
-            print(e)
+            logger.error(f"Error deleting message {post.message_id} in {post.chat_id}: {e}", exc_info=True)
 
             try:
                 await bot.send_message(
@@ -240,7 +243,7 @@ async def delete_posts():
                     )
                 )
             except Exception as e:
-                print(e)
+                logger.error(f"Error sending delete error report to admin {post.admin_id}: {e}", exc_info=True)
 
         row_ids.append(post.id)
 
@@ -275,7 +278,7 @@ async def delete_posts():
                 )
             )
         except Exception as e:
-            print(e)
+            logger.error(f"Error sending CPM report to admin {admin_id}: {e}", exc_info=True)
 
     await db.delete_published_posts(
         row_ids=row_ids
@@ -303,7 +306,7 @@ async def send_story(story: Story):
         else:
             session_path = await set_channel_session(chat_id)
 
-        print(session_path)
+        logger.info(f"Session path for {chat_id}: {session_path}")
         if isinstance(session_path, dict):
             session_path['chat_id'] = chat_id
             error_send.append(session_path)
@@ -352,13 +355,13 @@ async def send_story(story: Story):
             )
             success_send.append({"chat_id": chat_id})
         except Exception as e:
-            print(e)
+            logger.error(f"Error sending story to {chat_id}: {e}", exc_info=True)
         finally:
             try:
                 os.remove(filepath)
                 await manager.close()
             except Exception as e:
-                print(e)
+                logger.error(f"Error cleaning up story file {filepath}: {e}", exc_info=True)
 
     await db.clear_story(
         post_ids=[story.id]
@@ -414,7 +417,7 @@ async def send_story(story: Story):
             text=message_text
         )
     except Exception as e:
-        print(e)
+        logger.error(f"Error sending story report to admin {story.admin_id}: {e}", exc_info=True)
 
 
 async def send_stories():
@@ -437,7 +440,7 @@ async def delete_bot_posts(user_bot: UserBot, message_ids: list[dict]):
             try:
                 await bot_manager.bot.delete_message(**message)
             except Exception as e:
-                print(e)
+                logger.error(f"Error deleting bot message: {e}", exc_info=True)
 
 
 async def start_delete_bot_posts():
@@ -519,7 +522,7 @@ async def send_bot_messages(other_bot: Bot, bot_post: BotPost, users, filepath):
             message_ids.append({"message_id": message.message_id, "chat_id": user})
             success += 1
         except Exception as e:
-            print(e)
+            logger.error(f"Error sending bot message to user {user}: {e}", exc_info=True)
 
         await asyncio.sleep(0.25)
 
@@ -615,7 +618,7 @@ async def send_bot_post(bot_post: BotPost):
         try:
             os.remove(filepath)
         except Exception as e:
-            print(e)
+            logger.error(f"Error removing file {filepath}: {e}", exc_info=True)
 
     if bot_post.report:
         message_text = message_options.text or message_options.caption
@@ -642,7 +645,7 @@ async def send_bot_post(bot_post: BotPost):
                 )
             )
         except Exception as e:
-            print(e)
+            logger.error(f"Error sending bot post report: {e}", exc_info=True)
 
     await db.update_bot_post(
         post_id=bot_post.id,
@@ -706,4 +709,4 @@ async def check_subscriptions():
             try:
                 await bot.send_message(channel.admin_id, msg)
             except Exception as e:
-                print(f"[{text_prefix.upper()}_NOTIFY] {channel.title}: {e}")
+                logger.error(f"[{text_prefix.upper()}_NOTIFY] {channel.title}: {e}", exc_info=True)

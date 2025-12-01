@@ -1,3 +1,4 @@
+import logging
 import time
 from typing import List
 
@@ -7,6 +8,9 @@ from main_bot.database import DatabaseMixin
 from main_bot.database.published_post.model import PublishedPost
 
 
+logger = logging.getLogger(__name__)
+
+
 class PublishedPostCrud(DatabaseMixin):
     async def add_many_published_post(self, posts: List[dict]):
         await self.execute(
@@ -14,6 +18,7 @@ class PublishedPostCrud(DatabaseMixin):
         )
 
     async def delete_published_posts(self, row_ids: List[int]):
+        logger.info(f"Deleting published posts: {row_ids}")
         await self.execute(
             delete(PublishedPost).where(
                 PublishedPost.id.in_(row_ids)

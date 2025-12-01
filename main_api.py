@@ -14,6 +14,9 @@ from main_bot.database.db import db
 from main_bot.database.user_bot.model import UserBot
 from main_bot.handlers import set_main_routers, set_scheduler, dp
 from hello_bot.handlers import set_routers
+from main_bot.utils.logger import setup_logging
+
+setup_logging()
 
 
 dispatchers = {}
@@ -99,7 +102,9 @@ async def other_update(request: Request, token: str):
             )
         )
     except Exception as e:
-        return print(e)
+        import logging
+        logging.getLogger(__name__).error(f"Error creating bot for token {token}: {e}", exc_info=True)
+        return
 
     other_dp = set_dispatcher(exist)
     await other_dp.feed_update(other_bot, update)
