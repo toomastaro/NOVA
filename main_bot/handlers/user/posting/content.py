@@ -138,17 +138,19 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
         send_date = datetime.fromtimestamp(post.created_timestamp)
         send_date_values = (send_date.day, text("month").get(str(send_date.month)), send_date.year,)
         
+        # Convert PublishedPost to Post-like object for editing compatibility if needed
+        # or just pass it as 'post' if create_post.py handles it.
+        # create_post.py expects 'post' to have 'id', 'message_options', etc.
+        # PublishedPost now has message_options.
+        
         await state.update_data(
             post=post,
             send_date_values=send_date_values,
-            is_edit=False # Not editable
+            is_edit=True, # Enable editing
+            is_published=True # Flag to indicate it's a published post
         )
 
-        # We don't have the message content to show in answer_post easily, 
-        # so we just show a placeholder or skip answer_post.
-        # But manage_remain_post expects post_message in state to delete it later.
-        # Let's send a simple message.
-        post_message = await call.message.answer("Опубликованный пост") # Placeholder
+        post_message = await answer_post(call.message, state, from_edit=True)
         await state.update_data(
             post_message=post_message,
         )
@@ -160,7 +162,7 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
                 channel.emoji_id,
                 channel.title
             ),
-            reply_markup=keyboards.manage_published_post(
+            reply_markup=keyboards.manage_remain_post(
                 post=post
             )
         )

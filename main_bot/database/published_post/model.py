@@ -16,6 +16,7 @@ class PublishedPost(Base):
     chat_id: Mapped[int] = mapped_column(BigInteger, index=True)
     admin_id: Mapped[int] = mapped_column(BigInteger, index=True)
 
+    message_options: Mapped[dict] = mapped_column(JSON, nullable=False)
     reaction: Mapped[dict | None] = mapped_column(JSON, default=None)
     hide: Mapped[list[dict] | None] = mapped_column(ARRAY(JSON), default=None)
     buttons: Mapped[str | None] = mapped_column()

@@ -68,3 +68,15 @@ class PublishedPostCrud(DatabaseMixin):
             operation = self.execute
 
         return await operation(stmt, **{'commit': return_obj} if return_obj else {})
+
+    async def get_published_posts_by_post_id(self, post_id: int) -> List[PublishedPost]:
+        return await self.fetch(
+            select(PublishedPost).where(
+                PublishedPost.post_id == post_id
+            )
+        )
+
+    async def update_published_posts_by_post_id(self, post_id: int, **kwargs):
+        await self.execute(
+            update(PublishedPost).where(PublishedPost.post_id == post_id).values(**kwargs)
+        )

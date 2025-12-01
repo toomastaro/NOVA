@@ -452,15 +452,17 @@ class InlinePosting(InlineKeyboardBuilder):
         return kb.as_markup()
 
     @classmethod
-    def manage_remain_post(cls, post: Post):
+    def manage_remain_post(cls, post: Post, is_published: bool = False):
         kb = cls()
 
-        kb.button(
-            text=text("manage:post:send_time").format(
-                datetime.fromtimestamp(post.send_time).strftime("%d.%m.%Y %H:%M")
-            ),
-            callback_data="FinishPostParams|send_time"
-        )
+        if not is_published:
+            kb.button(
+                text=text("manage:post:send_time").format(
+                    datetime.fromtimestamp(post.send_time).strftime("%d.%m.%Y %H:%M")
+                ),
+                callback_data="FinishPostParams|send_time"
+            )
+        
         kb.button(
             text=text("manage:post:del_time:button").format(
                 f"{int(post.delete_time / 3600)} ч."  # type: ignore
@@ -480,10 +482,12 @@ class InlinePosting(InlineKeyboardBuilder):
             text=text("back:button"),
             callback_data="ManageRemainPost|cancel"
         )
-        kb.button(
-            text=text("manage:post:public:button"),
-            callback_data="FinishPostParams|public"
-        )
+        
+        if not is_published:
+            kb.button(
+                text=text("manage:post:public:button"),
+                callback_data="FinishPostParams|public"
+            )
 
         kb.adjust(1, 1, 2)
         return kb.as_markup()

@@ -13,6 +13,7 @@ from main_bot.utils.lang.language import text
 from main_bot.utils.schemas import MessageOptions, Media, Hide, React
 from main_bot.keyboards.keyboards import keyboards
 from main_bot.states.user import Posting, AddHide
+from main_bot.utils.backup_utils import send_to_backup, edit_backup_message
 
 
 async def set_folder_content(resource_id, chosen, chosen_folders):
@@ -110,7 +111,8 @@ async def manage_post(call: types.CallbackQuery, state: FSMContext):
                     data.get("channel").title
                 ),
                 reply_markup=keyboards.manage_remain_post(
-                    post=post
+                    post=post,
+                    is_published=data.get("is_published")
                 )
             )
 
@@ -133,7 +135,8 @@ async def manage_post(call: types.CallbackQuery, state: FSMContext):
                     data.get("channel").title
                 ),
                 reply_markup=keyboards.manage_remain_post(
-                    post=post
+                    post=post,
+                    is_published=data.get("is_published")
                 )
             )
 
@@ -188,11 +191,24 @@ async def manage_post(call: types.CallbackQuery, state: FSMContext):
             if temp[1] == 'media_above':
                 message_options.show_caption_above_media = not message_options.show_caption_above_media
 
-        post = await db.update_post(
-            post_id=data.get('post').id,
-            return_obj=True,
-            message_options=message_options.model_dump(),
-        )
+        if data.get("is_published"):
+            # Update all published posts with same post_id
+            await db.update_published_posts_by_post_id(
+                post_id=post.post_id,
+                message_options=message_options.model_dump()
+            )
+            # Fetch updated object (just one of them to keep in state)
+            post = await db.get_published_post_by_id(post.id)
+        else:
+            post = await db.update_post(
+                post_id=data.get('post').id,
+                return_obj=True,
+                message_options=message_options.model_dump(),
+            )
+        
+        # Update backup message
+        await edit_backup_message(post)
+
         await state.update_data(
             post=post
         )
@@ -361,11 +377,22 @@ async def get_value(message: types.Message, state: FSMContext):
 
         kwargs = {param: value}
 
-    post = await db.update_post(
-        post_id=post.id,
-        return_obj=True,
-        **kwargs
-    )
+    if data.get("is_published"):
+        await db.update_published_posts_by_post_id(
+            post_id=post.post_id,
+            **kwargs
+        )
+        post = await db.get_published_post_by_id(post.id)
+    else:
+        post = await db.update_post(
+            post_id=post.id,
+            return_obj=True,
+            **kwargs
+        )
+
+    # Update backup message if content changed
+    if param in ["text", "media", "buttons", "reaction"]:
+        await edit_backup_message(post)
 
     await state.clear()
     data['post'] = post
@@ -805,7 +832,8 @@ async def cancel_send_time(call: types.CallbackQuery, state: FSMContext):
                 data.get("channel").title
             ),
             reply_markup=keyboards.manage_remain_post(
-                post=data.get("post")
+                post=data.get("post"),
+                is_published=data.get("is_published")
             )
         )
 
@@ -974,7 +1002,8 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
                 data.get("channel").title
             )
             reply_markup = keyboards.manage_remain_post(
-                post=data.get("post")
+                post=data.get("post"),
+                is_published=data.get("is_published")
             )
 
         return await call.message.edit_text(
@@ -994,6 +1023,16 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
         post_id=post.id,
         **kwargs
     )
+
+    # Send to backup if not already sent
+    if not post.backup_message_id:
+        backup_chat_id, backup_message_id = await send_to_backup(post)
+        if backup_chat_id and backup_message_id:
+            await db.update_post(
+                post_id=post.id,
+                backup_chat_id=backup_chat_id,
+                backup_message_id=backup_message_id
+            )
 
     if send_time:
         message_text = text("manage:post:success:date").format(
