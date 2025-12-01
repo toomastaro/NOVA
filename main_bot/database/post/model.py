@@ -27,4 +27,7 @@ class Post(Base):
     report: Mapped[bool] = mapped_column(default=False)
     cpm_price: Mapped[int | None] = mapped_column(default=None)
 
+    backup_chat_id: Mapped[int | None] = mapped_column(BigInteger, default=None)
+    backup_message_id: Mapped[int | None] = mapped_column(BigInteger, default=None)
+
     created_timestamp: Mapped[int] = mapped_column(default=time.time)

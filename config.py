@@ -11,6 +11,7 @@ class Config:
 
     # Bot
     BOT_TOKEN = os.getenv('BOT_TOKEN')
+    BACKUP_CHAT_ID = int(os.getenv('NOVA_BKP')) if os.getenv('NOVA_BKP') else 0
     ADMIN_SUPPORT = int(os.getenv("ADMIN_SUPPORT"))
 
     PG_USER = os.getenv('PG_USER')

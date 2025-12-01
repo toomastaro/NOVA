@@ -40,6 +40,12 @@ async def lifespan(_app: FastAPI):
     set_main_routers()
     set_scheduler()
 
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info(f"BACKUP_CHAT_ID: {Config.BACKUP_CHAT_ID}")
+    if not Config.BACKUP_CHAT_ID:
+        logger.warning("BACKUP_CHAT_ID is not set or is 0!")
+
     await db.create_tables()
 
     # Bot Setting
