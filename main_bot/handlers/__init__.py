@@ -3,6 +3,7 @@ from aiogram.fsm.storage.memory import MemoryStorage
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.interval import IntervalTrigger
+from dotenv import load_dotenv
 
 
 from main_bot.database.db import db
@@ -11,6 +12,11 @@ from main_bot.utils.schedulers import send_posts, unpin_posts, delete_posts, sen
     check_subscriptions, start_delete_bot_posts, update_exchange_rates_in_db
 from .user import get_router as user_router
 from .admin import get_router as admin_router
+
+load_dotenv()
+
+
+RUB_USDT_TIMER = os.getenv('RUBUSDTTIMER')
 
 
 dp = Dispatcher(

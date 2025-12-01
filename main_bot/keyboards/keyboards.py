@@ -2457,10 +2457,9 @@ class Inline(
     @classmethod
     def choice_objects(
             cls,
-            resources: List[Channel | UserBot],
-            chosen: List[Channel | UserBot],
+            resources: List[Channel],
+            chosen: List[int],
             folders: List[UserFolder],
-            chosen_folders: List[UserFolder],
             data: str = "ChoicePostChannels",
             remover: int = 0,
     ):
@@ -2477,14 +2476,11 @@ class Inline(
                     resource_id = objects[idx].chat_id
                     resource_type = "channel"
                     button_text = f'{"🔹" if resource_id in chosen else ""} {objects[idx].title}'
-                elif isinstance(objects[idx], UserBot):
-                    resource_id = objects[idx].id
-                    resource_type = "bot"
-                    button_text = f'{"🔹" if resource_id in chosen else ""} {objects[idx].title}'
                 else:
+                    # Folder
                     resource_id = objects[idx].id
                     resource_type = "folder"
-                    button_text = f'{"🔹" if resource_id in chosen_folders else ""} Папка {objects[idx].title}'
+                    button_text = f'📁 {objects[idx].title}'
 
                 kb.add(
                     InlineKeyboardButton(
@@ -2524,11 +2520,12 @@ class Inline(
                 )
             )
 
-        if objects:
+        # Show "Select All" only if there are channels (resources)
+        if resources:
             kb.row(
                 InlineKeyboardButton(
                     text=text('chosen:cancel_all')
-                    if (len(chosen) + len(chosen_folders)) == len(objects)
+                    if all(r.chat_id in chosen for r in resources)
                     else text('chosen:choice_all'),
                     callback_data=f'{data}|choice_all|{remover}'
                 )
