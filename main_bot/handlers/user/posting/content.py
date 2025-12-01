@@ -245,7 +245,11 @@ async def manage_remain_post(call: types.CallbackQuery, state: FSMContext):
         day = data.get('day')
         posts = await db.get_posts(data.get("channel").chat_id, day)
 
-        await data.get("post_message").delete()
+        post_message = data.get("post_message")
+        if isinstance(post_message, types.Message):
+            await post_message.delete()
+        else:
+            await call.bot.delete_message(call.message.chat.id, post_message.message_id)
         return await call.message.edit_text(
             text("channel:content").format(
                 *data.get("day_values"),
@@ -267,12 +271,21 @@ async def manage_remain_post(call: types.CallbackQuery, state: FSMContext):
 
     if temp[1] == "change":
         await call.message.delete()
-        await data.get("post_message").edit_reply_markup(
-            reply_markup=keyboards.manage_post(
-                post=data.get('post'),
-                is_edit=data.get('is_edit')
-            )
+        post_message = data.get("post_message")
+        reply_markup = keyboards.manage_post(
+            post=data.get('post'),
+            is_edit=data.get('is_edit')
         )
+        
+        if isinstance(post_message, types.Message):
+            await post_message.edit_reply_markup(reply_markup=reply_markup)
+        else:
+            # It's a MessageId object (from copyMessage)
+            await call.bot.edit_message_reply_markup(
+                chat_id=call.message.chat.id,
+                message_id=post_message.message_id,
+                reply_markup=reply_markup
+            )
 
 
 async def accept_delete_row_content(call: types.CallbackQuery, state: FSMContext):
@@ -305,7 +318,12 @@ async def accept_delete_row_content(call: types.CallbackQuery, state: FSMContext
         await db.delete_post(post.id)
         posts = await db.get_posts(channel.chat_id, day)
 
-        await data.get("post_message").delete()
+        post_message = data.get("post_message")
+        if isinstance(post_message, types.Message):
+            await post_message.delete()
+        else:
+            await call.bot.delete_message(call.message.chat.id, post_message.message_id)
+
         return await call.message.edit_text(
             text("channel:content").format(
                 *day_values,
@@ -332,7 +350,11 @@ async def manage_published_post(call: types.CallbackQuery, state: FSMContext):
         day = data.get('day')
         posts = await db.get_posts(data.get("channel").chat_id, day)
 
-        await data.get("post_message").delete()
+        post_message = data.get("post_message")
+        if isinstance(post_message, types.Message):
+            await post_message.delete()
+        else:
+            await call.bot.delete_message(call.message.chat.id, post_message.message_id)
         return await call.message.edit_text(
             text("channel:content").format(
                 *data.get("day_values"),
@@ -395,7 +417,11 @@ async def accept_delete_published_post(call: types.CallbackQuery, state: FSMCont
         
         posts = await db.get_posts(channel.chat_id, day)
 
-        await data.get("post_message").delete()
+        post_message = data.get("post_message")
+        if isinstance(post_message, types.Message):
+            await post_message.delete()
+        else:
+            await call.bot.delete_message(call.message.chat.id, post_message.message_id)
         return await call.message.edit_text(
             text("channel:content").format(
                 *day_values,
