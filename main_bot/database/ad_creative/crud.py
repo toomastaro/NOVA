@@ -26,3 +26,8 @@ class AdCreativeCrud(DatabaseMixin):
     async def get_slots(self, creative_id: int) -> list[AdCreativeLinkSlot]:
         query = select(AdCreativeLinkSlot).where(AdCreativeLinkSlot.creative_id == creative_id)
         return await self.fetch(query)
+
+    async def update_creative_status(self, creative_id: int, status: str) -> None:
+        from sqlalchemy import update
+        query = update(AdCreative).where(AdCreative.id == creative_id).values(status=status)
+        await self.execute(query)

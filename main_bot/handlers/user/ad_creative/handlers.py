@@ -134,6 +134,14 @@ async def list_creatives(call: CallbackQuery):
     )
 
 
+@router.callback_query(F.data.startswith("AdCreative|delete|"))
+async def delete_creative(call: CallbackQuery):
+    creative_id = int(call.data.split("|")[2])
+    await db.update_creative_status(creative_id, "deleted")
+    await call.answer("Креатив удален")
+    await list_creatives(call)
+
+
 @router.callback_query(F.data.startswith("AdCreative|view|"))
 async def view_creative(call: CallbackQuery):
     creative_id = int(call.data.split("|")[2])

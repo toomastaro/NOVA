@@ -3010,6 +3010,7 @@ class InlineAdCreative(InlineKeyboardBuilder):
     def creative_view(cls, creative_id: int):
         kb = cls()
         kb.button(text="Создать закуп", callback_data=f"AdPurchase|create|{creative_id}")
+        kb.button(text="🗑 Удалить", callback_data=f"AdCreative|delete|{creative_id}")
         kb.button(text="Назад", callback_data="AdCreative|list")
         kb.adjust(1)
         return kb.as_markup()
