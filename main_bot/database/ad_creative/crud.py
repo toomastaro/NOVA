@@ -13,7 +13,10 @@ class AdCreativeCrud(DatabaseMixin):
         return await self.fetchrow(query)
 
     async def get_user_creatives(self, owner_id: int) -> list[AdCreative]:
-        query = select(AdCreative).where(AdCreative.owner_id == owner_id)
+        query = select(AdCreative).where(
+            AdCreative.owner_id == owner_id,
+            AdCreative.status != "deleted"
+        )
         return await self.fetch(query)
 
     async def create_slots_for_creative(self, creative_id: int, slots: list[dict]) -> None:

@@ -13,7 +13,10 @@ class AdPurchaseCrud(DatabaseMixin):
         return await self.fetchrow(query)
 
     async def get_user_purchases(self, owner_id: int) -> list[AdPurchase]:
-        query = select(AdPurchase).where(AdPurchase.owner_id == owner_id)
+        query = select(AdPurchase).where(
+            AdPurchase.owner_id == owner_id,
+            AdPurchase.status != "deleted"
+        )
         return await self.fetch(query)
 
     async def upsert_link_mapping(self, ad_purchase_id: int, slot_id: int, **kwargs) -> None:
