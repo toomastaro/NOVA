@@ -38,6 +38,7 @@ class Reply:
 
         if Config.ENABLE_AD_BUY_MODULE:
             kb.button(text="Рекламные креативы")
+            kb.button(text="Мои закупы")
 
         kb.adjust(2, 2, 1, 2)
         return kb.as_markup(
@@ -3008,7 +3009,62 @@ class InlineAdCreative(InlineKeyboardBuilder):
     @classmethod
     def creative_view(cls, creative_id: int):
         kb = cls()
+        kb.button(text="Создать закуп", callback_data=f"AdPurchase|create|{creative_id}")
         kb.button(text="Назад", callback_data="AdCreative|list")
+        kb.adjust(1)
+        return kb.as_markup()
+
+
+class InlineAdPurchase(InlineKeyboardBuilder):
+    @classmethod
+    def pricing_type_menu(cls):
+        kb = cls()
+        kb.button(text="По заявке (CPL)", callback_data="AdPurchase|pricing|CPL")
+        kb.button(text="По подписке (CPS)", callback_data="AdPurchase|pricing|CPS")
+        kb.button(text="Фикс (FIXED)", callback_data="AdPurchase|pricing|FIXED")
+        kb.button(text="Назад", callback_data="AdPurchase|cancel")
+        kb.adjust(1)
+        return kb.as_markup()
+
+    @classmethod
+    def mapping_menu(cls, purchase_id: int, links_data: list):
+        kb = cls()
+        # links_data is list of dict: {slot_id, original_url, status_text}
+        for link in links_data:
+            kb.button(
+                text=f"{link['original_url']}", 
+                callback_data="noop" # Left side just text
+            )
+            kb.button(
+                text=f"{link['status_text']}",
+                callback_data=f"AdPurchase|map_link|{purchase_id}|{link['slot_id']}"
+            )
+        
+        kb.button(text="Назад", callback_data=f"AdPurchase|view|{purchase_id}")
+        kb.button(text="Сохранить мапинг", callback_data=f"AdPurchase|save_mapping|{purchase_id}")
+        
+        # Adjust: 2 columns for links (url | status), 2 columns for bottom buttons
+        sizes = [2] * len(links_data) + [2]
+        kb.adjust(*sizes)
+        return kb.as_markup()
+
+    @classmethod
+    def channel_selection_menu(cls, purchase_id: int, slot_id: int, channels: list):
+        kb = cls()
+        for ch in channels:
+            kb.button(
+                text=ch.title,
+                callback_data=f"AdPurchase|set_channel|{purchase_id}|{slot_id}|{ch.chat_id}"
+            )
+        
+        kb.button(
+            text="Не трекать (оставить как есть)",
+            callback_data=f"AdPurchase|set_external|{purchase_id}|{slot_id}"
+        )
+        kb.button(
+            text="Назад",
+            callback_data=f"AdPurchase|mapping|{purchase_id}"
+        )
         kb.adjust(1)
         return kb.as_markup()
 
@@ -3016,7 +3072,8 @@ class InlineAdCreative(InlineKeyboardBuilder):
 class Keyboards(
     Reply,
     Inline,
-    InlineAdCreative
+    InlineAdCreative,
+    InlineAdPurchase
 ):
     pass
 
