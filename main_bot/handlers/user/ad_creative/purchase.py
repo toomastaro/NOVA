@@ -375,6 +375,32 @@ async def show_stats(call: CallbackQuery):
     elif purchase.pricing_type.value == "FIXED":
         revenue_text = f"{purchase.price_value:,} руб.".replace(",", " ")
     
+    # Get per-channel statistics
+    mappings = await db.get_link_mappings(purchase_id)
+    channels_stats = {}
+    for m in mappings:
+        if m.target_channel_id:
+            subs = await db.get_subscriptions_by_channel(purchase_id, m.target_channel_id, from_ts, to_ts)
+            if m.target_channel_id not in channels_stats:
+                channel = await db.get_channel_by_chat_id(m.target_channel_id)
+                channel_name = channel.title if channel else f"ID: {m.target_channel_id}"
+                channels_stats[m.target_channel_id] = {"name": channel_name, "count": 0}
+            channels_stats[m.target_channel_id]["count"] += len(subs)
+    
+    # Get per-slot statistics
+    slots_stats = []
+    creative = await db.get_creative(purchase.creative_id)
+    if creative:
+        creative_slots = await db.get_slots(creative.id)
+        for slot in creative_slots:
+            slot_leads = await db.get_leads_by_slot(purchase_id, slot.id)
+            slot_subs = await db.get_subscriptions_by_slot(purchase_id, slot.id, from_ts, to_ts)
+            slots_stats.append({
+                "url": slot.original_url[:30] + "..." if len(slot.original_url) > 30 else slot.original_url,
+                "leads": len(slot_leads),
+                "subs": len(slot_subs)
+            })
+    
     # Format message
     stats_text = (
         f"📊 <b>Статистика закупа #{purchase_id}</b>\n"
@@ -387,9 +413,108 @@ async def show_stats(call: CallbackQuery):
         f"💸 Ставка: {purchase.price_value} руб."
     )
     
+    # Add per-channel breakdown
+    if channels_stats:
+        stats_text += "\n\n<b>📺 По каналам:</b>\n"
+        for ch_id, ch_data in channels_stats.items():
+            stats_text += f"• {ch_data['name']}: {ch_data['count']} подписок\n"
+    
+    # Add per-slot breakdown
+    if slots_stats:
+        stats_text += "\n<b>🔗 По слотам:</b>\n"
+        for slot in slots_stats:
+            stats_text += f"• {slot['url']}\n  Лиды: {slot['leads']} | Подписки: {slot['subs']}\n"
+    
     await call.message.edit_text(
         stats_text,
         reply_markup=InlineAdPurchase.stats_period_menu(purchase_id),
+        parse_mode="HTML"
+    )
+
+
+@router.callback_query(F.data == "AdPurchase|global_stats")
+async def show_global_stats_menu(call: CallbackQuery):
+    # Check if user is admin
+    from config import Config
+    if call.from_user.id != Config.ADMIN_ID:
+        await call.answer("Доступ запрещён", show_alert=True)
+        return
+    
+    await call.message.edit_text(
+        "Выберите период для глобальной статистики:",
+        reply_markup=InlineAdPurchase.global_stats_period_menu()
+    )
+
+
+@router.callback_query(F.data.startswith("AdPurchase|global_stats_period|"))
+async def show_global_stats(call: CallbackQuery):
+    # Check if user is admin
+    from config import Config
+    if call.from_user.id != Config.ADMIN_ID:
+        await call.answer("Доступ запрещён", show_alert=True)
+        return
+    
+    period = call.data.split("|")[2]
+    
+    # Calculate time range
+    import time
+    now = int(time.time())
+    
+    if period == "24h":
+        from_ts = now - (24 * 3600)
+        period_name = "24 часа"
+    elif period == "7d":
+        from_ts = now - (7 * 24 * 3600)
+        period_name = "7 дней"
+    elif period == "30d":
+        from_ts = now - (30 * 24 * 3600)
+        period_name = "30 дней"
+    else:  # all
+        from_ts = None
+        period_name = "всё время"
+    
+    to_ts = now
+    
+    # Get global statistics
+    global_stats = await db.get_global_stats(from_ts, to_ts)
+    top_purchases = await db.get_top_purchases(from_ts, to_ts, 5)
+    top_creatives = await db.get_top_creatives(from_ts, to_ts, 5)
+    top_channels = await db.get_top_channels(from_ts, to_ts, 5)
+    
+    # Format message
+    stats_text = (
+        f"🌍 <b>Глобальная статистика</b>\n"
+        f"Период: {period_name}\n\n"
+        f"📊 <b>Общая статистика:</b>\n"
+        f"• Активных закупов: {global_stats['active_purchases']}\n"
+        f"• Всего лидов: {global_stats['total_leads']}\n"
+        f"• Всего подписок: {global_stats['total_subscriptions']}\n"
+    )
+    
+    # Add top purchases
+    if top_purchases:
+        stats_text += "\n🏆 <b>ТОП-5 закупов по подпискам:</b>\n"
+        for i, p in enumerate(top_purchases, 1):
+            comment = p.comment[:30] + "..." if p.comment and len(p.comment) > 30 else (p.comment or "N/A")
+            stats_text += f"{i}. Закуп #{p.id} ({comment}): {p.subs_count} подписок\n"
+    
+    # Add top creatives
+    if top_creatives:
+        stats_text += "\n🎨 <b>ТОП-5 креативов:</b>\n"
+        for i, c in enumerate(top_creatives, 1):
+            stats_text += f"{i}. {c.name}: {c.subs_count} подписок\n"
+    
+    # Add top channels
+    if top_channels:
+        stats_text += "\n📺 <b>ТОП-5 каналов:</b>\n"
+        for i, ch in enumerate(top_channels, 1):
+            channel = await db.get_channel_by_chat_id(ch.channel_id)
+            channel_name = channel.title if channel else f"ID: {ch.channel_id}"
+            stats_text += f"{i}. {channel_name}: {ch.subs_count} подписок\n"
+    
+    await call.message.edit_text(
+        stats_text,
+        reply_markup=InlineAdPurchase.global_stats_period_menu(),
         parse_mode="HTML"
     )
 

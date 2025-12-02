@@ -229,4 +229,103 @@ class AdPurchaseCrud(DatabaseMixin):
         )
 
 
+    async def get_global_stats(self, from_ts: int = None, to_ts: int = None) -> dict:
+        """Get global statistics for all ad purchases."""
+        from main_bot.database.ad_purchase.model import AdLead, AdSubscription
+        from sqlalchemy import func
+        
+        # Count active purchases
+        query = select(func.count(AdPurchase.id)).where(AdPurchase.status == "active")
+        active_purchases = await self.fetchrow(query)
+        
+        # Count total leads
+        query = select(func.count(AdLead.id))
+        if from_ts:
+            query = query.where(AdLead.created_timestamp >= from_ts)
+        if to_ts:
+            query = query.where(AdLead.created_timestamp <= to_ts)
+        total_leads = await self.fetchrow(query)
+        
+        # Count total subscriptions
+        query = select(func.count(AdSubscription.id))
+        if from_ts:
+            query = query.where(AdSubscription.created_timestamp >= from_ts)
+        if to_ts:
+            query = query.where(AdSubscription.created_timestamp <= to_ts)
+        total_subs = await self.fetchrow(query)
+        
+        return {
+            "active_purchases": active_purchases if active_purchases else 0,
+            "total_leads": total_leads if total_leads else 0,
+            "total_subscriptions": total_subs if total_subs else 0
+        }
+
+    async def get_top_purchases(self, from_ts: int = None, to_ts: int = None, limit: int = 5) -> list:
+        """Get top purchases by subscription count."""
+        from main_bot.database.ad_purchase.model import AdSubscription
+        from sqlalchemy import func
+        
+        query = select(
+            AdPurchase.id,
+            AdPurchase.comment,
+            func.count(AdSubscription.id).label('subs_count')
+        ).join(
+            AdSubscription, AdPurchase.id == AdSubscription.ad_purchase_id
+        )
+        
+        if from_ts:
+            query = query.where(AdSubscription.created_timestamp >= from_ts)
+        if to_ts:
+            query = query.where(AdSubscription.created_timestamp <= to_ts)
+        
+        query = query.group_by(AdPurchase.id, AdPurchase.comment).order_by(func.count(AdSubscription.id).desc()).limit(limit)
+        
+        return await self.fetch(query)
+
+    async def get_top_creatives(self, from_ts: int = None, to_ts: int = None, limit: int = 5) -> list:
+        """Get top creatives by subscription count."""
+        from main_bot.database.ad_purchase.model import AdSubscription
+        from main_bot.database.ad_creative.model import AdCreative
+        from sqlalchemy import func
+        
+        query = select(
+            AdCreative.id,
+            AdCreative.name,
+            func.count(AdSubscription.id).label('subs_count')
+        ).join(
+            AdPurchase, AdCreative.id == AdPurchase.creative_id
+        ).join(
+            AdSubscription, AdPurchase.id == AdSubscription.ad_purchase_id
+        )
+        
+        if from_ts:
+            query = query.where(AdSubscription.created_timestamp >= from_ts)
+        if to_ts:
+            query = query.where(AdSubscription.created_timestamp <= to_ts)
+        
+        query = query.group_by(AdCreative.id, AdCreative.name).order_by(func.count(AdSubscription.id).desc()).limit(limit)
+        
+        return await self.fetch(query)
+
+    async def get_top_channels(self, from_ts: int = None, to_ts: int = None, limit: int = 5) -> list:
+        """Get top channels by subscription count."""
+        from main_bot.database.ad_purchase.model import AdSubscription
+        from sqlalchemy import func
+        
+        query = select(
+            AdSubscription.channel_id,
+            func.count(AdSubscription.id).label('subs_count')
+        )
+        
+        if from_ts:
+            query = query.where(AdSubscription.created_timestamp >= from_ts)
+        if to_ts:
+            query = query.where(AdSubscription.created_timestamp <= to_ts)
+        
+        query = query.group_by(AdSubscription.channel_id).order_by(func.count(AdSubscription.id).desc()).limit(limit)
+        
+        return await self.fetch(query)
+
+
+
 

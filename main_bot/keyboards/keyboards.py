@@ -3019,9 +3019,13 @@ class InlineAdCreative(InlineKeyboardBuilder):
 class InlineAdPurchase(InlineKeyboardBuilder):
     @classmethod
     def main_menu(cls):
+        from config import Config
         kb = cls()
         kb.button(text="Создать закуп", callback_data="AdPurchase|create_menu")
         kb.button(text="Мои закупы", callback_data="AdPurchase|list")
+        # Admin only button
+        # Note: We can't check user_id here, so button is always shown but handler checks permission
+        kb.button(text="🌍 Глобальная статистика", callback_data="AdPurchase|global_stats")
         kb.button(text="Назад", callback_data="delete") # Or close
         kb.adjust(1)
         return kb.as_markup()
@@ -3140,6 +3144,17 @@ class InlineAdPurchase(InlineKeyboardBuilder):
         kb.button(text="📅 30 дней", callback_data=f"AdPurchase|stats_period|{purchase_id}|30d")
         kb.button(text="📅 Всё время", callback_data=f"AdPurchase|stats_period|{purchase_id}|all")
         kb.button(text="Назад", callback_data=f"AdPurchase|view|{purchase_id}")
+        kb.adjust(1)
+        return kb.as_markup()
+    
+    @classmethod
+    def global_stats_period_menu(cls):
+        kb = cls()
+        kb.button(text="📅 24 часа", callback_data="AdPurchase|global_stats_period|24h")
+        kb.button(text="📅 7 дней", callback_data="AdPurchase|global_stats_period|7d")
+        kb.button(text="📅 30 дней", callback_data="AdPurchase|global_stats_period|30d")
+        kb.button(text="📅 Всё время", callback_data="AdPurchase|global_stats_period|all")
+        kb.button(text="Назад", callback_data="AdPurchase|menu")
         kb.adjust(1)
         return kb.as_markup()
 
