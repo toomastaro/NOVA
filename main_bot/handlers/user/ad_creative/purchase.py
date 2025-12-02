@@ -349,7 +349,7 @@ async def generate_post(call: CallbackQuery):
     # It says: content: Mapped[dict] = mapped_column(JSON)
     # So it is a dict.
     
-    message_data = copy.deepcopy(creative.content)
+    message_data = copy.deepcopy(creative.raw_message)
     
     # Create a map of original_url -> invite_link
     url_map = {}
