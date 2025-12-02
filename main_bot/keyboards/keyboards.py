@@ -3069,7 +3069,25 @@ class InlineAdPurchase(InlineKeyboardBuilder):
         return kb.as_markup()
 
     @classmethod
-    def channel_selection_menu(cls, purchase_id: int, slot_id: int, channels: list):
+    def link_actions_menu(cls, purchase_id: int, slot_id: int):
+        kb = cls()
+        kb.button(
+            text="Выбрать канал",
+            callback_data=f"AdPurchase|select_channel_list|{purchase_id}|{slot_id}"
+        )
+        kb.button(
+            text="❌ Не трекать",
+            callback_data=f"AdPurchase|set_external|{purchase_id}|{slot_id}"
+        )
+        kb.button(
+            text="Назад",
+            callback_data=f"AdPurchase|mapping|{purchase_id}"
+        )
+        kb.adjust(1)
+        return kb.as_markup()
+
+    @classmethod
+    def channel_list_menu(cls, purchase_id: int, slot_id: int, channels: list):
         kb = cls()
         for ch in channels:
             kb.button(
@@ -3078,12 +3096,8 @@ class InlineAdPurchase(InlineKeyboardBuilder):
             )
         
         kb.button(
-            text="❌ Не трекать",
-            callback_data=f"AdPurchase|set_external|{purchase_id}|{slot_id}"
-        )
-        kb.button(
             text="Назад",
-            callback_data=f"AdPurchase|mapping|{purchase_id}"
+            callback_data=f"AdPurchase|map_link|{purchase_id}|{slot_id}"
         )
         kb.adjust(1)
         return kb.as_markup()

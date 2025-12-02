@@ -166,11 +166,23 @@ async def edit_link_mapping(call: CallbackQuery):
     purchase_id = int(purchase_id)
     slot_id = int(slot_id)
     
+    await call.message.edit_text(
+        "Выберите действие для этой ссылки:",
+        reply_markup=InlineAdPurchase.link_actions_menu(purchase_id, slot_id)
+    )
+
+
+@router.callback_query(F.data.startswith("AdPurchase|select_channel_list|"))
+async def show_channel_list(call: CallbackQuery):
+    _, _, purchase_id, slot_id = call.data.split("|")
+    purchase_id = int(purchase_id)
+    slot_id = int(slot_id)
+    
     channels = await db.get_user_channels(call.from_user.id)
     
     await call.message.edit_text(
-        "Выберите канал для этой ссылки:",
-        reply_markup=InlineAdPurchase.channel_selection_menu(purchase_id, slot_id, channels)
+        "Выберите канал:",
+        reply_markup=InlineAdPurchase.channel_list_menu(purchase_id, slot_id, channels)
     )
 
 
