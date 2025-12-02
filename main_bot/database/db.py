@@ -16,10 +16,14 @@ from main_bot.database.published_post.crud import PublishedPostCrud
 from main_bot.database.story.crud import StoryCrud
 from main_bot.database.exchange_rate.crud import ExchangeRateCrud
 from main_bot.database.novastat.crud import NovaStatCrud
+from main_bot.database.ad_creative.crud import AdCreativeCrud
+from main_bot.database.ad_purchase.crud import AdPurchaseCrud
 from main_bot.database import engine, Base
 
 
 class Database(
+    AdCreativeCrud,
+    AdPurchaseCrud,
     AdTagCrud,
     UserFolderCrud,
     UserCrud,

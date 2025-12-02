@@ -35,3 +35,22 @@ class Status(str, Enum):
 
     def __str__(self):
         return self.value
+
+
+class AdPricingType(str, Enum):
+    CPL = "CPL"
+    CPS = "CPS"
+    FIXED = "FIXED"
+
+    def __str__(self):
+        return self.value
+
+
+class AdTargetType(str, Enum):
+    CHANNEL = "CHANNEL"
+    BOT = "BOT"
+    EXTERNAL = "EXTERNAL"
+    UNTOUCHED = "UNTOUCHED"
+
+    def __str__(self):
+        return self.value
