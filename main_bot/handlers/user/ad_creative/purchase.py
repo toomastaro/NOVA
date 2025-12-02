@@ -428,17 +428,14 @@ async def show_stats(call: CallbackQuery):
     await call.message.edit_text(
         stats_text,
         reply_markup=InlineAdPurchase.stats_period_menu(purchase_id),
-        parse_mode="HTML"
+        parse_mode="HTML",
+        disable_web_page_preview=True
     )
 
 
 @router.callback_query(F.data == "AdPurchase|global_stats")
 async def show_global_stats_menu(call: CallbackQuery):
-    # Check if user is admin
-    from config import Config
-    if call.from_user.id != Config.ADMIN_ID:
-        await call.answer("Доступ запрещён", show_alert=True)
-        return
+    # Show user's global statistics
     
     await call.message.edit_text(
         "Выберите период для глобальной статистики:",
@@ -448,11 +445,7 @@ async def show_global_stats_menu(call: CallbackQuery):
 
 @router.callback_query(F.data.startswith("AdPurchase|global_stats_period|"))
 async def show_global_stats(call: CallbackQuery):
-    # Check if user is admin
-    from config import Config
-    if call.from_user.id != Config.ADMIN_ID:
-        await call.answer("Доступ запрещён", show_alert=True)
-        return
+    # Show user's global statistics
     
     period = call.data.split("|")[2]
     
@@ -475,15 +468,16 @@ async def show_global_stats(call: CallbackQuery):
     
     to_ts = now
     
-    # Get global statistics
-    global_stats = await db.get_global_stats(from_ts, to_ts)
-    top_purchases = await db.get_top_purchases(from_ts, to_ts, 5)
-    top_creatives = await db.get_top_creatives(from_ts, to_ts, 5)
-    top_channels = await db.get_top_channels(from_ts, to_ts, 5)
+    # Get user's statistics
+    user_id = call.from_user.id
+    global_stats = await db.get_user_global_stats(user_id, from_ts, to_ts)
+    top_purchases = await db.get_user_top_purchases(user_id, from_ts, to_ts, 5)
+    top_creatives = await db.get_user_top_creatives(user_id, from_ts, to_ts, 5)
+    top_channels = await db.get_user_top_channels(user_id, from_ts, to_ts, 5)
     
     # Format message
     stats_text = (
-        f"🌍 <b>Глобальная статистика</b>\n"
+        f"🌍 <b>Моя статистика</b>\n"
         f"Период: {period_name}\n\n"
         f"📊 <b>Общая статистика:</b>\n"
         f"• Активных закупов: {global_stats['active_purchases']}\n"
@@ -515,7 +509,8 @@ async def show_global_stats(call: CallbackQuery):
     await call.message.edit_text(
         stats_text,
         reply_markup=InlineAdPurchase.global_stats_period_menu(),
-        parse_mode="HTML"
+        parse_mode="HTML",
+        disable_web_page_preview=True
     )
 
 

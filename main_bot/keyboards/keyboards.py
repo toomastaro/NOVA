@@ -3023,9 +3023,7 @@ class InlineAdPurchase(InlineKeyboardBuilder):
         kb = cls()
         kb.button(text="Создать закуп", callback_data="AdPurchase|create_menu")
         kb.button(text="Мои закупы", callback_data="AdPurchase|list")
-        # Admin only button
-        # Note: We can't check user_id here, so button is always shown but handler checks permission
-        kb.button(text="🌍 Глобальная статистика", callback_data="AdPurchase|global_stats")
+        kb.button(text="🌍 Моя статистика", callback_data="AdPurchase|global_stats")
         kb.button(text="Назад", callback_data="delete") # Or close
         kb.adjust(1)
         return kb.as_markup()
