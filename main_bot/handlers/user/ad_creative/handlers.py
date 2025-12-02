@@ -80,7 +80,7 @@ async def process_creative_content(message: Message, state: FSMContext):
     
     # Show found links
     links_text = "\n".join([f"{s['slot_index']}. {s['original_url'][:50]}" for s in slots])
-    await message.answer(f"В креативе найдено {len(slots)} ссылок:\n{links_text}")
+    await message.answer(f"В креативе найдено {len(slots)} ссылок:\n{links_text}", disable_web_page_preview=True)
     
     await message.answer("Введите имя для креатива:")
     await state.update_data(creative_id=creative_id)
@@ -154,7 +154,8 @@ async def view_creative(call: CallbackQuery):
     
     await call.message.edit_text(
         text,
-        reply_markup=InlineAdCreative.creative_view(creative_id)
+        reply_markup=InlineAdCreative.creative_view(creative_id),
+        disable_web_page_preview=True
     )
 
 
