@@ -38,3 +38,8 @@ class AdPurchaseCrud(DatabaseMixin):
     async def get_link_mappings(self, ad_purchase_id: int) -> list[AdPurchaseLinkMapping]:
         query = select(AdPurchaseLinkMapping).where(AdPurchaseLinkMapping.ad_purchase_id == ad_purchase_id)
         return await self.fetch(query)
+
+    async def update_purchase_status(self, purchase_id: int, status: str) -> None:
+        query = update(AdPurchase).where(AdPurchase.id == purchase_id).values(status=status)
+        await self.execute(query)
+

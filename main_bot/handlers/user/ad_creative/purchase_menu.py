@@ -1,31 +1,53 @@
 from aiogram import Router, F, types
+from aiogram.fsm.context import FSMContext
+from aiogram.types import CallbackQuery
+
 from main_bot.database.db import db
 from main_bot.keyboards.keyboards import InlineAdPurchase
 
 router = Router(name="AdPurchaseMenu")
 
-@router.message(F.text == "Мои закупы")
+@router.message(F.text == "Рекламные закупы")
 async def show_ad_purchase_menu(message: types.Message):
-    # For now, just show a list of purchases or a placeholder
-    # The prompt said: "В списке закупов (новый раздел "Мои закупы") сделай: вывод всех AdPurchase пользователя"
-    
-    purchases = await db.get_user_purchases(message.from_user.id)
-    if not purchases:
-        await message.answer("У вас пока нет закупов.")
+    await message.answer("Рекламные закупы:", reply_markup=InlineAdPurchase.main_menu())
+
+
+@router.callback_query(F.data == "AdPurchase|menu")
+async def show_ad_purchase_menu_callback(call: CallbackQuery):
+    await call.message.edit_text("Рекламные закупы:", reply_markup=InlineAdPurchase.main_menu())
+
+
+@router.callback_query(F.data == "AdPurchase|create_menu")
+async def show_creative_selection(call: CallbackQuery):
+    creatives = await db.get_user_creatives(call.from_user.id)
+    if not creatives:
+        await call.answer("У вас нет креативов. Сначала создайте креатив.", show_alert=True)
         return
         
-    # We need a list UI for purchases.
-    # I'll add a simple inline list here or reuse a builder if I had one.
-    # I didn't create a specific PurchaseList builder in keyboards.py yet.
-    # I will create a simple inline keyboard here dynamically or add to keyboards.py
+    await call.message.edit_text(
+        "Выберите креатив для создания закупа:", 
+        reply_markup=InlineAdPurchase.creative_selection_menu(creatives)
+    )
+
+
+@router.callback_query(F.data == "AdPurchase|list")
+async def show_purchase_list(call: CallbackQuery):
+    purchases = await db.get_user_purchases(call.from_user.id)
+    if not purchases:
+        await call.answer("У вас пока нет закупов.", show_alert=True)
+        return
     
-    from aiogram.utils.keyboard import InlineKeyboardBuilder
-    kb = InlineKeyboardBuilder()
+    # Enrich purchases with creative names
+    # This is N+1 but acceptable for small lists. Ideally join in DB.
+    # For now, let's fetch creative for each purchase
+    enriched_purchases = []
     for p in purchases:
-        kb.button(
-            text=f"#{p.id} {p.pricing_type} {p.price_value}р.",
-            callback_data=f"AdPurchase|mapping|{p.id}" # Direct link to mapping as requested
-        )
-    kb.adjust(1)
-    
-    await message.answer("Ваши закупы:", reply_markup=kb.as_markup())
+        creative = await db.get_creative(p.creative_id)
+        p.creative_name = creative.name if creative else "Unknown"
+        enriched_purchases.append(p)
+        
+    await call.message.edit_text(
+        "Ваши закупы:", 
+        reply_markup=InlineAdPurchase.purchase_list_menu(enriched_purchases)
+    )
+
