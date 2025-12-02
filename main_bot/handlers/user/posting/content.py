@@ -405,16 +405,23 @@ async def accept_delete_published_post(call: types.CallbackQuery, state: FSMCont
         )
 
     if temp[1] == "accept":
-        logger.info(f"User {call.from_user.id} deleting published post {post.id} (message_id: {post.message_id})")
-        # Delete from Telegram
-        try:
-            await call.bot.delete_message(post.chat_id, post.message_id)
-        except Exception as e:
-            logger.error(f"Error deleting message {post.message_id} from {post.chat_id}: {e}", exc_info=True)
-            # print(f"Error deleting message {post.message_id} from {post.chat_id}: {e}")
+        logger.info(f"User {call.from_user.id} deleting published post {post.id} (message_id: {post.message_id}) and all related posts")
+        
+        # Fetch all related published posts
+        related_posts = await db.get_published_posts_by_post_id(post.post_id)
+        
+        # Delete from Telegram for all channels
+        ids_to_delete = []
+        for p in related_posts:
+            ids_to_delete.append(p.id)
+            try:
+                await call.bot.delete_message(p.chat_id, p.message_id)
+            except Exception as e:
+                logger.error(f"Error deleting message {p.message_id} from {p.chat_id}: {e}", exc_info=True)
 
-        # Soft Delete from DB
-        await db.soft_delete_published_posts([post.id])
+        # Soft Delete all from DB
+        if ids_to_delete:
+            await db.soft_delete_published_posts(ids_to_delete)
         
         posts = await db.get_posts(channel.chat_id, day)
 
