@@ -23,11 +23,8 @@ async def create_creative_start(call: CallbackQuery, state: FSMContext):
 @router.message(AdCreativeStates.waiting_for_content)
 async def process_creative_content(message: Message, state: FSMContext):
     # Serialize message
-    # We use a simple serialization here, similar to how Post works but simplified for this task
-    # In a real scenario, we might want to use a more robust serializer or the one from Post
-    
-    # For now, let's just store the message json
-    raw_message = message.model_dump(mode='json')
+    # Use model_dump_json() then json.loads() to handle Pydantic types correctly and avoid Default type issues
+    raw_message = json.loads(message.model_dump_json())
     
     # Extract links
     slots = []
