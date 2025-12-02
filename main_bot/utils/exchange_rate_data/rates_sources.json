@@ -1,16 +1,46 @@
 [
-  {"id": 0, "name": "Crypto Bot", "api_data": null},
-  {"id": 1, "name": "Bybit", "api_data": null},
-  {"id": 2, "name": "BestExchange", "api_data": {
-    "usdt": [
-      {"id": 208, "name": "Tether BEP20"},
-      {"id": 10, "name": "Tether TRC20"}
-    ],
-    "rub": [
-      {"id": 59, "name": "Банковская карта RUB"},
-      {"id": 105, "name": "Т-Банк RUB"},
-      {"id": 42, "name": "Сбербанк RUB"},
-      {"id": 52, "name": "Альфа-Банк RUB"}
-    ]
-  }}
+  {
+    "id": 0,
+    "name": "Crypto Bot",
+    "api_data": null
+  },
+  {
+    "id": 1,
+    "name": "Bybit",
+    "api_data": null
+  },
+  {
+    "id": 2,
+    "name": "BestExchange",
+    "api_data": {
+      "usdt": [
+        {
+          "id": 208,
+          "name": "Tether BEP20"
+        },
+        {
+          "id": 10,
+          "name": "Tether TRC20"
+        }
+      ],
+      "rub": [
+        {
+          "id": 59,
+          "name": "Банковская карта RUB"
+        },
+        {
+          "id": 105,
+          "name": "Т-Банк RUB"
+        },
+        {
+          "id": 42,
+          "name": "Сбербанк RUB"
+        },
+        {
+          "id": 52,
+          "name": "Альфа-Банк RUB"
+        }
+      ]
+    }
+  }
 ]

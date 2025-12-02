@@ -24,6 +24,10 @@ class Folder(StatesGroup):
     input_name = State()
 
 
+class ExchangeRate(StatesGroup):
+    input_custom_amount = State()
+
+
 class Posting(StatesGroup):
     input_send_time = State()
     input_value = State()
@@ -79,3 +83,11 @@ class Bye(StatesGroup):
 
 class Application(StatesGroup):
     part = State()
+
+
+class NovaStatStates(StatesGroup):
+    waiting_for_channels = State()
+    waiting_for_collection_name = State()
+    waiting_for_rename_collection = State()
+    waiting_for_channel_to_add = State()
+    waiting_for_cpm = State()

@@ -13,7 +13,12 @@ from main_bot.database.db import db
 load_dotenv()
 
 root_dir = "/app/main_bot/utils"
-
+# Adjust root_dir for local windows environment if needed, or rely on relative paths if possible.
+# However, the original code used absolute path inside container. 
+# Let's try to make it dynamic or keep it if it works in their env (they might be running in docker).
+# But user is on windows. Let's use relative path from this file.
+import pathlib
+current_dir = pathlib.Path(__file__).parent.resolve()
 
 async def get_crypto_bot_usdt_rub_rate():
     api_token = os.getenv('CRYPTO_BOT_API_TOKEN')
@@ -165,12 +170,12 @@ async def format_exchange_rate_from_db(exchange_rates):
 
 
 def get_exchange_rates_from_json():
-    with open(f"{root_dir}/exchange_rate_data/exchange_rates.json", "r") as file:
+    with open(current_dir / "exchange_rate_data/exchange_rates.json", "r", encoding='utf-8') as file:
         return json.load(file)
 
 
 def get_rates_sources_from_json():
-    with open(f"{root_dir}/exchange_rate_data/rates_sources.json", "r") as file:
+    with open(current_dir / "exchange_rate_data/rates_sources.json", "r", encoding='utf-8') as file:
         return json.load(file)
 
 

@@ -20,3 +20,5 @@ class User(Base):
     referral_id: Mapped[int | None] = mapped_column(BigInteger, default=None)
     referral_earned: Mapped[int] = mapped_column(default=0)
     ads_tag: Mapped[str | None] = mapped_column(default=None)
+
+    default_exchange_rate_id: Mapped[int] = mapped_column(default=0)

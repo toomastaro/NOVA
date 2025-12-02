@@ -28,13 +28,15 @@ class Reply:
     def menu(cls):
         kb = ReplyKeyboardBuilder()
 
+        kb.button(text='NOVAстат')
+        kb.button(text=text('reply_menu:exchange_rate'))
         kb.button(text=text('reply_menu:posting'))
         kb.button(text=text('reply_menu:story'))
         kb.button(text=text('reply_menu:bots'))
         kb.button(text=text('reply_menu:support'))
         kb.button(text=text('reply_menu:profile'))
 
-        kb.adjust(2, 1, 2)
+        kb.adjust(1, 1, 2, 1, 2)
         return kb.as_markup(
             resize_keyboard=True,
         )
@@ -54,6 +56,37 @@ class Reply:
         return kb.as_markup(
             resize_keyboard=resize
         )
+
+
+class InlineExchangeRate(InlineKeyboardBuilder):
+    @classmethod
+    def set_exchange_rate(cls):
+        kb = cls()
+
+        kb.button(
+            text=text('exchange_rate:start_exchange_rate:settings:button'),
+            callback_data='MenuExchangeRate|settings'
+        )
+
+        kb.adjust(1)
+        return kb.as_markup()
+
+    @classmethod
+    def choose_exchange_rate(cls, source_list, chosen_exchange_rate_id):
+        kb = cls()
+        for s in source_list:
+            kb.button(
+                text=f"{s.name}: {s.rate:.2f}₽{' ✅' if int(chosen_exchange_rate_id) == int(s.id) else ''}",
+                callback_data=f'MenuExchangeRate|settings|choose_exchange_rate|{s.id}'
+            )
+
+        kb.button(
+            text=text("exchange_rate:start_exchange_rate:settings:back:button"),
+            callback_data=f'MenuExchangeRate|settings|back'
+        )
+
+        kb.adjust(*([1]*(len(source_list) + 1)))
+        return kb.as_markup()
 
 
 class InlinePosting(InlineKeyboardBuilder):
@@ -2859,6 +2892,89 @@ class Inline(
         )
 
         kb.adjust(1)
+        return kb.as_markup()
+
+
+
+from main_bot.database.novastat.model import Collection, CollectionChannel
+
+
+class InlineNovaStat(InlineKeyboardBuilder):
+    @classmethod
+    def main_menu(cls):
+        kb = cls()
+        kb.button(text="Настройки", callback_data="NovaStat|settings")
+        kb.button(text="Сохранённые каналы", callback_data="NovaStat|collections")
+        kb.button(text="Мои каналы (в разработке)", callback_data="NovaStat|my_channels")
+        kb.button(text="Назад", callback_data="NovaStat|exit")
+        kb.adjust(1)
+        return kb.as_markup()
+
+    @classmethod
+    def settings(cls, current_depth: int):
+        kb = cls()
+        for i in range(3, 8):
+            text_btn = f"{i} дня" if i < 5 else f"{i} дней"
+            if i == current_depth:
+                text_btn += " ✅"
+            kb.button(text=text_btn, callback_data=f"NovaStat|set_depth|{i}")
+        kb.button(text="Назад", callback_data="NovaStat|main")
+        kb.adjust(1)
+        return kb.as_markup()
+
+    @classmethod
+    def collections_list(cls, collections: List[Collection]):
+        kb = cls()
+        for col in collections:
+            kb.button(text=f"{col.name}", callback_data=f"NovaStat|col_open|{col.id}")
+        
+        kb.button(text="Создать коллекцию", callback_data="NovaStat|col_create")
+        kb.button(text="Назад", callback_data="NovaStat|main")
+        kb.adjust(1)
+        return kb.as_markup()
+
+    @classmethod
+    def collection_view(cls, collection: Collection, channels: List[CollectionChannel]):
+        kb = cls()
+        kb.button(text="Получить аналитику", callback_data=f"NovaStat|col_analyze|{collection.id}")
+        kb.button(text="Добавить канал", callback_data=f"NovaStat|col_add_channel|{collection.id}")
+        kb.button(text="Удалить канал", callback_data=f"NovaStat|col_del_channel_list|{collection.id}")
+        kb.button(text="Переименовать", callback_data=f"NovaStat|col_rename|{collection.id}")
+        kb.button(text="Удалить коллекцию", callback_data=f"NovaStat|col_delete|{collection.id}")
+        kb.button(text="Назад", callback_data="NovaStat|collections")
+        kb.adjust(1)
+        return kb.as_markup()
+
+    @classmethod
+    def collection_channels_delete(cls, collection_id: int, channels: List[CollectionChannel]):
+        kb = cls()
+        for ch in channels:
+            kb.button(text=f"❌ {ch.channel_identifier}", callback_data=f"NovaStat|col_del_channel|{collection_id}|{ch.id}")
+        kb.button(text="Назад", callback_data=f"NovaStat|col_open|{collection_id}")
+        kb.adjust(1)
+        return kb.as_markup()
+
+    @classmethod
+    def analysis_result(cls):
+        kb = cls()
+        kb.button(text="Рассчитать цену рекламы", callback_data="NovaStat|calc_cpm_start")
+        kb.button(text="Назад", callback_data="NovaStat|main")
+        kb.adjust(1)
+        return kb.as_markup()
+
+    @classmethod
+    def cpm_choice(cls):
+        kb = cls()
+        for cpm in range(100, 2100, 100):
+            kb.button(text=str(cpm), callback_data=f"NovaStat|calc_cpm|{cpm}")
+        kb.button(text="Назад", callback_data="NovaStat|main")
+        kb.adjust(4)
+        return kb.as_markup()
+
+    @classmethod
+    def cpm_result(cls):
+        kb = cls()
+        kb.button(text="Назад", callback_data="NovaStat|calc_cpm_start")
         return kb.as_markup()
 
 

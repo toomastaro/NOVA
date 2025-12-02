@@ -45,53 +45,6 @@ class NovaStatService:
                 total = age - prev_age
                 if total <= 0:
                     return int(prev_views)
-import asyncio
-import os
-from datetime import datetime, timedelta, timezone
-from zoneinfo import ZoneInfo
-from statistics import median
-from typing import List, Tuple, Dict, Optional
-
-from telethon import TelegramClient
-from telethon.tl import functions, types
-from telethon.errors import RPCError
-from config import Config
-
-# Constants
-TIMEZONE = "Europe/Moscow"
-HORIZONS = [24, 48, 72]
-ANOMALY_FACTOR = 10
-
-class NovaStatService:
-    def __init__(self, session_path: str = "main_bot/utils/sessions/+37253850093"):
-        self.api_id = Config.API_ID
-        self.api_hash = Config.API_HASH
-        self.session_path = session_path
-        # Ensure directory exists
-        os.makedirs(os.path.dirname(self.session_path), exist_ok=True)
-
-    def human_dt(self, dt_utc: datetime, tz: ZoneInfo) -> str:
-        return dt_utc.astimezone(tz).strftime("%d.%m.%Y %H:%M")
-
-    def interpolate_by_age(self, target_age: float, points: List[Tuple[float, int]]) -> int:
-        if not points:
-            return 0
-        pts = sorted(points, key=lambda x: x[0])
-        if len(pts) == 1:
-            return int(pts[0][1])
-        if target_age <= pts[0][0]:
-            return int(pts[0][1])
-        if target_age >= pts[-1][0]:
-            return int(pts[-1][1])
-
-        prev_age, prev_views = pts[0]
-        for age, views in pts[1:]:
-            if age == target_age:
-                return int(views)
-            if age > target_age:
-                total = age - prev_age
-                if total <= 0:
-                    return int(prev_views)
                 ratio = (target_age - prev_age) / total
                 est = prev_views + (views - prev_views) * ratio
                 return int(round(est))

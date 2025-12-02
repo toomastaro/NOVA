@@ -4,9 +4,11 @@ import os
 import re
 import time
 from pathlib import Path
+from datetime import datetime, timezone, timedelta
 
 from aiogram import Bot, types
 from httpx import AsyncClient
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from config import Config
 from instance_bot import bot
@@ -23,6 +25,7 @@ from main_bot.utils.functions import set_channel_session, get_path, get_path_vid
 from main_bot.utils.lang.language import text
 from main_bot.utils.schemas import MessageOptions, StoryOptions, MessageOptionsHello
 from main_bot.utils.session_manager import SessionManager
+from main_bot.utils.exchange_rates import get_update_of_exchange_rates, get_exchange_rates_from_json
 
 logger = logging.getLogger(__name__)
 
@@ -785,3 +788,11 @@ async def update_exchange_rates_in_db():
                 await db.update_exchange_rate(exchange_rate_id=er_id,
                                               rate=new_update[er_id],
                                               last_update=last_update)
+
+
+async def schedulers():
+    scheduler = AsyncIOScheduler()
+    scheduler.add_job(send_posts, "interval", seconds=10)
+    scheduler.add_job(send_stories, "interval", seconds=30)
+    scheduler.add_job(update_exchange_rates_in_db, "interval", hours=1)
+    scheduler.start()
