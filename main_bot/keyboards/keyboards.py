@@ -36,6 +36,9 @@ class Reply:
         kb.button(text=text('reply_menu:support'))
         kb.button(text=text('reply_menu:profile'))
 
+        if Config.ENABLE_AD_BUY_MODULE:
+            kb.button(text="Рекламные креативы")
+
         kb.adjust(2, 2, 1, 2)
         return kb.as_markup(
             resize_keyboard=True,
@@ -2980,9 +2983,40 @@ class InlineNovaStat(InlineKeyboardBuilder):
         return kb.as_markup()
 
 
+class InlineAdCreative(InlineKeyboardBuilder):
+    @classmethod
+    def menu(cls):
+        kb = cls()
+        kb.button(text="Создать креатив", callback_data="AdCreative|create")
+        kb.button(text="Список креативов", callback_data="AdCreative|list")
+        kb.button(text="Назад", callback_data="AdCreative|back")
+        kb.adjust(1)
+        return kb.as_markup()
+
+    @classmethod
+    def creative_list(cls, creatives: list, page: int = 0):
+        kb = cls()
+        for creative in creatives:
+            kb.button(
+                text=f"{creative.name} ({len(creative.slots)} ссылок)",
+                callback_data=f"AdCreative|view|{creative.id}"
+            )
+        kb.button(text="Назад", callback_data="AdCreative|menu")
+        kb.adjust(1)
+        return kb.as_markup()
+
+    @classmethod
+    def creative_view(cls, creative_id: int):
+        kb = cls()
+        kb.button(text="Назад", callback_data="AdCreative|list")
+        kb.adjust(1)
+        return kb.as_markup()
+
+
 class Keyboards(
     Reply,
-    Inline
+    Inline,
+    InlineAdCreative
 ):
     pass
 

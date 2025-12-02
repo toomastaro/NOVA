@@ -27,6 +27,9 @@ class Config:
     # Payments
     CRYPTO_BOT_TOKEN = os.getenv('CRYPTO_BOT_TOKEN')
 
+    # Features
+    ENABLE_AD_BUY_MODULE = os.getenv("ENABLE_AD_BUY_MODULE", "false").lower() == "true"
+
     ADMINS = [int(i) for i in os.getenv("ADMINS").split(",")]
     TARIFFS = {
         'subscribe': {

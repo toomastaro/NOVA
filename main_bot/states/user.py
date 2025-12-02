@@ -95,3 +95,8 @@ class NovaStatStates(StatesGroup):
 
 class AddChannel(StatesGroup):
     waiting_for_channel = State()
+
+
+class AdCreativeStates(StatesGroup):
+    waiting_for_content = State()
+    waiting_for_name = State()
