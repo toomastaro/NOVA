@@ -17,6 +17,15 @@ router = Router()
 # --- Entry Point ---
 @router.message(F.text == text('reply_menu:novastat'))
 async def novastat_main(message: types.Message, state: FSMContext):
+    # Check subscription
+    import time
+    subscribed_channels = await db.get_subscribe_channels(message.from_user.id)
+    has_active_sub = any(ch.subscribe and ch.subscribe > time.time() for ch in subscribed_channels)
+    
+    if not has_active_sub:
+        await message.answer("Эта функция доступна только при наличии хотя бы одной активной оплаченной подписки.")
+        return
+
     await state.clear()
     await message.answer(
         "<b>Быстрая аналитика канала!</b>\n"
@@ -29,6 +38,15 @@ async def novastat_main(message: types.Message, state: FSMContext):
 
 @router.callback_query(F.data == "NovaStat|main")
 async def novastat_main_cb(call: types.CallbackQuery, state: FSMContext):
+    # Check subscription
+    import time
+    subscribed_channels = await db.get_subscribe_channels(call.from_user.id)
+    has_active_sub = any(ch.subscribe and ch.subscribe > time.time() for ch in subscribed_channels)
+    
+    if not has_active_sub:
+        await call.answer("Эта функция доступна только при наличии хотя бы одной активной оплаченной подписки.", show_alert=True)
+        return
+
     await state.clear()
     await call.message.edit_text(
         "<b>Быстрая аналитика канала!</b>\n"

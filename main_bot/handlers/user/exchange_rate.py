@@ -38,6 +38,15 @@ async def _get_and_format_exchange_rate(user_id: int, state: FSMContext) -> tupl
 
 
 async def start_exchange_rate(message: types.Message, state: FSMContext):
+    # Check subscription
+    import time
+    subscribed_channels = await db.get_subscribe_channels(message.from_user.id)
+    has_active_sub = any(ch.subscribe and ch.subscribe > time.time() for ch in subscribed_channels)
+    
+    if not has_active_sub:
+        await message.answer("Эта функция доступна только при наличии хотя бы одной активной оплаченной подписки.")
+        return
+
     await state.set_state(ExchangeRate.input_custom_amount)
 
     loading_msg = await message.answer(
@@ -83,6 +92,15 @@ async def choice_of_exchange_resources(call: types.CallbackQuery, state: FSMCont
 
 
 async def back_to_start_exchange_rate(call: types.CallbackQuery, state: FSMContext):
+    # Check subscription
+    import time
+    subscribed_channels = await db.get_subscribe_channels(call.from_user.id)
+    has_active_sub = any(ch.subscribe and ch.subscribe > time.time() for ch in subscribed_channels)
+    
+    if not has_active_sub:
+        await call.answer("Эта функция доступна только при наличии хотя бы одной активной оплаченной подписки.", show_alert=True)
+        return
+
     await call.message.delete()
 
     loading_msg = await call.message.answer(
