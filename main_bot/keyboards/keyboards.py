@@ -28,7 +28,7 @@ class Reply:
     def menu(cls):
         kb = ReplyKeyboardBuilder()
 
-        kb.button(text='NOVAстат')
+        kb.button(text=text('reply_menu:novastat'))
         kb.button(text=text('reply_menu:exchange_rate'))
         kb.button(text=text('reply_menu:posting'))
         kb.button(text=text('reply_menu:story'))
