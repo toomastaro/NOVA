@@ -87,6 +87,19 @@ async def set_admin(call: types.ChatMemberUpdated):
         return
 
     chat_id = call.chat.id
+    
+    # Track subscription for ad purchases if user joined via invite link
+    if call.new_chat_member.status == ChatMemberStatus.MEMBER and call.invite_link:
+        try:
+            await db.process_join_event(
+                channel_id=chat_id,
+                user_id=call.new_chat_member.user.id,
+                invite_link=call.invite_link.invite_link
+            )
+        except Exception:
+            # Silently ignore errors in subscription tracking
+            pass
+    
     if call.new_chat_member.status == ChatMemberStatus.MEMBER:
         await db.delete_channel(
             chat_id=chat_id,

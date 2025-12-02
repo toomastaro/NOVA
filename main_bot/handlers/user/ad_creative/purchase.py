@@ -315,6 +315,85 @@ async def delete_purchase(call: CallbackQuery):
     await show_purchase_list(call)
 
 
+@router.callback_query(F.data.startswith("AdPurchase|stats|"))
+async def show_stats_menu(call: CallbackQuery):
+    purchase_id = int(call.data.split("|")[2])
+    await call.message.edit_text(
+        "Выберите период для статистики:",
+        reply_markup=InlineAdPurchase.stats_period_menu(purchase_id)
+    )
+
+
+@router.callback_query(F.data.startswith("AdPurchase|stats_period|"))
+async def show_stats(call: CallbackQuery):
+    parts = call.data.split("|")
+    purchase_id = int(parts[2])
+    period = parts[3]
+    
+    # Calculate time range
+    import time
+    now = int(time.time())
+    
+    if period == "24h":
+        from_ts = now - (24 * 3600)
+        period_name = "24 часа"
+    elif period == "7d":
+        from_ts = now - (7 * 24 * 3600)
+        period_name = "7 дней"
+    elif period == "30d":
+        from_ts = now - (30 * 24 * 3600)
+        period_name = "30 дней"
+    else:  # all
+        from_ts = None
+        period_name = "всё время"
+    
+    to_ts = now
+    
+    # Get purchase info
+    purchase = await db.get_purchase(purchase_id)
+    if not purchase:
+        await call.answer("Закуп не найден", show_alert=True)
+        return
+    
+    # Get statistics
+    leads_count = await db.get_leads_count(purchase_id)
+    subs_count = await db.get_subscriptions_count(purchase_id, from_ts, to_ts)
+    
+    # Calculate conversion
+    conversion = 0.0
+    if leads_count > 0:
+        conversion = (subs_count / leads_count) * 100
+    
+    # Calculate revenue based on pricing type
+    revenue_text = "N/A"
+    if purchase.pricing_type.value == "CPL":
+        revenue = leads_count * purchase.price_value
+        revenue_text = f"{revenue:,} руб.".replace(",", " ")
+    elif purchase.pricing_type.value == "CPS":
+        revenue = subs_count * purchase.price_value
+        revenue_text = f"{revenue:,} руб.".replace(",", " ")
+    elif purchase.pricing_type.value == "FIXED":
+        revenue_text = f"{purchase.price_value:,} руб.".replace(",", " ")
+    
+    # Format message
+    stats_text = (
+        f"📊 <b>Статистика закупа #{purchase_id}</b>\n"
+        f"Период: {period_name}\n\n"
+        f"📎 Лиды: {leads_count}\n"
+        f"👥 Подписки: {subs_count}\n"
+        f"📈 Конверсия: {conversion:.1f}%\n\n"
+        f"💰 Доход: {revenue_text}\n"
+        f"💵 Тип оплаты: {purchase.pricing_type.value}\n"
+        f"💸 Ставка: {purchase.price_value} руб."
+    )
+    
+    await call.message.edit_text(
+        stats_text,
+        reply_markup=InlineAdPurchase.stats_period_menu(purchase_id),
+        parse_mode="HTML"
+    )
+
+
 @router.callback_query(F.data.startswith("AdPurchase|gen_post|"))
 async def generate_post(call: CallbackQuery):
     purchase_id = int(call.data.split("|")[2])

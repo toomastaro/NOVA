@@ -132,3 +132,101 @@ class AdPurchaseCrud(DatabaseMixin):
         return await self.fetch(query)
 
 
+    async def add_subscription(self, user_id: int, channel_id: int, ad_purchase_id: int, slot_id: int, invite_link: str) -> bool:
+        """
+        Add a subscription for an ad purchase. Returns True if subscription was created, False if already exists.
+        """
+        from main_bot.database.ad_purchase.model import AdSubscription
+        
+        # Check if subscription already exists
+        query = select(AdSubscription).where(
+            AdSubscription.user_id == user_id,
+            AdSubscription.channel_id == channel_id,
+            AdSubscription.ad_purchase_id == ad_purchase_id
+        )
+        existing = await self.fetchrow(query)
+        
+        if existing:
+            return False
+        
+        # Create new subscription
+        query = insert(AdSubscription).values(
+            user_id=user_id,
+            channel_id=channel_id,
+            ad_purchase_id=ad_purchase_id,
+            slot_id=slot_id,
+            invite_link=invite_link
+        )
+        await self.execute(query)
+        return True
+
+    async def get_subscriptions_count(self, ad_purchase_id: int, from_ts: int = None, to_ts: int = None) -> int:
+        """Get total number of subscriptions for an ad purchase within a time range."""
+        from main_bot.database.ad_purchase.model import AdSubscription
+        from sqlalchemy import func
+        
+        query = select(func.count(AdSubscription.id)).where(AdSubscription.ad_purchase_id == ad_purchase_id)
+        
+        if from_ts:
+            query = query.where(AdSubscription.created_timestamp >= from_ts)
+        if to_ts:
+            query = query.where(AdSubscription.created_timestamp <= to_ts)
+        
+        result = await self.fetchrow(query)
+        return result if result else 0
+
+    async def get_subscriptions_by_channel(self, ad_purchase_id: int, channel_id: int, from_ts: int = None, to_ts: int = None) -> list:
+        """Get all subscriptions for a specific channel within a time range."""
+        from main_bot.database.ad_purchase.model import AdSubscription
+        
+        query = select(AdSubscription).where(
+            AdSubscription.ad_purchase_id == ad_purchase_id,
+            AdSubscription.channel_id == channel_id
+        )
+        
+        if from_ts:
+            query = query.where(AdSubscription.created_timestamp >= from_ts)
+        if to_ts:
+            query = query.where(AdSubscription.created_timestamp <= to_ts)
+        
+        return await self.fetch(query)
+
+    async def get_subscriptions_by_slot(self, ad_purchase_id: int, slot_id: int, from_ts: int = None, to_ts: int = None) -> list:
+        """Get all subscriptions for a specific slot within a time range."""
+        from main_bot.database.ad_purchase.model import AdSubscription
+        
+        query = select(AdSubscription).where(
+            AdSubscription.ad_purchase_id == ad_purchase_id,
+            AdSubscription.slot_id == slot_id
+        )
+        
+        if from_ts:
+            query = query.where(AdSubscription.created_timestamp >= from_ts)
+        if to_ts:
+            query = query.where(AdSubscription.created_timestamp <= to_ts)
+        
+        return await self.fetch(query)
+
+    async def process_join_event(self, channel_id: int, user_id: int, invite_link: str) -> bool:
+        """
+        Process a join event and create a subscription if the invite link matches an ad purchase.
+        Returns True if subscription was created.
+        """
+        # Find mapping by invite_link
+        query = select(AdPurchaseLinkMapping).where(AdPurchaseLinkMapping.invite_link == invite_link)
+        mapping = await self.fetchrow(query)
+        
+        if not mapping:
+            return False
+        
+        # Add subscription
+        return await self.add_subscription(
+            user_id=user_id,
+            channel_id=channel_id,
+            ad_purchase_id=mapping.ad_purchase_id,
+            slot_id=mapping.slot_id,
+            invite_link=invite_link
+        )
+
+
+

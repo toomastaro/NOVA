@@ -40,3 +40,15 @@ class AdLead(Base):
     ref_param: Mapped[str] = mapped_column()
     created_timestamp: Mapped[int] = mapped_column(default=time.time)
 
+
+class AdSubscription(Base):
+    __tablename__ = "ad_subscriptions"
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(BigInteger, index=True)
+    channel_id: Mapped[int] = mapped_column(BigInteger, index=True)
+    ad_purchase_id: Mapped[int] = mapped_column(index=True)
+    slot_id: Mapped[int] = mapped_column()
+    invite_link: Mapped[str] = mapped_column()
+    created_timestamp: Mapped[int] = mapped_column(default=time.time)
+
+

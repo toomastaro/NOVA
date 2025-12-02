@@ -3125,11 +3125,21 @@ class InlineAdPurchase(InlineKeyboardBuilder):
         kb = cls()
         kb.button(text="Мапинг ссылок", callback_data=f"AdPurchase|mapping|{purchase_id}")
         kb.button(text="📤 Сгенерировать пост", callback_data=f"AdPurchase|gen_post|{purchase_id}")
-        # Placeholders
-        # kb.button(text="Статистика", callback_data="noop")
+        kb.button(text="📊 Статистика", callback_data=f"AdPurchase|stats|{purchase_id}")
         kb.button(text="Архивировать", callback_data=f"AdPurchase|archive|{purchase_id}")
         kb.button(text="Удалить", callback_data=f"AdPurchase|delete|{purchase_id}")
         kb.button(text="Назад", callback_data="AdPurchase|list")
+        kb.adjust(1)
+        return kb.as_markup()
+    
+    @classmethod
+    def stats_period_menu(cls, purchase_id: int):
+        kb = cls()
+        kb.button(text="📅 24 часа", callback_data=f"AdPurchase|stats_period|{purchase_id}|24h")
+        kb.button(text="📅 7 дней", callback_data=f"AdPurchase|stats_period|{purchase_id}|7d")
+        kb.button(text="📅 30 дней", callback_data=f"AdPurchase|stats_period|{purchase_id}|30d")
+        kb.button(text="📅 Всё время", callback_data=f"AdPurchase|stats_period|{purchase_id}|all")
+        kb.button(text="Назад", callback_data=f"AdPurchase|view|{purchase_id}")
         kb.adjust(1)
         return kb.as_markup()
 
