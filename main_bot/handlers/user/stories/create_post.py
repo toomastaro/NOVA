@@ -11,8 +11,35 @@ from main_bot.handlers.user.stories.menu import show_create_post
 from main_bot.utils.functions import answer_story
 from main_bot.utils.lang.language import text
 from main_bot.utils.schemas import Media, StoryOptions
+from main_bot.utils.session_manager import SessionManager
 from main_bot.keyboards.keyboards import keyboards
+from pathlib import Path
+
 from main_bot.states.user import Stories
+
+
+async def get_story_report_text(chosen, objects):
+    lines = []
+    target_ids = chosen[:10]
+    target_objects = [obj for obj in objects if obj.chat_id in target_ids]
+
+    for obj in target_objects:
+        posted_stories = await db.get_stories(obj.chat_id, datetime.now())
+        posted = len(posted_stories)
+
+        limit = 0
+        if obj.session_path:
+            try:
+                async with SessionManager(Path(obj.session_path)) as manager:
+                    limit = await manager.get_story_limit(int(obj.chat_id))
+            except Exception:
+                pass
+
+        lines.append(
+            text("resource_title").format(obj.emoji_id, obj.title) + f" ({posted}/{limit})"
+        )
+
+    return "\n".join(lines)
 
 
 async def set_folder_content(resource_id, chosen, chosen_folders):
@@ -315,13 +342,7 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
         return await call.message.edit_text(
             text("manage:story:finish_params").format(
                 len(chosen),
-                "\n".join(
-                    text("resource_title").format(
-                        obj.emoji_id,
-                        obj.title
-                    ) for obj in objects
-                    if obj.chat_id in chosen[:10]
-                )
+                await get_story_report_text(chosen, objects)
             ),
             reply_markup=keyboards.finish_params(
                 obj=data.get('post'),
@@ -408,13 +429,7 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
     await call.message.edit_text(
         text("choice_channels:story").format(
             len(chosen),
-            "\n".join(
-                text("resource_title").format(
-                    obj.emoji_id,
-                    obj.title
-                ) for obj in objects
-                if obj.chat_id in chosen[:10]
-            )
+            await get_story_report_text(chosen, objects)
         ),
         reply_markup=keyboards.choice_objects(
             resources=objects,
@@ -452,13 +467,7 @@ async def finish_params(call: types.CallbackQuery, state: FSMContext):
         return await call.message.edit_text(
             text("choice_channels:story").format(
                 len(chosen),
-                "\n".join(
-                    text("resource_title").format(
-                        obj.emoji_id,
-                        obj.title
-                    ) for obj in objects
-                    if obj.chat_id in chosen[:10]
-                )
+                await get_story_report_text(chosen, objects)
             ),
             reply_markup=keyboards.choice_objects(
                 resources=objects,
@@ -501,13 +510,7 @@ async def finish_params(call: types.CallbackQuery, state: FSMContext):
     if temp[1] == "public":
         await call.message.edit_text(
             text("manage:story:accept:public").format(
-                "\n".join(
-                    text("resource_title").format(
-                        obj.emoji_id,
-                        obj.title
-                    ) for obj in objects
-                    if obj.chat_id in chosen[:10]
-                ),
+                await get_story_report_text(chosen, objects),
                 f"{int(options.period / 3600)} ч."  # type: ignore
                 if options.period else text("manage:post:del_time:not")
             ),
@@ -564,13 +567,7 @@ async def choice_delete_time(call: types.CallbackQuery, state: FSMContext):
     await call.message.edit_text(
         text("manage:story:finish_params").format(
             len(chosen),
-            "\n".join(
-                text("resource_title").format(
-                    obj.emoji_id,
-                    obj.title
-                ) for obj in objects
-                if obj.chat_id in chosen[:10]
-            )
+            await get_story_report_text(chosen, objects)
         ),
         reply_markup=keyboards.finish_params(
             obj=data.get('post'),
@@ -606,13 +603,7 @@ async def cancel_send_time(call: types.CallbackQuery, state: FSMContext):
     await call.message.edit_text(
         text("manage:story:finish_params").format(
             len(chosen),
-            "\n".join(
-                text("resource_title").format(
-                    obj.emoji_id,
-                    obj.title
-                ) for obj in objects
-                if obj.chat_id in chosen[:10]
-            )
+            await get_story_report_text(chosen, objects)
         ),
         reply_markup=keyboards.finish_params(
             obj=data.get('post'),
@@ -707,13 +698,7 @@ async def get_send_time(message: types.Message, state: FSMContext):
     await message.answer(
         text("manage:story:accept:date").format(
             *date_values,
-            "\n".join(
-                text("resource_title").format(
-                    obj.emoji_id,
-                    obj.title
-                ) for obj in objects
-                if obj.chat_id in chosen[:10]
-            ),
+            await get_story_report_text(chosen, objects),
             f"{int(options.period / 3600)} ч."  # type: ignore
             if options.period else text("manage:post:del_time:not")
         ),
@@ -792,13 +777,7 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
     if send_time:
         message_text = text("manage:story:success:date").format(
             *date_values,
-            "\n".join(
-                text("resource_title").format(
-                    obj.emoji_id,
-                    obj.title
-                ) for obj in objects
-                if obj.chat_id in chosen[:10]
-            )
+            await get_story_report_text(chosen, objects)
         )
     else:
         message_text = text("manage:story:success:public").format(

@@ -71,6 +71,32 @@ class SessionManager:
         raw = chat_info.to_dict()
         return raw.get("chats", [{}])[0].get("stories_unavailable", False)
 
+    async def get_story_limit(self, chat_id: int):
+        try:
+            entity = await self.client.get_entity(chat_id)
+            return getattr(entity, "level", 0)
+        except Exception as e:
+            print(e)
+            return 0
+
+    async def check_admin_rights(self, chat_id: int):
+        try:
+            participant = await self.client(
+                functions.channels.GetParticipantRequest(
+                    channel=chat_id,
+                    participant=types.InputUserSelf()
+                )
+            )
+            if isinstance(participant.participant, (types.ChannelParticipantAdmin, types.ChannelParticipantCreator)):
+                if isinstance(participant.participant, types.ChannelParticipantCreator):
+                    return True
+                admin_rights = participant.participant.admin_rights
+                return admin_rights.post_stories
+            return False
+        except Exception as e:
+            print(f"Error checking admin rights: {e}")
+            return False
+
     async def get_views(self, chat_id: int, messages_ids: List[int]):
         peer = await self.client.get_input_entity(chat_id)
         return await self.client(

@@ -378,6 +378,29 @@ async def send_story(story: Story):
             error_send.append({"chat_id": chat_id, "error": "Session Error"})
             continue
 
+        # Pre-flight checks
+        try:
+            # Check Admin Rights
+            can_post = await manager.check_admin_rights(chat_id)
+            if not can_post:
+                error_send.append({"chat_id": chat_id, "error": "No Admin Rights"})
+                await manager.close()
+                continue
+
+            # Check Daily Limit
+            limit = await manager.get_story_limit(chat_id)
+            posted_stories = await db.get_stories(chat_id, datetime.now())
+            if len(posted_stories) >= limit:
+                error_send.append({"chat_id": chat_id, "error": f"Daily Limit Reached ({len(posted_stories)}/{limit})"})
+                await manager.close()
+                continue
+
+        except Exception as e:
+            logger.error(f"Error during pre-flight checks for {chat_id}: {e}", exc_info=True)
+            error_send.append({"chat_id": chat_id, "error": f"Check Error: {e}"})
+            await manager.close()
+            continue
+
         input_file = None
         if options.video:
             input_file = "main_bot/utils/temp/{}".format(
