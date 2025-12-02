@@ -36,7 +36,7 @@ class Reply:
         kb.button(text=text('reply_menu:support'))
         kb.button(text=text('reply_menu:profile'))
 
-        kb.adjust(1, 1, 2, 1, 2)
+        kb.adjust(2, 2, 1, 2)
         return kb.as_markup(
             resize_keyboard=True,
         )
