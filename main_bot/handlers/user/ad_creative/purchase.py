@@ -371,53 +371,63 @@ async def generate_post(call: CallbackQuery):
         chat_id = call.from_user.id
         reply_markup = message_data.get('reply_markup')
         
-        # Check caption length limit (1024 chars for caption)
-        if 'caption' in message_data and len(message_data['caption']) > 1024:
-             # If too long, we might need to send as text if possible, or truncate?
-             # But if it has media, we must use caption.
-             # If it was originally sent, it should be fine, unless we added something?
-             # We didn't add anything to text.
-             # Maybe the error is because we are trying to send text as caption or vice versa?
-             pass
-
-        if 'text' in message_data:
-            await call.bot.send_message(
-                chat_id=chat_id,
-                text=message_data['text'],
-                entities=[types.MessageEntity(**e) for e in message_data.get('entities', [])] if message_data.get('entities') else None,
-                reply_markup=reply_markup,
-                disable_web_page_preview=True
-            )
-        elif 'photo' in message_data:
+        # Prioritize media types over text (media messages can have 'text' field but it's actually caption)
+        if 'photo' in message_data:
             photo_id = message_data['photo'][-1]['file_id']
+            caption = message_data.get('caption', '')
+            # Telegram caption limit is 1024 characters
+            if len(caption) > 1024:
+                await call.answer("Ошибка: Подпись к медиа слишком длинная (макс. 1024 символа).", show_alert=True)
+                return
             await call.bot.send_photo(
                 chat_id=chat_id,
                 photo=photo_id,
-                caption=message_data.get('caption'),
+                caption=caption if caption else None,
                 caption_entities=[types.MessageEntity(**e) for e in message_data.get('caption_entities', [])] if message_data.get('caption_entities') else None,
                 reply_markup=reply_markup
             )
         elif 'video' in message_data:
             video_id = message_data['video']['file_id']
+            caption = message_data.get('caption', '')
+            if len(caption) > 1024:
+                await call.answer("Ошибка: Подпись к медиа слишком длинная (макс. 1024 символа).", show_alert=True)
+                return
             await call.bot.send_video(
                 chat_id=chat_id,
                 video=video_id,
-                caption=message_data.get('caption'),
+                caption=caption if caption else None,
                 caption_entities=[types.MessageEntity(**e) for e in message_data.get('caption_entities', [])] if message_data.get('caption_entities') else None,
                 reply_markup=reply_markup
             )
         elif 'animation' in message_data:
-             animation_id = message_data['animation']['file_id']
-             await call.bot.send_animation(
+            animation_id = message_data['animation']['file_id']
+            caption = message_data.get('caption', '')
+            if len(caption) > 1024:
+                await call.answer("Ошибка: Подпись к медиа слишком длинная (макс. 1024 символа).", show_alert=True)
+                return
+            await call.bot.send_animation(
                 chat_id=chat_id,
                 animation=animation_id,
-                caption=message_data.get('caption'),
+                caption=caption if caption else None,
                 caption_entities=[types.MessageEntity(**e) for e in message_data.get('caption_entities', [])] if message_data.get('caption_entities') else None,
                 reply_markup=reply_markup
             )
+        elif 'text' in message_data:
+            text = message_data['text']
+            # Telegram text message limit is 4096 characters
+            if len(text) > 4096:
+                await call.answer("Ошибка: Текст сообщения слишком длинный (макс. 4096 символов).", show_alert=True)
+                return
+            await call.bot.send_message(
+                chat_id=chat_id,
+                text=text,
+                entities=[types.MessageEntity(**e) for e in message_data.get('entities', [])] if message_data.get('entities') else None,
+                reply_markup=reply_markup,
+                disable_web_page_preview=True
+            )
         else:
-             await call.answer("Неподдерживаемый тип сообщения для генерации", show_alert=True)
-             return
+            await call.answer("Неподдерживаемый тип сообщения для генерации", show_alert=True)
+            return
 
         await call.message.answer("Готово! Перешлите это админу для размещения.")
         
@@ -425,7 +435,7 @@ async def generate_post(call: CallbackQuery):
         # Catch specific errors
         err_str = str(e)
         if "MESSAGE_TOO_LONG" in err_str:
-             await call.answer("Ошибка: Сообщение слишком длинное для отправки.", show_alert=True)
+            await call.answer("Ошибка: Сообщение слишком длинное для отправки.", show_alert=True)
         else:
-             await call.answer(f"Ошибка при отправке: {e}", show_alert=True)
+            await call.answer(f"Ошибка при отправке: {e}", show_alert=True)
 
