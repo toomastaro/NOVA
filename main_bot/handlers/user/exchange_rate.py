@@ -129,9 +129,9 @@ def hand_add():
     router.callback_query.register(settings_of_exchange_rate,
                                    F.data == "MenuExchangeRate|settings")
 
-    router.message.register(get_exchange_rate_of_custom_amount, ExchangeRate.input_custom_amount, F.text)
-    
-    # Обработчик для кнопки меню "Курс USDT/RUB"
+    # Обработчик для кнопки меню "Курс USDT/RUB" - регистрируем ПЕРЕД общим обработчиком текста
     router.message.register(start_exchange_rate, F.text == text('reply_menu:exchange_rate'))
+
+    router.message.register(get_exchange_rate_of_custom_amount, ExchangeRate.input_custom_amount, F.text.regexp(r'^\d+([.,]\d+)?$'))
     
     return router
