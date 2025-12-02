@@ -4,7 +4,7 @@ from datetime import datetime
 
 from main_bot.database.db import db
 from main_bot.database.user.model import User
-from main_bot.keyboards.keyboards import keyboards
+from main_bot.keyboards.keyboards import keyboards, InlineExchangeRate
 from main_bot.states.user import ExchangeRate
 from main_bot.utils.exchange_rates import get_exchange_rates_from_json, format_exchange_rate_from_db
 from main_bot.utils.lang.language import text
@@ -43,7 +43,7 @@ async def start_exchange_rate(message: types.Message, state: FSMContext):
     loading_msg = await message.answer(
         "⏳ Fetching exchange rates from multiple sources...",
         parse_mode="HTML",
-        reply_markup=keyboards.set_exchange_rate()
+        reply_markup=InlineExchangeRate.set_exchange_rate()
     )
 
     default_rate, formatted = await _get_and_format_exchange_rate(
@@ -54,7 +54,7 @@ async def start_exchange_rate(message: types.Message, state: FSMContext):
         await loading_msg.edit_text(
             formatted,
             parse_mode="HTML",
-            reply_markup=keyboards.set_exchange_rate()
+            reply_markup=InlineExchangeRate.set_exchange_rate()
         )
 
 
@@ -63,7 +63,7 @@ async def settings_of_exchange_rate(call: types.CallbackQuery, state: FSMContext
     data = await state.get_data()
     await call.message.answer(
         text=text("exchange_rate:start_exchange_rate:settings"),
-        reply_markup=keyboards.choose_exchange_rate(data["all_rates"], chosen_exchange_rate_id=data["exchange_rate"].id)
+        reply_markup=InlineExchangeRate.choose_exchange_rate(data["all_rates"], chosen_exchange_rate_id=data["exchange_rate"].id)
     )
 
 
@@ -77,7 +77,7 @@ async def choice_of_exchange_resources(call: types.CallbackQuery, state: FSMCont
         default_exchange_rate_id=int(exchange_rate_id)
     )
 
-    await call.message.edit_reply_markup(reply_markup=keyboards.choose_exchange_rate(
+    await call.message.edit_reply_markup(reply_markup=InlineExchangeRate.choose_exchange_rate(
         data["all_rates"], chosen_exchange_rate_id=int(exchange_rate_id))
     )
 
@@ -88,7 +88,7 @@ async def back_to_start_exchange_rate(call: types.CallbackQuery, state: FSMConte
     loading_msg = await call.message.answer(
         "⏳ Fetching exchange rates from multiple sources...",
         parse_mode="HTML",
-        reply_markup=keyboards.set_exchange_rate()
+        reply_markup=InlineExchangeRate.set_exchange_rate()
     )
 
     default_rate, formatted = await _get_and_format_exchange_rate(
@@ -98,7 +98,7 @@ async def back_to_start_exchange_rate(call: types.CallbackQuery, state: FSMConte
     await loading_msg.edit_text(
         formatted,
         parse_mode="HTML",
-        reply_markup=keyboards.set_exchange_rate()
+        reply_markup=InlineExchangeRate.set_exchange_rate()
     )
 
 
