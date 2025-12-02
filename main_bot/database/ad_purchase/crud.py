@@ -46,11 +46,18 @@ class AdPurchaseCrud(DatabaseMixin):
         query = update(AdPurchase).where(AdPurchase.id == purchase_id).values(status=status)
         await self.execute(query)
 
-    async def ensure_invite_links(self, ad_purchase_id: int, bot) -> list[AdPurchaseLinkMapping]:
+    async def ensure_invite_links(self, ad_purchase_id: int, bot) -> tuple[list[AdPurchaseLinkMapping], list[str]]:
+        """
+        Ensure invite links are created for all channel mappings.
+        Returns: (mappings, errors) - list of mappings and list of error messages
+        """
         from main_bot.database.types import AdTargetType
+        import logging
         
+        logger = logging.getLogger(__name__)
         mappings = await self.get_link_mappings(ad_purchase_id)
         updated_mappings = []
+        errors = []
         
         for m in mappings:
             if m.target_type == AdTargetType.CHANNEL and m.track_enabled and m.target_channel_id and not m.invite_link:
@@ -69,11 +76,13 @@ class AdPurchaseCrud(DatabaseMixin):
                     
                     # Update local object
                     m.invite_link = invite.invite_link
+                    logger.info(f"Created invite link for purchase {ad_purchase_id}, slot {m.slot_id}, channel {m.target_channel_id}: {invite.invite_link}")
                 except Exception as e:
-                    # Log error but continue
-                    print(f"Error creating invite link for purchase {ad_purchase_id}, slot {m.slot_id}: {e}")
+                    error_msg = f"Ошибка создания ссылки для канала {m.target_channel_id}: {str(e)}"
+                    logger.error(f"Error creating invite link for purchase {ad_purchase_id}, slot {m.slot_id}: {e}")
+                    errors.append(error_msg)
             
             updated_mappings.append(m)
             
-        return updated_mappings
+        return updated_mappings, errors
 

@@ -320,7 +320,12 @@ async def generate_post(call: CallbackQuery):
     purchase_id = int(call.data.split("|")[2])
     
     # 1. Ensure invite links
-    mappings = await db.ensure_invite_links(purchase_id, call.bot)
+    mappings, errors = await db.ensure_invite_links(purchase_id, call.bot)
+    
+    # Show errors if any
+    if errors:
+        error_text = "⚠️ Не удалось создать invite-ссылки для некоторых каналов:\n" + "\n".join(errors)
+        await call.message.answer(error_text)
     
     # 2. Get Creative
     purchase = await db.get_purchase(purchase_id)
@@ -337,9 +342,11 @@ async def generate_post(call: CallbackQuery):
     
     # Create a map of original_url -> invite_link
     url_map = {}
+    replaced_count = 0
     for m in mappings:
         if m.invite_link:
             url_map[m.original_url] = m.invite_link
+            replaced_count += 1
             
     # Helper to replace in text
     def replace_links_in_entities(text_content, entities):
@@ -429,7 +436,11 @@ async def generate_post(call: CallbackQuery):
             await call.answer("Неподдерживаемый тип сообщения для генерации", show_alert=True)
             return
 
-        await call.message.answer("Готово! Перешлите это админу для размещения.")
+
+        success_msg = "✅ Готово! Перешлите это админу для размещения."
+        if replaced_count > 0:
+            success_msg += f"\n📎 Заменено ссылок: {replaced_count}"
+        await call.message.answer(success_msg)
         
     except Exception as e:
         # Catch specific errors
