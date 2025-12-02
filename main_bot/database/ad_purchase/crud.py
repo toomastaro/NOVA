@@ -86,3 +86,49 @@ class AdPurchaseCrud(DatabaseMixin):
             
         return updated_mappings, errors
 
+    async def add_lead(self, user_id: int, ad_purchase_id: int, slot_id: int, ref_param: str) -> bool:
+        """
+        Add a lead for an ad purchase. Returns True if lead was created, False if already exists.
+        """
+        from main_bot.database.ad_purchase.model import AdLead
+        
+        # Check if lead already exists
+        query = select(AdLead).where(
+            AdLead.user_id == user_id,
+            AdLead.ad_purchase_id == ad_purchase_id
+        )
+        existing = await self.fetchrow(query)
+        
+        if existing:
+            return False
+        
+        # Create new lead
+        query = insert(AdLead).values(
+            user_id=user_id,
+            ad_purchase_id=ad_purchase_id,
+            slot_id=slot_id,
+            ref_param=ref_param
+        )
+        await self.execute(query)
+        return True
+
+    async def get_leads_count(self, ad_purchase_id: int) -> int:
+        """Get total number of leads for an ad purchase."""
+        from main_bot.database.ad_purchase.model import AdLead
+        from sqlalchemy import func
+        
+        query = select(func.count(AdLead.id)).where(AdLead.ad_purchase_id == ad_purchase_id)
+        result = await self.fetchrow(query)
+        return result if result else 0
+
+    async def get_leads_by_slot(self, ad_purchase_id: int, slot_id: int) -> list:
+        """Get all leads for a specific slot."""
+        from main_bot.database.ad_purchase.model import AdLead
+        
+        query = select(AdLead).where(
+            AdLead.ad_purchase_id == ad_purchase_id,
+            AdLead.slot_id == slot_id
+        )
+        return await self.fetch(query)
+
+

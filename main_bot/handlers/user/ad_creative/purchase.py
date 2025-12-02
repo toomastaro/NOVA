@@ -337,16 +337,60 @@ async def generate_post(call: CallbackQuery):
 
     # 3. Prepare message
     import copy
+    import re
+    from main_bot.database.types import AdTargetType
     
     message_data = copy.deepcopy(creative.raw_message)
     
-    # Create a map of original_url -> invite_link
+    # Generate ref-links for bots
+    for m in mappings:
+        # Check if this is a bot link that should be tracked
+        if m.track_enabled and not m.ref_param:
+            # Try to detect bot username from original_url
+            # Format: t.me/<username> or https://t.me/<username>
+            bot_username_match = re.match(r'(?:https?://)?t\.me/([a-zA-Z0-9_]+)(?:\?|$)', m.original_url)
+            
+            if bot_username_match and '/' not in bot_username_match.group(1):
+                # This looks like a bot link (not a channel with /+)
+                bot_username = bot_username_match.group(1)
+                ref_param = f"ref_{purchase_id}_{m.slot_id}"
+                
+                # Update mapping in DB with ref_param
+                await db.upsert_link_mapping(
+                    ad_purchase_id=purchase_id,
+                    slot_id=m.slot_id,
+                    ref_param=ref_param
+                )
+                
+                # Update local object
+                m.ref_param = ref_param
+                
+                # Set target_type to BOT if not already set
+                if m.target_type != AdTargetType.BOT:
+                    await db.upsert_link_mapping(
+                        ad_purchase_id=purchase_id,
+                        slot_id=m.slot_id,
+                        target_type=AdTargetType.BOT
+                    )
+                    m.target_type = AdTargetType.BOT
+    
+    # Create a map of original_url -> replacement_link
     url_map = {}
     replaced_count = 0
     for m in mappings:
+        # Priority 1: invite_link (for channels)
         if m.invite_link:
             url_map[m.original_url] = m.invite_link
             replaced_count += 1
+        # Priority 2: ref-link (for bots)
+        elif m.ref_param and m.target_type == AdTargetType.BOT:
+            # Extract bot username from original URL
+            bot_username_match = re.match(r'(?:https?://)?t\.me/([a-zA-Z0-9_]+)', m.original_url)
+            if bot_username_match:
+                bot_username = bot_username_match.group(1)
+                ref_link = f"https://t.me/{bot_username}?start={m.ref_param}"
+                url_map[m.original_url] = ref_link
+                replaced_count += 1
             
     # Helper to replace in text
     def replace_links_in_entities(text_content, entities):

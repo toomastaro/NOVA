@@ -29,3 +29,14 @@ class AdPurchaseLinkMapping(Base):
     ref_param: Mapped[str | None] = mapped_column(default=None)
     track_enabled: Mapped[bool] = mapped_column(default=True)
     created_timestamp: Mapped[int] = mapped_column(default=time.time)
+
+
+class AdLead(Base):
+    __tablename__ = "ad_leads"
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(BigInteger, index=True)
+    ad_purchase_id: Mapped[int] = mapped_column(index=True)
+    slot_id: Mapped[int] = mapped_column()
+    ref_param: Mapped[str] = mapped_column()
+    created_timestamp: Mapped[int] = mapped_column(default=time.time)
+

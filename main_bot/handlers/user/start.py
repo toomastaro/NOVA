@@ -10,6 +10,34 @@ from main_bot.utils.middlewares import StartMiddle
 
 async def start(message: types.Message, state: FSMContext):
     await state.clear()
+    
+    # Check for ref-parameter for lead tracking
+    if message.text and len(message.text.split()) > 1:
+        start_param = message.text.split()[1]
+        
+        if start_param.startswith("ref_"):
+            # Extract purchase_id and slot_id from ref parameter
+            try:
+                # Format: ref_{purchase_id}_{slot_id}
+                params = start_param[4:]  # Remove "ref_" prefix
+                parts = params.split("_")
+                
+                if len(parts) >= 2:
+                    purchase_id = int(parts[0])
+                    slot_id = int(parts[1])
+                    
+                    # Add lead (silently, no user feedback)
+                    from main_bot.database.db import db
+                    await db.add_lead(
+                        user_id=message.from_user.id,
+                        ad_purchase_id=purchase_id,
+                        slot_id=slot_id,
+                        ref_param=start_param
+                    )
+            except (ValueError, IndexError):
+                # Invalid ref parameter format, ignore
+                pass
+    
     await message.answer(
         text("start_text") + f"\n\nVersion: {Config.VERSION}",
         reply_markup=keyboards.menu()
