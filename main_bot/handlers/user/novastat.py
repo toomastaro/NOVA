@@ -429,7 +429,13 @@ async def calculate_and_show_price(message: types.Message, cpm: int, state: FSMC
              await message.answer("Данные аналитики устарели. Пожалуйста, проведите анализ заново.")
         return
         
-    price = {h: int((views[h] / 1000) * cpm) for h in [24, 48, 72]}
+    # Fetch user's exchange rate
+    user = await db.get_user(message.from_user.id)
+    exchange_rate_obj = await db.get_exchange_rate(user.default_exchange_rate_id)
+    rate = exchange_rate_obj.rate if exchange_rate_obj else 100.0 # Fallback if not found, though unlikely
+    
+    price_rub = {h: int((views[h] / 1000) * cpm) for h in [24, 48, 72]}
+    price_usdt = {h: round(price_rub[h] / rate, 2) for h in [24, 48, 72]}
     
     date_str = datetime.now().strftime("%d.%m.%Y %H:%M")
     
@@ -441,9 +447,9 @@ async def calculate_and_show_price(message: types.Message, cpm: int, state: FSMC
         report += f"📢 Канал: {title_link}\n"
         report += f"👥 Подписчиков: {single_info['subscribers']}\n\n"
     
-    report += f"├ 24 часа: {price[24]:,} руб.\n".replace(",", " ")
-    report += f"├ 48 часов: {price[48]:,} руб.\n".replace(",", " ")
-    report += f"└ 72 часа: {price[72]:,} руб.\n".replace(",", " ").replace(".", ",")
+    report += f"├ 24 часа: {price_rub[24]:,} руб. / {price_usdt[24]} usdt\n".replace(",", " ")
+    report += f"├ 48 часов: {price_rub[48]:,} руб. / {price_usdt[48]} usdt\n".replace(",", " ")
+    report += f"└ 72 часа: {price_rub[72]:,} руб. / {price_usdt[72]} usdt\n".replace(",", " ").replace(".", ",")
     
     report += f"\n👁️ <b>Ожидаемые просмотры:</b>\n"
     report += f"├ 24 часа: {views[24]}\n"
