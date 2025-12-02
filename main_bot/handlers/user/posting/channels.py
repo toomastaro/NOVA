@@ -1,13 +1,15 @@
 from aiogram import types, F, Router
+from aiogram.fsm.context import FSMContext
 
 from main_bot.database.db import db
 from main_bot.handlers.user.menu import start_posting
 from main_bot.keyboards.keyboards import keyboards
+from main_bot.states.user import AddChannel
 from main_bot.utils.functions import get_editors
 from main_bot.utils.lang.language import text
 
 
-async def choice(call: types.CallbackQuery):
+async def choice(call: types.CallbackQuery, state: FSMContext):
     temp = call.data.split('|')
 
     if temp[1] in ['next', 'back']:
@@ -27,6 +29,7 @@ async def choice(call: types.CallbackQuery):
         return await start_posting(call.message)
 
     if temp[1] == 'add':
+        await state.set_state(AddChannel.waiting_for_channel)
         return await call.message.edit_text(
             text=text("channels:add:text"),
             reply_markup=keyboards.add_channel(

@@ -1,13 +1,18 @@
 from aiogram import types, F, Router
+from aiogram import types, F, Router, Bot
 from aiogram.enums import ChatMemberStatus
+from aiogram.fsm.context import FSMContext
+
+from main_bot.states.user import AddChannel
+from main_bot.handlers.user.menu import start_posting
 
 from main_bot.database.db import db
 from main_bot.utils.functions import create_emoji
 from main_bot.utils.lang.language import text
 
 
-async def set_admins(call: types.ChatMemberUpdated, chat_id: int, emoji_id: str):
-    admins = await call.bot.get_chat_administrators(chat_id)
+async def set_admins(bot: Bot, chat_id: int, chat_title: str, emoji_id: str):
+    admins = await bot.get_chat_administrators(chat_id)
     for admin in admins:
         if admin.user.is_bot:
             continue
@@ -26,7 +31,7 @@ async def set_admins(call: types.ChatMemberUpdated, chat_id: int, emoji_id: str)
 
         await db.add_channel(
             chat_id=chat_id,
-            title=call.chat.title,
+            title=chat_title,
             admin_id=admin.user.id,
             emoji_id=emoji_id
         )
@@ -49,7 +54,7 @@ async def set_channel(call: types.ChatMemberUpdated):
             photo_bytes = None
 
         emoji_id = await create_emoji(call.from_user.id, photo_bytes)
-        await set_admins(call, chat_id, emoji_id)
+        await set_admins(call.bot, chat_id, call.chat.title, emoji_id)
 
         message_text = text('success_add_channel').format(
             emoji_id,
@@ -123,9 +128,72 @@ async def set_active(call: types.ChatMemberUpdated):
     )
 
 
+async def manual_add_channel(message: types.Message, state: FSMContext):
+    chat_id = None
+    
+    if message.forward_from_chat and message.forward_from_chat.type == 'channel':
+        chat_id = message.forward_from_chat.id
+    else:
+        text_val = message.text.strip()
+        if text_val.startswith('@') or 't.me/' in text_val:
+            try:
+                # Extract username if it's a link
+                if 't.me/' in text_val:
+                    username = text_val.split('t.me/')[-1].split('/')[0]
+                    if not username.startswith('@'):
+                        username = f"@{username}"
+                else:
+                    username = text_val
+                
+                chat = await message.bot.get_chat(username)
+                if chat.type == 'channel':
+                    chat_id = chat.id
+            except Exception:
+                pass
+    
+    if not chat_id:
+        await message.answer("Не удалось определить канал. Пожалуйста, перешлите сообщение из канала или отправьте ссылку/юзернейм канала (например @channel).")
+        return
+
+    # Check if bot is admin
+    try:
+        bot_member = await message.bot.get_chat_member(chat_id, (await message.bot.get_me()).id)
+        if bot_member.status != ChatMemberStatus.ADMINISTRATOR:
+            await message.answer("Бот не является администратором этого канала. Пожалуйста, добавьте бота в администраторы и попробуйте снова.")
+            return
+            
+        # Check if user is admin
+        user_member = await message.bot.get_chat_member(chat_id, message.from_user.id)
+        if user_member.status not in [ChatMemberStatus.ADMINISTRATOR, ChatMemberStatus.CREATOR]:
+             await message.answer("Вы не являетесь администратором этого канала.")
+             return
+
+        # Add channel logic
+        chat = await message.bot.get_chat(chat_id)
+        if chat.photo:
+            photo_bytes = await message.bot.download(chat.photo.big_file_id)
+        else:
+            photo_bytes = None
+
+        emoji_id = await create_emoji(message.from_user.id, photo_bytes)
+        
+        await set_admins(message.bot, chat_id, chat.title, emoji_id)
+            
+        msg = text('success_add_channel').format(emoji_id, chat.title)
+        await message.answer(msg)
+        await state.clear()
+        await start_posting(message)
+
+    except Exception as e:
+        await message.answer(f"Произошла ошибка при добавлении канала: {e}")
+
+
 def hand_add():
     router = Router()
     router.my_chat_member.register(set_channel, F.chat.type == 'channel')
     router.my_chat_member.register(set_active, F.chat.type == 'private')
     router.chat_member.register(set_admin, F.chat.type == 'channel')
+    
+    router.message.register(manual_add_channel, AddChannel.waiting_for_channel)
+    
     return router
