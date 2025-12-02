@@ -300,27 +300,19 @@ async def view_purchase(call: CallbackQuery, purchase_id: int):
 @router.callback_query(F.data.startswith("AdPurchase|archive|"))
 async def archive_purchase(call: CallbackQuery):
     purchase_id = int(call.data.split("|")[2])
-    # We don't have update_purchase method in CRUD yet, so we use direct update or add it.
-    # For now, let's use direct SQL or assume we can add it.
-    # Since I can't easily add to CRUD without viewing it again and I want to be quick,
-    # I'll use a direct update query here if I can import update.
-    # But I should stick to patterns. 
-    # Let's check if I can use upsert or similar? No.
-    # I will assume I can use `db.execute` with a raw query or similar?
-    # Or better, I will add `update_purchase_status` to `AdPurchaseCrud` in next step if needed.
-    # But wait, I can just use `db.session` if available? No.
-    # I'll use a simple trick: I'll fetch and save? No, async.
-    
-    # Let's look at `AdPurchaseCrud` again.
-    # It has `create_purchase`, `get_purchase`, `get_user_purchases`, `upsert_link_mapping`, `get_link_mappings`.
-    # No update.
-    # I will add `update_purchase_status` to `AdPurchaseCrud` in `main_bot/database/ad_purchase/crud.py`.
-    # But first let's finish this file assuming the method exists or I'll add it.
-    
-    # I'll add the method to CRUD in a separate tool call.
     await db.update_purchase_status(purchase_id, "archived")
     await call.answer("Закуп архивирован")
     await view_purchase(call, purchase_id)
+
+
+@router.callback_query(F.data.startswith("AdPurchase|delete|"))
+async def delete_purchase(call: CallbackQuery):
+    purchase_id = int(call.data.split("|")[2])
+    await db.update_purchase_status(purchase_id, "deleted")
+    await call.answer("Закуп удален")
+    # Go back to list instead of staying on deleted item
+    from main_bot.handlers.user.ad_creative.purchase_menu import show_purchase_list
+    await show_purchase_list(call)
 
 
 @router.callback_query(F.data.startswith("AdPurchase|gen_post|"))
@@ -328,7 +320,6 @@ async def generate_post(call: CallbackQuery):
     purchase_id = int(call.data.split("|")[2])
     
     # 1. Ensure invite links
-    # We need bot instance. call.bot is available.
     mappings = await db.ensure_invite_links(purchase_id, call.bot)
     
     # 2. Get Creative
@@ -341,13 +332,6 @@ async def generate_post(call: CallbackQuery):
 
     # 3. Prepare message
     import copy
-    import json
-    
-    # raw_message is stored as dict (json) in DB if using JSON field, or string?
-    # Model says: content: Mapped[dict] = mapped_column(JSON)
-    # Wait, let's check AdCreative model.
-    # It says: content: Mapped[dict] = mapped_column(JSON)
-    # So it is a dict.
     
     message_data = copy.deepcopy(creative.raw_message)
     
@@ -355,7 +339,6 @@ async def generate_post(call: CallbackQuery):
     url_map = {}
     for m in mappings:
         if m.invite_link:
-            # Normalize? Usually exact match is enough if we stored what we parsed.
             url_map[m.original_url] = m.invite_link
             
     # Helper to replace in text
@@ -385,25 +368,18 @@ async def generate_post(call: CallbackQuery):
 
     # 4. Send to user
     try:
-        # We need to reconstruct the message. 
-        # Since we have raw dict, we can use `Message.model_validate(message_data)`? 
-        # No, `message_data` is what we dumped from `message.model_dump(mode='json')`.
-        # So we can try to send it using `call.bot.send_...` methods or `message.answer_...` if we reconstruct args.
-        # But `raw_message` structure depends on how we saved it.
-        # In `handlers.py` we did: `json.loads(message.model_dump_json())`.
-        # So it's a standard aiogram Message dict.
-        
-        # We can't easily "send" a Message object directly. We need to extract method and args.
-        # Or use `copy_message`? No, we modified content.
-        
-        # We need to determine content type.
-        # Simplified approach: check keys.
-        
         chat_id = call.from_user.id
-        
-        # Extract common parts
         reply_markup = message_data.get('reply_markup')
         
+        # Check caption length limit (1024 chars for caption)
+        if 'caption' in message_data and len(message_data['caption']) > 1024:
+             # If too long, we might need to send as text if possible, or truncate?
+             # But if it has media, we must use caption.
+             # If it was originally sent, it should be fine, unless we added something?
+             # We didn't add anything to text.
+             # Maybe the error is because we are trying to send text as caption or vice versa?
+             pass
+
         if 'text' in message_data:
             await call.bot.send_message(
                 chat_id=chat_id,
@@ -413,7 +389,6 @@ async def generate_post(call: CallbackQuery):
                 disable_web_page_preview=True
             )
         elif 'photo' in message_data:
-            # photo is list of PhotoSize, we need file_id of the last one
             photo_id = message_data['photo'][-1]['file_id']
             await call.bot.send_photo(
                 chat_id=chat_id,
@@ -431,7 +406,6 @@ async def generate_post(call: CallbackQuery):
                 caption_entities=[types.MessageEntity(**e) for e in message_data.get('caption_entities', [])] if message_data.get('caption_entities') else None,
                 reply_markup=reply_markup
             )
-        # Add other types if needed (animation, document, etc.)
         elif 'animation' in message_data:
              animation_id = message_data['animation']['file_id']
              await call.bot.send_animation(
@@ -448,5 +422,10 @@ async def generate_post(call: CallbackQuery):
         await call.message.answer("Готово! Перешлите это админу для размещения.")
         
     except Exception as e:
-        await call.answer(f"Ошибка при отправке: {e}", show_alert=True)
+        # Catch specific errors
+        err_str = str(e)
+        if "MESSAGE_TOO_LONG" in err_str:
+             await call.answer("Ошибка: Сообщение слишком длинное для отправки.", show_alert=True)
+        else:
+             await call.answer(f"Ошибка при отправке: {e}", show_alert=True)
 
