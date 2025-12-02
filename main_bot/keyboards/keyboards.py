@@ -40,6 +40,7 @@ class Reply:
         return kb.as_markup(
             resize_keyboard=True,
         )
+        
 
     @classmethod
     def captcha_kb(cls, buttons: str, resize: bool = True):
