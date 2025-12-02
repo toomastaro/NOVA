@@ -2448,7 +2448,7 @@ class Inline(
         )
         kb.button(
             text=text('back:button'),
-            callback_data=f"{data}|cancel"
+            callback_data="ChoicePostChannels|back|0"
         )
 
         kb.adjust(1)

@@ -1098,6 +1098,8 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
     if temp[1] == "public":
         kwargs["send_time"] = None
 
+    logger.info(f"Accepting post {post.id}. Chosen channels: {chosen}")
+
     await db.update_post(
         post_id=post.id,
         **kwargs
