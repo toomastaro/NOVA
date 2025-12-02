@@ -2494,6 +2494,7 @@ class Inline(
             resources: List[Channel],
             chosen: List[int],
             folders: List[UserFolder],
+            chosen_folders: List[int] = [],
             data: str = "ChoicePostChannels",
             remover: int = 0,
     ):
@@ -2514,7 +2515,7 @@ class Inline(
                     # Folder
                     resource_id = objects[idx].id
                     resource_type = "folder"
-                    button_text = f'📁 {objects[idx].title}'
+                    button_text = f'{"🔹" if resource_id in chosen_folders else "📁"} {objects[idx].title}'
 
                 kb.add(
                     InlineKeyboardButton(
