@@ -130,4 +130,8 @@ def hand_add():
                                    F.data == "MenuExchangeRate|settings")
 
     router.message.register(get_exchange_rate_of_custom_amount, ExchangeRate.input_custom_amount, F.text)
+    
+    # Обработчик для кнопки меню "Курс USDT/RUB"
+    router.message.register(start_exchange_rate, F.text == text('reply_menu:exchange_rate'))
+    
     return router

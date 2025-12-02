@@ -15,7 +15,7 @@ from main_bot.states.user import NovaStatStates
 router = Router()
 
 # --- Entry Point ---
-@router.message(F.text == "NOVAстат")
+@router.message(F.text == text('reply_menu:novastat'))
 async def novastat_main(message: types.Message, state: FSMContext):
     await state.clear()
     await message.answer(
