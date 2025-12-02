@@ -417,7 +417,7 @@ async def novastat_cpm_start(call: types.CallbackQuery, state: FSMContext):
     await state.set_state(NovaStatStates.waiting_for_cpm)
     await call.answer()
 
-async def calculate_and_show_price(message: types.Message, cpm: int, state: FSMContext, is_edit: bool = False):
+async def calculate_and_show_price(message: types.Message, cpm: int, state: FSMContext, user_id: int, is_edit: bool = False):
     data = await state.get_data()
     views = data.get('last_analysis_views')
     single_info = data.get('single_channel_info')
@@ -430,9 +430,12 @@ async def calculate_and_show_price(message: types.Message, cpm: int, state: FSMC
         return
         
     # Fetch user's exchange rate
-    user = await db.get_user(message.from_user.id)
-    exchange_rate_obj = await db.get_exchange_rate(user.default_exchange_rate_id)
-    rate = exchange_rate_obj.rate if exchange_rate_obj else 100.0 # Fallback if not found, though unlikely
+    user = await db.get_user(user_id)
+    if user and user.default_exchange_rate_id:
+        exchange_rate_obj = await db.get_exchange_rate(user.default_exchange_rate_id)
+        rate = exchange_rate_obj.rate if exchange_rate_obj else 100.0
+    else:
+        rate = 100.0
     
     price_rub = {h: int((views[h] / 1000) * cpm) for h in [24, 48, 72]}
     price_usdt = {h: round(price_rub[h] / rate, 2) for h in [24, 48, 72]}
@@ -466,13 +469,13 @@ async def calculate_and_show_price(message: types.Message, cpm: int, state: FSMC
 @router.callback_query(F.data.startswith("NovaStat|calc_cpm|"))
 async def novastat_cpm_cb(call: types.CallbackQuery, state: FSMContext):
     cpm = int(call.data.split("|")[2])
-    await calculate_and_show_price(call.message, cpm, state, is_edit=True)
+    await calculate_and_show_price(call.message, cpm, state, call.from_user.id, is_edit=True)
     await call.answer()
 
 @router.message(NovaStatStates.waiting_for_cpm)
 async def novastat_cpm_text(message: types.Message, state: FSMContext):
     try:
         cpm = int(message.text.strip())
-        await calculate_and_show_price(message, cpm, state)
+        await calculate_and_show_price(message, cpm, state, message.from_user.id)
     except ValueError:
         await message.answer("Пожалуйста, введите число.")
