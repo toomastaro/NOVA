@@ -43,3 +43,34 @@ class AdPurchaseCrud(DatabaseMixin):
         query = update(AdPurchase).where(AdPurchase.id == purchase_id).values(status=status)
         await self.execute(query)
 
+    async def ensure_invite_links(self, ad_purchase_id: int, bot) -> list[AdPurchaseLinkMapping]:
+        from main_bot.database.types import AdTargetType
+        
+        mappings = await self.get_link_mappings(ad_purchase_id)
+        updated_mappings = []
+        
+        for m in mappings:
+            if m.target_type == AdTargetType.CHANNEL and m.track_enabled and m.target_channel_id and not m.invite_link:
+                try:
+                    # Create invite link
+                    invite = await bot.create_chat_invite_link(
+                        chat_id=m.target_channel_id,
+                        name=f"AdPurchase #{ad_purchase_id}"
+                    )
+                    
+                    # Update DB
+                    query = update(AdPurchaseLinkMapping).where(
+                        AdPurchaseLinkMapping.id == m.id
+                    ).values(invite_link=invite.invite_link)
+                    await self.execute(query)
+                    
+                    # Update local object
+                    m.invite_link = invite.invite_link
+                except Exception as e:
+                    # Log error but continue
+                    print(f"Error creating invite link for purchase {ad_purchase_id}, slot {m.slot_id}: {e}")
+            
+            updated_mappings.append(m)
+            
+        return updated_mappings
+

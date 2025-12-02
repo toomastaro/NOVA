@@ -3123,8 +3123,8 @@ class InlineAdPurchase(InlineKeyboardBuilder):
     def purchase_view_menu(cls, purchase_id: int):
         kb = cls()
         kb.button(text="Мапинг ссылок", callback_data=f"AdPurchase|mapping|{purchase_id}")
+        kb.button(text="📤 Сгенерировать пост", callback_data=f"AdPurchase|gen_post|{purchase_id}")
         # Placeholders
-        # kb.button(text="Сгенерировать пост", callback_data="noop")
         # kb.button(text="Статистика", callback_data="noop")
         kb.button(text="Архивировать", callback_data=f"AdPurchase|archive|{purchase_id}")
         kb.button(text="Удалить", callback_data=f"AdPurchase|delete|{purchase_id}")
