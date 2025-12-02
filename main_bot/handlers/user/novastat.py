@@ -14,9 +14,25 @@ from main_bot.states.user import NovaStatStates
 
 router = Router()
 
+print("DEBUG: Loading handlers/user/novastat.py")
+
 # --- Entry Point ---
-@router.message(F.text == text('reply_menu:novastat'))
+@router.message(F.text.contains("NovaStat"))
+async def debug_novastat_catch_all(message: types.Message, state: FSMContext):
+    expected = text('reply_menu:novastat')
+    print(f"DEBUG: Catch-all NovaStat triggered.")
+    print(f"DEBUG: Received text: '{message.text}' (len={len(message.text)})")
+    print(f"DEBUG: Expected text: '{expected}' (len={len(expected)})")
+    print(f"DEBUG: Match: {message.text == expected}")
+    
+    if message.text == expected:
+        await novastat_main(message, state)
+    else:
+        await message.answer(f"Debug: Text mismatch.\nReceived: '{message.text}'\nExpected: '{expected}'")
+
+# @router.message(F.text == text('reply_menu:novastat'))
 async def novastat_main(message: types.Message, state: FSMContext):
+    print(f"DEBUG: novastat_main handler triggered with text: {message.text}")
     await state.clear()
     await message.answer(
         "<b>Быстрая аналитика канала!</b>\n"
