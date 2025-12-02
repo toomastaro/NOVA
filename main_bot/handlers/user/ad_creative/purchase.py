@@ -193,6 +193,17 @@ async def save_mapping_channel(call: CallbackQuery):
     slot_id = int(slot_id)
     channel_id = int(channel_id)
     
+    # Check subscription
+    channel = await db.get_channel_by_chat_id(channel_id)
+    if not channel:
+        await call.answer("Канал не найден", show_alert=True)
+        return
+        
+    import time
+    if not channel.subscribe or channel.subscribe < time.time():
+        await call.answer("У канала нет активной подписки. Продлите подписку для использования.", show_alert=True)
+        return
+    
     await db.upsert_link_mapping(
         ad_purchase_id=purchase_id,
         slot_id=slot_id,
