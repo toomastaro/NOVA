@@ -198,6 +198,15 @@ class SessionManager:
             print(f"Get views error: {e}")
             return None
 
+    async def leave_channel(self, chat_id: int) -> bool:
+        try:
+            peer = await self.client.get_input_entity(chat_id)
+            await self.client(functions.channels.LeaveChannelRequest(channel=peer))
+            return True
+        except Exception as e:
+            print(f"Leave channel error: {e}")
+            return False
+
 
 async def main():
     # Example usage

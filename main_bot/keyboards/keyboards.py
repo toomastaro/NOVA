@@ -2322,27 +2322,65 @@ class InlineAdmin(InlineKeyboardBuilder):
         return kb.as_markup()
 
     @classmethod
-    def admin_sessions(cls):
+    def admin_sessions(cls, clients: list = None):
         kb = cls()
 
-        kb.button(
-            text="Свои",
-            callback_data="AdminSession|internal"
-        )
-        kb.button(
-            text="Внешние",
-            callback_data="AdminSession|external"
-        )
-        kb.button(
-            text=text("add:button"),
-            callback_data="AdminSession|add"
-        )
-        kb.button(
-            text=text("back:button"),
-            callback_data="AdminSession|cancel"
-        )
+        if clients:
+            for client in clients:
+                # client is MtClient object
+                status_emoji = "🟢" if client.is_active else "🔴"
+                if client.status == 'RESETTING':
+                    status_emoji = "🔄"
+                elif client.status == 'TEMP_BLOCKED':
+                    status_emoji = "⏳"
+                
+                kb.button(
+                    text=f"{status_emoji} {client.alias or client.id}",
+                    callback_data=f"AdminSession|manage|{client.id}"
+                )
+            kb.adjust(1)
+            
+            kb.row(
+                InlineKeyboardButton(
+                    text=text("back:button"),
+                    callback_data="AdminSession|back_to_main"
+                )
+            )
+        else:
+            kb.button(
+                text="Свои",
+                callback_data="AdminSession|internal"
+            )
+            kb.button(
+                text="Внешние",
+                callback_data="AdminSession|external"
+            )
+            kb.button(
+                text=text("add:button"),
+                callback_data="AdminSession|add"
+            )
+            kb.button(
+                text=text("back:button"),
+                callback_data="AdminSession|cancel"
+            )
+            kb.adjust(2, 1, 1)
 
-        kb.adjust(2, 1, 1)
+        return kb.as_markup()
+
+    @classmethod
+    def admin_client_manage(cls, client_id: int):
+        kb = cls()
+        kb.button(text="🔄 Reset Client", callback_data=f"AdminSession|reset_ask|{client_id}")
+        kb.button(text=text("back:button"), callback_data="AdminSession|back_to_list")
+        kb.adjust(1)
+        return kb.as_markup()
+
+    @classmethod
+    def admin_client_reset_confirm(cls, client_id: int):
+        kb = cls()
+        kb.button(text="⚠️ Confirm Reset", callback_data=f"AdminSession|reset_confirm|{client_id}")
+        kb.button(text="Cancel", callback_data=f"AdminSession|manage|{client_id}")
+        kb.adjust(1)
         return kb.as_markup()
 
 
