@@ -18,6 +18,8 @@ def setup_logging():
     logging.getLogger("aiogram").setLevel(logging.WARNING)
     logging.getLogger("sqlalchemy").setLevel(logging.WARNING)
     logging.getLogger("httpx").setLevel(logging.WARNING)
+    logging.getLogger("apscheduler").setLevel(logging.WARNING)
+    logging.getLogger("main_bot.database.published_post.crud").setLevel(logging.WARNING)
 
     logger = logging.getLogger(__name__)
     logger.info("Logging configuration setup complete.")
