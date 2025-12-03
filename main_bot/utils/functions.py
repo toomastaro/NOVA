@@ -236,51 +236,75 @@ async def answer_story(message: types.Message, state: FSMContext, from_edit: boo
 
 
 async def set_channel_session(chat_id: int):
-    folder_path = 'main_bot/utils/sessions/'
-    sessions = os.listdir(folder_path)
+    # 1. Get active internal clients
+    clients = await db.get_mt_clients_by_pool('internal')
+    active_clients = [c for c in clients if c.is_active and c.status == 'ACTIVE']
+    
+    if not active_clients:
+        logger.error("No active internal clients found")
+        return {"error": "No Active Clients"}
+
     chat_invite_link = await main_bot_obj.create_chat_invite_link(
         chat_id=chat_id,
-        member_limit=15
+        member_limit=1
     )
 
-    for session in sessions:
-        session_path = folder_path + session
+    for client in active_clients:
+        session_path = Path(client.session_path)
+        if not session_path.exists():
+            continue
 
-        async with SessionManager(Path(session_path)) as manager:
+        async with SessionManager(session_path) as manager:
             if not manager:
                 continue
-
+            
+            # Try to join
             success_join = await manager.join(
                 invite_url=chat_invite_link.invite_link
             )
             if not success_join:
                 continue
 
+            # Check stories capability
             can_send_stories = await manager.can_send_stories(
                 chat_id=int(str(chat_id).replace("-100", ""))
             )
-            if not can_send_stories:
-                return {"error": "Stories Unavailable"}
-
+            
             me = await manager.me()
+            if not me:
+                continue
 
+        # Promote admin rights
         try:
             promote = await main_bot_obj.promote_chat_member(
                 chat_id=chat_id,
-                user_id=me[0].id,
+                user_id=me.id,
                 can_edit_stories=True,
                 can_post_stories=True,
                 can_delete_stories=True
             )
         except Exception as e:
-            print(e)
+            logger.error(f"Error promoting client {client.id} in {chat_id}: {e}")
             continue
 
         if promote:
+            # Create/Update MtClientChannel
+            await db.add_mt_client_channel(
+                client_id=client.id,
+                channel_id=chat_id,
+                is_member=True,
+                can_post_stories=can_send_stories,
+                can_view_stats=True # Assuming if we joined we can view stats
+            )
+            
+            # Update legacy channel field for backward compatibility if needed, 
+            # but we are moving away from it. 
+            # However, existing code might still rely on it until fully refactored.
             await db.update_channel_by_chat_id(
                 chat_id=chat_id,
-                session_path=session_path
+                session_path=str(session_path)
             )
+            
             return Path(session_path)
 
     return {"error": "Try Later"}
