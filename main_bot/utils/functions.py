@@ -353,6 +353,37 @@ async def set_channel_session(chat_id: int):
     return {"error": "Try Later"}
 
 
+async def background_join_channel(chat_id: int):
+    """
+    Попытка добавить клиента в канал в фоне с ретраями.
+    Делает 3 попытки с экспоненциальной задержкой.
+    """
+    import asyncio
+    
+    for attempt in range(3):
+        try:
+            # Используем существующую логику set_channel_session
+            res = await set_channel_session(chat_id)
+            
+            # Проверяем успех (set_channel_session возвращает путь к сессии или dict с ошибкой)
+            if isinstance(res, Path):
+                logger.info(f"Успешно добавлен клиент в канал {chat_id} на попытке {attempt+1}")
+                return
+            
+            # Если вернулась ошибка
+            logger.warning(f"Попытка {attempt+1} добавления клиента в канал {chat_id} неудачна: {res}")
+            
+        except Exception as e:
+            logger.error(f"Ошибка при фоновом добавлении клиента в канал {chat_id}: {e}")
+            
+        # Ждем перед следующей попыткой (экспоненциально)
+        if attempt < 2:  # Не ждем после последней попытки
+            await asyncio.sleep(5 * (attempt + 1))
+    
+    # Если все попытки исчерпаны - алерт уже будет отправлен внутри set_channel_session
+    logger.error(f"Все попытки добавления клиента в канал {chat_id} исчерпаны")
+
+
 def get_mode(image: Image) -> str:
     if image.mode not in ['RGB', 'RGBA']:
         return 'RGB'

@@ -1,3 +1,5 @@
+import asyncio
+import logging
 from aiogram import types, F, Router
 from aiogram import types, F, Router, Bot
 from aiogram.enums import ChatMemberStatus
@@ -7,8 +9,10 @@ from main_bot.states.user import AddChannel
 from main_bot.handlers.user.menu import start_posting
 
 from main_bot.database.db import db
-from main_bot.utils.functions import create_emoji
+from main_bot.utils.functions import create_emoji, background_join_channel
 from main_bot.utils.lang.language import text
+
+logger = logging.getLogger(__name__)
 
 
 async def set_admins(bot: Bot, chat_id: int, chat_title: str, emoji_id: str):
@@ -47,18 +51,35 @@ async def set_channel(call: types.ChatMemberUpdated):
         if channel:
             return
 
-        chat = await call.bot.get_chat(chat_id)
-        if chat.photo:
-            photo_bytes = await call.bot.download(chat.photo.big_file_id)
+        # Обработка ошибок при получении информации о канале
+        try:
+            chat = await call.bot.get_chat(chat_id)
+            chat_title = chat.title
+            photo = chat.photo
+        except Exception as e:
+            logger.error(f"Ошибка получения информации о канале {chat_id}: {e}")
+            chat_title = call.chat.title
+            photo = None
+
+        # Загрузка фото канала
+        if photo:
+            try:
+                photo_bytes = await call.bot.download(photo.big_file_id)
+            except Exception as e:
+                logger.error(f"Ошибка загрузки фото канала {chat_id}: {e}")
+                photo_bytes = None
         else:
             photo_bytes = None
 
         emoji_id = await create_emoji(call.from_user.id, photo_bytes)
-        await set_admins(call.bot, chat_id, call.chat.title, emoji_id)
+        await set_admins(call.bot, chat_id, chat_title, emoji_id)
+
+        # Запуск фоновой задачи для добавления клиента в канал
+        asyncio.create_task(background_join_channel(chat_id))
 
         message_text = text('success_add_channel').format(
             emoji_id,
-            call.chat.title
+            chat_title
         )
     else:
         if not channel:
@@ -182,17 +203,39 @@ async def manual_add_channel(message: types.Message, state: FSMContext):
              return
 
         # Add channel logic
-        chat = await message.bot.get_chat(chat_id)
-        if chat.photo:
-            photo_bytes = await message.bot.download(chat.photo.big_file_id)
+        try:
+            chat = await message.bot.get_chat(chat_id)
+            chat_title = chat.title
+            photo = chat.photo
+        except Exception as e:
+            logger.error(f"Ошибка получения информации о канале {chat_id}: {e}")
+            # Получаем информацию из user_member
+            try:
+                chat_info = await message.bot.get_chat(chat_id)
+                chat_title = chat_info.title
+                photo = None
+            except:
+                chat_title = f"Channel {chat_id}"
+                photo = None
+        
+        # Загрузка фото канала
+        if photo:
+            try:
+                photo_bytes = await message.bot.download(photo.big_file_id)
+            except Exception as e:
+                logger.error(f"Ошибка загрузки фото канала {chat_id}: {e}")
+                photo_bytes = None
         else:
             photo_bytes = None
 
         emoji_id = await create_emoji(message.from_user.id, photo_bytes)
         
-        await set_admins(message.bot, chat_id, chat.title, emoji_id)
+        await set_admins(message.bot, chat_id, chat_title, emoji_id)
+        
+        # Запуск фоновой задачи для добавления клиента в канал
+        asyncio.create_task(background_join_channel(chat_id))
             
-        msg = text('success_add_channel').format(emoji_id, chat.title)
+        msg = text('success_add_channel').format(emoji_id, chat_title)
         await message.answer(msg)
         await state.clear()
         await start_posting(message)

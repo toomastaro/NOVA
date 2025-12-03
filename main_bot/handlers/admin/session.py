@@ -240,8 +240,37 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
             
         await db.update_mt_client(client_id=client.id, **updates)
         
-        # Refresh view
-        await choice(call, state) # Recursive call to refresh 'manage' view with new data
+        # Refresh view with updated data
+        client = await db.get_mt_client(client_id)  # Получаем обновленные данные
+        
+        created_at = "N/A"
+        if client.created_at:
+             created_at = datetime.fromtimestamp(client.created_at).strftime("%d.%m.%Y %H:%M")
+             
+        last_check = "N/A"
+        if client.last_self_check_at:
+            last_check = datetime.fromtimestamp(client.last_self_check_at).strftime("%d.%m.%Y %H:%M")
+
+        info = (
+            f"🆔 ID: {client.id}\n"
+            f"👤 Псевдоним: {client.alias}\n"
+            f"🏊 Пул: {client.pool_type}\n"
+            f"📊 Статус: {client.status}\n"
+            f"🔛 Активен: {client.is_active}\n"
+            f"📅 Создан: {created_at}\n"
+            f"🕒 Последняя проверка: {last_check}\n"
+        )
+        if client.last_error_code:
+            error_time = datetime.fromtimestamp(client.last_error_at).strftime("%d.%m.%Y %H:%M") if client.last_error_at else "N/A"
+            info += f"❌ Последняя ошибка: {client.last_error_code} ({error_time})\n"
+        if client.flood_wait_until:
+            flood_time = datetime.fromtimestamp(client.flood_wait_until).strftime("%d.%m.%Y %H:%M")
+            info += f"⏳ Флуд до: {flood_time}\n"
+
+        await call.message.edit_text(
+            info,
+            reply_markup=keyboards.admin_client_manage(client_id)
+        )
         await call.answer(msg, show_alert=True)
         return
 
@@ -295,12 +324,25 @@ async def admin_session_back(call: types.CallbackQuery, state: FSMContext):
         print(e)
 
     await state.clear()
-    session_count = len(os.listdir("main_bot/utils/sessions/"))
+    
+    # Получаем все сессии из базы данных
+    all_clients = await db.get_mt_clients_by_pool('internal') + await db.get_mt_clients_by_pool('external')
+    db_session_paths = {Path(c.session_path).name for c in all_clients}
+    
+    # Сканируем директорию на наличие orphaned сессий
+    session_dir = Path("main_bot/utils/sessions/")
+    orphaned = []
+    if session_dir.exists():
+        for file in session_dir.glob("*.session"):
+            if file.name not in db_session_paths:
+                orphaned.append(file.name)
+    
+    session_count = len(all_clients) + len(orphaned)
 
     await call.message.delete()
     await call.message.answer(
-        "Доступно сессий: {}".format(session_count),
-        reply_markup=keyboards.admin_sessions()
+        f"Доступно сессий: {session_count}\n(В базе: {len(all_clients)}, Новых: {len(orphaned)})",
+        reply_markup=keyboards.admin_sessions(orphaned_sessions=orphaned)
     )
 
 
