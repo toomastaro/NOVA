@@ -177,18 +177,52 @@ class NovaStatService:
 
         # Попытка получить entity с 3 попытками (для авто-приема)
         entity = None
+        last_error = None
         for attempt in range(3):
             try:
                 entity = await client.get_entity(channel_identifier)
                 break  # Success
             except Exception as e:
+                last_error = e
                 if attempt < 2:  # Not the last attempt
                     delay = attempt + 1  # 1s on first retry, 2s on second retry
                     print(f"get_entity attempt {attempt + 1} failed for {channel_identifier}: {e}. Retrying in {delay}s...")
                     await asyncio.sleep(delay)
                 else:
-                    # Last attempt failed
+                    # Last attempt failed - send alert for access errors
+                    error_str = str(e)
                     print(f"get_entity failed after 3 attempts for {channel_identifier}: {e}")
+                    
+                    if "USER_NOT_PARTICIPANT" in error_str or "CHAT_ADMIN_REQUIRED" in error_str or "CHANNEL_PRIVATE" in error_str:
+                        from main_bot.utils.support_log import send_support_alert, SupportAlert
+                        from instance_bot import bot as main_bot_obj
+                        from main_bot.database.db import db
+                        
+                        # Try to get channel info
+                        channel = None
+                        channel_id = None
+                        try:
+                            # Extract channel ID from identifier if it's a link
+                            if "t.me/" in channel_identifier:
+                                username = channel_identifier.split('/')[-1]
+                                channel = await db.get_channel_by_username(username)
+                                if channel:
+                                    channel_id = channel.chat_id
+                        except:
+                            pass
+                        
+                        await send_support_alert(main_bot_obj, SupportAlert(
+                            event_type='STATS_ACCESS_DENIED',
+                            client_id=None,  # External client, we don't track which one
+                            client_alias=None,
+                            pool_type='external',
+                            channel_id=channel_id,
+                            channel_username=channel_identifier if not channel_id else None,
+                            is_our_channel=channel is not None,
+                            error_code=error_str.split('(')[0].strip() if '(' in error_str else error_str[:50],
+                            error_text=f"Не удалось получить статистику канала: {error_str[:100]}"
+                        ))
+                    
                     return None
         
         if not entity:

@@ -267,7 +267,26 @@ async def set_channel_session(chat_id: int):
             try:
                 success_join = await manager.join(chat_invite_link.invite_link)
             except Exception as e:
+                error_str = str(e)
                 logger.error(f"Join failed for client {client.id}: {e}")
+                
+                # Send alert for access loss
+                if "USER_NOT_PARTICIPANT" in error_str or "CHANNEL_PRIVATE" in error_str or "InviteHashExpiredError" in error_str:
+                    from main_bot.utils.support_log import send_support_alert, SupportAlert
+                    channel = await db.get_channel_by_chat_id(chat_id)
+                    
+                    await send_support_alert(main_bot_obj, SupportAlert(
+                        event_type='INTERNAL_ACCESS_LOST',
+                        client_id=client.id,
+                        client_alias=client.alias,
+                        pool_type=client.pool_type,
+                        channel_id=chat_id,
+                        channel_username=channel.username if channel else None,
+                        is_our_channel=True,
+                        error_code=error_str.split('(')[0].strip() if '(' in error_str else error_str[:50],
+                        error_text=f"Не удалось добавить клиента в канал: {error_str[:100]}"
+                    ))
+                
                 success_join = False
             
             if not success_join:
@@ -277,6 +296,22 @@ async def set_channel_session(chat_id: int):
             can_send_stories = await manager.can_send_stories(
                 chat_id=int(str(chat_id).replace("-100", ""))
             )
+            
+            # Send alert if stories permission denied
+            if not can_send_stories:
+                from main_bot.utils.support_log import send_support_alert, SupportAlert
+                channel = await db.get_channel_by_chat_id(chat_id)
+                
+                await send_support_alert(main_bot_obj, SupportAlert(
+                    event_type='STORIES_PERMISSION_DENIED',
+                    client_id=client.id,
+                    client_alias=client.alias,
+                    pool_type=client.pool_type,
+                    channel_id=chat_id,
+                    channel_username=channel.username if channel else None,
+                    is_our_channel=True,
+                    error_text="Клиент не имеет прав на публикацию историй"
+                ))
             
             me = await manager.me()
             if not me:

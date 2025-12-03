@@ -217,9 +217,26 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
         else:
             updates["status"] = 'DISABLED'
             updates["is_active"] = False
-            updates["last_error_code"] = health.get("error_code", "UNKNOWN")
+            error_code = health.get("error_code", "UNKNOWN")
+            updates["last_error_code"] = error_code
             updates["last_error_at"] = current_time
-            msg = f"❌ Ошибка: {health.get('error_code')}"
+            msg = f"❌ Ошибка: {error_code}"
+            
+            # Send alert for critical errors
+            if "DEACTIVATED" in error_code or "UNREGISTERED" in error_code or "BANNED" in error_code:
+                from main_bot.utils.support_log import send_support_alert, SupportAlert
+                from instance_bot import bot as main_bot_obj
+                
+                event_type = 'CLIENT_BANNED' if 'BANNED' in error_code or 'DEACTIVATED' in error_code else 'CLIENT_DISABLED'
+                
+                await send_support_alert(main_bot_obj, SupportAlert(
+                    event_type=event_type,
+                    client_id=client.id,
+                    client_alias=client.alias,
+                    pool_type=client.pool_type,
+                    error_code=error_code,
+                    error_text=f"Клиент не прошел проверку здоровья"
+                ))
             
         await db.update_mt_client(client_id=client.id, **updates)
         
