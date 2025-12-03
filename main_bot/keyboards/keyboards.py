@@ -2326,6 +2326,14 @@ class InlineAdmin(InlineKeyboardBuilder):
         kb = cls()
 
         kb.button(
+            text="Свои",
+            callback_data="AdminSession|internal"
+        )
+        kb.button(
+            text="Внешние",
+            callback_data="AdminSession|external"
+        )
+        kb.button(
             text=text("add:button"),
             callback_data="AdminSession|add"
         )
@@ -2334,7 +2342,7 @@ class InlineAdmin(InlineKeyboardBuilder):
             callback_data="AdminSession|cancel"
         )
 
-        kb.adjust(1)
+        kb.adjust(2, 1, 1)
         return kb.as_markup()
 
 

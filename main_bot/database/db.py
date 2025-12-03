@@ -18,6 +18,7 @@ from main_bot.database.exchange_rate.crud import ExchangeRateCrud
 from main_bot.database.novastat.crud import NovaStatCrud
 from main_bot.database.ad_creative.crud import AdCreativeCrud
 from main_bot.database.ad_purchase.crud import AdPurchaseCrud
+from main_bot.database.mt_client.crud import MtClientCrud
 from main_bot.database import engine, Base
 
 
@@ -44,6 +45,7 @@ class Database(
     ChannelBotSettingCrud,
     ChannelHelloMessageCrud,
     ChannelCaptchaMessageCrud,
+    MtClientCrud,
 ):
     @staticmethod
     async def create_tables():

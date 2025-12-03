@@ -7,6 +7,7 @@ from aiogram import types, Router, F
 from main_bot.keyboards.keyboards import keyboards
 from main_bot.states.admin import Session
 from main_bot.utils.session_manager import SessionManager
+from main_bot.database.db import db
 
 apps = {}
 
@@ -27,6 +28,22 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
         await call.message.edit_text(
             'Админ меню',
             reply_markup=keyboards.admin()
+        )
+
+    if temp[1] in ['internal', 'external']:
+        pool_type = temp[1]
+        clients = await db.get_mt_clients_by_pool(pool_type)
+
+        text_response = f"Список {pool_type} клиентов:\n\n"
+        if not clients:
+            text_response += "Пусто"
+        else:
+            for client in clients:
+                text_response += f"ID: {client.id} | Alias: {client.alias} | Status: {client.status} | Pool: {client.pool_type}\n"
+
+        await call.message.edit_text(
+            text_response,
+            reply_markup=keyboards.admin_sessions()
         )
 
 
