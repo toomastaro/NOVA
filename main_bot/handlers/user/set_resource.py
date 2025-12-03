@@ -15,8 +15,25 @@ from main_bot.utils.lang.language import text
 logger = logging.getLogger(__name__)
 
 
-async def set_admins(bot: Bot, chat_id: int, chat_title: str, emoji_id: str):
-    admins = await bot.get_chat_administrators(chat_id)
+async def set_admins(bot: Bot, chat_id: int, chat_title: str, emoji_id: str, user_id: int = None):
+    """
+    Добавляет администраторов канала в базу данных.
+    Если бот еще не добавлен в канал, добавляет только пользователя, который добавил бота.
+    """
+    try:
+        admins = await bot.get_chat_administrators(chat_id)
+    except Exception as e:
+        logger.error(f"Ошибка получения администраторов канала {chat_id}: {e}")
+        # Если не можем получить список админов, добавляем хотя бы того, кто добавил бота
+        if user_id:
+            await db.add_channel(
+                chat_id=chat_id,
+                title=chat_title,
+                admin_id=user_id,
+                emoji_id=emoji_id
+            )
+        return
+    
     for admin in admins:
         if admin.user.is_bot:
             continue
@@ -72,7 +89,7 @@ async def set_channel(call: types.ChatMemberUpdated):
             photo_bytes = None
 
         emoji_id = await create_emoji(call.from_user.id, photo_bytes)
-        await set_admins(call.bot, chat_id, chat_title, emoji_id)
+        await set_admins(call.bot, chat_id, chat_title, emoji_id, user_id=call.from_user.id)
 
         # Запуск фоновой задачи для добавления клиента в канал
         asyncio.create_task(background_join_channel(chat_id))
@@ -230,7 +247,7 @@ async def manual_add_channel(message: types.Message, state: FSMContext):
 
         emoji_id = await create_emoji(message.from_user.id, photo_bytes)
         
-        await set_admins(message.bot, chat_id, chat_title, emoji_id)
+        await set_admins(message.bot, chat_id, chat_title, emoji_id, user_id=message.from_user.id)
         
         # Запуск фоновой задачи для добавления клиента в канал
         asyncio.create_task(background_join_channel(chat_id))

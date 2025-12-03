@@ -26,8 +26,9 @@ logger = logging.getLogger(__name__)
 async def create_emoji(user_id: int, photo_bytes=None):
     emoji_id = '5393222813345663485'
 
+    # Если фото нет, возвращаем дефолтный emoji
     if not photo_bytes:
-        photo_bytes = 'main_bot/utils/no_photo.jpg'
+        return emoji_id
 
     try:
         with Image.open(photo_bytes) as img:
@@ -68,12 +69,15 @@ async def create_emoji(user_id: int, photo_bytes=None):
             await main_bot_obj.session.close()
             emoji_id = r.stickers[0].custom_emoji_id
         except Exception as e:
-            print(e)
+            logger.error(f"Ошибка создания стикера: {e}")
 
-        os.remove(output_path)
+        try:
+            os.remove(output_path)
+        except:
+            pass
 
     except Exception as e:
-        print(e)
+        logger.error(f"Ошибка обработки фото для emoji: {e}")
 
     return emoji_id
 
