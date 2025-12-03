@@ -1,4 +1,6 @@
 import os
+import time
+from datetime import datetime
 from pathlib import Path
 
 from aiogram.fsm.context import FSMContext
@@ -156,8 +158,6 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
             await call.answer("Клиент не найден", show_alert=True)
             return
 
-        from datetime import datetime
-        
         created_at = "N/A"
         if client.created_at:
              created_at = datetime.fromtimestamp(client.created_at).strftime("%d.%m.%Y %H:%M")
@@ -202,7 +202,6 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
 
         await call.answer("Проверка...", show_alert=False)
         
-        import time
         async with SessionManager(session_path) as manager:
             health = await manager.health_check()
             
