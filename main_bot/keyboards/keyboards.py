@@ -407,25 +407,29 @@ class InlinePosting(InlineKeyboardBuilder):
             )
         )
         groups = [
-            [1, 2, 3, 4],
-            [6, 8, 10, 12],
-            [18, 24, 36, 48],
-            [72, 96, 120, 144]
+            [1, 2, 3, 4],      # минуты
+            [1, 2, 3, 4],      # часы
+            [6, 8, 10, 12],    # часы
+            [18, 24, 36, 48],  # часы
+            [72, 96, 120, 144] # часы
         ]
-        for group in groups:
+        
+        # Первый ряд - минуты
+        kb.row(*[
+            InlineKeyboardButton(
+                text=f'{m} мин.',
+                callback_data=f'GetDeleteTimePost|{m * 60}'
+            ) for m in groups[0]
+        ])
+        
+        # Остальные ряды - часы
+        for group in groups[1:]:
             kb.row(*[
                 InlineKeyboardButton(
                     text=f'{h} ч.',
                     callback_data=f'GetDeleteTimePost|{h * 3600}'
                 ) for h in group
             ])
-
-        kb.row(*[
-            InlineKeyboardButton(
-                text=f'{i} нед.',
-                callback_data=f'GetDeleteTimePost|{i * 7 * 86400}'
-            ) for i in range(1, 5)
-        ])
         kb.row(
             InlineKeyboardButton(
                 text=text("back:button"),

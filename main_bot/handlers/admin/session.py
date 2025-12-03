@@ -75,17 +75,17 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
 
         info = (
             f"🆔 ID: {client.id}\n"
-            f"👤 Alias: {client.alias}\n"
-            f"🏊 Pool: {client.pool_type}\n"
-            f"📊 Status: {client.status}\n"
-            f"🔛 Active: {client.is_active}\n"
-            f"📅 Created: {client.created_at}\n"
-            f"🕒 Last Check: {client.last_self_check_at}\n"
+            f"👤 Псевдоним: {client.alias}\n"
+            f"🏊 Пул: {client.pool_type}\n"
+            f"📊 Статус: {client.status}\n"
+            f"🔛 Активен: {client.is_active}\n"
+            f"📅 Создан: {client.created_at}\n"
+            f"🕒 Последняя проверка: {client.last_self_check_at}\n"
         )
         if client.last_error_code:
-            info += f"❌ Last Error: {client.last_error_code} ({client.last_error_at})\n"
+            info += f"❌ Последняя ошибка: {client.last_error_code} ({client.last_error_at})\n"
         if client.flood_wait_until:
-            info += f"⏳ Flood Wait Until: {client.flood_wait_until}\n"
+            info += f"⏳ Флуд до: {client.flood_wait_until}\n"
 
         await call.message.edit_text(
             info,
@@ -117,10 +117,10 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
         # Manually set status for immediate feedback in UI
         info = (
             f"🆔 ID: {client_id}\n"
-            f"👤 Alias: {client.alias}\n"
-            f"🏊 Pool: {client.pool_type}\n"
-            f"📊 Status: RESETTING (Started)\n"
-            f"🔛 Active: False\n"
+            f"👤 Псевдоним: {client.alias}\n"
+            f"🏊 Пул: {client.pool_type}\n"
+            f"📊 Статус: СБРОС (Запущен)\n"
+            f"🔛 Активен: False\n"
         )
         await call.message.edit_text(
             info,
@@ -273,9 +273,9 @@ async def get_code(message: types.Message, state: FSMContext):
     await message.answer(
         f"✅ Сессия добавлена!\n\n"
         f"🆔 ID: {new_client.id}\n"
-        f"👤 Alias: {alias}\n"
-        f"🏊 Pool: {pool_type}\n"
-        f"📊 Result: {result_text}\n\n"
+        f"👤 Псевдоним: {alias}\n"
+        f"🏊 Пул: {pool_type}\n"
+        f"📊 Результат: {result_text}\n\n"
         f"Всего сессий: {session_count}",
         reply_markup=keyboards.admin_sessions()
     )
