@@ -2383,6 +2383,15 @@ class InlineAdmin(InlineKeyboardBuilder):
         kb.adjust(1)
         return kb.as_markup()
 
+    @classmethod
+    def admin_session_pool_select(cls):
+        kb = cls()
+        kb.button(text="Свой клиент (Internal)", callback_data="AdminSession|pool_select|internal")
+        kb.button(text="Внешний (NovaStat)", callback_data="AdminSession|pool_select|external")
+        kb.button(text=text("back:button"), callback_data="AdminSession|cancel")
+        kb.adjust(1)
+        return kb.as_markup()
+
 
 class Inline(
     InlineStories,

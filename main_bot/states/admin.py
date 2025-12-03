@@ -6,5 +6,6 @@ class Promo(StatesGroup):
 
 
 class Session(StatesGroup):
+    pool_select = State()
     phone = State()
     code = State()

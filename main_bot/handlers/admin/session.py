@@ -18,7 +18,17 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
 
     if action == 'add':
         await call.message.edit_text(
-            'Отправьте цифры сессии: ',
+            'Выберите тип клиента:',
+            reply_markup=keyboards.admin_session_pool_select()
+        )
+        return await state.set_state(Session.pool_select)
+
+    if action == 'pool_select':
+        pool_type = temp[2]
+        await state.update_data(pool_type=pool_type)
+        
+        await call.message.edit_text(
+            f'Выбран тип: {pool_type}\nОтправьте номер телефона (цифры сессии):',
             reply_markup=keyboards.back(
                 data="AdminSessionNumberBack"
             )
@@ -124,9 +134,11 @@ async def admin_session_back(call: types.CallbackQuery, state: FSMContext):
 
     try:
         number = data.get("number")
-        app: SessionManager = apps[number]
-        os.remove(app.session_path)
-        await app.close()
+        if number:
+            app: SessionManager = apps.get(number)
+            if app:
+                os.remove(app.session_path)
+                await app.close()
     except Exception as e:
         print(e)
 
@@ -156,9 +168,12 @@ async def get_number(message: types.Message, state: FSMContext):
     except Exception as e:
         print(e)
         await manager.close()
-        os.remove(session_path)
+        try:
+            os.remove(session_path)
+        except:
+            pass
         return await message.answer(
-            '❌ Неверный номер',
+            '❌ Неверный номер или ошибка инициализации',
             reply_markup=keyboards.cancel(
                 data="AdminSessionNumberBack"
             )
@@ -182,7 +197,11 @@ async def get_code(message: types.Message, state: FSMContext):
     data = await state.get_data()
     number = data.get("number")
     hash_code = data.get("hash_code")
-    app: SessionManager = apps[number]
+    pool_type = data.get("pool_type", "internal") # Default to internal if missing
+    
+    app: SessionManager = apps.get(number)
+    if not app:
+         return await message.answer("Ошибка: сессия не найдена. Начните заново.")
 
     try:
         await app.client.sign_in(
@@ -190,26 +209,74 @@ async def get_code(message: types.Message, state: FSMContext):
             message.text,
             phone_code_hash=hash_code
         )
-        await app.close()
-
+        # Do not close app yet, we need it for health check
+        
     except Exception as e:
         print(e)
-
         await app.close()
-        os.remove(app.session_path)
+        try:
+            os.remove(app.session_path)
+        except:
+            pass
 
         await state.clear()
         return await message.answer(
-            '❌ Неверный код',
+            '❌ Неверный код или ошибка входа',
             reply_markup=keyboards.cancel(
                 data="AdminSessionNumberBack"
             )
         )
 
+    # --- MtClient Creation Logic ---
+    import time
+    from main_bot.database.mt_client.model import MtClient
+    
+    # 1. Generate Alias
+    existing_clients = await db.get_mt_clients_by_pool(pool_type)
+    alias = f"{pool_type}-{len(existing_clients) + 1}"
+    
+    # 2. Create MtClient
+    new_client = await db.create_mt_client(
+        alias=alias,
+        pool_type=pool_type,
+        session_path=str(app.session_path),
+        status='NEW',
+        is_active=False
+    )
+    
+    # 3. Health Check
+    health = await app.health_check()
+    current_time = int(time.time())
+    
+    updates = {
+        "last_self_check_at": current_time
+    }
+    
+    if health["ok"]:
+        updates["status"] = 'ACTIVE'
+        updates["is_active"] = True
+        result_text = "✅ ACTIVE"
+    else:
+        updates["status"] = 'DISABLED'
+        updates["is_active"] = False
+        updates["last_error_code"] = health.get("error_code", "UNKNOWN")
+        updates["last_error_at"] = current_time
+        result_text = f"❌ ERROR: {health.get('error_code')}"
+        
+    await db.update_mt_client(client_id=new_client.id, **updates)
+    
+    await app.close()
     await state.clear()
+    
     session_count = len(os.listdir("main_bot/utils/sessions/"))
+    
     await message.answer(
-        "Доступно сессий: {}".format(session_count),
+        f"✅ Сессия добавлена!\n\n"
+        f"🆔 ID: {new_client.id}\n"
+        f"👤 Alias: {alias}\n"
+        f"🏊 Pool: {pool_type}\n"
+        f"📊 Result: {result_text}\n\n"
+        f"Всего сессий: {session_count}",
         reply_markup=keyboards.admin_sessions()
     )
 
