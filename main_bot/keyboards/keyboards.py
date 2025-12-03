@@ -2326,22 +2326,31 @@ class InlineAdmin(InlineKeyboardBuilder):
         return kb.as_markup()
 
     @classmethod
-    def admin_sessions(cls, clients: list = None):
+    def admin_sessions(cls, clients: list = None, orphaned_sessions: list = None):
         kb = cls()
 
-        if clients:
-            for client in clients:
-                # client is MtClient object
-                status_emoji = "✅" if client.is_active else "🔴"
-                if client.status == 'RESETTING':
-                    status_emoji = "🔄"
-                elif client.status == 'TEMP_BLOCKED':
-                    status_emoji = "⏳"
-                
-                kb.button(
-                    text=f"{status_emoji} {client.alias or client.id}",
-                    callback_data=f"AdminSession|manage|{client.id}"
-                )
+        if clients or orphaned_sessions:
+            if orphaned_sessions:
+                for session_file in orphaned_sessions:
+                    # session_file is filename string
+                    kb.button(
+                        text=f"❓ {session_file}",
+                        callback_data=f"AdminSession|add_orphan|{session_file}"
+                    )
+
+            if clients:
+                for client in clients:
+                    # client is MtClient object
+                    status_emoji = "✅" if client.is_active else "🔴"
+                    if client.status == 'RESETTING':
+                        status_emoji = "🔄"
+                    elif client.status == 'TEMP_BLOCKED':
+                        status_emoji = "⏳"
+                    
+                    kb.button(
+                        text=f"{status_emoji} {client.alias or client.id}",
+                        callback_data=f"AdminSession|manage|{client.id}"
+                    )
             kb.adjust(1)
             
             kb.row(
@@ -2374,6 +2383,7 @@ class InlineAdmin(InlineKeyboardBuilder):
     @classmethod
     def admin_client_manage(cls, client_id: int):
         kb = cls()
+        kb.button(text="🔄 Check Health / Activate", callback_data=f"AdminSession|check_health|{client_id}")
         kb.button(text="🔄 Reset Client", callback_data=f"AdminSession|reset_ask|{client_id}")
         kb.button(text=text("back:button"), callback_data="AdminSession|back_to_list")
         kb.adjust(1)
@@ -2393,6 +2403,15 @@ class InlineAdmin(InlineKeyboardBuilder):
         kb.button(text="Свой клиент (Internal)", callback_data="AdminSession|pool_select|internal")
         kb.button(text="Внешний (NovaStat)", callback_data="AdminSession|pool_select|external")
         kb.button(text=text("back:button"), callback_data="AdminSession|cancel")
+        kb.adjust(1)
+        return kb.as_markup()
+
+    @classmethod
+    def admin_orphan_pool_select(cls, session_file: str):
+        kb = cls()
+        kb.button(text="Свой клиент (Internal)", callback_data=f"AdminSession|orphan_pool|internal|{session_file}")
+        kb.button(text="Внешний (NovaStat)", callback_data=f"AdminSession|orphan_pool|external|{session_file}")
+        kb.button(text=text("back:button"), callback_data="AdminSession|back_to_main")
         kb.adjust(1)
         return kb.as_markup()
 

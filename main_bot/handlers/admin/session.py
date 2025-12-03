@@ -36,10 +36,22 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
         return await state.set_state(Session.phone)
 
     if action == 'cancel' or action == 'back_to_main':
-        session_count = len(os.listdir("main_bot/utils/sessions/"))
+        # Get all DB sessions
+        all_clients = await db.get_mt_clients_by_pool('internal') + await db.get_mt_clients_by_pool('external')
+        db_session_paths = {Path(c.session_path).name for c in all_clients}
+        
+        # Scan directory
+        session_dir = Path("main_bot/utils/sessions/")
+        orphaned = []
+        if session_dir.exists():
+            for file in session_dir.glob("*.session"):
+                if file.name not in db_session_paths:
+                    orphaned.append(file.name)
+        
+        session_count = len(all_clients) + len(orphaned)
         await call.message.edit_text(
-            "Доступно сессий: {}".format(session_count),
-            reply_markup=keyboards.admin_sessions()
+            f"Доступно сессий: {session_count}\n(В базе: {len(all_clients)}, Новых: {len(orphaned)})",
+            reply_markup=keyboards.admin_sessions(orphaned_sessions=orphaned)
         )
         return
 
@@ -49,6 +61,12 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
         
         # Store pool type in state to return to list later if needed
         await state.update_data(current_pool=pool_type)
+
+        # Also scan for orphans to show them mixed or at top? 
+        # Requirement says: "if there are such that are not in the database... offer to add them"
+        # It seems better to show orphans on the main screen or mixed. 
+        # Let's keep orphans on the main screen (back_to_main) as implemented above.
+        # Here we just show the specific pool list.
 
         await call.message.edit_text(
             f"Список {pool_type} клиентов:",
@@ -63,6 +81,71 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
         await call.message.edit_text(
             f"Список {pool_type} клиентов:",
             reply_markup=keyboards.admin_sessions(clients=clients)
+        )
+        return
+
+    if action == 'add_orphan':
+        session_file = temp[2]
+        await call.message.edit_text(
+            f"Добавление найденной сессии: {session_file}\nВыберите тип пула:",
+            reply_markup=keyboards.admin_orphan_pool_select(session_file)
+        )
+        return
+
+    if action == 'orphan_pool':
+        pool_type = temp[2]
+        session_file = temp[3]
+        session_path = Path(f"main_bot/utils/sessions/{session_file}")
+        
+        if not session_path.exists():
+             await call.answer("Файл сессии исчез!", show_alert=True)
+             return
+
+        # Create MtClient
+        import time
+        from main_bot.database.mt_client.model import MtClient
+        
+        # Generate Alias
+        existing_clients = await db.get_mt_clients_by_pool(pool_type)
+        alias = f"{pool_type}-{len(existing_clients) + 1}"
+        
+        new_client = await db.create_mt_client(
+            alias=alias,
+            pool_type=pool_type,
+            session_path=str(session_path),
+            status='NEW',
+            is_active=False
+        )
+        
+        # Health Check
+        async with SessionManager(session_path) as manager:
+            health = await manager.health_check()
+            
+        current_time = int(time.time())
+        updates = {
+            "last_self_check_at": current_time
+        }
+        
+        if health["ok"]:
+            updates["status"] = 'ACTIVE'
+            updates["is_active"] = True
+            result_text = "✅ ACTIVE"
+        else:
+            updates["status"] = 'DISABLED'
+            updates["is_active"] = False
+            updates["last_error_code"] = health.get("error_code", "UNKNOWN")
+            updates["last_error_at"] = current_time
+            result_text = f"❌ ERROR: {health.get('error_code')}"
+            
+        await db.update_mt_client(client_id=new_client.id, **updates)
+        
+        await call.message.edit_text(
+            f"✅ Сессия {session_file} добавлена!\n\n"
+            f"🆔 ID: {new_client.id}\n"
+            f"👤 Псевдоним: {alias}\n"
+            f"🏊 Пул: {pool_type}\n"
+            f"📊 Результат: {result_text}",
+            reply_markup=keyboards.back(data="AdminSession|back_to_main")
         )
         return
 
