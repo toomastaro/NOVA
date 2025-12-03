@@ -175,9 +175,23 @@ class NovaStatService:
         now_local = datetime.now(tz)
         now_utc = now_local.astimezone(timezone.utc)
 
-        try:
-            entity = await client.get_entity(channel_identifier)
-        except Exception:
+        # Попытка получить entity с 3 попытками (для авто-приема)
+        entity = None
+        for attempt in range(3):
+            try:
+                entity = await client.get_entity(channel_identifier)
+                break  # Success
+            except Exception as e:
+                if attempt < 2:  # Not the last attempt
+                    delay = attempt + 1  # 1s on first retry, 2s on second retry
+                    print(f"get_entity attempt {attempt + 1} failed for {channel_identifier}: {e}. Retrying in {delay}s...")
+                    await asyncio.sleep(delay)
+                else:
+                    # Last attempt failed
+                    print(f"get_entity failed after 3 attempts for {channel_identifier}: {e}")
+                    return None
+        
+        if not entity:
             return None
 
         title = getattr(entity, "title", getattr(entity, "username", str(entity)))

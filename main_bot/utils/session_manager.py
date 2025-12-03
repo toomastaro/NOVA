@@ -88,29 +88,40 @@ class SessionManager:
 
     async def join(self, invite_link_or_username: str) -> bool:
         """
-        Joins a channel/group.
+        Joins a channel/group with retry logic.
+        Attempts 3 times with progressive delays (0s, 1s, 2s).
         Returns True if successful.
         Raises specific exceptions for handling.
         """
-        try:
-            if "t.me/+" in invite_link_or_username or "joinchat" in invite_link_or_username:
-                # Private invite link
-                hash_arg = invite_link_or_username.split('/')[-1].replace('+', '')
-                await self.client(functions.messages.ImportChatInviteRequest(hash=hash_arg))
-            else:
-                # Public username
-                username = invite_link_or_username.split('/')[-1]
-                await self.client(functions.channels.JoinChannelRequest(channel=username))
-            return True
+        for attempt in range(3):
+            try:
+                if "t.me/+" in invite_link_or_username or "joinchat" in invite_link_or_username:
+                    # Private invite link
+                    hash_arg = invite_link_or_username.split('/')[-1].replace('+', '')
+                    await self.client(functions.messages.ImportChatInviteRequest(hash=hash_arg))
+                else:
+                    # Public username
+                    username = invite_link_or_username.split('/')[-1]
+                    await self.client(functions.channels.JoinChannelRequest(channel=username))
+                return True
 
-        except UserAlreadyParticipantError:
-            # Already joined, consider success
-            return True
-        except FloodWaitError as e:
-            raise e
-        except Exception as e:
-            print(f"Join error: {e}")
-            raise e
+            except UserAlreadyParticipantError:
+                # Already joined, consider success
+                return True
+            except FloodWaitError as e:
+                # Don't retry on flood wait
+                raise e
+            except Exception as e:
+                if attempt < 2:  # Not the last attempt
+                    delay = attempt + 1  # 1s on first retry, 2s on second retry
+                    print(f"Join attempt {attempt + 1} failed: {e}. Retrying in {delay}s...")
+                    await asyncio.sleep(delay)
+                else:
+                    # Last attempt failed
+                    print(f"Join failed after 3 attempts: {e}")
+                    raise e
+        
+        return False
 
     async def can_send_stories(self, chat_id: int) -> bool:
         """

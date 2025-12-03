@@ -259,9 +259,7 @@ async def set_channel_session(chat_id: int):
                 continue
             
             # Try to join
-            success_join = await manager.join(
-                invite_url=chat_invite_link.invite_link
-            )
+            success_join = await manager.join(chat_invite_link.invite_link)
             if not success_join:
                 continue
 
