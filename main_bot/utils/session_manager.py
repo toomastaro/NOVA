@@ -111,6 +111,9 @@ class SessionManager:
             except FloodWaitError as e:
                 # Don't retry on flood wait
                 raise e
+            except rpcerrorlist.InviteHashExpiredError as e:
+                # Link expired, no point retrying
+                raise e
             except Exception as e:
                 if attempt < 2:  # Not the last attempt
                     delay = attempt + 1  # 1s on first retry, 2s on second retry

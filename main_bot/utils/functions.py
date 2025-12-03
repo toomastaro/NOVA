@@ -244,11 +244,6 @@ async def set_channel_session(chat_id: int):
         logger.error("No active internal clients found")
         return {"error": "No Active Clients"}
 
-    chat_invite_link = await main_bot_obj.create_chat_invite_link(
-        chat_id=chat_id,
-        member_limit=1
-    )
-
     for client in active_clients:
         session_path = Path(client.session_path)
         if not session_path.exists():
@@ -258,8 +253,23 @@ async def set_channel_session(chat_id: int):
             if not manager:
                 continue
             
+            # Create fresh invite link for each attempt
+            try:
+                chat_invite_link = await main_bot_obj.create_chat_invite_link(
+                    chat_id=chat_id,
+                    member_limit=1
+                )
+            except Exception as e:
+                logger.error(f"Error creating invite link for {chat_id}: {e}")
+                continue
+
             # Try to join
-            success_join = await manager.join(chat_invite_link.invite_link)
+            try:
+                success_join = await manager.join(chat_invite_link.invite_link)
+            except Exception as e:
+                logger.error(f"Join failed for client {client.id}: {e}")
+                success_join = False
+            
             if not success_join:
                 continue
 
