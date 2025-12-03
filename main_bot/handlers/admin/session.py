@@ -73,24 +73,77 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
             await call.answer("Клиент не найден", show_alert=True)
             return
 
+        from datetime import datetime
+        
+        created_at = "N/A"
+        if client.created_at:
+             created_at = datetime.fromtimestamp(client.created_at).strftime("%d.%m.%Y %H:%M")
+             
+        last_check = "N/A"
+        if client.last_self_check_at:
+            last_check = datetime.fromtimestamp(client.last_self_check_at).strftime("%d.%m.%Y %H:%M")
+
         info = (
             f"🆔 ID: {client.id}\n"
             f"👤 Псевдоним: {client.alias}\n"
             f"🏊 Пул: {client.pool_type}\n"
             f"📊 Статус: {client.status}\n"
             f"🔛 Активен: {client.is_active}\n"
-            f"📅 Создан: {client.created_at}\n"
-            f"🕒 Последняя проверка: {client.last_self_check_at}\n"
+            f"📅 Создан: {created_at}\n"
+            f"🕒 Последняя проверка: {last_check}\n"
         )
         if client.last_error_code:
-            info += f"❌ Последняя ошибка: {client.last_error_code} ({client.last_error_at})\n"
+            error_time = datetime.fromtimestamp(client.last_error_at).strftime("%d.%m.%Y %H:%M") if client.last_error_at else "N/A"
+            info += f"❌ Последняя ошибка: {client.last_error_code} ({error_time})\n"
         if client.flood_wait_until:
-            info += f"⏳ Флуд до: {client.flood_wait_until}\n"
+            flood_time = datetime.fromtimestamp(client.flood_wait_until).strftime("%d.%m.%Y %H:%M")
+            info += f"⏳ Флуд до: {flood_time}\n"
 
         await call.message.edit_text(
             info,
             reply_markup=keyboards.admin_client_manage(client_id)
         )
+        return
+
+    if action == 'check_health':
+        client_id = int(temp[2])
+        client = await db.get_mt_client(client_id)
+        if not client:
+            await call.answer("Клиент не найден", show_alert=True)
+            return
+            
+        session_path = Path(client.session_path)
+        if not session_path.exists():
+             await call.answer("Файл сессии не найден!", show_alert=True)
+             return
+
+        await call.answer("Проверка...", show_alert=False)
+        
+        import time
+        async with SessionManager(session_path) as manager:
+            health = await manager.health_check()
+            
+        current_time = int(time.time())
+        updates = {
+            "last_self_check_at": current_time
+        }
+        
+        if health["ok"]:
+            updates["status"] = 'ACTIVE'
+            updates["is_active"] = True
+            msg = "✅ Клиент активен"
+        else:
+            updates["status"] = 'DISABLED'
+            updates["is_active"] = False
+            updates["last_error_code"] = health.get("error_code", "UNKNOWN")
+            updates["last_error_at"] = current_time
+            msg = f"❌ Ошибка: {health.get('error_code')}"
+            
+        await db.update_mt_client(client_id=client.id, **updates)
+        
+        # Refresh view
+        await choice(call, state) # Recursive call to refresh 'manage' view with new data
+        await call.answer(msg, show_alert=True)
         return
 
     if action == 'reset_ask':

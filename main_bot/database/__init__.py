@@ -84,3 +84,13 @@ class DatabaseMixin:
 
             res = await session.execute(sql)
             return res.one()
+
+    @staticmethod
+    async def add(obj, commit: bool = True):
+        async with get_session() as session:
+            session: AsyncSession
+            session.add(obj)
+            if commit:
+                await session.commit()
+                await session.refresh(obj)
+            return obj
