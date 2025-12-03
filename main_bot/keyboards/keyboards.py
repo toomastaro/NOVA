@@ -2332,7 +2332,7 @@ class InlineAdmin(InlineKeyboardBuilder):
         if clients:
             for client in clients:
                 # client is MtClient object
-                status_emoji = "🟢" if client.is_active else "🔴"
+                status_emoji = "✅" if client.is_active else "🔴"
                 if client.status == 'RESETTING':
                     status_emoji = "🔄"
                 elif client.status == 'TEMP_BLOCKED':
@@ -2347,7 +2347,7 @@ class InlineAdmin(InlineKeyboardBuilder):
             kb.row(
                 InlineKeyboardButton(
                     text=text("back:button"),
-                    callback_data="AdminSession|back_to_main"
+                    callback_data="Admin|session"
                 )
             )
         else:
