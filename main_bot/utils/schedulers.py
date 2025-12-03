@@ -438,36 +438,66 @@ async def send_story(story: Story):
             success_send.append({"chat_id": chat_id})
         except Exception as e:
             logger.error(f"Error sending story to {chat_id}: {e}", exc_info=True)
-            error_str = str(e)
-            error_send.append({"chat_id": chat_id, "error": error_str})
-            
-            # Send alert for critical errors
-            if "CHAT_ADMIN_REQUIRED" in error_str or "STORIES_DISABLED" in error_str or "USER_NOT_PARTICIPANT" in error_str:
-                from main_bot.utils.support_log import send_support_alert, SupportAlert
-                from instance_bot import bot as main_bot_obj
-                
-                # Get client info from session path
-                client = None
-                if session_path:
-                    clients = await db.get_mt_clients_by_pool('internal')
-                    for c in clients:
-                        if Path(c.session_path) == session_path:
-                            client = c
-                            break
-                
-                await send_support_alert(main_bot_obj, SupportAlert(
-                    event_type='STORIES_PERMISSION_DENIED' if 'ADMIN' in error_str else 'INTERNAL_ACCESS_LOST',
-                    client_id=client.id if client else None,
-                    client_alias=client.alias if client else None,
-                    pool_type='internal',
-                    channel_id=chat_id,
-                    channel_username=channel.username if channel else None,
-                    is_our_channel=True,
-                    task_id=story.id,
-                    task_type='send_story',
-                    error_code=error_str.split('(')[0].strip() if '(' in error_str else error_str[:50],
-                    error_text=f"Не удалось отправить сторис: {error_str[:100]}"
-                ))
+            error_str = str(e)
+
+            error_send.append({"chat_id": chat_id, "error": error_str})
+
+            
+
+            # Send alert for critical errors
+
+            if "CHAT_ADMIN_REQUIRED" in error_str or "STORIES_DISABLED" in error_str or "USER_NOT_PARTICIPANT" in error_str:
+
+                from main_bot.utils.support_log import send_support_alert, SupportAlert
+
+                from instance_bot import bot as main_bot_obj
+
+                
+
+                # Get client info from session path
+
+                client = None
+
+                if session_path:
+
+                    clients = await db.get_mt_clients_by_pool('internal')
+
+                    for c in clients:
+
+                        if Path(c.session_path) == session_path:
+
+                            client = c
+
+                            break
+
+                
+
+                await send_support_alert(main_bot_obj, SupportAlert(
+
+                    event_type='STORIES_PERMISSION_DENIED' if 'ADMIN' in error_str else 'INTERNAL_ACCESS_LOST',
+
+                    client_id=client.id if client else None,
+
+                    client_alias=client.alias if client else None,
+
+                    pool_type='internal',
+
+                    channel_id=chat_id,
+
+                    channel_username=channel.username if channel else None,
+
+                    is_our_channel=True,
+
+                    task_id=story.id,
+
+                    task_type='send_story',
+
+                    error_code=error_str.split('(')[0].strip() if '(' in error_str else error_str[:50],
+
+                    error_text=f"Не удалось отправить сторис: {error_str[:100]}"
+
+                ))
+
         finally:
             try:
                 os.remove(filepath)

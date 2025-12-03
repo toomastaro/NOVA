@@ -285,7 +285,6 @@ async def set_channel_session(chat_id: int):
                         client_alias=client.alias,
                         pool_type=client.pool_type,
                         channel_id=chat_id,
-                        channel_username=channel.username if channel else None,
                         is_our_channel=True,
                         error_code=error_str.split('(')[0].strip() if '(' in error_str else error_str[:50],
                         error_text=f"Не удалось добавить клиента в канал: {error_str[:100]}"
@@ -312,7 +311,6 @@ async def set_channel_session(chat_id: int):
                     client_alias=client.alias,
                     pool_type=client.pool_type,
                     channel_id=chat_id,
-                    channel_username=channel.username if channel else None,
                     is_our_channel=True,
                     error_text="Клиент не имеет прав на публикацию историй"
                 ))
