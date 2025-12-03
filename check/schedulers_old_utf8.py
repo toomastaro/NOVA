@@ -1,4 +1,4 @@
-import asyncio
+﻿import asyncio
 import logging
 import os
 import re
@@ -319,7 +319,7 @@ async def delete_posts():
         total_views = sum(obj["views"] for obj in message_objects)
         rub_price = round(float(cpm_price * float(total_views / 1000)), 2)
         channels_text = "\n".join(
-            text("resource_title").format(obj["channel"].emoji_id, obj["channel"].title) + f" - 👀 {obj['views']}"
+            text("resource_title").format(obj["channel"].emoji_id, obj["channel"].title) + f" - ≡ƒæÇ {obj['views']}"
             for obj in message_objects
         )
 
@@ -693,32 +693,6 @@ async def send_bot_post(bot_post: BotPost):
                 continue
 
             # {key: {key: value, key: value}}
-
-    if file_id and filepath:
-        try:
-            os.remove(filepath)
-        except Exception as e:
-            logger.error(f"Error removing file {filepath}: {e}", exc_info=True)
-
-    await db.update_bot_post(
-        post_id=bot_post.id,
-        success_send=success_count,
-        error_send=users_count - success_count,
-        start_timestamp=start_timestamp,
-        end_timestamp=end_timestamp,
-        status=Status.FINISH,
-        message_ids=message_ids or None
-    )
-
-
-async def send_bot_posts():
-    posts = await db.get_bot_post_for_send()
-    if not posts:
-        return
-
-    tasks = []
-    for post in posts:
-        asyncio.create_task(send_bot_post(post))
 
     await asyncio.gather(*tasks, return_exceptions=True)
 
