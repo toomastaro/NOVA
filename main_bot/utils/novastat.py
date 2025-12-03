@@ -1,27 +1,30 @@
 import asyncio
 import os
+import time
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 from statistics import median
 from typing import List, Tuple, Dict, Optional
+from pathlib import Path
 
 from telethon import TelegramClient
 from telethon.tl import functions, types
 from telethon.errors import RPCError
 from config import Config
 
+from main_bot.database.db import db
+from main_bot.utils.session_manager import SessionManager
+
 # Constants
 TIMEZONE = "Europe/Moscow"
-HORIZONS = [24, 48, 72]
+HORIZONS = [24, 48]
 ANOMALY_FACTOR = 10
+CACHE_TTL_SECONDS = 3600  # 60 минут
 
 class NovaStatService:
-    def __init__(self, session_path: str = "main_bot/utils/sessions/+37253850093"):
+    def __init__(self):
         self.api_id = Config.API_ID
         self.api_hash = Config.API_HASH
-        self.session_path = session_path
-        # Ensure directory exists
-        os.makedirs(os.path.dirname(self.session_path), exist_ok=True)
 
     def human_dt(self, dt_utc: datetime, tz: ZoneInfo) -> str:
         return dt_utc.astimezone(tz).strftime("%d.%m.%Y %H:%M")
@@ -51,56 +54,123 @@ class NovaStatService:
             prev_age, prev_views = age, views
         return int(pts[-1][1])
 
-    def get_client(self) -> TelegramClient:
-        return TelegramClient(self.session_path, self.api_id, self.api_hash)
-
-    async def check_access(self, channel_identifier: str, client: TelegramClient = None) -> Optional[types.TypeInputPeer]:
-        """
-        Checks access to the channel and returns the entity if successful.
-        Returns None if access failed.
-        """
-        if client:
-            return await self._check_access_impl(client, channel_identifier)
+    async def get_external_client(self) -> Optional[tuple]:
+        """Получить активного external MtClient и SessionManager"""
+        clients = await db.get_mt_clients_by_pool('external')
+        active_clients = [c for c in clients if c.is_active and c.status == 'ACTIVE']
         
-        async with self.get_client() as new_client:
-            return await self._check_access_impl(new_client, channel_identifier)
+        if not active_clients:
+            return None
+        
+        # Выбрать первого активного клиента
+        client = active_clients[0]
+        session_path = Path(client.session_path)
+        
+        if not session_path.exists():
+            return None
+        
+        manager = SessionManager(session_path)
+        await manager.init_client()
+        
+        if not manager.client:
+            return None
+        
+        return (client, manager)
 
-    async def _check_access_impl(self, client: TelegramClient, channel_identifier: str) -> Optional[types.TypeInputPeer]:
-        entity = None
-        # 3 attempts to get entity
-        for attempt in range(3):
+    async def collect_stats(self, channel_identifier: str, days_limit: int = 7, horizon: int = 24) -> Optional[Dict]:
+        """
+        Собрать статистику для канала с кэшированием.
+        
+        Args:
+            channel_identifier: username или ссылка на канал
+            days_limit: глубина анализа в днях
+            horizon: горизонт для кэша (24, 48, 72)
+        
+        Returns:
+            Dict со статистикой или None при ошибке
+        """
+        # 1. Проверить кэш
+        is_fresh = await db.is_cache_fresh(channel_identifier, horizon, CACHE_TTL_SECONDS)
+        
+        if is_fresh:
+            cache = await db.get_cache(channel_identifier, horizon)
+            if cache and not cache.error_message:
+                return cache.value_json
+        
+        # 2. Проверить, идет ли обновление
+        cache = await db.get_cache(channel_identifier, horizon)
+        if cache and cache.refresh_in_progress:
+            # Вернуть старые данные или None
+            if cache.value_json:
+                return cache.value_json
+            return None
+        
+        # 3. Запустить асинхронное обновление
+        asyncio.create_task(self.async_refresh_stats(channel_identifier, days_limit, horizon))
+        
+        # 4. Вернуть старые данные если есть
+        if cache and cache.value_json:
+            return cache.value_json
+        
+        return None
+
+    async def async_refresh_stats(self, channel_identifier: str, days_limit: int, horizon: int):
+        """Асинхронное обновление статистики в кэше"""
+        try:
+            # Установить флаг обновления
+            await db.mark_refresh_in_progress(channel_identifier, horizon, True)
+            
+            # Получить external клиента
+            client_data = await self.get_external_client()
+            if not client_data:
+                await db.set_cache(
+                    channel_identifier,
+                    horizon,
+                    {},
+                    error_message="Нет доступных external клиентов"
+                )
+                return
+            
+            client_obj, manager = client_data
+            
             try:
-                if "+" in channel_identifier and "t.me" in channel_identifier:
-                    hash_part = channel_identifier.split("+", 1)[1]
-                    try:
-                        res = await client(functions.messages.ImportChatInviteRequest(hash=hash_part))
-                        entity = res.chats[0]
-                    except Exception:
-                            # Maybe already joined or public link disguised
-                            entity = await client.get_entity(channel_identifier)
-                else:
-                    entity = await client.get_entity(channel_identifier)
+                # Собрать статистику
+                stats = await self._collect_stats_impl(manager.client, channel_identifier, days_limit)
                 
-                if entity:
-                    break
-            except Exception as e:
-                print(f"Attempt {attempt+1} failed for {channel_identifier}: {e}")
-                if attempt < 2:
-                    await asyncio.sleep(1 + attempt) # 1s then 2s
-        
-        return entity
-
-    async def collect_stats(self, channel_identifier: str, days_limit: int = 7, client: TelegramClient = None) -> Optional[Dict]:
-        """
-        Collects stats for a channel. 
-        """
-        if client:
-            return await self._collect_stats_impl(client, channel_identifier, days_limit)
-
-        async with self.get_client() as new_client:
-            return await self._collect_stats_impl(new_client, channel_identifier, days_limit)
+                if stats:
+                    # Сохранить в кэш
+                    await db.set_cache(channel_identifier, horizon, stats, error_message=None)
+                else:
+                    await db.set_cache(
+                        channel_identifier,
+                        horizon,
+                        {},
+                        error_message="Не удалось собрать статистику"
+                    )
+            finally:
+                await manager.close()
+                
+        except Exception as e:
+            error_msg = str(e)
+            
+            # Обработать специфичные ошибки
+            if "USER_NOT_PARTICIPANT" in error_msg or "CHAT_ADMIN_REQUIRED" in error_msg:
+                error_msg = "Канал недоступен: бот не участник"
+            elif "CHANNEL_PRIVATE" in error_msg:
+                error_msg = "Канал приватный"
+            
+            await db.set_cache(
+                channel_identifier,
+                horizon,
+                {},
+                error_message=error_msg
+            )
+        finally:
+            # Сбросить флаг обновления
+            await db.mark_refresh_in_progress(channel_identifier, horizon, False)
 
     async def _collect_stats_impl(self, client: TelegramClient, channel_identifier: str, days_limit: int) -> Optional[Dict]:
+        """Внутренняя реализация сбора статистики"""
         tz = ZoneInfo(TIMEZONE)
         now_local = datetime.now(tz)
         now_utc = now_local.astimezone(timezone.utc)
@@ -197,3 +267,4 @@ class NovaStatService:
         }
 
 novastat_service = NovaStatService()
+

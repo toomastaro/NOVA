@@ -291,72 +291,64 @@ async def run_analysis_background(message: types.Message, channels: list, depth:
         await message.answer(f"❌ Произошла ошибка при фоновом анализе: {e}")
 
 async def run_analysis_logic(message: types.Message, channels: list, depth: int, state: FSMContext, status_msg: types.Message = None):
-    # Use a single client session for the entire analysis process
-    async with novastat_service.get_client() as client:
-        # 1. Check Access
-        valid_entities = []
-        failed = []
-        
-        total_channels = len(channels)
-        
-        for i, ch in enumerate(channels, 1):
-            if status_msg:
-                 await status_msg.edit_text(f"🔍 Проверяю доступ к каналу {i}/{total_channels}: {ch}...", link_preview_options=types.LinkPreviewOptions(is_disabled=True))
-            
-            entity = await novastat_service.check_access(ch, client=client)
-            if entity:
-                valid_entities.append((ch, entity))
-            else:
-                failed.append(ch)
-
-        if not valid_entities:
-            text_err = (
-                "❌ Не удалось получить доступ ни к одному каналу.\n"
-                "Скорее всего, ссылки без автоприёма или у бота нет прав доступа."
-            )
-            if status_msg:
-                await status_msg.edit_text(text_err, link_preview_options=types.LinkPreviewOptions(is_disabled=True))
-            else:
-                await message.answer(text_err, link_preview_options=types.LinkPreviewOptions(is_disabled=True))
-            return
-
+    # Новая логика с кэшированием
+    results = []
+    failed = []
+    
+    total_channels = len(channels)
+    
+    for i, ch in enumerate(channels, 1):
         if status_msg:
-            await status_msg.edit_text(f"✅ Доступ есть к {len(valid_entities)} каналам. Собираю статистику...", link_preview_options=types.LinkPreviewOptions(is_disabled=True))
-
-        # 2. Collect Stats
-        results = []
+            await status_msg.edit_text(f"📊 Собираю статистику: {ch} ({i}/{total_channels})...", link_preview_options=types.LinkPreviewOptions(is_disabled=True))
         
-        for i, (ch_id, entity) in enumerate(valid_entities, 1):
-            if status_msg:
-                 await status_msg.edit_text(f"📊 Собираю статистику: {ch_id} ({i}/{len(valid_entities)})...", link_preview_options=types.LinkPreviewOptions(is_disabled=True))
-            
-            # We pass ch_id to collect_stats as per our refactor
-            stats = await novastat_service.collect_stats(ch_id, depth, client=client)
-            if stats:
-                results.append(stats)
+        # collect_stats теперь использует кэш и external MtClient
+        stats = await novastat_service.collect_stats(ch, depth, horizon=24)
+        
+        if stats:
+            results.append(stats)
+        else:
+            # Проверить, есть ли ошибка в кэше
+            cache = await db.get_cache(ch, 24)
+            if cache and cache.error_message:
+                failed.append({"channel": ch, "error": cache.error_message})
             else:
-                failed.append(ch_id)
+                failed.append({"channel": ch, "error": "Не удалось получить статистику"})
+
+    if not results:
+        text_err = (
+            "❌ Не удалось получить статистику ни по одному каналу.\n"
+        )
+        if failed:
+            text_err += "\nОшибки:\n"
+            for f in failed[:5]:  # Показать первые 5 ошибок
+                text_err += f"• {f['channel']}: {f['error']}\n"
+        
+        if status_msg:
+            await status_msg.edit_text(text_err, link_preview_options=types.LinkPreviewOptions(is_disabled=True))
+        else:
+            await message.answer(text_err, link_preview_options=types.LinkPreviewOptions(is_disabled=True))
+        return
 
     # 3. Analyze
     if status_msg:
         await status_msg.edit_text("🔄 Анализирую данные...", link_preview_options=types.LinkPreviewOptions(is_disabled=True))
 
     # Calculate totals for views and averages for ER
-    total_views = {24: 0, 48: 0, 72: 0}
-    total_er = {24: 0.0, 48: 0.0, 72: 0.0}
+    total_views = {24: 0, 48: 0}
+    total_er = {24: 0.0, 48: 0.0}
     count = len(results)
     
     for res in results:
-        for h in [24, 48, 72]:
+        for h in [24, 48]:
             total_views[h] += res['views'][h]
             total_er[h] += res['er'][h]
             
     # Views are summed (Total), ER is averaged
     final_views = total_views 
     if count > 0:
-        avg_er = {h: round(total_er[h] / count, 2) for h in [24, 48, 72]}
+        avg_er = {h: round(total_er[h] / count, 2) for h in [24, 48]}
     else:
-        avg_er = {24: 0.0, 48: 0.0, 72: 0.0}
+        avg_er = {24: 0.0, 48: 0.0}
     
     # Store results for CPM calculation
     data_to_store = {'last_analysis_views': final_views}
@@ -383,13 +375,11 @@ async def run_analysis_logic(message: types.Message, channels: list, depth: int,
 
     report += f"👁️ <b>Суммарные просмотры:</b>\n"
     report += f"├ 24 часа: {final_views[24]}\n"
-    report += f"├ 48 часов: {final_views[48]}\n"
-    report += f"└ 72 часа: {final_views[72]}\n\n"
+    report += f"└ 48 часов: {final_views[48]}\n\n"
     
     report += f"📈 <b>Средний ER:</b>\n"
     report += f"├ 24 часа: {avg_er[24]}%\n"
-    report += f"├ 48 часов: {avg_er[48]}%\n"
-    report += f"└ 72 часа: {avg_er[72]}%\n\n"
+    report += f"└ 48 часов: {avg_er[48]}%\n\n"
     
     if failed:
         report += f"⚠️ Не удалось обработать: {len(failed)} каналов.\n"
@@ -455,8 +445,8 @@ async def calculate_and_show_price(message: types.Message, cpm: int, state: FSMC
     else:
         rate = 100.0
     
-    price_rub = {h: int((views[h] / 1000) * cpm) for h in [24, 48, 72]}
-    price_usdt = {h: round(price_rub[h] / rate, 2) for h in [24, 48, 72]}
+    price_rub = {h: int((views[h] / 1000) * cpm) for h in [24, 48]}
+    price_usdt = {h: round(price_rub[h] / rate, 2) for h in [24, 48]}
     
     date_str = datetime.now().strftime("%d.%m.%Y %H:%M")
     
@@ -469,13 +459,11 @@ async def calculate_and_show_price(message: types.Message, cpm: int, state: FSMC
         report += f"👥 Подписчиков: {single_info['subscribers']}\n\n"
     
     report += f"├ 24 часа: {price_rub[24]:,} руб. / {price_usdt[24]} usdt\n".replace(",", " ")
-    report += f"├ 48 часов: {price_rub[48]:,} руб. / {price_usdt[48]} usdt\n".replace(",", " ")
-    report += f"└ 72 часа: {price_rub[72]:,} руб. / {price_usdt[72]} usdt\n".replace(",", " ").replace(".", ",")
+    report += f"└ 48 часов: {price_rub[48]:,} руб. / {price_usdt[48]} usdt\n".replace(",", " ").replace(".", ",")
     
     report += f"\n👁️ <b>Ожидаемые просмотры:</b>\n"
     report += f"├ 24 часа: {views[24]}\n"
-    report += f"├ 48 часов: {views[48]}\n"
-    report += f"└ 72 часа: {views[72]}\n\n"
+    report += f"└ 48 часов: {views[48]}\n\n"
     
     report += f"Дата расчёта: {date_str}"
     
