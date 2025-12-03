@@ -200,6 +200,18 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
              await call.answer("Файл сессии не найден!", show_alert=True)
              return
 
+        # Защита от множественных вызовов (debounce)
+        data = await state.get_data()
+        last_check_key = f"last_health_check_{client_id}"
+        last_check = data.get(last_check_key, 0)
+        current_time = int(time.time())
+        
+        if current_time - last_check < 5:  # 5 секунд между проверками
+            await call.answer("⏳ Подождите 5 секунд между проверками", show_alert=True)
+            return
+        
+        await state.update_data(**{last_check_key: current_time})
+
         await call.answer("Проверка...", show_alert=False)
         
         async with SessionManager(session_path) as manager:
