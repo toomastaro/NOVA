@@ -92,7 +92,7 @@ def set_scheduler():
         )
     )
     sch.add_job(
-        func=send_bot_posts,
+        func=send_bot_post,
         trigger=CronTrigger(
             second='*/10'
         )
