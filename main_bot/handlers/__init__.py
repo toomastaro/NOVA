@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 from main_bot.database.db import db
 from main_bot.utils.middlewares import GetUserMiddleware, ErrorMiddleware
 from main_bot.utils.schedulers import send_posts, unpin_posts, delete_posts, send_stories, send_bot_posts, \
-    check_subscriptions, start_delete_bot_posts, update_exchange_rates_in_db
+    check_subscriptions, start_delete_bot_posts, update_exchange_rates_in_db, mt_clients_self_check
 from .user import get_router as user_router
 from .admin import get_router as admin_router
 
@@ -107,6 +107,15 @@ def set_scheduler():
         func=update_exchange_rates_in_db,
         trigger=IntervalTrigger(
             seconds=int(RUB_USDT_TIMER)
+        )
+    )
+
+    sch.add_job(
+        func=mt_clients_self_check,
+        trigger=CronTrigger(
+            hour='3',
+            minute='0',
+            timezone='Europe/Moscow'
         )
     )
 

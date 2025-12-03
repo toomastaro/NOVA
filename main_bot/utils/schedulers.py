@@ -813,6 +813,141 @@ async def update_exchange_rates_in_db():
                                               last_update=last_update)
 
 
+async def mt_clients_self_check():
+    from sqlalchemy import select
+
+    from main_bot.database.mt_client.model import MtClient
+    from main_bot.utils.support_log import SupportAlert, send_support_alert
+
+    logger.info("Starting MtClient self-check")
+
+    stmt = select(MtClient).where(MtClient.is_active == True)
+    active_clients = await db.fetch(stmt)
+
+    for client in active_clients:
+        try:
+            session_path = Path(client.session_path)
+            if not session_path.exists():
+                logger.error(
+                    f"Session file not found for client {client.id}: {session_path}"
+                )
+                await db.update_mt_client(
+                    client_id=client.id,
+                    status="ERROR",
+                    last_error_code="SESSION_FILE_MISSING",
+                    last_error_at=int(time.time()),
+                    is_active=False,
+                )
+
+                await send_support_alert(
+                    bot,
+                    SupportAlert(
+                        event_type="CLIENT_FILE_MISSING",
+                        client_id=client.id,
+                        client_alias=client.alias,
+                        pool_type=client.pool_type,
+                        error_code="SESSION_FILE_MISSING",
+                        manual_steps="Restore session file or delete client record.",
+                    ),
+                )
+                continue
+
+            async with SessionManager(session_path) as manager:
+                res = await manager.health_check()
+
+                current_time = int(time.time())
+                updates = {"last_self_check_at": current_time}
+
+                if res["ok"]:
+                    updates["status"] = "ACTIVE"
+                    updates["is_active"] = True
+                    updates["last_error_code"] = None
+                    updates["flood_wait_until"] = None
+                else:
+                    error_code = res.get("error_code", "UNKNOWN")
+                    updates["last_error_code"] = error_code
+                    updates["last_error_at"] = current_time
+
+                    if (
+                        "AUTH_KEY_UNREGISTERED" in error_code
+                        or "USER_DEACTIVATED" in error_code
+                    ):
+                        updates["status"] = "DISABLED"
+                        updates["is_active"] = False
+
+                        await send_support_alert(
+                            bot,
+                            SupportAlert(
+                                event_type="CLIENT_DISABLED",
+                                client_id=client.id,
+                                client_alias=client.alias,
+                                pool_type=client.pool_type,
+                                error_code=error_code,
+                                manual_steps="Client session is dead. Replace session file or re-login.",
+                            ),
+                        )
+
+                    elif "FLOOD_WAIT" in error_code:
+                        updates["status"] = "TEMP_BLOCKED"
+                        try:
+                            seconds = int(error_code.split("_")[-1])
+                            updates["flood_wait_until"] = current_time + seconds
+                        except:
+                            updates["flood_wait_until"] = current_time + 300
+                        updates["is_active"] = True
+
+                        await send_support_alert(
+                            bot,
+                            SupportAlert(
+                                event_type="CLIENT_FLOOD_WAIT",
+                                client_id=client.id,
+                                client_alias=client.alias,
+                                pool_type=client.pool_type,
+                                error_code=error_code,
+                                manual_steps=f"Client is temporarily blocked for {updates['flood_wait_until'] - current_time}s. No action needed, just wait.",
+                            ),
+                        )
+                    else:
+                        updates["status"] = "ERROR"
+                        updates["is_active"] = False
+
+                        await send_support_alert(
+                            bot,
+                            SupportAlert(
+                                event_type="CLIENT_ERROR",
+                                client_id=client.id,
+                                client_alias=client.alias,
+                                pool_type=client.pool_type,
+                                error_code=error_code,
+                                manual_steps="Investigate error code. Might need manual intervention.",
+                            ),
+                        )
+
+                await db.update_mt_client(client_id=client.id, **updates)
+
+        except Exception as e:
+            logger.error(f"Error checking MtClient {client.id}: {e}", exc_info=True)
+            await db.update_mt_client(
+                client_id=client.id,
+                status="ERROR",
+                last_error_code=f"CHECK_EXCEPTION_{str(e)}",
+                last_error_at=int(time.time()),
+                is_active=False,
+            )
+
+            await send_support_alert(
+                bot,
+                SupportAlert(
+                    event_type="CLIENT_CHECK_EXCEPTION",
+                    client_id=client.id,
+                    client_alias=client.alias,
+                    pool_type=client.pool_type,
+                    error_text=str(e),
+                    manual_steps="Check logs for traceback.",
+                ),
+            )
+
+
 async def schedulers():
     scheduler = AsyncIOScheduler()
     scheduler.add_job(send_posts, "interval", seconds=10)
