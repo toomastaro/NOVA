@@ -1,9 +1,17 @@
 import asyncio
 from pathlib import Path
-from typing import List
+from typing import List, Optional, Union
 
 from telethon import TelegramClient, functions, types, utils
-from telethon.errors import UserAlreadyParticipantError, FloodWaitError
+from telethon.errors import (
+    UserAlreadyParticipantError,
+    FloodWaitError,
+    UserDeactivatedError,
+    AuthKeyUnregisteredError,
+    UserNotParticipantError,
+    ChatAdminRequiredError,
+    rpcerrorlist
+)
 
 from config import Config
 from main_bot.utils.schemas import StoryOptions
@@ -16,7 +24,6 @@ class SessionManager:
 
     async def __aenter__(self):
         await self.init_client()
-
         if self.client:
             return self
 
@@ -26,105 +33,142 @@ class SessionManager:
     async def init_client(self):
         try:
             self.client = TelegramClient(
-                session=self.session_path,
+                session=str(self.session_path),
                 api_id=Config.API_ID,
                 api_hash=Config.API_HASH,
+                system_version="4.16.30-vxCUSTOM",
+                device_model="Desktop",
+                app_version="1.0.0",
             )
             await self.client.connect()
-            await asyncio.wait_for(self.client.get_me(), timeout=10)
+            
+            # Quick check if authorized
+            if not await self.client.is_user_authorized():
+                # If not authorized, we might need to handle it, but for now just let it be.
+                # The health_check will catch it.
+                pass
+                
         except Exception as e:
-            return print(e)
+            print(f"Init client error: {e}")
 
     async def close(self):
         if self.client:
             await self.client.disconnect()
 
     async def me(self):
-        return await self.client(
-            functions.users.GetUsersRequest(
-                [types.InputUserSelf()]
-            )
-        )
+        if not self.client:
+            return None
+        return await self.client.get_me()
 
-    async def join(self, invite_url: str):
-        invite_hash = invite_url.split('/')[-1].replace('+', '')
+    async def health_check(self) -> dict:
+        """
+        Checks if the session is alive and working.
+        Returns: {"ok": True} or {"ok": False, "error_code": "..."}
+        """
+        if not self.client or not self.client.is_connected():
+            return {"ok": False, "error_code": "CLIENT_NOT_CONNECTED"}
 
         try:
-            return await self.client(
-                functions.messages.ImportChatInviteRequest(
-                   hash=invite_hash
-                )
-            )
-        except (UserAlreadyParticipantError, FloodWaitError, Exception) as e:
-            print(e)
+            # Simple RPC call to check connection and auth
+            await self.client(functions.help.GetConfigRequest())
+            me = await self.client.get_me()
+            if not me:
+                return {"ok": False, "error_code": "USER_NOT_FOUND"}
+                
+            return {"ok": True}
 
-    async def can_send_stories(self, chat_id: int):
-        peer = await self.client.get_input_entity(chat_id)
-        chat_info = await self.client(
-            functions.channels.GetFullChannelRequest(
-                types.InputChannel(
-                    channel_id=chat_id,
-                    access_hash=peer.access_hash
-                )
-            )
-        )
-        raw = chat_info.to_dict()
-        return raw.get("chats", [{}])[0].get("stories_unavailable", False)
-
-    async def get_story_limit(self, chat_id: int):
-        try:
-            entity = await self.client.get_entity(chat_id)
-            return getattr(entity, "level", 0)
+        except UserDeactivatedError:
+            return {"ok": False, "error_code": "USER_DEACTIVATED"}
+        except AuthKeyUnregisteredError:
+            return {"ok": False, "error_code": "AUTH_KEY_UNREGISTERED"}
+        except FloodWaitError as e:
+            return {"ok": False, "error_code": f"FLOOD_WAIT_{e.seconds}"}
         except Exception as e:
-            print(e)
-            return 0
+            return {"ok": False, "error_code": f"UNKNOWN_ERROR_{str(e)}"}
 
-    async def check_admin_rights(self, chat_id: int):
+    async def join(self, invite_link_or_username: str) -> bool:
+        """
+        Joins a channel/group.
+        Returns True if successful.
+        Raises specific exceptions for handling.
+        """
         try:
-            participant = await self.client(
-                functions.channels.GetParticipantRequest(
-                    channel=chat_id,
-                    participant=types.InputUserSelf()
-                )
-            )
-            if isinstance(participant.participant, (types.ChannelParticipantAdmin, types.ChannelParticipantCreator)):
-                if isinstance(participant.participant, types.ChannelParticipantCreator):
-                    return True
-                admin_rights = participant.participant.admin_rights
-                return admin_rights.post_stories
-            return False
+            if "t.me/+" in invite_link_or_username or "joinchat" in invite_link_or_username:
+                # Private invite link
+                hash_arg = invite_link_or_username.split('/')[-1].replace('+', '')
+                await self.client(functions.messages.ImportChatInviteRequest(hash=hash_arg))
+            else:
+                # Public username
+                username = invite_link_or_username.split('/')[-1]
+                await self.client(functions.channels.JoinChannelRequest(channel=username))
+            return True
+
+        except UserAlreadyParticipantError:
+            # Already joined, consider success
+            return True
+        except FloodWaitError as e:
+            raise e
         except Exception as e:
-            print(f"Error checking admin rights: {e}")
+            print(f"Join error: {e}")
+            raise e
+
+    async def can_send_stories(self, chat_id: int) -> bool:
+        """
+        Checks if the user can post stories to the chat.
+        """
+        try:
+            peer = await self.client.get_input_entity(chat_id)
+            chat_full = await self.client(functions.channels.GetFullChannelRequest(channel=peer))
+            
+            # Check if stories are globally unavailable for this chat
+            # Note: Telethon structure might vary, checking dict representation is safer for some fields
+            chat_full_dict = chat_full.to_dict()
+            if chat_full_dict.get('chats', [{}])[0].get('stories_unavailable', False):
+                return False
+
+            # Check admin rights
+            participant = await self.client(functions.channels.GetParticipantRequest(
+                channel=peer,
+                participant=types.InputUserSelf()
+            ))
+            
+            if isinstance(participant.participant, types.ChannelParticipantCreator):
+                return True
+            
+            if isinstance(participant.participant, types.ChannelParticipantAdmin):
+                return participant.participant.admin_rights.post_stories
+                
             return False
 
-    async def get_views(self, chat_id: int, messages_ids: List[int]):
-        peer = await self.client.get_input_entity(chat_id)
-        return await self.client(
-            functions.messages.GetMessagesViewsRequest(
-                peer=peer,
-                id=messages_ids,
-                increment=False
-            )
-        )
+        except Exception as e:
+            print(f"Check stories error: {e}")
+            return False
 
-    async def send_story(self, chat_id: int, filepath: str, options: StoryOptions):
-        caption, entities = utils.html.parse(options.caption)
-        peer = await self.client.get_input_entity(chat_id)
+    async def send_story(self, chat_id: int, file_path: str, options: StoryOptions) -> bool:
+        try:
+            caption, entities = utils.html.parse(options.caption)
+            peer = await self.client.get_input_entity(chat_id)
 
-        with open(filepath, "rb") as f:
-            file = await self.client.upload_file(f)
+            file = await self.client.upload_file(file_path)
 
-        if options.photo:
-            media = types.InputMediaUploadedPhoto(file=file)
-        else:
-            media = types.InputMediaUploadedDocument(
-                file=file,
-                mime_type="video/mp4",
-                attributes=[types.DocumentAttributeVideo(duration=15, w=720, h=1280, supports_streaming=True)]
-            )
+            if options.photo:
+                media = types.InputMediaUploadedPhoto(file=file)
+            else:
+                # Default video attributes, can be enhanced to parse actual video metadata
+                media = types.InputMediaUploadedDocument(
+                    file=file,
+                    mime_type="video/mp4",
+                    attributes=[
+                        types.DocumentAttributeVideo(
+                            duration=15, 
+                            w=720, 
+                            h=1280, 
+                            supports_streaming=True
+                        )
+                    ]
+                )
 
-        await self.client(
-            functions.stories.SendStoryRequest(
+            await self.client(functions.stories.SendStoryRequest(
                 peer=peer,
                 media=media,
                 privacy_rules=[types.InputPrivacyValueAllowAll()],
@@ -133,33 +177,60 @@ class SessionManager:
                 entities=entities,
                 pinned=options.pinned,
                 period=options.period
-            )
-        )
+            ))
+            return True
+
+        except FloodWaitError as e:
+            raise e
+        except Exception as e:
+            print(f"Send story error: {e}")
+            raise e
+
+    async def get_views(self, chat_id: int, messages_ids: List[int]) -> Optional[types.messages.MessageViews]:
+        try:
+            peer = await self.client.get_input_entity(chat_id)
+            return await self.client(functions.messages.GetMessagesViewsRequest(
+                peer=peer,
+                id=messages_ids,
+                increment=False
+            ))
+        except Exception as e:
+            print(f"Get views error: {e}")
+            return None
 
 
 async def main():
-    session_path = Path("sessions/session.session")
+    # Example usage
+    session_path = Path("sessions/test.session")
+    
+    # Ensure directory exists for testing
+    session_path.parent.mkdir(parents=True, exist_ok=True)
+
+    print(f"Testing session: {session_path}")
+    
     async with SessionManager(session_path) as manager:
-        # code_request = await manager.client.send_code_request(phone="+7 919 132 4846")
-        # code = input("Code: ")
-        # sign_in = await manager.client.sign_in("+7 919 132 4846", code, phone_code_hash=code_request.phone_code_hash)
-        # print(sign_in)
-        # return
+        if not manager.client or not await manager.client.is_user_authorized():
+            print("Session not authorized or not found.")
+            # Here you would normally trigger login flow
+            return
+
+        # 1. Health Check
+        print("Running Health Check...")
+        health = await manager.health_check()
+        print(f"Health Check Result: {health}")
+
+        if not health["ok"]:
+            print("Session is not healthy, aborting.")
+            return
+
+        # 2. Get Me
         me = await manager.me()
-        print(me[0].id)
-        return
-        # try:
-        #     join = await manager.join(invite_url="https://t.me/+uo9rqgeXa5o0MTFi")
-        #     print(join)
-        # except (UserAlreadyParticipantError, FloodWaitError):
-        #     pass
+        print(f"Logged in as: {me.first_name} (ID: {me.id})")
 
-        stories_unavailable = await manager.can_send_stories(chat_id=2092409247)
-        print(stories_unavailable)
-
-        types.MessageViews()
-        views = await manager.get_views(chat_id=2092409247, messages_ids=[952, 953])
-        print(sum([i.views for i in views.views]))
+        # 3. Check Stories Capability (example channel ID)
+        test_channel_id = -1001234567890 # Replace with real ID
+        # can_post = await manager.can_send_stories(test_channel_id)
+        # print(f"Can post stories to {test_channel_id}: {can_post}")
 
 
 if __name__ == '__main__':
