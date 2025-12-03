@@ -1975,14 +1975,23 @@ class InlineProfile(InlineKeyboardBuilder):
     def choice_period(cls, service: str):
         kb = cls()
 
+        # === СТАРАЯ ЛОГИКА (закомментировано для отката) ===
+        # tariffs = Config.TARIFFS.get(service)
+        # for key in tariffs:
+        #     kb.button(
+        #         text=tariffs[key]['name'],
+        #         callback_data='ChoiceSubscribePeriod|{}'.format(
+        #             key
+        #         )
+        #     )
+
+        # === НОВАЯ ЛОГИКА (один тариф) ===
         tariffs = Config.TARIFFS.get(service)
-        for key in tariffs:
-            kb.button(
-                text=tariffs[key]['name'],
-                callback_data='ChoiceSubscribePeriod|{}'.format(
-                    key
-                )
-            )
+        # Берем тариф с ID 0 (единственный)
+        kb.button(
+            text=tariffs[0]['name'],
+            callback_data='ChoiceSubscribePeriod|0'
+        )
 
         kb.button(
             text=text('back:button'),
