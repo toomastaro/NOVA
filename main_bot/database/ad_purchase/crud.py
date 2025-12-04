@@ -62,10 +62,12 @@ class AdPurchaseCrud(DatabaseMixin):
         for m in mappings:
             if m.target_type == AdTargetType.CHANNEL and m.track_enabled and m.target_channel_id and not m.invite_link:
                 try:
-                    # Create invite link
+                    # Создаем ПОСТОЯННУЮ ссылку для отслеживания рекламы
                     invite = await bot.create_chat_invite_link(
                         chat_id=m.target_channel_id,
-                        name=f"AdPurchase #{ad_purchase_id}"
+                        name=f"AdPurchase #{ad_purchase_id} Slot {m.slot_id}",
+                        creates_join_request=False
+                        # БЕЗ member_limit - ссылка постоянная для долгосрочного отслеживания
                     )
                     
                     # Update DB
@@ -76,7 +78,7 @@ class AdPurchaseCrud(DatabaseMixin):
                     
                     # Update local object
                     m.invite_link = invite.invite_link
-                    logger.info(f"Created invite link for purchase {ad_purchase_id}, slot {m.slot_id}, channel {m.target_channel_id}: {invite.invite_link}")
+                    logger.info(f"Created permanent invite link for purchase {ad_purchase_id}, slot {m.slot_id}, channel {m.target_channel_id}: {invite.invite_link}")
                 except Exception as e:
                     error_msg = f"Ошибка создания ссылки для канала {m.target_channel_id}: {str(e)}"
                     logger.error(f"Error creating invite link for purchase {ad_purchase_id}, slot {m.slot_id}: {e}")

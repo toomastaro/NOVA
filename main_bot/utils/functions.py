@@ -257,53 +257,70 @@ async def set_channel_session(chat_id: int):
             if not manager:
                 continue
             
-            # Шаг 1: Создать пригласительную ссылку БЕЗ заявки на вступление
-            try:
-                chat_invite_link = await main_bot_obj.create_chat_invite_link(
-                    chat_id=chat_id,
-                    creates_join_request=False  # Без заявки на вступление
-                )
-                logger.info(f"Created invite link for {chat_id}: {chat_invite_link.invite_link}")
-            except Exception as e:
-                logger.error(f"Error creating invite link for {chat_id}: {e}")
-                continue
-
-            # Шаг 2: MTProto-клиент делает join по ссылке
-            try:
-                success_join = await manager.join(chat_invite_link.invite_link)
-            except Exception as e:
-                error_str = str(e)
-                logger.error(f"Join failed for client {client.id}: {e}")
-                
-                # Send alert for access loss
-                if "USER_NOT_PARTICIPANT" in error_str or "CHANNEL_PRIVATE" in error_str or "InviteHashExpiredError" in error_str:
-                    from main_bot.utils.support_log import send_support_alert, SupportAlert
-                    channel = await db.get_channel_by_chat_id(chat_id)
-                    
-                    await send_support_alert(main_bot_obj, SupportAlert(
-                        event_type='INTERNAL_ACCESS_LOST',
-                        client_id=client.id,
-                        client_alias=client.alias,
-                        pool_type=client.pool_type,
-                        channel_id=chat_id,
-                        is_our_channel=True,
-                        error_code=error_str.split('(')[0].strip() if '(' in error_str else error_str[:50],
-                        error_text=f"Не удалось добавить клиента в канал: {error_str[:100]}"
-                    ))
-                
-                success_join = False
-            
-            if not success_join:
-                logger.warning(f"Client {client.id} failed to join {chat_id}")
-                continue
-            
             # Получить user_id клиента
             me = await manager.me()
             if not me:
                 logger.error(f"Failed to get user info for client {client.id}")
                 continue
             
-            logger.info(f"Client {client.id} (user_id={me.id}) joined successfully")
+            logger.info(f"Client {client.id} (user_id={me.id}) ready for join")
+
+            # Шаг 1: Попытка добавить клиента напрямую через InviteToChannelRequest
+            # Это более надежный способ чем invite ссылки
+            try:
+                # Получить entity канала через MTProto
+                channel_entity = await manager.client.get_entity(chat_id)
+                
+                # Добавить пользователя в канал
+                from telethon.tl.functions.channels import InviteToChannelRequest
+                await manager.client(InviteToChannelRequest(
+                    channel=channel_entity,
+                    users=[me]
+                ))
+                logger.info(f"Client {client.id} (user_id={me.id}) added to channel {chat_id} via InviteToChannelRequest")
+                
+            except Exception as e:
+                error_str = str(e)
+                logger.error(f"InviteToChannelRequest failed for client {client.id}: {e}")
+                
+                # Если прямое добавление не сработало, пробуем через invite ссылку
+                # Это fallback для случаев когда бот не имеет прав на добавление
+                try:
+                    # Создаем ПОСТОЯННУЮ ссылку для клиента
+                    chat_invite_link = await main_bot_obj.create_chat_invite_link(
+                        chat_id=chat_id,
+                        name=f"MTProto Client {client.id}",
+                        creates_join_request=False
+                        # БЕЗ member_limit - ссылка постоянная и многоразовая
+                    )
+                    logger.info(f"Created permanent fallback invite link for {chat_id}: {chat_invite_link.invite_link}")
+                    
+                    success_join = await manager.join(chat_invite_link.invite_link)
+                    if not success_join:
+                        logger.warning(f"Client {client.id} failed to join via invite link")
+                        continue
+                        
+                except Exception as link_error:
+                    logger.error(f"Fallback invite link also failed for client {client.id}: {link_error}")
+                    
+                    # Send alert for access loss
+                    if "USER_NOT_PARTICIPANT" in error_str or "CHANNEL_PRIVATE" in error_str or "CHAT_ADMIN_REQUIRED" in error_str:
+                        from main_bot.utils.support_log import send_support_alert, SupportAlert
+                        channel = await db.get_channel_by_chat_id(chat_id)
+                        
+                        await send_support_alert(main_bot_obj, SupportAlert(
+                            event_type='INTERNAL_ACCESS_LOST',
+                            client_id=client.id,
+                            client_alias=client.alias,
+                            pool_type=client.pool_type,
+                            channel_id=chat_id,
+                            is_our_channel=True,
+                            error_code=error_str.split('(')[0].strip() if '(' in error_str else error_str[:50],
+                            error_text=f"Не удалось добавить клиента в канал: {error_str[:100]}"
+                        ))
+                    
+                    continue
+
 
         # Шаг 3: Проверить, что клиент есть как подписчик
         try:
