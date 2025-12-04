@@ -41,10 +41,15 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
         # Показываем только клиенты из БД (без автосканирования)
         all_clients = await db.get_mt_clients_by_pool('internal') + await db.get_mt_clients_by_pool('external')
         
-        await call.message.edit_text(
-            f"Управление MTProto клиентами\nВсего в базе: {len(all_clients)}",
-            reply_markup=keyboards.admin_sessions()
-        )
+        try:
+            await call.message.edit_text(
+                f"Управление MTProto клиентами\nВсего в базе: {len(all_clients)}",
+                reply_markup=keyboards.admin_sessions()
+            )
+        except Exception as e:
+            # Игнорируем ошибку если сообщение не изменилось
+            if "message is not modified" not in str(e):
+                raise
         return
 
     if action in ['internal', 'external']:
