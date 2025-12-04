@@ -19,6 +19,9 @@ from main_bot.database.story.model import Story
 from main_bot.keyboards.keyboards import keyboards
 from main_bot.utils.schemas import MessageOptions, StoryOptions, Protect, MessageOptionsHello, MessageOptionsCaptcha
 from main_bot.utils.session_manager import SessionManager
+from main_bot.utils.bot_manager import BotManager
+from hello_bot.database.db import Database
+from main_bot.database.user_bot.model import UserBot
 from config import Config
 import logging
 
@@ -964,3 +967,93 @@ async def answer_message(message: types.Message, message_options: MessageOptions
     )
 
     return post_message
+
+
+async def send_bot_messages(other_bot: Bot, bot_post: BotPost, users, filepath):
+    message_options = MessageOptionsHello(**bot_post.message)
+
+    if message_options.text:
+        cor = other_bot.send_message
+    elif message_options.photo:
+        cor = other_bot.send_photo
+        message_options.photo = types.FSInputFile(filepath)
+    elif message_options.video:
+        cor = other_bot.send_video
+        message_options.video = types.FSInputFile(filepath)
+    else:
+        cor = other_bot.send_animation
+        message_options.animation = types.FSInputFile(filepath)
+
+    options = message_options.model_dump()
+
+    try:
+        options.pop("show_caption_above_media")
+        options.pop("disable_web_page_preview")
+        options.pop("has_spoiler")
+    except KeyError:
+        pass
+
+    if message_options.text:
+        options.pop("photo")
+        options.pop("video")
+        options.pop("animation")
+        options.pop("caption")
+    elif message_options.photo:
+        options.pop("video")
+        options.pop("animation")
+        options.pop("text")
+    elif message_options.video:
+        options.pop("photo")
+        options.pop("animation")
+        options.pop("text")
+
+    # animation
+    else:
+        options.pop("photo")
+        options.pop("video")
+        options.pop("text")
+
+    options['parse_mode'] = 'HTML'
+
+    success = 0
+    message_ids = []
+
+    for user in users:
+        try:
+            options["chat_id"] = user
+            if bot_post.text_with_name:
+                get_user = await other_bot.get_chat(user)
+                added_text = f"{get_user.username or get_user.first_name}\n\n"
+
+                if message_options.text:
+                    options["text"] = added_text + message_options.text
+                if message_options.caption:
+                    options["caption"] = added_text + message_options.caption
+
+            message = await cor(**options)
+            message_ids.append({"message_id": message.message_id, "chat_id": user})
+            success += 1
+        except Exception as e:
+            logger.error(f"Error sending bot message to user {user}: {e}", exc_info=True)
+
+        await asyncio.sleep(0.25)
+
+    return {other_bot.id: {"success": success, "message_ids": message_ids}}
+
+
+async def process_bot(user_bot: UserBot, bot_post: BotPost, users, filepath):
+    async with BotManager(user_bot.token) as bot_manager:
+        validate = await bot_manager.validate_token()
+
+        if not validate:
+            raise Exception("TOKEN")
+        status = await bot_manager.status()
+        if not status:
+            raise Exception("STATUS")
+
+        return await send_bot_messages(
+            other_bot=bot_manager.bot,
+            bot_post=bot_post,
+            users=users,
+            filepath=filepath
+        )
