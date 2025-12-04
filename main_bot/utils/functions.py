@@ -516,16 +516,26 @@ async def set_channel_session(chat_id: int):
             promote = await main_bot_obj.promote_chat_member(
                 chat_id=chat_id,
                 user_id=me.id,
+                # Stories rights
                 can_edit_stories=bot_can_edit_stories,
                 can_post_stories=bot_can_post_stories,
                 can_delete_stories=bot_can_delete_stories,
+                # Channel management
                 can_manage_chat=True,
+                can_change_info=True,
+                # Messages
                 can_post_messages=True,
                 can_edit_messages=True,
                 can_delete_messages=True,
-                can_manage_video_chats=True,
+                # Users
                 can_invite_users=True,
-                can_pin_messages=True
+                can_restrict_members=True,
+                # Other
+                can_pin_messages=True,
+                can_manage_video_chats=True,
+                can_promote_members=True,
+                can_manage_topics=True,
+                is_anonymous=False
             )
             logger.info(f"✅ Successfully promoted client {client.id} (user_id={me.id}) in {chat_id}")
             
