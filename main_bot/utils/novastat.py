@@ -1,6 +1,7 @@
 import asyncio
 import os
 import time
+import logging
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 from statistics import median
@@ -14,6 +15,8 @@ from config import Config
 
 from main_bot.database.db import db
 from main_bot.utils.session_manager import SessionManager
+
+logger = logging.getLogger(__name__)
 
 # Constants
 TIMEZONE = "Europe/Moscow"
@@ -120,6 +123,68 @@ class NovaStatService:
             # Установить флаг обновления
             await db.mark_refresh_in_progress(channel_identifier, horizon, True)
             
+            # Шаг 1: Проверить, является ли канал "своим" (в нашем боте)
+            our_channel = None
+            channel_id = None
+            
+            # Попытаться найти канал по username или ссылке
+            try:
+                if "t.me/" in channel_identifier:
+                    username = channel_identifier.split('/')[-1].replace('@', '')
+                elif channel_identifier.startswith('@'):
+                    username = channel_identifier[1:]
+                else:
+                    username = channel_identifier.replace('@', '')
+                
+                # Поиск канала в базе
+                channels = await db.get_channels()
+                for ch in channels:
+                    if ch.title == username or (hasattr(ch, 'username') and ch.username == username):
+                        our_channel = ch
+                        channel_id = ch.chat_id
+                        break
+            except Exception as e:
+                logger.info(f"Could not determine if channel {channel_identifier} is ours: {e}")
+            
+            # Шаг 2: Если канал "свой", проверить наличие internal клиента для статистики
+            if our_channel and channel_id:
+                logger.info(f"Channel {channel_identifier} is our channel (id={channel_id})")
+                
+                # Проверить, есть ли internal клиент с preferred_for_stats
+                mt_client_channel = await db.get_preferred_for_stats(channel_id)
+                
+                if mt_client_channel:
+                    logger.info(f"Using internal client {mt_client_channel.client_id} for stats of channel {channel_id}")
+                    
+                    # Получить internal клиента
+                    client_obj = await db.get_mt_client(mt_client_channel.client_id)
+                    if client_obj and client_obj.is_active and client_obj.status == 'ACTIVE':
+                        session_path = Path(client_obj.session_path)
+                        if session_path.exists():
+                            manager = SessionManager(session_path)
+                            await manager.init_client()
+                            
+                            if manager.client:
+                                try:
+                                    # Собрать статистику через internal клиента
+                                    stats = await self._collect_stats_impl(manager.client, channel_identifier, days_limit)
+                                    
+                                    if stats:
+                                        await db.set_cache(channel_identifier, horizon, stats, error_message=None)
+                                    else:
+                                        await db.set_cache(
+                                            channel_identifier,
+                                            horizon,
+                                            {},
+                                            error_message="Не удалось собрать статистику"
+                                        )
+                                    return
+                                finally:
+                                    await manager.close()
+            
+            # Шаг 3: Канал не "свой" или нет internal клиента - использовать external клиента
+            logger.info(f"Using external client for channel {channel_identifier}")
+            
             # Получить external клиента
             client_data = await self.get_external_client()
             if not client_data:
@@ -176,27 +241,87 @@ class NovaStatService:
         now_utc = now_local.astimezone(timezone.utc)
 
         # Попытка получить entity с 3 попытками (для авто-приема)
+        # Если канал приватный с автоприемом, может потребоваться несколько попыток
         entity = None
         last_error = None
+        join_attempted = False
+        
         for attempt in range(3):
             try:
                 entity = await client.get_entity(channel_identifier)
+                logger.info(f"Successfully got entity for {channel_identifier} on attempt {attempt + 1}")
                 break  # Success
             except Exception as e:
                 last_error = e
+                error_str = str(e)
+                
+                # Если это ошибка доступа и мы еще не пытались join
+                if ("USER_NOT_PARTICIPANT" in error_str or "CHANNEL_PRIVATE" in error_str) and not join_attempted:
+                    logger.info(f"Channel {channel_identifier} requires join, attempting...")
+                    
+                    # Попытаться присоединиться через SessionManager
+                    try:
+                        # Создать временный SessionManager для join
+                        from main_bot.utils.session_manager import SessionManager
+                        # Используем текущий client, оборачиваем в SessionManager-подобную логику
+                        # Но так как у нас уже есть client, используем его напрямую
+                        
+                        # Попытка join
+                        if "t.me/" in channel_identifier:
+                            # Это ссылка
+                            if "t.me/+" in channel_identifier or "joinchat" in channel_identifier:
+                                # Private invite link
+                                hash_arg = channel_identifier.split('/')[-1].replace('+', '')
+                                await client(functions.messages.ImportChatInviteRequest(hash=hash_arg))
+                            else:
+                                # Public link
+                                username = channel_identifier.split('/')[-1]
+                                await client(functions.channels.JoinChannelRequest(channel=username))
+                        elif channel_identifier.startswith('@'):
+                            # Username
+                            await client(functions.channels.JoinChannelRequest(channel=channel_identifier[1:]))
+                        else:
+                            # Assume username without @
+                            await client(functions.channels.JoinChannelRequest(channel=channel_identifier))
+                        
+                        join_attempted = True
+                        logger.info(f"Join attempt successful for {channel_identifier}, retrying get_entity...")
+                        
+                        # Подождать немного и попробовать снова
+                        await asyncio.sleep(1)
+                        continue
+                        
+                    except Exception as join_error:
+                        logger.error(f"Join failed for {channel_identifier}: {join_error}")
+                        join_attempted = True
+                
+                # Если не последняя попытка - ждем и пробуем снова
                 if attempt < 2:  # Not the last attempt
                     delay = attempt + 1  # 1s on first retry, 2s on second retry
-                    print(f"get_entity attempt {attempt + 1} failed for {channel_identifier}: {e}. Retrying in {delay}s...")
+                    logger.warning(f"get_entity attempt {attempt + 1} failed for {channel_identifier}: {e}. Retrying in {delay}s...")
                     await asyncio.sleep(delay)
                 else:
-                    # Last attempt failed - send alert for access errors
-                    error_str = str(e)
-                    print(f"get_entity failed after 3 attempts for {channel_identifier}: {e}")
+                    # Last attempt failed
+                    logger.error(f"get_entity failed after 3 attempts for {channel_identifier}: {e}")
                     
+                    # Проверить, стал ли клиент подписчиком (если join был выполнен)
+                    if join_attempted and "USER_NOT_PARTICIPANT" in error_str:
+                        # Join был, но клиент все равно не участник
+                        # Это значит либо ссылка без автоприема, либо проблемы с Telegram
+                        raise Exception(
+                            "Не удалось присоединиться к каналу. "
+                            "Возможные причины:\n"
+                            "• Ссылка без автоприёма (требуется подтверждение администратора)\n"
+                            "• Загруженность серверов Telegram\n"
+                            "Попробуйте:\n"
+                            "• Предоставить ссылку с автоприёмом\n"
+                            "• Повторить попытку позже"
+                        )
+                    
+                    # Отправить alert для других ошибок доступа
                     if "USER_NOT_PARTICIPANT" in error_str or "CHAT_ADMIN_REQUIRED" in error_str or "CHANNEL_PRIVATE" in error_str:
                         from main_bot.utils.support_log import send_support_alert, SupportAlert
                         from instance_bot import bot as main_bot_obj
-                        from main_bot.database.db import db
                         
                         # Try to get channel info
                         channel = None

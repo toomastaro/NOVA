@@ -257,17 +257,18 @@ async def set_channel_session(chat_id: int):
             if not manager:
                 continue
             
-            # Create fresh invite link for each attempt
+            # Шаг 1: Создать пригласительную ссылку БЕЗ заявки на вступление
             try:
                 chat_invite_link = await main_bot_obj.create_chat_invite_link(
                     chat_id=chat_id,
-                    member_limit=1
+                    creates_join_request=False  # Без заявки на вступление
                 )
+                logger.info(f"Created invite link for {chat_id}: {chat_invite_link.invite_link}")
             except Exception as e:
                 logger.error(f"Error creating invite link for {chat_id}: {e}")
                 continue
 
-            # Try to join
+            # Шаг 2: MTProto-клиент делает join по ссылке
             try:
                 success_join = await manager.join(chat_invite_link.invite_link)
             except Exception as e:
@@ -293,33 +294,32 @@ async def set_channel_session(chat_id: int):
                 success_join = False
             
             if not success_join:
+                logger.warning(f"Client {client.id} failed to join {chat_id}")
                 continue
-
-            # Check stories capability
-            can_send_stories = await manager.can_send_stories(
-                chat_id=int(str(chat_id).replace("-100", ""))
-            )
             
-            # Send alert if stories permission denied
-            if not can_send_stories:
-                from main_bot.utils.support_log import send_support_alert, SupportAlert
-                channel = await db.get_channel_by_chat_id(chat_id)
-                
-                await send_support_alert(main_bot_obj, SupportAlert(
-                    event_type='STORIES_PERMISSION_DENIED',
-                    client_id=client.id,
-                    client_alias=client.alias,
-                    pool_type=client.pool_type,
-                    channel_id=chat_id,
-                    is_our_channel=True,
-                    error_text="Клиент не имеет прав на публикацию историй"
-                ))
-            
+            # Получить user_id клиента
             me = await manager.me()
             if not me:
+                logger.error(f"Failed to get user info for client {client.id}")
                 continue
+            
+            logger.info(f"Client {client.id} (user_id={me.id}) joined successfully")
 
-        # Promote admin rights
+        # Шаг 3: Проверить, что клиент есть как подписчик
+        try:
+            member_status = await main_bot_obj.get_chat_member(chat_id, me.id)
+            from aiogram.enums import ChatMemberStatus
+            
+            if member_status.status not in [ChatMemberStatus.MEMBER, ChatMemberStatus.ADMINISTRATOR, ChatMemberStatus.CREATOR]:
+                logger.error(f"Client {client.id} (user_id={me.id}) is not a member of {chat_id}, status: {member_status.status}")
+                continue
+            
+            logger.info(f"Verified: Client {client.id} is a member of {chat_id}")
+        except Exception as e:
+            logger.error(f"Error checking membership for client {client.id} in {chat_id}: {e}")
+            continue
+
+        # Шаг 4: Промоутить клиента до администратора
         try:
             promote = await main_bot_obj.promote_chat_member(
                 chat_id=chat_id,
@@ -328,18 +328,45 @@ async def set_channel_session(chat_id: int):
                 can_post_stories=True,
                 can_delete_stories=True
             )
+            logger.info(f"Promoted client {client.id} (user_id={me.id}) to admin in {chat_id}")
         except Exception as e:
             logger.error(f"Error promoting client {client.id} in {chat_id}: {e}")
             continue
 
-        if promote:
+        if not promote:
+            logger.error(f"Failed to promote client {client.id} in {chat_id}")
+            continue
+        
+        # Шаг 5: Финальная проверка - клиент подписчик, админ, с правами на stories
+        try:
+            final_check = await main_bot_obj.get_chat_member(chat_id, me.id)
+            from aiogram.enums import ChatMemberStatus
+            
+            # Проверка 1: Является подписчиком
+            if final_check.status not in [ChatMemberStatus.ADMINISTRATOR, ChatMemberStatus.CREATOR]:
+                logger.error(f"Final check failed: Client {client.id} is not admin, status: {final_check.status}")
+                continue
+            
+            # Проверка 2: Есть права администратора на stories
+            if final_check.status == ChatMemberStatus.ADMINISTRATOR:
+                if not (final_check.can_post_stories and final_check.can_edit_stories and final_check.can_delete_stories):
+                    logger.error(f"Final check failed: Client {client.id} missing story permissions")
+                    continue
+            
+            logger.info(f"✓ Final verification passed for client {client.id}: member + admin + story rights")
+        except Exception as e:
+            logger.error(f"Error in final verification for client {client.id}: {e}")
+            continue
+
+        # Все проверки пройдены успешно
+        if True:
             # Create/Update MtClientChannel
             await db.add_mt_client_channel(
                 client_id=client.id,
                 channel_id=chat_id,
                 is_member=True,
-                can_post_stories=can_send_stories,
-                can_view_stats=True # Assuming if we joined we can view stats
+                can_post_stories=True,  # Подтверждено финальной проверкой
+                can_view_stats=True  # Assuming if we joined we can view stats
             )
             
             # Update legacy channel field for backward compatibility if needed, 
