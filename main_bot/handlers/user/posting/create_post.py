@@ -215,7 +215,7 @@ async def manage_post(call: types.CallbackQuery, state: FSMContext):
     await call.message.delete()
     message_text = text("manage:post:new:{}".format(temp[1]))
 
-    if temp[1] in ["text", "media", "buttons", "reaction", "pin_time", "cpm_price"]:
+    if temp[1] in ["text", "media", "buttons", "reaction", "pin_time"]:
         input_msg = await call.message.answer(
             message_text,
             reply_markup=keyboards.param_cancel(
@@ -289,6 +289,29 @@ async def cancel_value(call: types.CallbackQuery, state: FSMContext):
     await state.update_data(data)
 
     await call.message.delete()
+
+    if data.get('param') == "cpm_price":
+        post: Post = data.get("post")
+        chosen = data.get("chosen", post.chat_ids)
+        display_objects = await db.get_user_channels(
+            user_id=call.from_user.id,
+            from_array=chosen[:10]
+        )
+        return await call.message.answer(
+            text("choice_channels:post").format(
+                len(chosen),
+                "\n".join(
+                    text("resource_title").format(
+                        obj.emoji_id,
+                        obj.title
+                    ) for obj in display_objects
+                )
+            ),
+            reply_markup=keyboards.finish_params(
+                obj=post
+            )
+        )
+
     await answer_post(call.message, state)
 
 
@@ -406,6 +429,28 @@ async def get_value(message: types.Message, state: FSMContext):
         message.chat.id,
         data.get("input_msg_id")
     )
+
+    if param == "cpm_price":
+        chosen = data.get("chosen", post.chat_ids)
+        display_objects = await db.get_user_channels(
+            user_id=message.from_user.id,
+            from_array=chosen[:10]
+        )
+        return await message.answer(
+            text("choice_channels:post").format(
+                len(chosen),
+                "\n".join(
+                    text("resource_title").format(
+                        obj.emoji_id,
+                        obj.title
+                    ) for obj in display_objects
+                )
+            ),
+            reply_markup=keyboards.finish_params(
+                obj=post
+            )
+        )
+
     await answer_post(message, state)
 
 
@@ -797,6 +842,25 @@ async def finish_params(call: types.CallbackQuery, state: FSMContext):
                 obj=post
             )
         )
+
+    if temp[1] == "cpm_price":
+        await state.update_data(
+            param=temp[1]
+        )
+        await call.message.delete()
+        message_text = text("manage:post:new:{}".format(temp[1]))
+        
+        input_msg = await call.message.answer(
+            message_text,
+            reply_markup=keyboards.param_cancel(
+                param=temp[1]
+            )
+        )
+        await state.set_state(Posting.input_value)
+        await state.update_data(
+            input_msg_id=input_msg.message_id
+        )
+        return
 
     if temp[1] == "delete_time":
         await call.message.edit_text(

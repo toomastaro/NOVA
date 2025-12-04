@@ -202,34 +202,6 @@ async def send(post: Post):
         if obj.chat_id in [i.get("chat_id") for i in error_send[:10]]
     )
 
-    if success_send and error_send:
-        message_text = text("success_error:post:public").format(
-            success_str,
-            error_str,
-        )
-    elif success_send:
-        message_text = text("manage:post:success:public").format(
-            success_str,
-        )
-    elif error_send:
-        message_text = text("error:post:public").format(
-            error_str,
-        )
-    else:
-        message_text = "Unknown Post Notification Message"
-
-    try:
-        await bot.send_message(
-            chat_id=post.admin_id,
-            text=message_text
-        )
-    except Exception as e:
-        logger.error(f"Error sending report to admin {post.admin_id}: {e}", exc_info=True)
-
-
-async def send_posts():
-    posts = await db.get_post_for_send()
-
     for post in posts:
         asyncio.create_task(send(post))
 
@@ -247,27 +219,115 @@ async def unpin_posts():
             logger.error(f"Error unpinning message {post.message_id} in {post.chat_id}: {e}", exc_info=True)
 
 
+async def get_views_for_post(post):
+    channel = await db.get_channel_by_chat_id(post.chat_id)
+    session_path = None
+    if channel.session_path:
+        session_path = Path(channel.session_path)
+    else:
+        res = await set_channel_session(post.chat_id)
+        if isinstance(res, dict) and res.get("success"):
+            session_path = Path(res.get("session_path"))
+        elif isinstance(res, Path):
+            session_path = res
+
+    views = 0
+    if session_path:
+        async with SessionManager(session_path) as session:
+            if session:
+                views_obj = await session.get_views(post.chat_id, [post.message_id])
+                if views_obj:
+                    views = sum([i.views for i in views_obj.views])
+    return views, channel
+
+
+async def check_cpm_reports():
+    from sqlalchemy import select, update
+    from main_bot.database.published_post.model import PublishedPost
+    
+    current_time = int(time.time())
+    
+    async with db.session() as session:
+        stmt = select(PublishedPost).where(
+            PublishedPost.cpm_price.is_not(None),
+            PublishedPost.deleted_at.is_(None)
+        )
+        result = await session.execute(stmt)
+        posts = result.scalars().all()
+        
+        for post in posts:
+            try:
+                elapsed = current_time - post.created_timestamp
+                
+                report_needed = False
+                period = ""
+                
+                if elapsed >= 24 * 3600 and not post.report_24h_sent:
+                    period = "24h"
+                    report_needed = True
+                elif elapsed >= 48 * 3600 and not post.report_48h_sent:
+                    period = "48h"
+                    report_needed = True
+                elif elapsed >= 72 * 3600 and not post.report_72h_sent:
+                    period = "72h"
+                    report_needed = True
+                
+                if not report_needed:
+                    continue
+
+                views, channel = await get_views_for_post(post)
+                
+                # Update DB
+                updates = {}
+                if period == "24h":
+                    updates = {"views_24h": views, "report_24h_sent": True}
+                elif period == "48h":
+                    updates = {"views_48h": views, "report_48h_sent": True}
+                elif period == "72h":
+                    updates = {"views_72h": views, "report_72h_sent": True}
+                
+                stmt = update(PublishedPost).where(PublishedPost.id == post.id).values(**updates)
+                await session.execute(stmt)
+                await session.commit()
+                
+                # Send Report
+                cpm_price = post.cpm_price
+                rub_price = round(float(cpm_price * float(views / 1000)), 2)
+                
+                user = await db.get_user(post.admin_id)
+                usd_rate = 1.0
+                if user and user.default_exchange_rate_id:
+                    exchange_rate = await db.get_exchange_rate(user.default_exchange_rate_id)
+                    if exchange_rate and exchange_rate.rate > 0:
+                        usd_rate = exchange_rate.rate
+
+                channels_text = text("resource_title").format(channel.emoji_id, channel.title) + f" - 👀 {views}"
+                
+                full_report = text("cpm:report:header").format(post.post_id, period) + "\n"
+                full_report += text("cpm:report:stats").format(
+                    period,
+                    views,
+                    rub_price,
+                    round(rub_price / usd_rate, 2),
+                    round(usd_rate, 2)
+                ) + "\n\n" + channels_text
+                
+                await bot.send_message(
+                    chat_id=post.admin_id,
+                    text=full_report
+                )
+                
+            except Exception as e:
+                logger.error(f"Error processing CPM report for post {post.id}: {e}", exc_info=True)
+
+
 async def delete_posts():
     db_posts = await db.get_posts_for_delete()
 
     row_ids = []
     posts = {}
     for post in db_posts:
-        channel = await db.get_channel_by_chat_id(post.chat_id)
-        
-        session_path = None
-        if channel.session_path:
-            session_path = Path(channel.session_path)
-        else:
-            res = await set_channel_session(post.chat_id)
-            if isinstance(res, Path):
-                session_path = res
-
-        views = None
-        if post.cpm_price and session_path:
-            async with SessionManager(session_path) as session:
-                if session:
-                    views = await session.get_views(post.chat_id, [post.message_id])
+        views, channel = await get_views_for_post(post)
 
         if post.post_id not in posts:
             posts[post.post_id] = []
@@ -275,9 +335,10 @@ async def delete_posts():
         messages = posts[post.post_id]
         messages.append({
             "channel": channel,
-            "views": sum([i.views for i in views.views]) if views else 0,
+            "views": views,
             "admin_id": post.admin_id,
-            "cpm_price": post.cpm_price
+            "cpm_price": post.cpm_price,
+            "post_obj": post
         })
         posts[post.post_id] = messages
 
@@ -285,7 +346,6 @@ async def delete_posts():
             await bot.delete_message(post.chat_id, post.message_id)
         except Exception as e:
             logger.error(f"Error deleting message {post.message_id} in {post.chat_id}: {e}", exc_info=True)
-
             try:
                 await bot.send_message(
                     chat_id=post.admin_id,
@@ -307,10 +367,8 @@ async def delete_posts():
 
         admin_id = message_objects[0]["admin_id"]
         
-        # Get User's preferred exchange rate
         user = await db.get_user(admin_id)
-        usd_rate = 1.0 # Default fallback
-        
+        usd_rate = 1.0
         if user and user.default_exchange_rate_id:
             exchange_rate = await db.get_exchange_rate(user.default_exchange_rate_id)
             if exchange_rate and exchange_rate.rate > 0:
@@ -324,9 +382,35 @@ async def delete_posts():
         )
 
         try:
-            await bot.send_message(
-                chat_id=admin_id,
-                text=text("cpm:report").format(
+            representative_post = message_objects[0]["post_obj"]
+            delete_duration = representative_post.delete_time - representative_post.created_timestamp
+            views_24 = representative_post.views_24h
+            views_48 = representative_post.views_48h
+            
+            def format_report(title_suffix, current_views, v24=None, v48=None):
+                lines = []
+                lines.append(text("cpm:report:header").format(post_id, title_suffix))
+                lines.append(text("cpm:report:stats").format(
+                    "Финальный" if "Final" in title_suffix else title_suffix,
+                    current_views,
+                    rub_price,
+                    round(rub_price / usd_rate, 2),
+                    round(usd_rate, 2)
+                ))
+                if v24 is not None:
+                     rub_24 = round(float(cpm_price * float(v24 / 1000)), 2)
+                     lines.append(text("cpm:report:history_row").format("24ч", v24, rub_24))
+                if v48 is not None:
+                     rub_48 = round(float(cpm_price * float(v48 / 1000)), 2)
+                     lines.append(text("cpm:report:history_row").format("48ч", v48, rub_48))
+                lines.append("\n" + channels_text)
+                return "\n".join(lines)
+
+            report_text = ""
+            hours = int(delete_duration / 3600)
+            
+            if delete_duration < 24 * 3600:
+                 report_text = text("cpm:report").format(
                     post_id,
                     channels_text,
                     cpm_price,
@@ -335,6 +419,25 @@ async def delete_posts():
                     round(rub_price / usd_rate, 2),
                     round(usd_rate, 2),
                 )
+            elif delete_duration <= 48 * 3600:
+                report_text = format_report(f"Final ({hours}ч)", total_views, views_24)
+            else:
+                report_text = format_report(f"Final ({hours}ч)", total_views, views_24, views_48)
+            
+            if not report_text:
+                 report_text = text("cpm:report").format(
+                    post_id,
+                    channels_text,
+                    cpm_price,
+                    total_views,
+                    rub_price,
+                    round(rub_price / usd_rate, 2),
+                    round(usd_rate, 2),
+                )
+
+            await bot.send_message(
+                chat_id=admin_id,
+                text=report_text
             )
         except Exception as e:
             logger.error(f"Error sending CPM report to admin {admin_id}: {e}", exc_info=True)
@@ -363,13 +466,23 @@ async def send_story(story: Story):
         if channel.session_path:
             session_path = Path(channel.session_path)
         else:
-            session_path = await set_channel_session(chat_id)
+            res = await set_channel_session(chat_id)
+            if isinstance(res, dict) and res.get("success"):
+                session_path = Path(res.get("session_path"))
+            elif isinstance(res, Path):
+                session_path = res
+            else:
+                session_path = None
 
         logger.info(f"Session path for {chat_id}: {session_path}")
         if isinstance(session_path, dict):
             session_path['chat_id'] = chat_id
             error_send.append(session_path)
             continue
+        
+        if not session_path:
+             error_send.append({"chat_id": chat_id, "error": "Session Error"})
+             continue
 
         manager = SessionManager(session_path)
         await manager.init_client()
@@ -382,7 +495,6 @@ async def send_story(story: Story):
             error_send.append({"chat_id": chat_id, "error": "Session Error"})
             continue
         
-        # Log client info
         try:
             me = await manager.me()
             if me:
@@ -392,23 +504,12 @@ async def send_story(story: Story):
         except Exception as e:
             logger.error(f"Error getting client info: {e}")
 
-        # Pre-flight checks
         try:
-            # Check Admin Rights
             can_post = await manager.can_send_stories(chat_id)
             if not can_post:
                 error_send.append({"chat_id": chat_id, "error": "No Admin Rights"})
                 await manager.close()
                 continue
-
-            # Check Daily Limit
-            #limit = await manager.get_story_limit(chat_id)
-            #posted_stories = await db.get_stories(chat_id, datetime.now())
-            #if len(posted_stories) >= limit:
-            #    error_send.append({"chat_id": chat_id, "error": f"Daily Limit Reached ({len(posted_stories)}/{limit})"})
-            #    await manager.close()
-            #    continue
-
         except Exception as e:
             logger.error(f"Error during pre-flight checks for {chat_id}: {e}", exc_info=True)
             error_send.append({"chat_id": chat_id, "error": f"Check Error: {e}"})
@@ -449,63 +550,32 @@ async def send_story(story: Story):
         except Exception as e:
             logger.error(f"Error sending story to {chat_id}: {e}", exc_info=True)
             error_str = str(e)
-
             error_send.append({"chat_id": chat_id, "error": error_str})
 
-            
-
-            # Send alert for critical errors
-
             if "CHAT_ADMIN_REQUIRED" in error_str or "STORIES_DISABLED" in error_str or "USER_NOT_PARTICIPANT" in error_str:
-
                 from main_bot.utils.support_log import send_support_alert, SupportAlert
-
                 from instance_bot import bot as main_bot_obj
 
-                
-
-                # Get client info from session path
-
                 client = None
-
                 if session_path:
-
                     clients = await db.get_mt_clients_by_pool('internal')
-
                     for c in clients:
-
                         if Path(c.session_path) == session_path:
-
                             client = c
-
                             break
 
-                
-
                 await send_support_alert(main_bot_obj, SupportAlert(
-
                     event_type='STORIES_PERMISSION_DENIED' if 'ADMIN' in error_str else 'INTERNAL_ACCESS_LOST',
-
                     client_id=client.id if client else None,
-
                     client_alias=client.alias if client else None,
-
                     pool_type='internal',
-
                     channel_id=chat_id,
-
                     channel_username=channel.username if channel else None,
-
                     is_our_channel=True,
-
                     task_id=story.id,
-
                     task_type='send_story',
-
                     error_code=error_str.split('(')[0].strip() if '(' in error_str else error_str[:50],
-
                     error_text=f"Не удалось отправить сторис: {error_str[:100]}"
-
                 ))
 
         finally:

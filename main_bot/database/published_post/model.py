@@ -32,3 +32,11 @@ class PublishedPost(Base):
     created_timestamp: Mapped[int] = mapped_column(default=time.time)
     status: Mapped[str] = mapped_column(default='active')
     deleted_at: Mapped[int | None] = mapped_column(default=None)
+
+    # CPM Reporting Data
+    views_24h: Mapped[int | None] = mapped_column(default=None)
+    views_48h: Mapped[int | None] = mapped_column(default=None)
+    views_72h: Mapped[int | None] = mapped_column(default=None)
+    report_24h_sent: Mapped[bool] = mapped_column(default=False)
+    report_48h_sent: Mapped[bool] = mapped_column(default=False)
+    report_72h_sent: Mapped[bool] = mapped_column(default=False)

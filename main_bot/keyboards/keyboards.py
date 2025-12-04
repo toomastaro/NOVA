@@ -173,14 +173,7 @@ class InlinePosting(InlineKeyboardBuilder):
                 callback_data=f'ManagePost|buttons|{post.id}'
             )
         )
-        kb.row(
-            InlineKeyboardButton(
-                text=text("manage:post:add:cpm:button").format(
-                    post.cpm_price or "Нет"
-                ),
-                callback_data=f'ManagePost|cpm_price|{post.id}'
-            )
-        )
+
 
         if not show_more:
             kb.row(
@@ -373,6 +366,15 @@ class InlinePosting(InlineKeyboardBuilder):
             ),
             callback_data=f"{data}|report"
         )
+
+        if isinstance(obj, Post) and delete_time:
+            kb.button(
+                text=text("manage:post:add:cpm:button").format(
+                    f"{obj.cpm_price}₽" if obj.cpm_price else "❌"
+                ),
+                callback_data=f"{data}|cpm_price"
+            )
+
         kb.button(
             text=text("manage:post:del_time:button").format(
                 f"{int(delete_time / 3600)} ч."  # type: ignore
