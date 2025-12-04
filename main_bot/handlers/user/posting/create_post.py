@@ -1020,17 +1020,14 @@ async def get_send_time(message: types.Message, state: FSMContext):
     parts = input_date.split()
 
     try:
-        if len(parts) == 2 and len(parts[0].split('.')) == 3:
+        # Формат: DD.MM.YYYY HH:MM
+        if len(parts) == 2 and len(parts[0].split('.')) == 3 and ':' in parts[1]:
             date = datetime.strptime(input_date, "%d.%m.%Y %H:%M")
-
-        elif len(parts) == 2 and len(parts[0].split('.')) == 2:
-            year = datetime.now().year
-            date = datetime.strptime(f"{parts[0]}.{year} {parts[1]}", "%d.%m.%Y %H:%M")
-
-        elif len(parts) == 1:
-            today = datetime.now().strftime("%d.%m.%Y")
-            date = datetime.strptime(f"{today} {parts[0]}", "%d.%m.%Y %H:%M")
-
+        
+        # Формат: HH:MM DD.MM.YYYY
+        elif len(parts) == 2 and ':' in parts[0] and len(parts[1].split('.')) == 3:
+            date = datetime.strptime(f"{parts[1]} {parts[0]}", "%d.%m.%Y %H:%M")
+        
         else:
             raise ValueError("Invalid format")
 
