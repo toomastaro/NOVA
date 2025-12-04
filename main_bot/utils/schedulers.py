@@ -397,7 +397,7 @@ async def delete_posts():
         
         user = await db.get_user(admin_id)
         usd_rate = 1.0
-        if user and user.default_exchange_rate_id:
+        if user and user.default_exchange_rate_id is not None:
             exchange_rate = await db.get_exchange_rate(user.default_exchange_rate_id)
             if exchange_rate and exchange_rate.rate > 0:
                 usd_rate = exchange_rate.rate
