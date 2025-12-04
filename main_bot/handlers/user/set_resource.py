@@ -250,7 +250,7 @@ async def manual_add_channel(message: types.Message, state: FSMContext):
         await set_admins(message.bot, chat_id, chat_title, emoji_id, user_id=message.from_user.id)
         
         # Запуск фоновой задачи для добавления клиента в канал
-        asyncio.create_task(background_join_channel(chat_id, user_id=call.from_user.id))
+        asyncio.create_task(background_join_channel(chat_id, user_id=message.from_user.id))
             
         msg = text('success_add_channel').format(chat_title)
         await message.answer(msg)
