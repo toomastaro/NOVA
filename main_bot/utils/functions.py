@@ -1,3 +1,4 @@
+import asyncio
 import math
 import os
 import random
@@ -298,25 +299,6 @@ async def set_channel_session(chat_id: int):
             
             logger.info(f"Client {client.id} (user_id={me.id}) ready for join")
 
-            # Шаг 0: Проверить и снять бан если есть
-            try:
-                member_status = await main_bot_obj.get_chat_member(chat_id, me.id)
-                
-                if member_status.status in [ChatMemberStatus.BANNED, ChatMemberStatus.KICKED]:
-                    logger.warning(f"Client {client.id} (user_id={me.id}) is BANNED in {chat_id}, unbanning...")
-                    
-                    # Снять бан
-                    await main_bot_obj.unban_chat_member(chat_id, me.id, only_if_banned=True)
-                    logger.info(f"✅ Successfully unbanned client {client.id} (user_id={me.id}) in {chat_id}")
-                    
-                    # Подождать немного после снятия бана
-                    await asyncio.sleep(1.0)
-                    
-            except Exception as e:
-                # Если не удалось проверить статус - это нормально (клиент может еще не быть в канале)
-                logger.debug(f"Could not check ban status for client {client.id} in {chat_id}: {e}")
-
-
             # Шаг 1: Попытка добавить клиента напрямую через InviteToChannelRequest
             # Это более надежный способ чем invite ссылки
             try:
@@ -329,11 +311,43 @@ async def set_channel_session(chat_id: int):
                     channel=channel_entity,
                     users=[me]
                 ))
-                logger.info(f"Client {client.id} (user_id={me.id}) added to channel {chat_id} via InviteToChannelRequest")
+                logger.info(f"✅ Client {client.id} (user_id={me.id}) added to channel {chat_id} via InviteToChannelRequest")
                 
             except Exception as e:
                 error_str = str(e)
-                logger.error(f"InviteToChannelRequest failed for client {client.id}: {e}")
+                logger.error(f"❌ InviteToChannelRequest failed for client {client.id}: {e}")
+                
+                # Проверяем, не забанен ли клиент
+                if "USER_BANNED_IN_CHANNEL" in error_str or "PARTICIPANT_BANNED" in error_str:
+                    logger.warning(f"🚫 Client {client.id} (user_id={me.id}) is BANNED in {chat_id}, attempting to unban...")
+                    
+                    try:
+                        # Снять бан через основного бота
+                        await main_bot_obj.unban_chat_member(chat_id, me.id, only_if_banned=True)
+                        logger.info(f"✅ Successfully unbanned client {client.id} (user_id={me.id}) in {chat_id}")
+                        
+                        # Подождать немного после снятия бана
+                        await asyncio.sleep(1.5)
+                        
+                        # Повторная попытка добавить клиента
+                        try:
+                            await manager.client(InviteToChannelRequest(
+                                channel=channel_entity,
+                                users=[me]
+                            ))
+                            logger.info(f"✅ Client {client.id} (user_id={me.id}) added to channel {chat_id} after unban")
+                        except Exception as retry_error:
+                            logger.error(f"❌ Failed to add client {client.id} even after unban: {retry_error}")
+                            # Продолжаем с fallback методом
+                            raise
+                            
+                    except Exception as unban_error:
+                        logger.error(f"❌ Failed to unban client {client.id}: {unban_error}")
+                        # Продолжаем с fallback методом
+                        raise
+                else:
+                    # Другая ошибка - пробуем fallback
+                    raise
                 
                 # Если прямое добавление не сработало, пробуем через invite ссылку
                 # Это fallback для случаев когда бот не имеет прав на добавление
