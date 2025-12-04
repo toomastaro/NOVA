@@ -92,7 +92,7 @@ async def set_channel(call: types.ChatMemberUpdated):
         await set_admins(call.bot, chat_id, chat_title, emoji_id, user_id=call.from_user.id)
 
         # Запуск фоновой задачи для добавления клиента в канал
-        asyncio.create_task(background_join_channel(chat_id))
+        asyncio.create_task(background_join_channel(chat_id, user_id=call.from_user.id))
 
         message_text = text('success_add_channel').format(
             emoji_id,
@@ -250,7 +250,7 @@ async def manual_add_channel(message: types.Message, state: FSMContext):
         await set_admins(message.bot, chat_id, chat_title, emoji_id, user_id=message.from_user.id)
         
         # Запуск фоновой задачи для добавления клиента в канал
-        asyncio.create_task(background_join_channel(chat_id))
+        asyncio.create_task(background_join_channel(chat_id, user_id=call.from_user.id))
             
         msg = text('success_add_channel').format(emoji_id, chat_title)
         await message.answer(msg)

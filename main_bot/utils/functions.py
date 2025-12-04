@@ -284,6 +284,7 @@ async def set_channel_session(chat_id: int):
                 # Если не удалось проверить статус - это нормально (клиент может еще не быть в канале)
                 logger.debug(f"Could not check ban status for client {client.id} in {chat_id}: {e}")
 
+
             # Шаг 1: Попытка добавить клиента напрямую через InviteToChannelRequest
             # Это более надежный способ чем invite ссылки
             try:
@@ -355,8 +356,69 @@ async def set_channel_session(chat_id: int):
             logger.error(f"Error checking membership for client {client.id} in {chat_id}: {e}")
             continue
 
-        # Шаг 4: Промоутить клиента до администратора
+        # Шаг 4: Проверить права бота и промоутить клиента до администратора
+        bot_rights_result = {"has_admin": False, "can_promote": False, "promoted": False, "reason": ""}
+        
         try:
+            # Сначала проверим права самого бота
+            bot_info = await main_bot_obj.get_me()
+            bot_member = await main_bot_obj.get_chat_member(chat_id, bot_info.id)
+            
+            from aiogram.enums import ChatMemberStatus
+            
+            # Логируем статус бота
+            logger.info(f"🤖 Bot status in channel {chat_id}: {bot_member.status}")
+            
+            # Проверяем, является ли бот администратором с правами на промоут
+            if bot_member.status != ChatMemberStatus.ADMINISTRATOR:
+                bot_rights_result["reason"] = f"Bot is not administrator (status: {bot_member.status})"
+                logger.error(f"❌ {bot_rights_result['reason']} in {chat_id}")
+                logger.warning(f"Skipping promotion for client {client.id}, adding as regular member")
+                
+                # Добавляем клиента в БД как обычного участника без прав на stories
+                await db.add_mt_client_channel(
+                    client_id=client.id,
+                    channel_id=chat_id,
+                    is_member=True,
+                    can_post_stories=False,  # Нет прав администратора
+                    can_view_stats=True
+                )
+                
+                await db.update_channel_by_chat_id(
+                    chat_id=chat_id,
+                    session_path=str(session_path)
+                )
+                
+                return {"success": True, "bot_rights": bot_rights_result, "session_path": str(session_path)}
+            
+            bot_rights_result["has_admin"] = True
+            
+            # Проверяем права бота на промоут
+            if not bot_member.can_promote_members:
+                bot_rights_result["reason"] = "Bot lacks can_promote_members permission"
+                logger.error(f"❌ {bot_rights_result['reason']} in {chat_id}")
+                logger.warning(f"Skipping promotion for client {client.id}, adding as regular member")
+                
+                # Добавляем клиента в БД как обычного участника
+                await db.add_mt_client_channel(
+                    client_id=client.id,
+                    channel_id=chat_id,
+                    is_member=True,
+                    can_post_stories=False,
+                    can_view_stats=True
+                )
+                
+                await db.update_channel_by_chat_id(
+                    chat_id=chat_id,
+                    session_path=str(session_path)
+                )
+                
+                return {"success": True, "bot_rights": bot_rights_result, "session_path": str(session_path)}
+            
+            bot_rights_result["can_promote"] = True
+            logger.info(f"✅ Bot has admin rights with can_promote_members in {chat_id}")
+            
+            # Бот имеет права, промоутим клиента
             promote = await main_bot_obj.promote_chat_member(
                 chat_id=chat_id,
                 user_id=me.id,
@@ -396,6 +458,10 @@ async def set_channel_session(chat_id: int):
 
         # Все проверки пройдены успешно
         if True:
+            bot_rights_result["promoted"] = True
+            bot_rights_result["reason"] = "Successfully promoted to administrator"
+            logger.info(f"✅ Successfully promoted client {client.id} to administrator in {chat_id}")
+            
             # Create/Update MtClientChannel
             await db.add_mt_client_channel(
                 client_id=client.id,
@@ -413,15 +479,16 @@ async def set_channel_session(chat_id: int):
                 session_path=str(session_path)
             )
             
-            return Path(session_path)
+            return {"success": True, "bot_rights": bot_rights_result, "session_path": str(session_path)}
 
     return {"error": "Try Later"}
 
 
-async def background_join_channel(chat_id: int):
+async def background_join_channel(chat_id: int, user_id: int = None):
     """
     Попытка добавить клиента в канал в фоне с ретраями.
     Делает 3 попытки с экспоненциальной задержкой.
+    Отправляет уведомление пользователю о результате выдачи прав администратора.
     """
     import asyncio
     
@@ -430,9 +497,44 @@ async def background_join_channel(chat_id: int):
             # Используем существующую логику set_channel_session
             res = await set_channel_session(chat_id)
             
-            # Проверяем успех (set_channel_session возвращает путь к сессии или dict с ошибкой)
-            if isinstance(res, Path):
+            # Проверяем успех (теперь возвращает dict с bot_rights или dict с ошибкой)
+            if isinstance(res, dict) and res.get("success"):
                 logger.info(f"Успешно добавлен клиент в канал {chat_id} на попытке {attempt+1}")
+                
+                # Отправить уведомление пользователю о правах бота
+                if user_id:
+                    bot_rights = res.get("bot_rights", {})
+                    
+                    if bot_rights.get("promoted"):
+                        message = (
+                            "✅ <b>Права администратора успешно выданы!</b>\n\n"
+                            "MTProto-клиент добавлен в канал с правами администратора.\n"
+                            "Теперь доступна публикация stories."
+                        )
+                    elif bot_rights.get("has_admin") and not bot_rights.get("can_promote"):
+                        message = (
+                            "⚠️ <b>Права администратора частично выданы</b>\n\n"
+                            f"<b>Причина:</b> {bot_rights.get('reason', 'Неизвестно')}\n\n"
+                            "MTProto-клиент добавлен как обычный участник.\n"
+                            "Для публикации stories дайте боту права 'Добавление администраторов' в канале."
+                        )
+                    else:
+                        message = (
+                            "❌ <b>Права администратора не выданы</b>\n\n"
+                            f"<b>Причина:</b> {bot_rights.get('reason', 'Неизвестно')}\n\n"
+                            "MTProto-клиент добавлен как обычный участник.\n"
+                            "Для полной функциональности дайте боту права администратора в канале."
+                        )
+                    
+                    try:
+                        await main_bot_obj.send_message(
+                            chat_id=user_id,
+                            text=message,
+                            parse_mode="HTML"
+                        )
+                    except Exception as e:
+                        logger.error(f"Failed to send notification to user {user_id}: {e}")
+                
                 return
             
             # Если вернулась ошибка
