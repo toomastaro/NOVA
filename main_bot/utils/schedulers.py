@@ -442,7 +442,7 @@ async def send_story(story: Story):
         try:
             await manager.send_story(
                 chat_id=chat_id,
-                filepath=filepath,
+                file_path=filepath,
                 options=options
             )
             success_send.append({"chat_id": chat_id})
