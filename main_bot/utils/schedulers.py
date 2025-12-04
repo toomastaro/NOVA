@@ -154,11 +154,11 @@ async def send(post: Post):
                 "reaction": post.reaction or None,
                 "hide": post.hide or None,
                 "buttons": post.buttons or None,
-                "unpin_time": post.pin_time + current_time if post.pin_time else None,
+
                 "delete_time": post.delete_time + current_time if post.delete_time else None,
                 "report": post.report,
                 "cpm_price": post.cpm_price,
-                "cpm_price": post.cpm_price,
+
                 "backup_chat_id": Config.BACKUP_CHAT_ID if backup_message_id else None,
                 "backup_message_id": backup_message_id,
                 "message_options": post.message_options

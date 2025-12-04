@@ -165,7 +165,7 @@ async def manage_post(call: types.CallbackQuery, state: FSMContext):
             )
         )
 
-    if temp[1] in ['notification', 'media_above', 'has_spoiler']:
+    if temp[1] in ['notification', 'media_above', 'has_spoiler', 'pin_time']:
         message_options = MessageOptions(**data.get('post').message_options)
         if temp[1] == 'notification':
             message_options.disable_notification = not message_options.disable_notification
@@ -178,20 +178,36 @@ async def manage_post(call: types.CallbackQuery, state: FSMContext):
                 message_options.has_spoiler = not message_options.has_spoiler
             if temp[1] == 'media_above':
                 message_options.show_caption_above_media = not message_options.show_caption_above_media
+        
+        if temp[1] == 'pin_time':
+            # Переключаем закреп: если был включен - выключаем, если выключен - включаем (True)
+            new_pin_value = not post.pin_time if post.pin_time else True
 
         if data.get("is_published"):
             # Update all published posts with same post_id
+            update_kwargs = {}
+            if temp[1] == 'pin_time':
+                update_kwargs['pin_time'] = new_pin_value
+            else:
+                update_kwargs['message_options'] = message_options.model_dump()
+            
             await db.update_published_posts_by_post_id(
                 post_id=post.post_id,
-                message_options=message_options.model_dump()
+                **update_kwargs
             )
             # Fetch updated object (just one of them to keep in state)
             post = await db.get_published_post_by_id(post.id)
         else:
+            update_kwargs = {}
+            if temp[1] == 'pin_time':
+                update_kwargs['pin_time'] = new_pin_value
+            else:
+                update_kwargs['message_options'] = message_options.model_dump()
+            
             post = await db.update_post(
                 post_id=data.get('post').id,
                 return_obj=True,
-                message_options=message_options.model_dump(),
+                **update_kwargs
             )
         
         # Update backup message
@@ -215,7 +231,7 @@ async def manage_post(call: types.CallbackQuery, state: FSMContext):
     await call.message.delete()
     message_text = text("manage:post:new:{}".format(temp[1]))
 
-    if temp[1] in ["text", "media", "buttons", "reaction", "pin_time"]:
+    if temp[1] in ["text", "media", "buttons", "reaction"]:
         input_msg = await call.message.answer(
             message_text,
             reply_markup=keyboards.param_cancel(
@@ -355,11 +371,9 @@ async def get_value(message: types.Message, state: FSMContext):
     else:
         value = message.text
 
-        if param in ["pin_time", "cpm_price"]:
+        if param in ["cpm_price"]:
             try:
                 value = int(value)
-                if param == "pin_time":
-                    value *= 60
 
             except ValueError:
                 return await message.answer(
