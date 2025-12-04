@@ -240,6 +240,39 @@ async def answer_story(message: types.Message, state: FSMContext, from_edit: boo
 
 
 async def set_channel_session(chat_id: int):
+    # 0. Проверить что бот является членом канала (с retry)
+    bot_is_admin = False
+    from aiogram.enums import ChatMemberStatus
+    
+    for attempt in range(3):
+        try:
+            bot_info = await main_bot_obj.get_me()
+            bot_member = await main_bot_obj.get_chat_member(chat_id, bot_info.id)
+            
+            if bot_member.status in [ChatMemberStatus.ADMINISTRATOR, ChatMemberStatus.CREATOR]:
+                bot_is_admin = True
+                logger.info(f"✅ Bot is admin in channel {chat_id} (attempt {attempt + 1})")
+                break
+            else:
+                logger.warning(f"⚠️ Bot is not admin in {chat_id}, status: {bot_member.status} (attempt {attempt + 1}/3)")
+                
+        except Exception as e:
+            logger.warning(f"⚠️ Cannot check bot status in {chat_id}: {e} (attempt {attempt + 1}/3)")
+        
+        # Ждем перед следующей попыткой (кроме последней)
+        if attempt < 2:
+            logger.info(f"Waiting 1 second before retry...")
+            await asyncio.sleep(1.0)
+    
+    # Если после всех попыток бот не админ - возвращаем ошибку
+    if not bot_is_admin:
+        error_msg = "Bot is not an administrator of the channel after 3 attempts"
+        logger.error(f"❌ {error_msg} in {chat_id}")
+        return {
+            "error": "Bot Not Admin",
+            "message": "Бот не является администратором канала. Пожалуйста, добавьте бота в канал с правами администратора и повторите попытку."
+        }
+    
     # 1. Get active internal clients
     clients = await db.get_mt_clients_by_pool('internal')
     active_clients = [c for c in clients if c.is_active and c.status == 'ACTIVE']
@@ -268,17 +301,16 @@ async def set_channel_session(chat_id: int):
             # Шаг 0: Проверить и снять бан если есть
             try:
                 member_status = await main_bot_obj.get_chat_member(chat_id, me.id)
-                from aiogram.enums import ChatMemberStatus
                 
                 if member_status.status in [ChatMemberStatus.BANNED, ChatMemberStatus.KICKED]:
-                    logger.warning(f"Client {client.id} (user_id={me.id}) is banned in {chat_id}, unbanning...")
+                    logger.warning(f"Client {client.id} (user_id={me.id}) is BANNED in {chat_id}, unbanning...")
                     
                     # Снять бан
                     await main_bot_obj.unban_chat_member(chat_id, me.id, only_if_banned=True)
-                    logger.info(f"Successfully unbanned client {client.id} (user_id={me.id}) in {chat_id}")
+                    logger.info(f"✅ Successfully unbanned client {client.id} (user_id={me.id}) in {chat_id}")
                     
                     # Подождать немного после снятия бана
-                    await asyncio.sleep(0.5)
+                    await asyncio.sleep(1.0)
                     
             except Exception as e:
                 # Если не удалось проверить статус - это нормально (клиент может еще не быть в канале)
@@ -498,8 +530,27 @@ async def background_join_channel(chat_id: int, user_id: int = None):
             res = await set_channel_session(chat_id)
             
             # Проверяем успех (теперь возвращает dict с bot_rights или dict с ошибкой)
-            if isinstance(res, dict) and res.get("success"):
-                logger.info(f"Успешно добавлен клиент в канал {chat_id} на попытке {attempt+1}")
+            if isinstance(res, dict):
+                # Проверка на ошибку "Бот не в канале"
+                if res.get("error") == "Bot Not Admin":
+                    logger.error(f"❌ {res.get('error')}: {res.get('message')}")
+                    
+                    # Отправить сообщение пользователю
+                    if user_id:
+                        try:
+                            await main_bot_obj.send_message(
+                                chat_id=user_id,
+                                text=f"❌ <b>Ошибка добавления MTProto-клиента</b>\n\n{res.get('message')}",
+                                parse_mode="HTML"
+                            )
+                        except Exception as e:
+                            logger.error(f"Failed to send notification to user {user_id}: {e}")
+                    
+                    return  # Прекращаем попытки
+                
+                # Проверка на успех
+                if res.get("success"):
+                    logger.info(f"Успешно добавлен клиент в канал {chat_id} на попытке {attempt+1}")
                 
                 # Отправить уведомление пользователю о правах бота
                 if user_id:
