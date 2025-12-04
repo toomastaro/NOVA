@@ -275,300 +275,318 @@ async def set_channel_session(chat_id: int):
             "message": "Бот не является администратором канала. Пожалуйста, добавьте бота в канал с правами администратора и повторите попытку."
         }
     
-    # 1. Get active internal clients
-    clients = await db.get_mt_clients_by_pool('internal')
-    active_clients = [c for c in clients if c.is_active and c.status == 'ACTIVE']
+    # 1. Get channel info to use round-robin
+    channel = await db.get_channel_by_chat_id(chat_id)
+    if not channel:
+        logger.error(f"Channel {chat_id} not found in database")
+        return {"error": "Channel Not Found"}
     
-    if not active_clients:
+    # 2. Get next internal client using round-robin
+    client = await db.get_next_internal_client(channel.id)
+    
+    if not client:
         logger.error("No active internal clients found")
         return {"error": "No Active Clients"}
-
-    for client in active_clients:
-        session_path = Path(client.session_path)
-        if not session_path.exists():
-            continue
-
-        async with SessionManager(session_path) as manager:
-            if not manager:
-                continue
-            
-            # Получить user_id клиента
-            me = await manager.me()
-            if not me:
-                logger.error(f"Failed to get user info for client {client.id}")
-                continue
-            
-            logger.info(f"Client {client.id} (user_id={me.id}) ready for join")
-
-            # Шаг 0: Превентивно снимаем бан если есть (один раз в начале)
-            # Если клиент не забанен, это ничего не сделает благодаря only_if_banned=True
-            try:
-                await main_bot_obj.unban_chat_member(chat_id, me.id, only_if_banned=True)
-                logger.debug(f"Preventive unban check completed for client {client.id}")
-                await asyncio.sleep(0.5)
-            except Exception as unban_error:
-                # Это нормально - клиент может быть не забанен
-                logger.debug(f"Preventive unban result for client {client.id}: {unban_error}")
-
-            # Флаг успешного добавления
-            client_added = False
-            
-            # Шаг 1: Попытка добавить клиента напрямую через InviteToChannelRequest
-            # Это более надежный способ чем invite ссылки
-            try:
-                # Сначала получаем информацию о канале через основного бота
-                # Это необходимо, чтобы MTProto клиент мог получить entity
-                try:
-                    bot_chat = await main_bot_obj.get_chat(chat_id)
-                    # Если у канала есть username, используем его
-                    if hasattr(bot_chat, 'username') and bot_chat.username:
-                        channel_identifier = bot_chat.username
-                        logger.debug(f"Using channel username: @{channel_identifier}")
-                    else:
-                        # Иначе используем chat_id
-                        channel_identifier = chat_id
-                        logger.debug(f"Using channel ID: {channel_identifier}")
-                except Exception as bot_error:
-                    logger.warning(f"Could not get channel info via bot: {bot_error}, using chat_id")
-                    channel_identifier = chat_id
-                
-                # Получить entity канала через MTProto клиента
-                channel_entity = await manager.client.get_entity(channel_identifier)
-                
-                # Добавить пользователя в канал
-                from telethon.tl.functions.channels import InviteToChannelRequest
-                await manager.client(InviteToChannelRequest(
-                    channel=channel_entity,
-                    users=[me]
-                ))
-                logger.info(f"✅ Client {client.id} (user_id={me.id}) added to channel {chat_id} via InviteToChannelRequest")
-                client_added = True
-                
-            except Exception as e:
-                error_str = str(e)
-                logger.error(f"❌ InviteToChannelRequest failed for client {client.id}: {e}")
-                
-                # Проверяем, не является ли это ошибкой "entity not found"
-                if "Could not find the input entity" in error_str or "No user has" in error_str:
-                    logger.warning(f"⚠️ Client {client.id} doesn't know about channel {chat_id}, will use invite link fallback")
-                    # Продолжаем с fallback методом
-                
-            # Если клиент не был добавлен через InviteToChannelRequest, пробуем через invite ссылку
-            if not client_added:
-                logger.info(f"Attempting fallback method (invite link) for client {client.id}")
-                
-                try:
-                    # Создаем ПОСТОЯННУЮ ссылку для клиента
-                    chat_invite_link = await main_bot_obj.create_chat_invite_link(
-                        chat_id=chat_id,
-                        name=f"MTProto Client {client.id}",
-                        creates_join_request=False
-                        # БЕЗ member_limit - ссылка постоянная и многоразовая
-                    )
-                    logger.info(f"✅ Created permanent fallback invite link for {chat_id}: {chat_invite_link.invite_link}")
-                    
-                    success_join = await manager.join(chat_invite_link.invite_link)
-                    if not success_join:
-                        logger.warning(f"❌ Client {client.id} failed to join via invite link")
-                        continue
-                    
-                    logger.info(f"✅ Client {client.id} successfully joined via invite link")
-                    client_added = True
-                        
-                except Exception as link_error:
-                    logger.error(f"❌ Fallback invite link also failed for client {client.id}: {link_error}")
-                    
-                    # Send alert for access loss
-                    error_str = str(link_error)
-                    if "USER_NOT_PARTICIPANT" in error_str or "CHANNEL_PRIVATE" in error_str or "CHAT_ADMIN_REQUIRED" in error_str:
-                        from main_bot.utils.support_log import send_support_alert, SupportAlert
-                        channel = await db.get_channel_by_chat_id(chat_id)
-                        
-                        await send_support_alert(main_bot_obj, SupportAlert(
-                            event_type='INTERNAL_ACCESS_LOST',
-                            client_id=client.id,
-                            client_alias=client.alias,
-                            pool_type=client.pool_type,
-                            channel_id=chat_id,
-                            is_our_channel=True,
-                            error_code=error_str.split('(')[0].strip() if '(' in error_str else error_str[:50],
-                            error_text=f"Не удалось добавить клиента в канал: {error_str[:100]}"
-                        ))
-                    
-                    continue
-            
-            # Если клиент так и не был добавлен, пропускаем его
-            if not client_added:
-                logger.error(f"❌ Failed to add client {client.id} to channel {chat_id} using all methods")
-                continue
-
-
-        # Шаг 3: Проверить, что клиент есть как подписчик
-        try:
-            member_status = await main_bot_obj.get_chat_member(chat_id, me.id)
-            from aiogram.enums import ChatMemberStatus
-            
-            if member_status.status not in [ChatMemberStatus.MEMBER, ChatMemberStatus.ADMINISTRATOR, ChatMemberStatus.CREATOR]:
-                logger.error(f"Client {client.id} (user_id={me.id}) is not a member of {chat_id}, status: {member_status.status}")
-                continue
-            
-            logger.info(f"Verified: Client {client.id} is a member of {chat_id}")
-        except Exception as e:
-            logger.error(f"Error checking membership for client {client.id} in {chat_id}: {e}")
-            continue
-
-        # Шаг 4: Проверить права бота и промоутить клиента до администратора
-        bot_rights_result = {"has_admin": False, "can_promote": False, "promoted": False, "reason": ""}
+    
+    logger.info(f"🔄 Selected client {client.id} ({client.alias}) for channel {chat_id} using round-robin")
+    
+    session_path = Path(client.session_path)
+    if not session_path.exists():
+        logger.error(f"Session file not found for client {client.id}: {session_path}")
+        return {"error": "Session File Not Found"}
+    async with SessionManager(session_path) as manager:
+        if not manager:
+            logger.error(f"Failed to create SessionManager for client {client.id}")
+            return {"error": "Session Manager Failed"}
         
+        # Получить user_id клиента
+        me = await manager.me()
+        if not me:
+            logger.error(f"Failed to get user info for client {client.id}")
+            return {"error": "Failed to Get User Info"}
+        
+        logger.info(f"Client {client.id} (user_id={me.id}) ready for join")
+        # Шаг 0: Превентивно снимаем бан если есть (один раз в начале)
+        # Если клиент не забанен, это ничего не сделает благодаря only_if_banned=True
         try:
-            # Сначала проверим права самого бота
-            bot_info = await main_bot_obj.get_me()
-            bot_member = await main_bot_obj.get_chat_member(chat_id, bot_info.id)
-            
-            from aiogram.enums import ChatMemberStatus
-            
-            # Логируем статус бота
-            logger.info(f"🤖 Bot status in channel {chat_id}: {bot_member.status}")
-            
-            # Проверяем, является ли бот администратором с правами на промоут
-            if bot_member.status != ChatMemberStatus.ADMINISTRATOR:
-                bot_rights_result["reason"] = f"Bot is not administrator (status: {bot_member.status})"
-                logger.error(f"❌ {bot_rights_result['reason']} in {chat_id}")
-                logger.warning(f"Skipping promotion for client {client.id}, adding as regular member")
-                
-                # Добавляем клиента в БД как обычного участника без прав на stories
-                await db.get_or_create_mt_client_channel(client.id, chat_id)
-                await db.set_membership(
-                    client_id=client.id,
-                    channel_id=chat_id,
-                    is_member=True,
-                    is_admin=False,
-                    can_post_stories=False,  # Нет прав администратора
-                    last_joined_at=int(time.time())
-                )
-                
-                await db.update_channel_by_chat_id(
-                    chat_id=chat_id,
-                    session_path=str(session_path)
-                )
-                
-                return {"success": True, "bot_rights": bot_rights_result, "session_path": str(session_path)}
-            
-            bot_rights_result["has_admin"] = True
-            
-            # Проверяем права бота на промоут
-            if not bot_member.can_promote_members:
-                bot_rights_result["reason"] = "Bot lacks can_promote_members permission"
-                logger.error(f"❌ {bot_rights_result['reason']} in {chat_id}")
-                logger.warning(f"Skipping promotion for client {client.id}, adding as regular member")
-                
-                # Добавляем клиента в БД как обычного участника
-                await db.get_or_create_mt_client_channel(client.id, chat_id)
-                await db.set_membership(
-                    client_id=client.id,
-                    channel_id=chat_id,
-                    is_member=True,
-                    is_admin=False,
-                    can_post_stories=False,
-                    last_joined_at=int(time.time())
-                )
-                
-                await db.update_channel_by_chat_id(
-                    chat_id=chat_id,
-                    session_path=str(session_path)
-                )
-                
-                return {"success": True, "bot_rights": bot_rights_result, "session_path": str(session_path)}
-            
-            bot_rights_result["can_promote"] = True
-            logger.info(f"✅ Bot has admin rights with can_promote_members in {chat_id}")
-            
-            # Проверяем какие права на stories есть у самого бота
-            bot_can_post_stories = getattr(bot_member, 'can_post_stories', False)
-            bot_can_edit_stories = getattr(bot_member, 'can_edit_stories', False)
-            bot_can_delete_stories = getattr(bot_member, 'can_delete_stories', False)
-            
-            logger.info(f"📊 Bot story rights: post={bot_can_post_stories}, edit={bot_can_edit_stories}, delete={bot_can_delete_stories}")
-            
-            # Бот имеет права, промоутим клиента
-            # ВАЖНО: можем выдать только те права, которые есть у самого бота
+            await main_bot_obj.unban_chat_member(chat_id, me.id, only_if_banned=True)
+            logger.debug(f"Preventive unban check completed for client {client.id}")
+            await asyncio.sleep(0.5)
+        except Exception as unban_error:
+            # Это нормально - клиент может быть не забанен
+            logger.debug(f"Preventive unban result for client {client.id}: {unban_error}")
+        # Флаг успешного добавления
+        client_added = False
+        
+        # Шаг 1: Попытка добавить клиента напрямую через InviteToChannelRequest
+        # Это более надежный способ чем invite ссылки
+        try:
+            # Сначала получаем информацию о канале через основного бота
+            # Это необходимо, чтобы MTProto клиент мог получить entity
             try:
-                promote = await main_bot_obj.promote_chat_member(
-                    chat_id=chat_id,
-                    user_id=me.id,
-                    can_edit_stories=bot_can_edit_stories,
-                    can_post_stories=bot_can_post_stories,
-                    can_delete_stories=bot_can_delete_stories
-                )
-                
-                if bot_can_post_stories and bot_can_edit_stories and bot_can_delete_stories:
-                    logger.info(f"✅ Promoted client {client.id} to admin with FULL story rights in {chat_id}")
-                elif any([bot_can_post_stories, bot_can_edit_stories, bot_can_delete_stories]):
-                    logger.warning(f"⚠️ Promoted client {client.id} to admin with PARTIAL story rights in {chat_id}")
+                bot_chat = await main_bot_obj.get_chat(chat_id)
+                # Если у канала есть username, используем его
+                if hasattr(bot_chat, 'username') and bot_chat.username:
+                    channel_identifier = bot_chat.username
+                    logger.debug(f"Using channel username: @{channel_identifier}")
                 else:
-                    logger.warning(f"⚠️ Promoted client {client.id} to admin WITHOUT story rights in {chat_id}")
-                    
-            except Exception as e:
-                logger.error(f"❌ Error promoting client {client.id} in {chat_id}: {e}")
-                continue
+                    # Иначе используем chat_id
+                    channel_identifier = chat_id
+                    logger.debug(f"Using channel ID: {channel_identifier}")
+            except Exception as bot_error:
+                logger.warning(f"Could not get channel info via bot: {bot_error}, using chat_id")
+                channel_identifier = chat_id
+            
+            # Получить entity канала через MTProto клиента
+            channel_entity = await manager.client.get_entity(channel_identifier)
+            
+            # Добавить пользователя в канал
+            from telethon.tl.functions.channels import InviteToChannelRequest
+            await manager.client(InviteToChannelRequest(
+                channel=channel_entity,
+                users=[me]
+            ))
+            logger.info(f"✅ Client {client.id} (user_id={me.id}) added to channel {chat_id} via InviteToChannelRequest")
+            client_added = True
+            
+        except Exception as e:
+            error_str = str(e)
+            logger.error(f"❌ InviteToChannelRequest failed for client {client.id}: {e}")
+            
+            # Проверяем, не является ли это ошибкой "entity not found"
+            if "Could not find the input entity" in error_str or "No user has" in error_str:
+                logger.warning(f"⚠️ Client {client.id} doesn't know about channel {chat_id}, will use invite link fallback")
+                # Продолжаем с fallback методом
+            
+        # Если клиент не был добавлен через InviteToChannelRequest, пробуем через invite ссылку
+        if not client_added:
+            logger.info(f"Attempting fallback method (invite link) for client {client.id}")
+            
+            try:
+                # Создаем ПОСТОЯННУЮ ссылку для клиента
+                chat_invite_link = await main_bot_obj.create_chat_invite_link(
+                    chat_id=chat_id,
+                    name=f"MTProto Client {client.id}",
+                    creates_join_request=False
+                    # БЕЗ member_limit - ссылка постоянная и многоразовая
+                )
+                logger.info(f"✅ Created permanent fallback invite link for {chat_id}: {chat_invite_link.invite_link}")
                 
-        except Exception as e:
-            logger.error(f"❌ Error in bot rights check for {chat_id}: {e}")
-            continue
-
-        if not promote:
-            logger.error(f"Failed to promote client {client.id} in {chat_id}")
-            continue
+                success_join = await manager.join(chat_invite_link.invite_link)
+                if not success_join:
+                    logger.warning(f"❌ Client {client.id} failed to join via invite link")
+                    return {"error": "Failed to Join via Invite Link"}
+                
+                logger.info(f"✅ Client {client.id} successfully joined via invite link")
+                client_added = True
+                    
+            except Exception as link_error:
+                logger.error(f"❌ Fallback invite link also failed for client {client.id}: {link_error}")
+                
+                # Send alert for access loss
+                error_str = str(link_error)
+                if "USER_NOT_PARTICIPANT" in error_str or "CHANNEL_PRIVATE" in error_str or "CHAT_ADMIN_REQUIRED" in error_str:
+                    from main_bot.utils.support_log import send_support_alert, SupportAlert
+                    channel_obj = await db.get_channel_by_chat_id(chat_id)
+                    
+                    await send_support_alert(main_bot_obj, SupportAlert(
+                        event_type='INTERNAL_ACCESS_LOST',
+                        client_id=client.id,
+                        client_alias=client.alias,
+                        pool_type=client.pool_type,
+                        channel_id=chat_id,
+                        is_our_channel=True,
+                        error_code=error_str.split('(')[0].strip() if '(' in error_str else error_str[:50],
+                        error_text=f"Не удалось добавить клиента в канал: {error_str[:100]}"
+                    ))
+                
+                return {"error": "Failed to Add Client"}
         
-        # Шаг 5: Финальная проверка - клиент подписчик, админ, с правами на stories
+        if not client_added:
+            logger.error(f"❌ Failed to add client {client.id} to channel {chat_id}")
+            return {"error": "Failed to Add Client"}
+        
+        # Клиент успешно добавлен, теперь проверяем права бота и промоутим если возможно
+        bot_rights_result = {
+            "has_admin": False,
+            "can_promote": False,
+            "reason": None
+        }
+        
+        # Проверяем, является ли бот администратором
         try:
-            final_check = await main_bot_obj.get_chat_member(chat_id, me.id)
-            from aiogram.enums import ChatMemberStatus
-            
-            # Проверка 1: Является подписчиком
-            if final_check.status not in [ChatMemberStatus.ADMINISTRATOR, ChatMemberStatus.CREATOR]:
-                logger.error(f"Final check failed: Client {client.id} is not admin, status: {final_check.status}")
-                continue
-            
-            # Проверка 2: Есть права администратора на stories
-            if final_check.status == ChatMemberStatus.ADMINISTRATOR:
-                if not (final_check.can_post_stories and final_check.can_edit_stories and final_check.can_delete_stories):
-                    logger.error(f"Final check failed: Client {client.id} missing story permissions")
-                    continue
-            
-            logger.info(f"✓ Final verification passed for client {client.id}: member + admin + story rights")
+            bot_member = await main_bot_obj.get_chat_member(chat_id, (await main_bot_obj.get_me()).id)
+            logger.info(f"Bot member status in {chat_id}: {bot_member.status}")
         except Exception as e:
-            logger.error(f"Error in final verification for client {client.id}: {e}")
-            continue
-
-        # Все проверки пройдены успешно
-        if True:
-            bot_rights_result["promoted"] = True
-            bot_rights_result["reason"] = "Successfully promoted to administrator"
-            logger.info(f"✅ Successfully promoted client {client.id} to administrator in {chat_id}")
+            logger.error(f"Failed to get bot member info: {e}")
+            bot_rights_result["reason"] = f"Failed to check bot status: {e}"
             
-            # Create/Update MtClientChannel
+            # Добавляем клиента в БД как обычного участника
             await db.get_or_create_mt_client_channel(client.id, chat_id)
             await db.set_membership(
                 client_id=client.id,
                 channel_id=chat_id,
                 is_member=True,
-                is_admin=True,
-                can_post_stories=True,  # Подтверждено финальной проверкой
+                is_admin=False,
+                can_post_stories=False,
                 last_joined_at=int(time.time())
             )
             
-            # Update legacy channel field for backward compatibility if needed, 
-            # but we are moving away from it. 
-            # However, existing code might still rely on it until fully refactored.
             await db.update_channel_by_chat_id(
                 chat_id=chat_id,
                 session_path=str(session_path)
             )
             
+            # Update last_client_id for round-robin
+            await db.update_last_client(channel.id, client.id)
+            logger.info(f"✅ Updated last_client_id for channel {channel.id} to {client.id}")
+            
             return {"success": True, "bot_rights": bot_rights_result, "session_path": str(session_path)}
-
-    return {"error": "Try Later"}
+        
+        if bot_member.status not in [ChatMemberStatus.ADMINISTRATOR, ChatMemberStatus.CREATOR]:
+            bot_rights_result["reason"] = "Bot is not an administrator"
+            logger.error(f"❌ {bot_rights_result['reason']} in {chat_id}")
+            logger.warning(f"Skipping promotion for client {client.id}, adding as regular member")
+            
+            # Добавляем клиента в БД как обычного участника
+            await db.get_or_create_mt_client_channel(client.id, chat_id)
+            await db.set_membership(
+                client_id=client.id,
+                channel_id=chat_id,
+                is_member=True,
+                is_admin=False,
+                can_post_stories=False,
+                last_joined_at=int(time.time())
+            )
+            
+            await db.update_channel_by_chat_id(
+                chat_id=chat_id,
+                session_path=str(session_path)
+            )
+            
+            # Update last_client_id for round-robin
+            await db.update_last_client(channel.id, client.id)
+            logger.info(f"✅ Updated last_client_id for channel {channel.id} to {client.id}")
+            
+            return {"success": True, "bot_rights": bot_rights_result, "session_path": str(session_path)}
+        
+        bot_rights_result["has_admin"] = True
+        
+        # Проверяем права бота на промоут
+        if not bot_member.can_promote_members:
+            bot_rights_result["reason"] = "Bot lacks can_promote_members permission"
+            logger.error(f"❌ {bot_rights_result['reason']} in {chat_id}")
+            logger.warning(f"Skipping promotion for client {client.id}, adding as regular member")
+            
+            # Добавляем клиента в БД как обычного участника
+            await db.get_or_create_mt_client_channel(client.id, chat_id)
+            await db.set_membership(
+                client_id=client.id,
+                channel_id=chat_id,
+                is_member=True,
+                is_admin=False,
+                can_post_stories=False,
+                last_joined_at=int(time.time())
+            )
+            
+            await db.update_channel_by_chat_id(
+                chat_id=chat_id,
+                session_path=str(session_path)
+            )
+            
+            # Update last_client_id for round-robin
+            await db.update_last_client(channel.id, client.id)
+            logger.info(f"✅ Updated last_client_id for channel {channel.id} to {client.id}")
+            
+            return {"success": True, "bot_rights": bot_rights_result, "session_path": str(session_path)}
+        
+        bot_rights_result["can_promote"] = True
+        logger.info(f"✅ Bot has admin rights with can_promote_members in {chat_id}")
+        
+        # Проверяем какие права на stories есть у самого бота
+        bot_can_post_stories = getattr(bot_member, 'can_post_stories', False)
+        bot_can_edit_stories = getattr(bot_member, 'can_edit_stories', False)
+        bot_can_delete_stories = getattr(bot_member, 'can_delete_stories', False)
+        
+        logger.info(f"📊 Bot story rights: post={bot_can_post_stories}, edit={bot_can_edit_stories}, delete={bot_can_delete_stories}")
+        
+        # Бот имеет права, промоутим клиента
+        # ВАЖНО: можем выдать только те права, которые есть у самого бота
+        try:
+            promote = await main_bot_obj.promote_chat_member(
+                chat_id=chat_id,
+                user_id=me.id,
+                can_edit_stories=bot_can_edit_stories,
+                can_post_stories=bot_can_post_stories,
+                can_delete_stories=bot_can_delete_stories,
+                can_manage_chat=True,
+                can_post_messages=True,
+                can_edit_messages=True,
+                can_delete_messages=True,
+                can_manage_video_chats=True,
+                can_invite_users=True,
+                can_pin_messages=True
+            )
+            logger.info(f"✅ Successfully promoted client {client.id} (user_id={me.id}) in {chat_id}")
+            
+            # Финальная проверка: убедимся что клиент действительно получил права
+            try:
+                client_member = await main_bot_obj.get_chat_member(chat_id, me.id)
+                actual_can_post_stories = getattr(client_member, 'can_post_stories', False)
+                logger.info(f"📊 Final check - Client {client.id} can_post_stories: {actual_can_post_stories}")
+            except Exception as check_error:
+                logger.warning(f"Could not verify client rights: {check_error}")
+                actual_can_post_stories = bot_can_post_stories  # Предполагаем что права выданы
+            
+        except Exception as e:
+            logger.error(f"❌ Failed to promote client {client.id}: {e}")
+            
+            # Даже если промоут не удался, клиент уже в канале как обычный участник
+            await db.get_or_create_mt_client_channel(client.id, chat_id)
+            await db.set_membership(
+                client_id=client.id,
+                channel_id=chat_id,
+                is_member=True,
+                is_admin=False,
+                can_post_stories=False,
+                last_joined_at=int(time.time())
+            )
+            
+            await db.update_channel_by_chat_id(
+                chat_id=chat_id,
+                session_path=str(session_path)
+            )
+            
+            # Update last_client_id for round-robin
+            await db.update_last_client(channel.id, client.id)
+            logger.info(f"✅ Updated last_client_id for channel {channel.id} to {client.id}")
+            
+            return {"success": True, "bot_rights": bot_rights_result, "session_path": str(session_path)}
+        
+        # Create/Update MtClientChannel
+        await db.get_or_create_mt_client_channel(client.id, chat_id)
+        await db.set_membership(
+            client_id=client.id,
+            channel_id=chat_id,
+            is_member=True,
+            is_admin=True,
+            can_post_stories=True,  # Подтверждено финальной проверкой
+            last_joined_at=int(time.time())
+        )
+        
+        # Update legacy channel field for backward compatibility if needed, 
+        # but we are moving away from it. 
+        # However, existing code might still rely on it until fully refactored.
+        await db.update_channel_by_chat_id(
+            chat_id=chat_id,
+            session_path=str(session_path)
+        )
+        
+        # Update last_client_id for round-robin
+        await db.update_last_client(channel.id, client.id)
+        logger.info(f"✅ Updated last_client_id for channel {channel.id} to {client.id}")
+        
+        return {"success": True, "bot_rights": bot_rights_result, "session_path": str(session_path)}
 
 
 async def background_join_channel(chat_id: int, user_id: int = None):

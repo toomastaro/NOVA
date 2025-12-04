@@ -20,3 +20,7 @@ class MtClient(Base):
     last_error_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
     last_error_at: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     flood_wait_until: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    
+    # Round-robin distribution fields
+    usage_count: Mapped[int] = mapped_column(BigInteger, default=0)
+    last_used_at: Mapped[int] = mapped_column(BigInteger, default=0)

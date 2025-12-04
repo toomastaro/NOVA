@@ -58,27 +58,35 @@ class NovaStatService:
         return int(pts[-1][1])
 
     async def get_external_client(self) -> Optional[tuple]:
-        """Получить активного external MtClient и SessionManager"""
-        clients = await db.get_mt_clients_by_pool('external')
-        active_clients = [c for c in clients if c.is_active and c.status == 'ACTIVE']
+        """Получить наименее используемого external MtClient и SessionManager (least-used алгоритм)"""
+        # Используем least-used алгоритм
+        client = await db.get_next_external_client()
         
-        if not active_clients:
+        if not client:
+            logger.warning("No active external clients found")
             return None
         
-        # Выбрать первого активного клиента
-        client = active_clients[0]
+        logger.info(f"🔄 Selected external client {client.id} ({client.alias}) with usage_count={client.usage_count}")
+        
         session_path = Path(client.session_path)
         
         if not session_path.exists():
+            logger.error(f"Session file not found for external client {client.id}: {session_path}")
             return None
         
         manager = SessionManager(session_path)
         await manager.init_client()
         
         if not manager.client:
+            logger.error(f"Failed to init client for external client {client.id}")
             return None
         
+        # Увеличить счетчик использования
+        await db.increment_usage(client.id)
+        logger.debug(f"Incremented usage_count for client {client.id}")
+        
         return (client, manager)
+
 
     def normalize_cache_keys(self, data: Optional[Dict]) -> Optional[Dict]:
         """Преобразовать строковые ключи из JSON обратно в числовые"""

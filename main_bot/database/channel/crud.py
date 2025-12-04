@@ -109,3 +109,18 @@ class ChannelCrud(DatabaseMixin):
             stmt = stmt.where(Channel.chat_id.notin_(excluded_chat_ids))
             
         return await self.fetch(stmt)
+    
+    async def update_last_client(self, channel_id: int, client_id: int):
+        """
+        Обновить last_client_id для канала (для round-robin распределения).
+        
+        Args:
+            channel_id: ID канала (row id, не chat_id)
+            client_id: ID клиента
+        """
+        await self.execute(
+            update(Channel)
+            .where(Channel.id == channel_id)
+            .values(last_client_id=client_id)
+        )
+
