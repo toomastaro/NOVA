@@ -378,14 +378,14 @@ class NovaStatService:
 
         try:
             async for m in client.iter_messages(entity, offset_date=cutoff_utc, reverse=True):
-            if not isinstance(m, types.Message):
-                continue
-            if not m.date or m.views is None:
-                continue
+                if not isinstance(m, types.Message):
+                    continue
+                if not m.date or m.views is None:
+                    continue
 
-            msg_dt_utc = m.date.replace(tzinfo=timezone.utc)
-            if msg_dt_utc < cutoff_utc:
-                continue
+                msg_dt_utc = m.date.replace(tzinfo=timezone.utc)
+                if msg_dt_utc < cutoff_utc:
+                    continue
 
                 age_hours = (now_utc - msg_dt_utc).total_seconds() / 3600.0
                 views = int(m.views)
