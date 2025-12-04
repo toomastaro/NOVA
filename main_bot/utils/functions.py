@@ -450,17 +450,37 @@ async def set_channel_session(chat_id: int):
             bot_rights_result["can_promote"] = True
             logger.info(f"✅ Bot has admin rights with can_promote_members in {chat_id}")
             
+            # Проверяем какие права на stories есть у самого бота
+            bot_can_post_stories = getattr(bot_member, 'can_post_stories', False)
+            bot_can_edit_stories = getattr(bot_member, 'can_edit_stories', False)
+            bot_can_delete_stories = getattr(bot_member, 'can_delete_stories', False)
+            
+            logger.info(f"📊 Bot story rights: post={bot_can_post_stories}, edit={bot_can_edit_stories}, delete={bot_can_delete_stories}")
+            
             # Бот имеет права, промоутим клиента
-            promote = await main_bot_obj.promote_chat_member(
-                chat_id=chat_id,
-                user_id=me.id,
-                can_edit_stories=True,
-                can_post_stories=True,
-                can_delete_stories=True
-            )
-            logger.info(f"Promoted client {client.id} (user_id={me.id}) to admin in {chat_id}")
+            # ВАЖНО: можем выдать только те права, которые есть у самого бота
+            try:
+                promote = await main_bot_obj.promote_chat_member(
+                    chat_id=chat_id,
+                    user_id=me.id,
+                    can_edit_stories=bot_can_edit_stories,
+                    can_post_stories=bot_can_post_stories,
+                    can_delete_stories=bot_can_delete_stories
+                )
+                
+                if bot_can_post_stories and bot_can_edit_stories and bot_can_delete_stories:
+                    logger.info(f"✅ Promoted client {client.id} to admin with FULL story rights in {chat_id}")
+                elif any([bot_can_post_stories, bot_can_edit_stories, bot_can_delete_stories]):
+                    logger.warning(f"⚠️ Promoted client {client.id} to admin with PARTIAL story rights in {chat_id}")
+                else:
+                    logger.warning(f"⚠️ Promoted client {client.id} to admin WITHOUT story rights in {chat_id}")
+                    
+            except Exception as e:
+                logger.error(f"❌ Error promoting client {client.id} in {chat_id}: {e}")
+                continue
+                
         except Exception as e:
-            logger.error(f"Error promoting client {client.id} in {chat_id}: {e}")
+            logger.error(f"❌ Error in bot rights check for {chat_id}: {e}")
             continue
 
         if not promote:

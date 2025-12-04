@@ -995,7 +995,7 @@ class InlineBots(InlineKeyboardBuilder):
 
         kb.button(
             text=text("manage:bot:{}_channel".format("add")),
-            url="t.me/{}?startchannel&admin=invite_users".format(user_bot.username)
+            url="t.me/{}?startchannel&admin=change_info+post_messages+edit_messages+delete_messages+post_stories+edit_stories+delete_stories+promote_members+invite_users".format(user_bot.username)
         )
         kb.button(
             text=text("manage:bot:refresh_token"),
@@ -1525,7 +1525,7 @@ class InlineBotSetting(InlineKeyboardBuilder):
 
         kb.button(
             text=text('add_channel:button'),
-            url=f'https://t.me/{bot_username}?startchannel&admin=invite_users'
+            url=f'https://t.me/{bot_username}?startchannel&admin=change_info+post_messages+edit_messages+delete_messages+post_stories+edit_stories+delete_stories+promote_members+invite_users'
         )
         kb.button(
             text=text('add_channel_later:button'),
@@ -2557,7 +2557,7 @@ class Inline(
 
         kb.button(
             text=text('channels:add:button'),
-            url=f'https://t.me/{bot_username}?startchannel&admin=change_info+post_messages+edit_messages+delete_messages+promote_members+invite_users'
+            url=f'https://t.me/{bot_username}?startchannel&admin=change_info+post_messages+edit_messages+delete_messages+post_stories+edit_stories+delete_stories+promote_members+invite_users'
         )
         kb.button(
             text=text('back:button'),
