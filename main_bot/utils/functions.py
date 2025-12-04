@@ -512,6 +512,10 @@ async def set_channel_session(chat_id: int):
         
         # Бот имеет права, промоутим клиента
         # ВАЖНО: можем выдать только те права, которые есть у самого бота
+        
+        # Ждем пару секунд чтобы Telegram осознал что пользователь вступил
+        await asyncio.sleep(2)
+        
         try:
             promote = await main_bot_obj.promote_chat_member(
                 chat_id=chat_id,
@@ -538,6 +542,45 @@ async def set_channel_session(chat_id: int):
                 is_anonymous=False
             )
             logger.info(f"✅ Successfully promoted client {client.id} (user_id={me.id}) in {chat_id}")
+            bot_rights_result["promoted"] = True
+            
+        except Exception as e:
+            if "USER_NOT_MUTUAL_CONTACT" in str(e):
+                logger.warning(f"Got USER_NOT_MUTUAL_CONTACT for {chat_id}, waiting 5s and retrying...")
+                await asyncio.sleep(5)
+                try:
+                    promote = await main_bot_obj.promote_chat_member(
+                        chat_id=chat_id,
+                        user_id=me.id,
+                        # Stories rights
+                        can_edit_stories=bot_can_edit_stories,
+                        can_post_stories=bot_can_post_stories,
+                        can_delete_stories=bot_can_delete_stories,
+                        # Channel management
+                        can_manage_chat=True,
+                        can_change_info=True,
+                        # Messages
+                        can_post_messages=True,
+                        can_edit_messages=True,
+                        can_delete_messages=True,
+                        # Users
+                        can_invite_users=True,
+                        can_restrict_members=True,
+                        # Other
+                        can_pin_messages=True,
+                        can_manage_video_chats=True,
+                        can_promote_members=True,
+                        can_manage_topics=True,
+                        is_anonymous=False
+                    )
+                    logger.info(f"✅ Successfully promoted client {client.id} on retry")
+                    bot_rights_result["promoted"] = True
+                except Exception as retry_e:
+                    bot_rights_result["reason"] = f"Failed to promote on retry: {retry_e}"
+                    logger.error(f"❌ {bot_rights_result['reason']}")
+            else:
+                bot_rights_result["reason"] = f"Failed to promote: {e}"
+                logger.error(f"❌ {bot_rights_result['reason']}")
             
             # Финальная проверка: убедимся что клиент действительно получил права
             try:
