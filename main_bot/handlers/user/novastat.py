@@ -314,16 +314,17 @@ async def run_analysis_logic(message: types.Message, channels: list, depth: int,
                 failed.append({"channel": ch, "error": "Неверная структура данных"})
                 continue
             
-            # Проверить наличие всех горизонтов
+            # Проверить наличие всех горизонтов и заполнить отсутствующие нулями
             missing_horizons = []
             for h in [24, 48, 72]:
-                if h not in stats['views'] or h not in stats['er']:
+                if h not in stats['views']:
+                    stats['views'][h] = 0
                     missing_horizons.append(h)
+                if h not in stats['er']:
+                    stats['er'][h] = 0.0
             
             if missing_horizons:
-                logger.error(f"Missing horizons {missing_horizons} for {ch}. Stats: {stats}")
-                failed.append({"channel": ch, "error": f"Отсутствуют данные для горизонтов: {missing_horizons}"})
-                continue
+                logger.warning(f"Missing horizons {missing_horizons} for {ch}, filled with zeros. This is normal for cached data.")
             
             logger.info(f"Successfully collected stats for {ch}: views={stats['views']}, er={stats['er']}")
             results.append(stats)
