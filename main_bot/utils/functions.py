@@ -3,6 +3,7 @@ import math
 import os
 import random
 import string
+import time
 from pathlib import Path
 
 import ffmpeg
@@ -453,12 +454,14 @@ async def set_channel_session(chat_id: int):
                 logger.warning(f"Skipping promotion for client {client.id}, adding as regular member")
                 
                 # Добавляем клиента в БД как обычного участника без прав на stories
-                await db.add_mt_client_channel(
+                await db.get_or_create_mt_client_channel(client.id, chat_id)
+                await db.set_membership(
                     client_id=client.id,
                     channel_id=chat_id,
                     is_member=True,
+                    is_admin=False,
                     can_post_stories=False,  # Нет прав администратора
-                    can_view_stats=True
+                    last_joined_at=int(time.time())
                 )
                 
                 await db.update_channel_by_chat_id(
@@ -477,12 +480,14 @@ async def set_channel_session(chat_id: int):
                 logger.warning(f"Skipping promotion for client {client.id}, adding as regular member")
                 
                 # Добавляем клиента в БД как обычного участника
-                await db.add_mt_client_channel(
+                await db.get_or_create_mt_client_channel(client.id, chat_id)
+                await db.set_membership(
                     client_id=client.id,
                     channel_id=chat_id,
                     is_member=True,
+                    is_admin=False,
                     can_post_stories=False,
-                    can_view_stats=True
+                    last_joined_at=int(time.time())
                 )
                 
                 await db.update_channel_by_chat_id(
@@ -560,12 +565,14 @@ async def set_channel_session(chat_id: int):
             logger.info(f"✅ Successfully promoted client {client.id} to administrator in {chat_id}")
             
             # Create/Update MtClientChannel
-            await db.add_mt_client_channel(
+            await db.get_or_create_mt_client_channel(client.id, chat_id)
+            await db.set_membership(
                 client_id=client.id,
                 channel_id=chat_id,
                 is_member=True,
+                is_admin=True,
                 can_post_stories=True,  # Подтверждено финальной проверкой
-                can_view_stats=True  # Assuming if we joined we can view stats
+                last_joined_at=int(time.time())
             )
             
             # Update legacy channel field for backward compatibility if needed, 
