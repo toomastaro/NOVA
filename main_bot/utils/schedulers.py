@@ -385,7 +385,7 @@ async def send_story(story: Story):
         # Pre-flight checks
         try:
             # Check Admin Rights
-            can_post = await manager.check_admin_rights(chat_id)
+            can_post = await manager.can_send_stories(chat_id)
             if not can_post:
                 error_send.append({"chat_id": chat_id, "error": "No Admin Rights"})
                 await manager.close()
