@@ -52,7 +52,7 @@
   "manage:post:del_time:not": "Не установлен",
   "manage:post:send_time:button": "⏰ Отложить",
   "manage:post:public:button": "⚡️ Опубликовать",
-  "manage:post:report:button": "{} Получить отчет",
+  "manage:post:report:button": "{} Отчет о выходе поста",
   "manage:post:show_more:button": "📤 Больше настроек",
   "manage:post:hide_more:button": "📥 Меньше настроек",
   "require_media": "Требуется медиа!",

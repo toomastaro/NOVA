@@ -367,6 +367,14 @@ class InlinePosting(InlineKeyboardBuilder):
             callback_data=f"{data}|report"
         )
 
+        kb.button(
+            text=text("manage:post:del_time:button").format(
+                f"{int(delete_time / 3600)} ч."  # type: ignore
+                if delete_time else text("manage:post:del_time:not")
+            ),
+            callback_data=f"{data}|delete_time"
+        )
+
         if isinstance(obj, Post):
             kb.button(
                 text=text("manage:post:add:cpm:button").format(
@@ -375,13 +383,6 @@ class InlinePosting(InlineKeyboardBuilder):
                 callback_data=f"{data}|cpm_price"
             )
 
-        kb.button(
-            text=text("manage:post:del_time:button").format(
-                f"{int(delete_time / 3600)} ч."  # type: ignore
-                if delete_time else text("manage:post:del_time:not")
-            ),
-            callback_data=f"{data}|delete_time"
-        )
         kb.button(
             text=text("manage:post:send_time:button"),
             callback_data=f"{data}|send_time"
@@ -395,7 +396,7 @@ class InlinePosting(InlineKeyboardBuilder):
             callback_data=F"{data}|cancel"
         )
 
-        kb.adjust(1, 1, 2, 1)
+        kb.adjust(1)
         return kb.as_markup()
 
     @classmethod
