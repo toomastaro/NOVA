@@ -381,6 +381,16 @@ async def send_story(story: Story):
             )
             error_send.append({"chat_id": chat_id, "error": "Session Error"})
             continue
+        
+        # Log client info
+        try:
+            me = await manager.me()
+            if me:
+                logger.info(f"📱 Posting story from client: user_id={me.id}, username={me.username or 'N/A'}, first_name={me.first_name}")
+            else:
+                logger.warning(f"Could not get client info for {session_path}")
+        except Exception as e:
+            logger.error(f"Error getting client info: {e}")
 
         # Pre-flight checks
         try:
