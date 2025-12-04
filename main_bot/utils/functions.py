@@ -586,6 +586,9 @@ async def set_channel_session(chat_id: int):
         await db.update_last_client(channel.id, client.id)
         logger.info(f"✅ Updated last_client_id for channel {channel.id} to {client.id}")
         
+        # Mark as successfully promoted
+        bot_rights_result["promoted"] = True
+        
         return {"success": True, "bot_rights": bot_rights_result, "session_path": str(session_path)}
 
 
