@@ -28,10 +28,10 @@ class Reply:
     def menu(cls):
         kb = ReplyKeyboardBuilder()
 
-        kb.button(text=text('reply_menu:novastat'))
-        kb.button(text=text('reply_menu:exchange_rate'))
         kb.button(text=text('reply_menu:posting'))
         kb.button(text=text('reply_menu:story'))
+        kb.button(text=text('reply_menu:novastat'))
+        kb.button(text=text('reply_menu:exchange_rate'))
         kb.button(text=text('reply_menu:bots'))
         kb.button(text=text('reply_menu:support'))
         kb.button(text=text('reply_menu:profile'))
@@ -112,7 +112,7 @@ class InlinePosting(InlineKeyboardBuilder):
             callback_data='MenuPosting|content_plan'
         )
 
-        kb.adjust(2, 1)
+        kb.adjust(1, 1, 1)
         return kb.as_markup()
 
     @classmethod
@@ -410,11 +410,11 @@ class InlinePosting(InlineKeyboardBuilder):
             )
         )
         groups = [
-            [1, 2, 3, 4],      # минуты
-            [1, 2, 3, 4],      # часы
+            [1, 15, 30, 45],      # минуты
+            [1, 2, 4, 6],      # часы
             [6, 8, 10, 12],    # часы
-            [18, 24, 36, 48],  # часы
-            [72, 96, 120, 144] # часы
+            [12, 24, 48, 72],  # часы
+        #    [72, 96, 120, 144] # часы
         ]
         
         # Первый ряд - минуты
