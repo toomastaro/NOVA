@@ -26,10 +26,14 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
 
     if temp[1] == 'session':
         session_count = len(os.listdir("main_bot/utils/sessions/"))
-        await call.message.edit_text(
-            "Доступно сессий: {}".format(session_count),
-            reply_markup=keyboards.admin_sessions()
-        )
+        try:
+            await call.message.edit_text(
+                "Доступно сессий: {}".format(session_count),
+                reply_markup=keyboards.admin_sessions()
+            )
+        except Exception as e:
+            if "message is not modified" not in str(e).lower():
+                raise
 
     if temp[1] == "promo":
         await call.message.edit_text(

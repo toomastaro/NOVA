@@ -5,6 +5,7 @@ from pathlib import Path
 
 from aiogram.fsm.context import FSMContext
 from aiogram import types, Router, F
+from aiogram.exceptions import TelegramBadRequest
 
 from main_bot.keyboards.keyboards import keyboards
 from main_bot.states.admin import Session
@@ -46,7 +47,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
                 f"Управление MTProto клиентами\nВсего в базе: {len(all_clients)}",
                 reply_markup=keyboards.admin_sessions()
             )
-        except Exception as e:
+        except TelegramBadRequest as e:
             # Игнорируем ошибку если сообщение не изменилось
             if "message is not modified" not in str(e):
                 raise
