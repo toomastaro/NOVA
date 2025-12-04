@@ -401,10 +401,12 @@ async def delete_posts():
         
         user = await db.get_user(admin_id)
         usd_rate = 1.0
+        exchange_rate_update_time = None
         if user and user.default_exchange_rate_id is not None:
             exchange_rate = await db.get_exchange_rate(user.default_exchange_rate_id)
             if exchange_rate and exchange_rate.rate > 0:
                 usd_rate = exchange_rate.rate
+                exchange_rate_update_time = exchange_rate.last_update
 
         total_views = sum(obj["views"] for obj in message_objects)
         rub_price = round(float(cpm_price * float(total_views / 1000)), 2)
@@ -450,6 +452,7 @@ async def delete_posts():
                     rub_price,
                     round(rub_price / usd_rate, 2),
                     round(usd_rate, 2),
+                    exchange_rate_update_time.strftime("%H:%M %d.%m.%Y") if exchange_rate_update_time else "N/A"
                 )
             elif delete_duration <= 48 * 3600:
                 report_text = format_report(f"Final ({hours}ч)", total_views, views_24)
@@ -465,6 +468,7 @@ async def delete_posts():
                     rub_price,
                     round(rub_price / usd_rate, 2),
                     round(usd_rate, 2),
+                    exchange_rate_update_time.strftime("%H:%M %d.%m.%Y") if exchange_rate_update_time else "N/A"
                 )
 
             await bot.send_message(
