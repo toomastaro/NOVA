@@ -2315,6 +2315,10 @@ class InlineAdmin(InlineKeyboardBuilder):
             callback_data="Admin|session"
         )
         kb.button(
+            text="📺 Каналы",
+            callback_data="AdminChannels|list|0"
+        )
+        kb.button(
             text="📩 Рассылка",
             callback_data="Admin|mail"
         )
@@ -2331,7 +2335,7 @@ class InlineAdmin(InlineKeyboardBuilder):
             callback_data="Admin|ads"
         )
 
-        kb.adjust(1)
+        kb.adjust(2, 2, 1, 1)
         return kb.as_markup()
 
     @classmethod
@@ -2427,6 +2431,65 @@ class InlineAdmin(InlineKeyboardBuilder):
         kb.button(text=text("back:button"), callback_data="AdminSession|back_to_main")
         kb.adjust(1)
         return kb.as_markup()
+    
+    @classmethod
+    def admin_channels_list(cls, channels: list, offset: int, total: int):
+        """Клавиатура со списком каналов и пагинацией"""
+        kb = cls()
+        
+        # Кнопки каналов
+        for channel in channels:
+            status_emoji = "✅" if channel.subscribe else "❌"
+            kb.button(
+                text=f"{status_emoji} {channel.title[:30]}",
+                callback_data=f"AdminChannels|view|{channel.id}"
+            )
+        
+        kb.adjust(1)
+        
+        # Навигация
+        nav_buttons = []
+        
+        # Кнопка "Назад" (предыдущая страница)
+        if offset > 0:
+            nav_buttons.append(InlineKeyboardButton(
+                text="⬅️ Назад",
+                callback_data=f"AdminChannels|list|{max(0, offset - 10)}"
+            ))
+        
+        # Кнопка "Вперед" (следующая страница)
+        if offset + 10 < total:
+            nav_buttons.append(InlineKeyboardButton(
+                text="Вперед ➡️",
+                callback_data=f"AdminChannels|list|{offset + 10}"
+            ))
+        
+        if nav_buttons:
+            kb.row(*nav_buttons)
+        
+        # Кнопки действий
+        kb.row(
+            InlineKeyboardButton(text="🔍 Поиск", callback_data="AdminChannels|search")
+        )
+        kb.row(
+            InlineKeyboardButton(text="◀️ В меню", callback_data="Admin|back")
+        )
+        
+        return kb.as_markup()
+    
+    @classmethod
+    def admin_channel_details(cls, channel_id: int):
+        """Клавиатура для деталей канала"""
+        kb = cls()
+        
+        kb.button(
+            text="◀️ К списку",
+            callback_data="AdminChannels|list|0"
+        )
+        
+        kb.adjust(1)
+        return kb.as_markup()
+
 
 
 class Inline(

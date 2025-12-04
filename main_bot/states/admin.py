@@ -9,3 +9,7 @@ class Session(StatesGroup):
     pool_select = State()
     phone = State()
     code = State()
+
+
+class AdminChannels(StatesGroup):
+    searching = State()

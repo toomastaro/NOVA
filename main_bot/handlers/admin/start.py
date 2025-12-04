@@ -48,6 +48,16 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
         )
         await state.set_state(Promo.input)
 
+    if temp[1] == "back":
+        try:
+            await call.message.edit_text(
+                'Админ меню',
+                reply_markup=keyboards.admin()
+            )
+        except Exception as e:
+            if "message is not modified" not in str(e).lower():
+                raise
+
     return await call.answer()
 
     if temp[1] == "mail":

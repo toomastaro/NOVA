@@ -124,3 +124,13 @@ class ChannelCrud(DatabaseMixin):
             .values(last_client_id=client_id)
         )
 
+    async def get_all_channels(self):
+        """Получить все каналы (для админ-панели)"""
+        return await self.fetch(
+            select(Channel).order_by(Channel.id.desc())
+        )
+
+    async def get_channel_by_id(self, channel_id: int):
+        """Получить канал по ID (row_id)"""
+        return await self.get_channel_by_row_id(channel_id)
+
