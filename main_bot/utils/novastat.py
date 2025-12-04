@@ -133,11 +133,13 @@ class NovaStatService:
                 return self.normalize_cache_keys(cache.value_json)
             return None
         
-        # 3. Запустить асинхронное обновление
-        asyncio.create_task(self.async_refresh_stats(channel_identifier, days_limit, horizon))
+        # 3. Если кэша нет или он устарел - обновить синхронно (ждать результата)
+        logger.info(f"Cache miss for {channel_identifier}, fetching fresh data...")
+        await self.async_refresh_stats(channel_identifier, days_limit, horizon)
         
-        # 4. Вернуть старые данные если есть
-        if cache and cache.value_json:
+        # 4. Получить обновленные данные из кэша
+        cache = await db.get_cache(channel_identifier, horizon)
+        if cache and cache.value_json and not cache.error_message:
             return self.normalize_cache_keys(cache.value_json)
         
         return None
