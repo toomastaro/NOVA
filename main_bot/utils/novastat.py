@@ -351,23 +351,33 @@ class NovaStatService:
                     return None
         
         if not entity:
+            logger.error(f"Entity is None for {channel_identifier} after all attempts")
             return None
 
         title = getattr(entity, "title", getattr(entity, "username", str(entity)))
         username = getattr(entity, "username", None)
+        logger.info(f"Got entity info: title={title}, username={username}")
         
         # Get subscribers
         try:
+            logger.debug(f"Getting full channel info for {channel_identifier}")
             full = await client(functions.channels.GetFullChannelRequest(channel=entity))
             members = int(getattr(full.full_chat, "participants_count", 0) or 0)
-        except RPCError:
+            logger.info(f"Got {members} subscribers for {channel_identifier}")
+        except RPCError as e:
+            logger.warning(f"Failed to get subscribers for {channel_identifier}: {e}")
+            members = 0
+        except Exception as e:
+            logger.error(f"Unexpected error getting subscribers for {channel_identifier}: {e}")
             members = 0
 
         # Get posts
         cutoff_utc = now_utc - timedelta(days=days_limit)
         raw_points: List[Tuple[float, int]] = []
+        logger.debug(f"Starting to iterate messages for {channel_identifier}, cutoff={cutoff_utc}")
 
-        async for m in client.iter_messages(entity, offset_date=cutoff_utc, reverse=True):
+        try:
+            async for m in client.iter_messages(entity, offset_date=cutoff_utc, reverse=True):
             if not isinstance(m, types.Message):
                 continue
             if not m.date or m.views is None:
@@ -377,9 +387,14 @@ class NovaStatService:
             if msg_dt_utc < cutoff_utc:
                 continue
 
-            age_hours = (now_utc - msg_dt_utc).total_seconds() / 3600.0
-            views = int(m.views)
-            raw_points.append((age_hours, views))
+                age_hours = (now_utc - msg_dt_utc).total_seconds() / 3600.0
+                views = int(m.views)
+                raw_points.append((age_hours, views))
+        except Exception as iter_error:
+            logger.error(f"Error iterating messages for {channel_identifier}: {iter_error}")
+            # Продолжаем с тем что успели собрать
+        
+        logger.info(f"Collected {len(raw_points)} data points for {channel_identifier}")
 
         # Determine link
         link = None
