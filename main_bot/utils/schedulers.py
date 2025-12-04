@@ -140,7 +140,11 @@ async def send(post: Post):
 
         if post.pin_time:
             try:
-                await post_message.pin(message_options.disable_notification)
+                await bot.pin_chat_message(
+                    chat_id=chat_id,
+                    message_id=post_message.message_id,
+                    disable_notification=message_options.disable_notification
+                )
             except Exception as e:
                 logger.error(f"Error pinning message {post_message.message_id} in {chat_id}: {e}", exc_info=True)
 
