@@ -265,6 +265,25 @@ async def set_channel_session(chat_id: int):
             
             logger.info(f"Client {client.id} (user_id={me.id}) ready for join")
 
+            # Шаг 0: Проверить и снять бан если есть
+            try:
+                member_status = await main_bot_obj.get_chat_member(chat_id, me.id)
+                from aiogram.enums import ChatMemberStatus
+                
+                if member_status.status in [ChatMemberStatus.BANNED, ChatMemberStatus.KICKED]:
+                    logger.warning(f"Client {client.id} (user_id={me.id}) is banned in {chat_id}, unbanning...")
+                    
+                    # Снять бан
+                    await main_bot_obj.unban_chat_member(chat_id, me.id, only_if_banned=True)
+                    logger.info(f"Successfully unbanned client {client.id} (user_id={me.id}) in {chat_id}")
+                    
+                    # Подождать немного после снятия бана
+                    await asyncio.sleep(0.5)
+                    
+            except Exception as e:
+                # Если не удалось проверить статус - это нормально (клиент может еще не быть в канале)
+                logger.debug(f"Could not check ban status for client {client.id} in {chat_id}: {e}")
+
             # Шаг 1: Попытка добавить клиента напрямую через InviteToChannelRequest
             # Это более надежный способ чем invite ссылки
             try:
