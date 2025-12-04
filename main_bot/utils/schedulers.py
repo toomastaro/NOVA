@@ -21,7 +21,7 @@ from main_bot.database.types import Status
 from main_bot.database.user_bot.model import UserBot
 from main_bot.keyboards.keyboards import keyboards
 from main_bot.utils.bot_manager import BotManager
-from main_bot.utils.functions import set_channel_session, get_path, get_path_video
+from main_bot.utils.functions import set_channel_session, get_path, get_path_video, process_bot
 from main_bot.utils.lang.language import text
 from main_bot.utils.schemas import MessageOptions, StoryOptions, MessageOptionsHello
 from main_bot.utils.session_manager import SessionManager
