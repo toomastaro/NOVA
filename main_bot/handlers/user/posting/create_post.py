@@ -413,7 +413,7 @@ async def get_value(message: types.Message, state: FSMContext):
         if data.get("is_published"):
             post = await db.get_published_post_by_id(post.id)
         else:
-            post = await db.get_post_by_id(post.id)
+            post = await db.get_post(post.id)
 
         # Update live messages if published
         if data.get("is_published"):
