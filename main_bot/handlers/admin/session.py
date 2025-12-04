@@ -38,22 +38,12 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
         return await state.set_state(Session.phone)
 
     if action == 'cancel' or action == 'back_to_main':
-        # Get all DB sessions
+        # Показываем только клиенты из БД (без автосканирования)
         all_clients = await db.get_mt_clients_by_pool('internal') + await db.get_mt_clients_by_pool('external')
-        db_session_paths = {Path(c.session_path).name for c in all_clients}
         
-        # Scan directory
-        session_dir = Path("main_bot/utils/sessions/")
-        orphaned = []
-        if session_dir.exists():
-            for file in session_dir.glob("*.session"):
-                if file.name not in db_session_paths:
-                    orphaned.append(file.name)
-        
-        session_count = len(all_clients) + len(orphaned)
         await call.message.edit_text(
-            f"Доступно сессий: {session_count}\n(В базе: {len(all_clients)}, Новых: {len(orphaned)})",
-            reply_markup=keyboards.admin_sessions(orphaned_sessions=orphaned)
+            f"Управление MTProto клиентами\nВсего в базе: {len(all_clients)}",
+            reply_markup=keyboards.admin_sessions()
         )
         return
 
@@ -86,6 +76,29 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
         )
         return
 
+    if action == 'scan':
+        # Ручное сканирование orphaned сессий
+        all_clients = await db.get_mt_clients_by_pool('internal') + await db.get_mt_clients_by_pool('external')
+        db_session_paths = {Path(c.session_path).name for c in all_clients}
+        
+        # Сканируем директорию
+        session_dir = Path("main_bot/utils/sessions/")
+        orphaned = []
+        if session_dir.exists():
+            for file in session_dir.glob("*.session"):
+                if file.name not in db_session_paths:
+                    orphaned.append(file.name)
+        
+        if orphaned:
+            await call.message.edit_text(
+                f"🔍 Найдено новых сессий: {len(orphaned)}\nВыберите сессию для добавления:",
+                reply_markup=keyboards.admin_sessions(orphaned_sessions=orphaned)
+            )
+        else:
+            await call.answer("✅ Новых сессий не найдено", show_alert=True)
+        return
+
+
     if action == 'add_orphan':
         session_file = temp[2]
         await call.message.edit_text(
@@ -107,9 +120,26 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
         import time
         from main_bot.database.mt_client.model import MtClient
         
-        # Generate Alias
-        existing_clients = await db.get_mt_clients_by_pool(pool_type)
-        alias = f"{pool_type}-{len(existing_clients) + 1}"
+        # Получить имя из профиля через SessionManager
+        alias = None
+        async with SessionManager(session_path) as manager:
+            if manager.client:
+                try:
+                    me = await manager.me()
+                    if me:
+                        # Формат: "👤 Имя Фамилия"
+                        first_name = me.first_name or ""
+                        last_name = me.last_name or ""
+                        full_name = f"{first_name} {last_name}".strip()
+                        if full_name:
+                            alias = f"👤 {full_name}"
+                except Exception as e:
+                    print(f"Error getting user info: {e}")
+            
+            # Fallback: если не удалось получить имя
+            if not alias:
+                existing_clients = await db.get_mt_clients_by_pool(pool_type)
+                alias = f"{pool_type}-{len(existing_clients) + 1}"
         
         new_client = await db.create_mt_client(
             alias=alias,
@@ -337,24 +367,13 @@ async def admin_session_back(call: types.CallbackQuery, state: FSMContext):
 
     await state.clear()
     
-    # Получаем все сессии из базы данных
+    # Получаем все сессии из базы данных (без автосканирования)
     all_clients = await db.get_mt_clients_by_pool('internal') + await db.get_mt_clients_by_pool('external')
-    db_session_paths = {Path(c.session_path).name for c in all_clients}
-    
-    # Сканируем директорию на наличие orphaned сессий
-    session_dir = Path("main_bot/utils/sessions/")
-    orphaned = []
-    if session_dir.exists():
-        for file in session_dir.glob("*.session"):
-            if file.name not in db_session_paths:
-                orphaned.append(file.name)
-    
-    session_count = len(all_clients) + len(orphaned)
 
     await call.message.delete()
     await call.message.answer(
-        f"Доступно сессий: {session_count}\n(В базе: {len(all_clients)}, Новых: {len(orphaned)})",
-        reply_markup=keyboards.admin_sessions(orphaned_sessions=orphaned)
+        f"Управление MTProto клиентами\nВсего в базе: {len(all_clients)}",
+        reply_markup=keyboards.admin_sessions()
     )
 
 
@@ -437,9 +456,24 @@ async def get_code(message: types.Message, state: FSMContext):
     import time
     from main_bot.database.mt_client.model import MtClient
     
-    # 1. Generate Alias
-    existing_clients = await db.get_mt_clients_by_pool(pool_type)
-    alias = f"{pool_type}-{len(existing_clients) + 1}"
+    # 1. Получить имя из профиля
+    alias = None
+    try:
+        me = await app.me()
+        if me:
+            # Формат: "👤 Имя Фамилия"
+            first_name = me.first_name or ""
+            last_name = me.last_name or ""
+            full_name = f"{first_name} {last_name}".strip()
+            if full_name:
+                alias = f"👤 {full_name}"
+    except Exception as e:
+        print(f"Error getting user info: {e}")
+    
+    # Fallback: если не удалось получить имя
+    if not alias:
+        existing_clients = await db.get_mt_clients_by_pool(pool_type)
+        alias = f"{pool_type}-{len(existing_clients) + 1}"
     
     # 2. Create MtClient
     new_client = await db.create_mt_client(
