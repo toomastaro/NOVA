@@ -844,6 +844,9 @@ async def finish_params(call: types.CallbackQuery, state: FSMContext):
         )
 
     if temp[1] == "cpm_price":
+        if not post.delete_time:
+            return await call.answer(text("error_cpm_without_timer"), show_alert=True)
+
         await state.update_data(
             param=temp[1]
         )
@@ -869,6 +872,9 @@ async def finish_params(call: types.CallbackQuery, state: FSMContext):
         )
 
     if temp[1] == "send_time":
+        if post.cpm_price and not post.delete_time:
+            return await call.answer(text("error_cpm_without_timer"), show_alert=True)
+
         await call.message.edit_text(
             text("manage:post:new:send_time"),
             reply_markup=keyboards.back(data="BackSendTimePost")
@@ -876,6 +882,9 @@ async def finish_params(call: types.CallbackQuery, state: FSMContext):
         await state.set_state(Posting.input_send_time)
 
     if temp[1] == "public":
+        if post.cpm_price and not post.delete_time:
+            return await call.answer(text("error_cpm_without_timer"), show_alert=True)
+
         await call.message.edit_text(
             text("manage:post:accept:public").format(
                 "\n".join(

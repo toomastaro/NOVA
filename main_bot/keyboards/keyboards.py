@@ -367,7 +367,7 @@ class InlinePosting(InlineKeyboardBuilder):
             callback_data=f"{data}|report"
         )
 
-        if isinstance(obj, Post) and delete_time:
+        if isinstance(obj, Post):
             kb.button(
                 text=text("manage:post:add:cpm:button").format(
                     f"{obj.cpm_price}₽" if obj.cpm_price else "❌"
