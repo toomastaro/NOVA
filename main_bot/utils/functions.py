@@ -300,6 +300,16 @@ async def set_channel_session(chat_id: int):
             
             logger.info(f"Client {client.id} (user_id={me.id}) ready for join")
 
+            # Шаг 0: Превентивно снимаем бан если есть (один раз в начале)
+            # Если клиент не забанен, это ничего не сделает благодаря only_if_banned=True
+            try:
+                await main_bot_obj.unban_chat_member(chat_id, me.id, only_if_banned=True)
+                logger.debug(f"Preventive unban check completed for client {client.id}")
+                await asyncio.sleep(0.5)
+            except Exception as unban_error:
+                # Это нормально - клиент может быть не забанен
+                logger.debug(f"Preventive unban result for client {client.id}: {unban_error}")
+
             # Флаг успешного добавления
             client_added = False
             
@@ -338,42 +348,15 @@ async def set_channel_session(chat_id: int):
                 error_str = str(e)
                 logger.error(f"❌ InviteToChannelRequest failed for client {client.id}: {e}")
                 
-                # Проверяем, не забанен ли клиент
-                if "USER_BANNED_IN_CHANNEL" in error_str or "PARTICIPANT_BANNED" in error_str:
-                    logger.warning(f"🚫 Client {client.id} (user_id={me.id}) is BANNED in {chat_id}, attempting to unban...")
-                    
-                    try:
-                        # Снять бан через основного бота
-                        await main_bot_obj.unban_chat_member(chat_id, me.id, only_if_banned=True)
-                        logger.info(f"✅ Successfully unbanned client {client.id} (user_id={me.id}) in {chat_id}")
-                        
-                        # Подождать немного после снятия бана
-                        await asyncio.sleep(1.5)
-                        
-                        # Повторная попытка добавить клиента
-                        try:
-                            await manager.client(InviteToChannelRequest(
-                                channel=channel_entity,
-                                users=[me]
-                            ))
-                            logger.info(f"✅ Client {client.id} (user_id={me.id}) added to channel {chat_id} after unban")
-                            client_added = True
-                        except Exception as retry_error:
-                            logger.error(f"❌ Failed to add client {client.id} even after unban: {retry_error}")
-                            # Продолжаем с fallback методом
-                            
-                    except Exception as unban_error:
-                        logger.error(f"❌ Failed to unban client {client.id}: {unban_error}")
-                        # Продолжаем с fallback методом
-                
                 # Проверяем, не является ли это ошибкой "entity not found"
-                elif "Could not find the input entity" in error_str or "No user has" in error_str:
+                if "Could not find the input entity" in error_str or "No user has" in error_str:
                     logger.warning(f"⚠️ Client {client.id} doesn't know about channel {chat_id}, will use invite link fallback")
                     # Продолжаем с fallback методом
                 
             # Если клиент не был добавлен через InviteToChannelRequest, пробуем через invite ссылку
             if not client_added:
                 logger.info(f"Attempting fallback method (invite link) for client {client.id}")
+                
                 try:
                     # Создаем ПОСТОЯННУЮ ссылку для клиента
                     chat_invite_link = await main_bot_obj.create_chat_invite_link(
