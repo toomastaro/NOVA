@@ -30,8 +30,14 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
 
     if temp[1] == 'add':
         await state.set_state(AddChannel.waiting_for_channel)
-        return await call.message.edit_text(
-            text=text("channels:add:text"),
+        
+        # Удаляем старое сообщение
+        await call.message.delete()
+        
+        # Отправляем фото с инструкцией
+        return await call.message.answer_photo(
+            photo=text("channels:add:photo"),
+            caption=text("channels:add:text"),
             reply_markup=keyboards.add_channel(
                 bot_username=(await call.bot.get_me()).username,
             )
