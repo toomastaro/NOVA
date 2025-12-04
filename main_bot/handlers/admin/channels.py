@@ -64,7 +64,7 @@ async def search_channel_process(message: types.Message, state: FSMContext):
     # Фильтрация
     found_channels = [
         ch for ch in all_channels
-        if query in ch.title.lower() or (ch.username and query in ch.username.lower())
+        if query in ch.title.lower()
     ]
     
     if not found_channels:
@@ -102,6 +102,15 @@ async def view_channel_details(call: types.CallbackQuery):
     # Получить администраторов через Bot API
     from instance_bot import bot as main_bot_obj
     
+    chat_info = None
+    username = "N/A"
+    try:
+        chat_info = await main_bot_obj.get_chat(channel.chat_id)
+        if chat_info.username:
+            username = chat_info.username
+    except Exception:
+        pass
+
     try:
         admins = await main_bot_obj.get_chat_administrators(channel.chat_id)
         admins_text = "\n".join([
@@ -117,7 +126,7 @@ async def view_channel_details(call: types.CallbackQuery):
     # Формирование текста
     text_msg = f"📺 <b>Информация о канале</b>\n\n"
     text_msg += f"<b>Название:</b> {channel.title}\n"
-    text_msg += f"<b>Username:</b> @{channel.username or 'N/A'}\n"
+    text_msg += f"<b>Username:</b> @{username}\n"
     text_msg += f"<b>Chat ID:</b> <code>{channel.chat_id}</code>\n"
     text_msg += f"<b>Подписка:</b> {'✅ Активна' if channel.subscribe else '❌ Неактивна'}\n\n"
     text_msg += f"👥 <b>Администраторы:</b>\n{admins_text}"

@@ -126,9 +126,19 @@ class ChannelCrud(DatabaseMixin):
 
     async def get_all_channels(self):
         """Получить все каналы (для админ-панели)"""
-        return await self.fetch(
+        channels = await self.fetch(
             select(Channel).order_by(Channel.id.desc())
         )
+        
+        # Filter duplicates by chat_id, keeping the newest (first in list)
+        seen = set()
+        unique_channels = []
+        for ch in channels:
+            if ch.chat_id not in seen:
+                unique_channels.append(ch)
+                seen.add(ch.chat_id)
+                
+        return unique_channels
 
     async def get_channel_by_id(self, channel_id: int):
         """Получить канал по ID (row_id)"""
