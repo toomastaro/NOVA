@@ -23,6 +23,18 @@ from main_bot.utils.schemas import Hide, React, MessageOptions, StoryOptions, He
     MessageOptionsCaptcha, CaptchaObj, MessageOptionsHello
 
 
+def _parse_button(button_text: str) -> tuple[str, str]:
+    """Парсит кнопку, поддерживая разделители: —, --, -"""
+    # Пробуем разделители в порядке приоритета: — (длинное тире), -- (двойной дефис), - (одинарный дефис)
+    for separator in ['—', '--', '-']:
+        if separator in button_text:
+            parts = button_text.split(separator, 1)
+            if len(parts) == 2:
+                return parts[0].strip(), parts[1].strip()
+    # Если ни один разделитель не найден, возвращаем пустую ссылку
+    return button_text.strip(), ''
+
+
 class Reply:
     @classmethod
     def menu(cls):
@@ -133,13 +145,13 @@ class InlinePosting(InlineKeyboardBuilder):
 
         if post.buttons:
             for row in post.buttons.split('\n'):
-                buttons = [
-                    InlineKeyboardButton(
-                        text=button.split('—')[0].strip(),
-                        url=button.split('—')[1].strip()
-                    ) for button in row.split('|')
-                ]
-                kb.row(*buttons)
+                buttons = []
+                for button in row.split('|'):
+                    btn_text, btn_url = _parse_button(button)
+                    if btn_url:  # Только если есть URL
+                        buttons.append(InlineKeyboardButton(text=btn_text, url=btn_url))
+                if buttons:
+                    kb.row(*buttons)
 
         if reactions:
             for row in reactions.rows:
@@ -253,13 +265,13 @@ class InlinePosting(InlineKeyboardBuilder):
 
         if post.buttons:
             for row in post.buttons.split('\n'):
-                buttons = [
-                    InlineKeyboardButton(
-                        text=button.split('—')[0].strip(),
-                        url=button.split('—')[1].strip()
-                    ) for button in row.split('|')
-                ]
-                kb.row(*buttons)
+                buttons = []
+                for button in row.split('|'):
+                    btn_text, btn_url = _parse_button(button)
+                    if btn_url:  # Только если есть URL
+                        buttons.append(InlineKeyboardButton(text=btn_text, url=btn_url))
+                if buttons:
+                    kb.row(*buttons)
 
         if not is_bot:
             hide = Hide(hide=post.hide) if post.hide else None
@@ -1404,13 +1416,13 @@ class InlineBotSetting(InlineKeyboardBuilder):
         kb = cls()
 
         for row in buttons.split('\n'):
-            buttons = [
-                InlineKeyboardButton(
-                    text=button.split('—')[0].strip(),
-                    url=button.split('—')[1].strip()
-                ) for button in row.split('|')
-            ]
-            kb.row(*buttons)
+            row_buttons = []
+            for button in row.split('|'):
+                btn_text, btn_url = _parse_button(button)
+                if btn_url:  # Только если есть URL
+                    row_buttons.append(InlineKeyboardButton(text=btn_text, url=btn_url))
+            if row_buttons:
+                kb.row(*row_buttons)
 
         return kb.as_markup()
 
