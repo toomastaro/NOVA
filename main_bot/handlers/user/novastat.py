@@ -469,8 +469,8 @@ async def calculate_and_show_price(message: types.Message, cpm: int, state: FSMC
     else:
         rate = 100.0
     
-    price_rub = {h: int((views[h] / 1000) * cpm) for h in [24, 48]}
-    price_usdt = {h: round(price_rub[h] / rate, 2) for h in [24, 48]}
+    price_rub = {h: int((views[h] / 1000) * cpm) for h in [24, 48, 72]}
+    price_usdt = {h: round(price_rub[h] / rate, 2) for h in [24, 48, 72]}
     
     date_str = datetime.now().strftime("%d.%m.%Y %H:%M")
     
@@ -483,11 +483,13 @@ async def calculate_and_show_price(message: types.Message, cpm: int, state: FSMC
         report += f"👥 Подписчиков: {single_info['subscribers']}\n\n"
     
     report += f"├ 24 часа: {price_rub[24]:,} руб. / {price_usdt[24]} usdt\n".replace(",", " ")
-    report += f"└ 48 часов: {price_rub[48]:,} руб. / {price_usdt[48]} usdt\n".replace(",", " ").replace(".", ",")
+    report += f"├ 48 часов: {price_rub[48]:,} руб. / {price_usdt[48]} usdt\n".replace(",", " ")
+    report += f"└ 72 часа: {price_rub[72]:,} руб. / {price_usdt[72]} usdt\n".replace(",", " ").replace(".", ",")
     
     report += f"\n👁️ <b>Ожидаемые просмотры:</b>\n"
     report += f"├ 24 часа: {views[24]}\n"
-    report += f"└ 48 часов: {views[48]}\n\n"
+    report += f"├ 48 часов: {views[48]}\n"
+    report += f"└ 72 часа: {views[72]}\n\n"
     
     report += f"Дата расчёта: {date_str}"
     
