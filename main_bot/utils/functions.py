@@ -299,11 +299,30 @@ async def set_channel_session(chat_id: int):
             
             logger.info(f"Client {client.id} (user_id={me.id}) ready for join")
 
+            # Флаг успешного добавления
+            client_added = False
+            
             # Шаг 1: Попытка добавить клиента напрямую через InviteToChannelRequest
             # Это более надежный способ чем invite ссылки
             try:
-                # Получить entity канала через MTProto
-                channel_entity = await manager.client.get_entity(chat_id)
+                # Сначала получаем информацию о канале через основного бота
+                # Это необходимо, чтобы MTProto клиент мог получить entity
+                try:
+                    bot_chat = await main_bot_obj.get_chat(chat_id)
+                    # Если у канала есть username, используем его
+                    if hasattr(bot_chat, 'username') and bot_chat.username:
+                        channel_identifier = bot_chat.username
+                        logger.debug(f"Using channel username: @{channel_identifier}")
+                    else:
+                        # Иначе используем chat_id
+                        channel_identifier = chat_id
+                        logger.debug(f"Using channel ID: {channel_identifier}")
+                except Exception as bot_error:
+                    logger.warning(f"Could not get channel info via bot: {bot_error}, using chat_id")
+                    channel_identifier = chat_id
+                
+                # Получить entity канала через MTProto клиента
+                channel_entity = await manager.client.get_entity(channel_identifier)
                 
                 # Добавить пользователя в канал
                 from telethon.tl.functions.channels import InviteToChannelRequest
@@ -312,6 +331,7 @@ async def set_channel_session(chat_id: int):
                     users=[me]
                 ))
                 logger.info(f"✅ Client {client.id} (user_id={me.id}) added to channel {chat_id} via InviteToChannelRequest")
+                client_added = True
                 
             except Exception as e:
                 error_str = str(e)
@@ -336,21 +356,23 @@ async def set_channel_session(chat_id: int):
                                 users=[me]
                             ))
                             logger.info(f"✅ Client {client.id} (user_id={me.id}) added to channel {chat_id} after unban")
+                            client_added = True
                         except Exception as retry_error:
                             logger.error(f"❌ Failed to add client {client.id} even after unban: {retry_error}")
                             # Продолжаем с fallback методом
-                            raise
                             
                     except Exception as unban_error:
                         logger.error(f"❌ Failed to unban client {client.id}: {unban_error}")
                         # Продолжаем с fallback методом
-                        raise
-                else:
-                    # Другая ошибка - пробуем fallback
-                    raise
                 
-                # Если прямое добавление не сработало, пробуем через invite ссылку
-                # Это fallback для случаев когда бот не имеет прав на добавление
+                # Проверяем, не является ли это ошибкой "entity not found"
+                elif "Could not find the input entity" in error_str or "No user has" in error_str:
+                    logger.warning(f"⚠️ Client {client.id} doesn't know about channel {chat_id}, will use invite link fallback")
+                    # Продолжаем с fallback методом
+                
+            # Если клиент не был добавлен через InviteToChannelRequest, пробуем через invite ссылку
+            if not client_added:
+                logger.info(f"Attempting fallback method (invite link) for client {client.id}")
                 try:
                     # Создаем ПОСТОЯННУЮ ссылку для клиента
                     chat_invite_link = await main_bot_obj.create_chat_invite_link(
@@ -359,17 +381,21 @@ async def set_channel_session(chat_id: int):
                         creates_join_request=False
                         # БЕЗ member_limit - ссылка постоянная и многоразовая
                     )
-                    logger.info(f"Created permanent fallback invite link for {chat_id}: {chat_invite_link.invite_link}")
+                    logger.info(f"✅ Created permanent fallback invite link for {chat_id}: {chat_invite_link.invite_link}")
                     
                     success_join = await manager.join(chat_invite_link.invite_link)
                     if not success_join:
-                        logger.warning(f"Client {client.id} failed to join via invite link")
+                        logger.warning(f"❌ Client {client.id} failed to join via invite link")
                         continue
+                    
+                    logger.info(f"✅ Client {client.id} successfully joined via invite link")
+                    client_added = True
                         
                 except Exception as link_error:
-                    logger.error(f"Fallback invite link also failed for client {client.id}: {link_error}")
+                    logger.error(f"❌ Fallback invite link also failed for client {client.id}: {link_error}")
                     
                     # Send alert for access loss
+                    error_str = str(link_error)
                     if "USER_NOT_PARTICIPANT" in error_str or "CHANNEL_PRIVATE" in error_str or "CHAT_ADMIN_REQUIRED" in error_str:
                         from main_bot.utils.support_log import send_support_alert, SupportAlert
                         channel = await db.get_channel_by_chat_id(chat_id)
@@ -386,6 +412,11 @@ async def set_channel_session(chat_id: int):
                         ))
                     
                     continue
+            
+            # Если клиент так и не был добавлен, пропускаем его
+            if not client_added:
+                logger.error(f"❌ Failed to add client {client.id} to channel {chat_id} using all methods")
+                continue
 
 
         # Шаг 3: Проверить, что клиент есть как подписчик
