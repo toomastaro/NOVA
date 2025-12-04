@@ -2393,7 +2393,7 @@ class InlineAdmin(InlineKeyboardBuilder):
             )
             kb.button(
                 text=text("back:button"),
-                callback_data="AdminSession|cancel"
+                callback_data="Admin|back"
             )
             kb.adjust(2, 1, 1, 1)
 
