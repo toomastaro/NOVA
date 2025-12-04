@@ -134,6 +134,7 @@ class SessionManager:
         Checks if the user can post stories to the chat.
         """
         try:
+            logger.info(f"Checking if can send stories to {chat_id}")
             peer = await self.client.get_input_entity(chat_id)
             chat_full = await self.client(functions.channels.GetFullChannelRequest(channel=peer))
             
@@ -141,6 +142,7 @@ class SessionManager:
             # Note: Telethon structure might vary, checking dict representation is safer for some fields
             chat_full_dict = chat_full.to_dict()
             if chat_full_dict.get('chats', [{}])[0].get('stories_unavailable', False):
+                logger.warning(f"Stories are unavailable for {chat_id}")
                 return False
 
             # Check admin rights
@@ -149,12 +151,18 @@ class SessionManager:
                 participant=types.InputUserSelf()
             ))
             
+            logger.info(f"Participant type for {chat_id}: {type(participant.participant).__name__}")
+            
             if isinstance(participant.participant, types.ChannelParticipantCreator):
+                logger.info(f"User is creator of {chat_id}, can post stories")
                 return True
             
             if isinstance(participant.participant, types.ChannelParticipantAdmin):
-                return participant.participant.admin_rights.post_stories
-                
+                can_post = participant.participant.admin_rights.post_stories
+                logger.info(f"User is admin of {chat_id}, post_stories={can_post}")
+                return can_post
+            
+            logger.warning(f"User is not admin of {chat_id}, participant type: {type(participant.participant).__name__}")
             return False
 
         except Exception as e:
