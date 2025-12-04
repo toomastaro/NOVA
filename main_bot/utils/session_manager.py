@@ -132,6 +132,7 @@ class SessionManager:
     async def can_send_stories(self, chat_id: int) -> bool:
         """
         Checks if the user can post stories to the chat.
+        Includes boost level check.
         """
         try:
             logger.info(f"Checking if can send stories to {chat_id}")
@@ -141,6 +142,19 @@ class SessionManager:
             # Check if stories are globally unavailable for this chat
             # Note: Telethon structure might vary, checking dict representation is safer for some fields
             chat_full_dict = chat_full.to_dict()
+            
+            # Check boost level requirement
+            full_chat = chat_full_dict.get('full_chat', {})
+            boosts_applied = full_chat.get('boosts_applied', 0)
+            boosts_for_stories = full_chat.get('boosts_for_next_level_min', 0)
+            
+            logger.info(f"Channel {chat_id} boosts: {boosts_applied}, required for stories: {boosts_for_stories}")
+            
+            # If boosts_for_next_level_min is set and we don't have enough boosts
+            if boosts_for_stories > 0 and boosts_applied < boosts_for_stories:
+                logger.warning(f"Not enough boosts for {chat_id}: {boosts_applied}/{boosts_for_stories}")
+                return False
+            
             if chat_full_dict.get('chats', [{}])[0].get('stories_unavailable', False):
                 logger.warning(f"Stories are unavailable for {chat_id}")
                 return False
