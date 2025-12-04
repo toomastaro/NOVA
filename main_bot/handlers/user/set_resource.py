@@ -88,15 +88,16 @@ async def set_channel(call: types.ChatMemberUpdated):
         else:
             photo_bytes = None
 
+
         emoji_id = await create_emoji(call.from_user.id, photo_bytes)
         await set_admins(call.bot, chat_id, chat_title, emoji_id, user_id=call.from_user.id)
 
         # Запуск фоновой задачи для добавления клиента в канал
         asyncio.create_task(background_join_channel(chat_id, user_id=call.from_user.id))
 
-message_text = text('success_add_channel').format(
-    chat_title
-)
+        message_text = text('success_add_channel').format(
+            chat_title
+        )
     else:
         if not channel:
             return
@@ -105,9 +106,10 @@ message_text = text('success_add_channel').format(
             chat_id=chat_id
         )
 
-message_text = text('success_delete_channel').format(
-    channel.title
-)
+        message_text = text('success_delete_channel').format(
+            channel.title
+        )
+
 
     if call.from_user.is_bot:
         return
