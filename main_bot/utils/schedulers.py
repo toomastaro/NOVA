@@ -202,6 +202,34 @@ async def send(post: Post):
         if obj.chat_id in [i.get("chat_id") for i in error_send[:10]]
     )
 
+    if success_send and error_send:
+        message_text = text("success_error:post:public").format(
+            success_str,
+            error_str,
+        )
+    elif success_send:
+        message_text = text("manage:post:success:public").format(
+            success_str,
+        )
+    elif error_send:
+        message_text = text("error:post:public").format(
+            error_str,
+        )
+    else:
+        message_text = "Unknown Post Notification Message"
+
+    try:
+        await bot.send_message(
+            chat_id=post.admin_id,
+            text=message_text
+        )
+    except Exception as e:
+        logger.error(f"Error sending report to admin {post.admin_id}: {e}", exc_info=True)
+
+
+async def send_posts():
+    posts = await db.get_post_for_send()
+
     for post in posts:
         asyncio.create_task(send(post))
 
