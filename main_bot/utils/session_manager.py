@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from pathlib import Path
 from typing import List, Optional, Union
 
@@ -15,6 +16,8 @@ from telethon.errors import (
 
 from config import Config
 from main_bot.utils.schemas import StoryOptions
+
+logger = logging.getLogger(__name__)
 
 
 class SessionManager:
@@ -155,7 +158,7 @@ class SessionManager:
             return False
 
         except Exception as e:
-            print(f"Check stories error: {e}")
+            logger.error(f"Check stories error for {chat_id}: {e}", exc_info=True)
             return False
 
     async def send_story(self, chat_id: int, file_path: str, options: StoryOptions) -> bool:
