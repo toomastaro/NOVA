@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from datetime import datetime
 
 from aiogram import Router, F, types
@@ -11,6 +12,8 @@ from main_bot.keyboards.keyboards import keyboards, InlineNovaStat
 from main_bot.utils.novastat import novastat_service
 from main_bot.utils.lang.language import text
 from main_bot.states.user import NovaStatStates
+
+logger = logging.getLogger(__name__)
 
 router = Router()
 
@@ -305,6 +308,24 @@ async def run_analysis_logic(message: types.Message, channels: list, depth: int,
         stats = await novastat_service.collect_stats(ch, depth, horizon=24)
         
         if stats:
+            # Проверить структуру результата
+            if 'views' not in stats or 'er' not in stats:
+                logger.error(f"Invalid stats structure for {ch}: {stats}")
+                failed.append({"channel": ch, "error": "Неверная структура данных"})
+                continue
+            
+            # Проверить наличие всех горизонтов
+            missing_horizons = []
+            for h in [24, 48, 72]:
+                if h not in stats['views'] or h not in stats['er']:
+                    missing_horizons.append(h)
+            
+            if missing_horizons:
+                logger.error(f"Missing horizons {missing_horizons} for {ch}. Stats: {stats}")
+                failed.append({"channel": ch, "error": f"Отсутствуют данные для горизонтов: {missing_horizons}"})
+                continue
+            
+            logger.info(f"Successfully collected stats for {ch}: views={stats['views']}, er={stats['er']}")
             results.append(stats)
         else:
             # Проверить, есть ли ошибка в кэше
