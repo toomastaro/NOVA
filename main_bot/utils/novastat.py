@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 # Constants
 TIMEZONE = "Europe/Moscow"
-HORIZONS = [24, 48]
+HORIZONS = [24, 48, 72]
 ANOMALY_FACTOR = 10
 CACHE_TTL_SECONDS = 3600  # 60 минут
 

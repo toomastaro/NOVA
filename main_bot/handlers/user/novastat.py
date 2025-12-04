@@ -334,21 +334,21 @@ async def run_analysis_logic(message: types.Message, channels: list, depth: int,
         await status_msg.edit_text("🔄 Анализирую данные...", link_preview_options=types.LinkPreviewOptions(is_disabled=True))
 
     # Calculate totals for views and averages for ER
-    total_views = {24: 0, 48: 0}
-    total_er = {24: 0.0, 48: 0.0}
+    total_views = {24: 0, 48: 0, 72: 0}
+    total_er = {24: 0.0, 48: 0.0, 72: 0.0}
     count = len(results)
     
     for res in results:
-        for h in [24, 48]:
+        for h in [24, 48, 72]:
             total_views[h] += res['views'][h]
             total_er[h] += res['er'][h]
             
     # Views are summed (Total), ER is averaged
     final_views = total_views 
     if count > 0:
-        avg_er = {h: round(total_er[h] / count, 2) for h in [24, 48]}
+        avg_er = {h: round(total_er[h] / count, 2) for h in [24, 48, 72]}
     else:
-        avg_er = {24: 0.0, 48: 0.0}
+        avg_er = {24: 0.0, 48: 0.0, 72: 0.0}
     
     # Store results for CPM calculation
     data_to_store = {'last_analysis_views': final_views}
@@ -375,11 +375,13 @@ async def run_analysis_logic(message: types.Message, channels: list, depth: int,
 
     report += f"👁️ <b>Суммарные просмотры:</b>\n"
     report += f"├ 24 часа: {final_views[24]}\n"
-    report += f"└ 48 часов: {final_views[48]}\n\n"
+    report += f"├ 48 часов: {final_views[48]}\n"
+    report += f"└ 72 часа: {final_views[72]}\n\n"
     
     report += f"📈 <b>Средний ER:</b>\n"
     report += f"├ 24 часа: {avg_er[24]}%\n"
-    report += f"└ 48 часов: {avg_er[48]}%\n\n"
+    report += f"├ 48 часов: {avg_er[48]}%\n"
+    report += f"└ 72 часа: {avg_er[72]}%\n\n"
     
     if failed:
         report += f"⚠️ Не удалось обработать: {len(failed)} каналов.\n"
