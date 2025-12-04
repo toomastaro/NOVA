@@ -80,6 +80,23 @@ class NovaStatService:
         
         return (client, manager)
 
+    def normalize_cache_keys(self, data: Optional[Dict]) -> Optional[Dict]:
+        """Преобразовать строковые ключи из JSON обратно в числовые"""
+        if not data:
+            return data
+        
+        # Создать копию данных
+        normalized = data.copy()
+        
+        # Преобразовать ключи в views и er
+        if 'views' in normalized and isinstance(normalized['views'], dict):
+            normalized['views'] = {int(k): v for k, v in normalized['views'].items()}
+        
+        if 'er' in normalized and isinstance(normalized['er'], dict):
+            normalized['er'] = {int(k): v for k, v in normalized['er'].items()}
+        
+        return normalized
+
     async def collect_stats(self, channel_identifier: str, days_limit: int = 7, horizon: int = 24) -> Optional[Dict]:
         """
         Собрать статистику для канала с кэшированием.
@@ -98,14 +115,14 @@ class NovaStatService:
         if is_fresh:
             cache = await db.get_cache(channel_identifier, horizon)
             if cache and not cache.error_message:
-                return cache.value_json
+                return self.normalize_cache_keys(cache.value_json)
         
         # 2. Проверить, идет ли обновление
         cache = await db.get_cache(channel_identifier, horizon)
         if cache and cache.refresh_in_progress:
             # Вернуть старые данные или None
             if cache.value_json:
-                return cache.value_json
+                return self.normalize_cache_keys(cache.value_json)
             return None
         
         # 3. Запустить асинхронное обновление
@@ -113,7 +130,7 @@ class NovaStatService:
         
         # 4. Вернуть старые данные если есть
         if cache and cache.value_json:
-            return cache.value_json
+            return self.normalize_cache_keys(cache.value_json)
         
         return None
 
