@@ -94,10 +94,9 @@ async def set_channel(call: types.ChatMemberUpdated):
         # Запуск фоновой задачи для добавления клиента в канал
         asyncio.create_task(background_join_channel(chat_id, user_id=call.from_user.id))
 
-        message_text = text('success_add_channel').format(
-            emoji_id,
-            chat_title
-        )
+message_text = text('success_add_channel').format(
+    chat_title
+)
     else:
         if not channel:
             return
@@ -106,10 +105,9 @@ async def set_channel(call: types.ChatMemberUpdated):
             chat_id=chat_id
         )
 
-        message_text = text('success_delete_channel').format(
-            channel.emoji_id,
-            channel.title
-        )
+message_text = text('success_delete_channel').format(
+    channel.title
+)
 
     if call.from_user.is_bot:
         return
@@ -252,7 +250,7 @@ async def manual_add_channel(message: types.Message, state: FSMContext):
         # Запуск фоновой задачи для добавления клиента в канал
         asyncio.create_task(background_join_channel(chat_id, user_id=call.from_user.id))
             
-        msg = text('success_add_channel').format(emoji_id, chat_title)
+        msg = text('success_add_channel').format(chat_title)
         await message.answer(msg)
         await state.clear()
         await start_posting(message)
