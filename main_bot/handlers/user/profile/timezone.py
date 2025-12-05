@@ -31,12 +31,21 @@ async def get_timezone(message: types.Message, state: FSMContext):
     )
 
     await state.clear()
-    # Возврат в меню настроек (профиль)
-    from main_bot.keyboards import keyboards
-    from main_bot.utils.lang.language import text
+    
+    # Показываем обновленное время
+    from datetime import timedelta, datetime
+    delta = timedelta(hours=abs(timezone_value))
+    if timezone_value > 0:
+        new_timezone = datetime.utcnow() + delta
+    else:
+        new_timezone = datetime.utcnow() - delta
+    
     await message.answer(
-        text('start_profile_text'),
-        reply_markup=keyboards.profile_menu()
+        f"✅ <b>Часовой пояс успешно обновлен!</b>\n\n"
+        f"Ваш часовой пояс: <code>{'+' if timezone_value > 0 else ''}{timezone_value}</code>\n"
+        f"Текущее время: <b>{new_timezone.strftime('%H:%M')}</b>",
+        reply_markup=keyboards.back(data='InputTimezoneCancel'),
+        parse_mode="HTML"
     )
 
 

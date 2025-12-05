@@ -40,7 +40,6 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
     if temp[1] == 'cancel':
         # Возврат в меню настроек (профиль)
         from main_bot.keyboards import keyboards
-        from main_bot.utils.lang.language import text
         return await call.message.answer(
             text('start_profile_text'),
             reply_markup=keyboards.profile_menu()
