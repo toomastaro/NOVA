@@ -179,18 +179,35 @@ async def choice(call: types.CallbackQuery, state: FSMContext, user: User):
         pay_url = result.get('url')
         order_id = result.get('invoice_id')
 
-    # stars
-    else:
+    elif method == PaymentMethod.PLATEGA:
+        from main_bot.utils.payments.platega import platega_api
+        result = await platega_api.create_invoice(
+            order_id=str(random.randint(10000, 99999)),
+            amount=total_price,
+            description='Оплата подписки NovaTg'
+        )
+        pay_url = result.get('pay_url')
+        order_id = result.get('id')
+
+    # Stars
+    elif method == PaymentMethod.STARS:
         stars_amount = int(total_price / 1.2)  # Курс: 1 Star = 1.2₽
         prices = [LabeledPrice(label="XTR", amount=stars_amount)]
         order_id = str(random.randint(1, 999))
         pay_url = await call.bot.create_invoice_link(
             title='Stars NovaTg',
-            description='Пополнение баланса',
+            description='Оплата подписки',
             prices=prices,
             provider_token='',
             payload=order_id,
             currency='XTR'
+        )
+    
+    else:
+        # Неизвестный метод оплаты
+        return await call.answer(
+            text('payment_method_not_available'),
+            show_alert=True
         )
 
     if not pay_url:
@@ -214,6 +231,14 @@ async def choice(call: types.CallbackQuery, state: FSMContext, user: User):
             paid = await crypto_bot.is_paid(order_id)
 
             if not paid:  # Если НЕ оплачено - ждем
+                await asyncio.sleep(5)
+                continue
+
+        if method == PaymentMethod.PLATEGA:
+            from main_bot.utils.payments.platega import platega_api
+            paid = await platega_api.is_paid(order_id)
+
+            if not paid:
                 await asyncio.sleep(5)
                 continue
 
