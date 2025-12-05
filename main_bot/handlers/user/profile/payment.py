@@ -28,7 +28,13 @@ async def choice(call: types.CallbackQuery, state: FSMContext, user: User):
     await call.message.delete()
 
     if temp[1] == 'back':
-        return await show_balance(call.message, user)
+        # Возврат в меню подписки с информацией о балансе
+        await call.message.answer(
+            text("balance_text").format(user.balance),
+            reply_markup=keyboards.subscription_menu(),
+            parse_mode="HTML"
+        )
+        return
 
     if temp[1] == 'promo':
         await call.message.answer(
