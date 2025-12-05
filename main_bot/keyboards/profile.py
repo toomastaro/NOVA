@@ -111,14 +111,10 @@ class InlineProfile(InlineKeyboardBuilder):
         adjust = []
         if is_subscribe:
             kb.button(
-                text=text('payment:method:align_sub'),
-                callback_data=f'{data}|align_sub'
-            )
-            kb.button(
                 text=text('payment:method:balance'),
                 callback_data=f'{data}|balance'
             )
-            adjust.extend([1, 1])
+            adjust.extend([1])
 
         kb.button(
             text=text('payment:method:stars'),
