@@ -15,19 +15,24 @@ class Reply:
     def menu(cls):
         kb = ReplyKeyboardBuilder()
 
+        # Первый ряд: Постинг - Истории - Рассылка
         kb.button(text=text('reply_menu:posting'))
         kb.button(text=text('reply_menu:story'))
-        kb.button(text=text('reply_menu:novastat'))
-        kb.button(text=text('reply_menu:exchange_rate'))
         kb.button(text=text('reply_menu:bots'))
-        kb.button(text=text('reply_menu:support'))
+        
+        # Второй ряд: Курс USDT - NovaStat - Настройки
+        kb.button(text=text('reply_menu:exchange_rate'))
+        kb.button(text=text('reply_menu:novastat'))
         kb.button(text=text('reply_menu:profile'))
+        
+        # Третий ряд: Книга жалоб и предложений
+        kb.button(text=text('reply_menu:support'))
 
         if Config.ENABLE_AD_BUY_MODULE:
             kb.button(text="Рекламные креативы")
             kb.button(text="Рекламные закупы")
 
-        kb.adjust(2, 2, 1, 2)
+        kb.adjust(3, 3, 1)  # 3 кнопки в первом ряду, 3 во втором, 1 в третьем
         return kb.as_markup(
             resize_keyboard=True,
         )
