@@ -55,7 +55,7 @@ async def get_story_report_text(chosen, objects):
                 pass
 
         lines.append(
-            text("resource_title").format(obj.emoji_id, obj.title) + f" ({posted}/{limit})"
+            text("resource_title").format(obj.title) + f" ({posted}/{limit})"
         )
 
     return "\\n".join(lines)

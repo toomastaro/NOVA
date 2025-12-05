@@ -295,10 +295,7 @@ async def cancel_value(call: types.CallbackQuery, state: FSMContext):
             text("choice_channels:post").format(
                 len(chosen),
                 "\\n".join(
-                    text("resource_title").format(
-                        obj.emoji_id,
-                        obj.title
-                    ) for obj in display_objects
+                    text("resource_title").format(obj.title) for obj in display_objects
                 )
             ),
             reply_markup=keyboards.finish_params(
@@ -454,10 +451,7 @@ async def get_value(message: types.Message, state: FSMContext):
             text("choice_channels:post").format(
                 len(chosen),
                 "\\n".join(
-                    text("resource_title").format(
-                        obj.emoji_id,
-                        obj.title
-                    ) for obj in display_objects
+                    text("resource_title").format(obj.title) for obj in display_objects
                 )
             ),
             reply_markup=keyboards.finish_params(

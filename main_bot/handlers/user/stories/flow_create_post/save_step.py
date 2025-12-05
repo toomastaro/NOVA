@@ -53,10 +53,7 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
             message_text = text("manage:story:finish_params").format(
                 len(chosen),
                 "\\n".join(
-                    text("resource_title").format(
-                        obj.emoji_id,
-                        obj.title
-                    ) for obj in objects
+                    text("resource_title").format(obj.title) for obj in objects
                     if obj.chat_id in chosen[:10]
                 )
             )
@@ -101,10 +98,7 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
     else:
         message_text = text("manage:story:success:public").format(
             "\\n".join(
-                text("resource_title").format(
-                    obj.emoji_id,
-                    obj.title
-                ) for obj in objects
+                text("resource_title").format(obj.title) for obj in objects
                 if obj.chat_id in chosen[:10]
             )
         )

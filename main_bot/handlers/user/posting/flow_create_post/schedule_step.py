@@ -186,10 +186,7 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
         text("choice_channels:post").format(
             len(chosen),
             "\\n".join(
-                text("resource_title").format(
-                    obj.emoji_id,
-                    obj.title
-                ) for obj in display_objects
+                text("resource_title").format(obj.title) for obj in display_objects
             )
         ),
         reply_markup=keyboards.choice_objects(
@@ -261,10 +258,7 @@ async def finish_params(call: types.CallbackQuery, state: FSMContext):
             text("choice_channels:post").format(
                 len(chosen),
                 "\\n".join(
-                    text("resource_title").format(
-                        obj.emoji_id,
-                        obj.title
-                    ) for obj in display_objects
+                    text("resource_title").format(obj.title) for obj in display_objects
                 )
             ),
             reply_markup=keyboards.choice_objects(
@@ -339,10 +333,7 @@ async def finish_params(call: types.CallbackQuery, state: FSMContext):
         await call.message.edit_text(
             text("manage:post:accept:public").format(
                 "\\n".join(
-                    text("resource_title").format(
-                        obj.emoji_id,
-                        obj.title
-                    ) for obj in objects
+                    text("resource_title").format(obj.title) for obj in objects
                     if obj.chat_id in chosen[:10]
                 ),
                 f"{int(post.delete_time / 3600)} ч."  # type: ignore
@@ -421,10 +412,7 @@ async def choice_delete_time(call: types.CallbackQuery, state: FSMContext):
         text("manage:post:finish_params").format(
             len(chosen),
             "\\n".join(
-                text("resource_title").format(
-                    obj.emoji_id,
-                    obj.title
-                ) for obj in objects
+                text("resource_title").format(obj.title) for obj in objects
                 if obj.chat_id in chosen[:10]
             )
         ),
@@ -472,10 +460,7 @@ async def cancel_send_time(call: types.CallbackQuery, state: FSMContext):
         text("manage:post:finish_params").format(
             len(chosen),
             "\\n".join(
-                text("resource_title").format(
-                    obj.emoji_id,
-                    obj.title
-                ) for obj in objects
+                text("resource_title").format(obj.title) for obj in objects
                 if obj.chat_id in chosen[:10]
             )
         ),
@@ -588,10 +573,7 @@ async def get_send_time(message: types.Message, state: FSMContext):
         text("manage:post:accept:date").format(
             *date_values,
             "\\n".join(
-                text("resource_title").format(
-                    obj.emoji_id,
-                    obj.title
-                ) for obj in objects
+                text("resource_title").format(obj.title) for obj in objects
                 if obj.chat_id in chosen[:10]
             ),
             f"{int(post.delete_time / 3600)} ч."  # type: ignore
