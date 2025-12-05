@@ -12,6 +12,35 @@ from main_bot.utils.functions import answer_story
 from main_bot.utils.lang.language import text
 
 
+async def get_days_with_stories(channel_chat_id: int, year: int, month: int) -> set:
+    """
+    Получает множество дней месяца, в которые есть истории.
+    
+    Args:
+        channel_chat_id: ID канала
+        year: Год
+        month: Месяц
+        
+    Returns:
+        set: Множество дней (int) с историями
+    """
+    from calendar import monthrange
+    _, last_day = monthrange(year, month)
+    month_start = datetime(year, month, 1)
+    month_end = datetime(year, month, last_day, 23, 59, 59)
+    
+    # Получаем все истории
+    all_month_stories = await db.get_stories(channel_chat_id)
+    
+    days_with_stories = set()
+    for story in all_month_stories:
+        story_date = datetime.fromtimestamp(story.send_time)
+        if month_start <= story_date <= month_end:
+            days_with_stories.add(story_date.day)
+    
+    return days_with_stories
+
+
 async def choice_channel(call: types.CallbackQuery, state: FSMContext):
     temp = call.data.split('|')
 
@@ -50,14 +79,13 @@ async def choice_channel(call: types.CallbackQuery, state: FSMContext):
     await call.message.answer(
         text("channel:content").format(
             *day_values,
-            channel.emoji_id,
             channel.title,
             text("no_content:story") if not posts else text("has_content:story").format(len(posts))
         ),
         reply_markup=keyboards.choice_row_content(
             posts=posts,
             day=day,
-            data="ContentStories"
+            data="ContentStories",days_with_posts=days_with_stories
         )
     )
 
@@ -97,7 +125,6 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
         return await call.message.edit_text(
             text("channel:content").format(
                 *day_values,
-                channel.emoji_id,
                 channel.title,
                 text("no_content:story") if not posts else text("has_content:story").format(len(posts))
             ),
@@ -105,7 +132,7 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
                 posts=posts,
                 day=day,
                 show_more=show_more,
-                data="ContentStories"
+                data="ContentStories",days_with_posts=days_with_stories
             )
         )
 
@@ -113,7 +140,6 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
         posts = await db.get_stories(channel.chat_id)
         return await call.message.edit_text(
             text("channel:show_all:content").format(
-                channel.emoji_id,
                 channel.title,
                 text("no_content:story") if not posts else text("has_content:story").format(len(posts))
             ),
@@ -145,7 +171,6 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
     await call.message.answer(
         text("story:content").format(
             *send_date_values,
-            channel.emoji_id,
             channel.title
         ),
         reply_markup=keyboards.manage_remain_story(
@@ -181,7 +206,6 @@ async def choice_time_objects(call: types.CallbackQuery, state: FSMContext):
         return await call.message.edit_text(
             text("channel:content").format(
                 *data.get("day_values"),
-                channel.emoji_id,
                 channel.title,
                 text("no_content:story") if not posts else text("has_content:story").format(len(posts))
             ),
@@ -189,7 +213,7 @@ async def choice_time_objects(call: types.CallbackQuery, state: FSMContext):
                 posts=posts,
                 day=day,
                 show_more=show_more,
-                data="ContentStories"
+                data="ContentStories",days_with_posts=days_with_stories
             )
         )
 
@@ -216,7 +240,7 @@ async def manage_remain_post(call: types.CallbackQuery, state: FSMContext):
             reply_markup=keyboards.choice_row_content(
                 posts=posts,
                 day=day,
-                data="ContentStories"
+                data="ContentStories",days_with_posts=days_with_stories
             )
         )
 
@@ -255,7 +279,6 @@ async def accept_delete_row_content(call: types.CallbackQuery, state: FSMContext
         return await call.message.edit_text(
             text("story:content").format(
                 *send_date_values,
-                channel.emoji_id,
                 channel.title
             ),
             reply_markup=keyboards.manage_remain_story(
@@ -271,14 +294,13 @@ async def accept_delete_row_content(call: types.CallbackQuery, state: FSMContext
         return await call.message.edit_text(
             text("channel:content").format(
                 *day_values,
-                channel.emoji_id,
                 channel.title,
                 text("no_content:story") if not posts else text("has_content:story").format(len(posts))
             ),
             reply_markup=keyboards.choice_row_content(
                 posts=posts,
                 day=day,
-                data="ContentStories"
+                data="ContentStories",days_with_posts=days_with_stories
             )
         )
 

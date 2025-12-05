@@ -402,7 +402,7 @@ class InlineContent(InlineKeyboardBuilder):
                         has_posts = days_with_posts and week_day in days_with_posts
                         day_text = str(week_day) if week_day != day.day else '🔸'
                         if has_posts and week_day != day.day:
-                            day_text = f'{week_day}•'  # Добавляем точку для дней с постами
+                            day_text = f'{week_day}🔵'  # Добавляем синий круг для дней с постами
                         
                         days.append(
                             InlineKeyboardButton(
