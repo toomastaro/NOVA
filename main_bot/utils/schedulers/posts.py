@@ -273,78 +273,76 @@ async def check_cpm_reports():
     
     current_time = int(time.time())
     
-    async with db.session() as session:
-        stmt = select(PublishedPost).where(
-            PublishedPost.cpm_price.is_not(None),
-            PublishedPost.deleted_at.is_(None)
-        )
-        result = await session.execute(stmt)
-        posts = result.scalars().all()
-        
-        for post in posts:
-            try:
-                elapsed = current_time - post.created_timestamp
-                
-                report_needed = False
-                period = ""
-                
-                if elapsed >= 24 * 3600 and not post.report_24h_sent:
-                    period = "24h"
-                    report_needed = True
-                elif elapsed >= 48 * 3600 and not post.report_48h_sent:
-                    period = "48h"
-                    report_needed = True
-                elif elapsed >= 72 * 3600 and not post.report_72h_sent:
-                    period = "72h"
-                    report_needed = True
-                
-                if not report_needed:
-                    continue
+    # Получаем посты с CPM ценой, которые еще не удалены
+    stmt = select(PublishedPost).where(
+        PublishedPost.cpm_price.is_not(None),
+        PublishedPost.deleted_at.is_(None)
+    )
+    posts = await db.fetch(stmt)
+    
+    for post in posts:
+        try:
+            elapsed = current_time - post.created_timestamp
+            
+            report_needed = False
+            period = ""
+            
+            if elapsed >= 24 * 3600 and not post.report_24h_sent:
+                period = "24h"
+                report_needed = True
+            elif elapsed >= 48 * 3600 and not post.report_48h_sent:
+                period = "48h"
+                report_needed = True
+            elif elapsed >= 72 * 3600 and not post.report_72h_sent:
+                period = "72h"
+                report_needed = True
+            
+            if not report_needed:
+                continue
 
-                views, channel = await get_views_for_post(post)
-                
-                # Update DB
-                updates = {}
-                if period == "24h":
-                    updates = {"views_24h": views, "report_24h_sent": True}
-                elif period == "48h":
-                    updates = {"views_48h": views, "report_48h_sent": True}
-                elif period == "72h":
-                    updates = {"views_72h": views, "report_72h_sent": True}
-                
-                stmt = update(PublishedPost).where(PublishedPost.id == post.id).values(**updates)
-                await session.execute(stmt)
-                await session.commit()
-                
-                # Send Report
-                cpm_price = post.cpm_price
-                rub_price = round(float(cpm_price * float(views / 1000)), 2)
-                
-                user = await db.get_user(post.admin_id)
-                usd_rate = 1.0
-                if user and user.default_exchange_rate_id:
-                    exchange_rate = await db.get_exchange_rate(user.default_exchange_rate_id)
-                    if exchange_rate and exchange_rate.rate > 0:
-                        usd_rate = exchange_rate.rate
+            views, channel = await get_views_for_post(post)
+            
+            # Обновление БД
+            updates = {}
+            if period == "24h":
+                updates = {"views_24h": views, "report_24h_sent": True}
+            elif period == "48h":
+                updates = {"views_48h": views, "report_48h_sent": True}
+            elif period == "72h":
+                updates = {"views_72h": views, "report_72h_sent": True}
+            
+            stmt = update(PublishedPost).where(PublishedPost.id == post.id).values(**updates)
+            await db.execute(stmt)
+            
+            # Отправка отчета
+            cpm_price = post.cpm_price
+            rub_price = round(float(cpm_price * float(views / 1000)), 2)
+            
+            user = await db.get_user(post.admin_id)
+            usd_rate = 1.0
+            if user and user.default_exchange_rate_id:
+                exchange_rate = await db.get_exchange_rate(user.default_exchange_rate_id)
+                if exchange_rate and exchange_rate.rate > 0:
+                    usd_rate = exchange_rate.rate
 
-                channels_text = text("resource_title").format(channel.emoji_id, channel.title) + f" - 👀 {views}"
-                
-                full_report = text("cpm:report:header").format(post.post_id, period) + "\\n"
-                full_report += text("cpm:report:stats").format(
-                    period,
-                    views,
-                    rub_price,
-                    round(rub_price / usd_rate, 2),
-                    round(usd_rate, 2)
-                ) + "\\n\\n" + channels_text
-                
-                await bot.send_message(
-                    chat_id=post.admin_id,
-                    text=full_report
-                )
-                
-            except Exception as e:
-                logger.error(f"Error processing CPM report for post {post.id}: {e}", exc_info=True)
+            channels_text = text("resource_title").format(channel.emoji_id, channel.title) + f" - 👀 {views}"
+            
+            full_report = text("cpm:report:header").format(post.post_id, period) + "\\n"
+            full_report += text("cpm:report:stats").format(
+                period,
+                views,
+                rub_price,
+                round(rub_price / usd_rate, 2),
+                round(usd_rate, 2)
+            ) + "\\n\\n" + channels_text
+            
+            await bot.send_message(
+                chat_id=post.admin_id,
+                text=full_report
+            )
+            
+        except Exception as e:
+            logger.error(f"Ошибка при обработке CPM отчета для поста {post.id}: {e}", exc_info=True)
 
 
 async def delete_posts():
