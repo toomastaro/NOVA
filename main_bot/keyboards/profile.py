@@ -497,9 +497,161 @@ class InlineProfile(InlineKeyboardBuilder):
             callback_data='MenuSubscription|align_sub'
         )
         kb.button(
+            text=text('transfer_subscription:button'),
+            callback_data='MenuSubscription|transfer_sub'
+        )
+        kb.button(
             text=text('back:button'),
             callback_data='MenuSubscription|back'
         )
 
-        kb.adjust(1, 1, 1, 1, 1)
+        kb.adjust(1, 1, 1, 1, 1, 1)
         return kb.as_markup()
+
+    @classmethod
+    def transfer_sub_choose_donor(cls, channels: List[Channel], remover: int = 0):
+        """Клавиатура выбора канала-донора для переноса подписки"""
+        kb = cls()
+        count_rows = 7
+        
+        import time
+        from datetime import datetime
+        
+        for a, idx in enumerate(range(remover, len(channels))):
+            if a < count_rows:
+                channel = channels[idx]
+                # Вычисляем оставшиеся дни
+                now = int(time.time())
+                days_left = max(0, round((channel.subscribe - now) / 86400))
+                
+                kb.add(
+                    InlineKeyboardButton(
+                        text=f'📺 {channel.title} ({days_left} дн.)',
+                        callback_data=f'TransferSubDonor|{channel.chat_id}|{remover}'
+                    )
+                )
+        
+        kb.adjust(1)
+        
+        # Навигация
+        if len(channels) <= count_rows:
+            pass
+        elif len(channels) > count_rows > remover:
+            kb.row(
+                InlineKeyboardButton(
+                    text='➡️',
+                    callback_data=f'TransferSubDonor|next|{remover + count_rows}'
+                )
+            )
+        elif remover + count_rows >= len(channels):
+            kb.row(
+                InlineKeyboardButton(
+                    text='⬅️',
+                    callback_data=f'TransferSubDonor|back|{remover - count_rows}'
+                )
+            )
+        else:
+            kb.row(
+                InlineKeyboardButton(
+                    text='⬅️',
+                    callback_data=f'TransferSubDonor|back|{remover - count_rows}'
+                ),
+                InlineKeyboardButton(
+                    text='➡️',
+                    callback_data=f'TransferSubDonor|next|{remover + count_rows}'
+                )
+            )
+        
+        kb.row(
+            InlineKeyboardButton(
+                text=text('back:button'),
+                callback_data='TransferSubDonor|cancel'
+            )
+        )
+        
+        return kb.as_markup()
+
+    @classmethod
+    def transfer_sub_choose_recipients(
+        cls, 
+        channels: List[Channel], 
+        chosen: List[int],
+        remover: int = 0
+    ):
+        """Клавиатура выбора каналов-получателей для переноса подписки"""
+        kb = cls()
+        count_rows = 6
+        
+        import time
+        from datetime import datetime
+        
+        for a, idx in enumerate(range(remover, len(channels))):
+            if a < count_rows:
+                channel = channels[idx]
+                # Показываем текущую подписку канала
+                sub_text = ""
+                if channel.subscribe:
+                    now = int(time.time())
+                    days_left = max(0, round((channel.subscribe - now) / 86400))
+                    sub_text = f" ({days_left} дн.)"
+                
+                kb.add(
+                    InlineKeyboardButton(
+                        text=f'{"🔹" if channel.chat_id in chosen else ""} {channel.title}{sub_text}',
+                        callback_data=f'TransferSubRecipients|{channel.chat_id}|{remover}'
+                    )
+                )
+        
+        kb.adjust(2)
+        
+        # Навигация
+        if len(channels) <= count_rows:
+            pass
+        elif len(channels) > count_rows > remover:
+            kb.row(
+                InlineKeyboardButton(
+                    text='➡️',
+                    callback_data=f'TransferSubRecipients|next|{remover + count_rows}'
+                )
+            )
+        elif remover + count_rows >= len(channels):
+            kb.row(
+                InlineKeyboardButton(
+                    text='⬅️',
+                    callback_data=f'TransferSubRecipients|back|{remover - count_rows}'
+                )
+            )
+        else:
+            kb.row(
+                InlineKeyboardButton(
+                    text='⬅️',
+                    callback_data=f'TransferSubRecipients|back|{remover - count_rows}'
+                ),
+                InlineKeyboardButton(
+                    text='➡️',
+                    callback_data=f'TransferSubRecipients|next|{remover + count_rows}'
+                )
+            )
+        
+        # Кнопка "Выбрать всё" / "Отменить всё"
+        if channels:
+            kb.row(
+                InlineKeyboardButton(
+                    text=text('chosen:cancel_all') if len(chosen) == len(channels) else text('chosen:choice_all'),
+                    callback_data=f'TransferSubRecipients|choice_all|{remover}'
+                )
+            )
+        
+        kb.row(
+            InlineKeyboardButton(
+                text=text('back:button'),
+                callback_data='TransferSubRecipients|cancel'
+            ),
+            InlineKeyboardButton(
+                text='🔀 Перенести',
+                callback_data='TransferSubRecipients|transfer'
+            )
+        )
+        
+        return kb.as_markup()
+
