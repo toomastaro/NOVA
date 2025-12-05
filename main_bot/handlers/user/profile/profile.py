@@ -75,20 +75,30 @@ async def show_folders(message: types.Message):
     await settings_folders(message)
 
 
-async def show_subscribe(message: types.Message):
+async def show_subscribe(message: types.Message, state: FSMContext = None):
     """Показать выбор каналов для подписки (без промежуточного меню)"""
     from main_bot.handlers.user.profile.subscribe import get_subscribe_list_resources
+    from aiogram.fsm.context import FSMContext
     
     service = "subscribe"
     object_type = 'channels'
+    cor = db.get_user_channels
     
     # Получаем список каналов пользователя
     user = await db.get_user(user_id=message.chat.id)
-    objects = await db.get_user_channels(
+    objects = await cor(
         user_id=user.id,
         limit=10,
         sort_by=service
     )
+    
+    # Сохраняем данные в state для следующих шагов
+    if state:
+        await state.update_data(
+            service=service,
+            object_type=object_type,
+            cor=cor,
+        )
     
     await message.answer(
         text('subscribe_text:channels').format(

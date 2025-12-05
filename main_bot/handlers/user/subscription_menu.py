@@ -2,6 +2,7 @@
 Обработчики для меню подписки (баланс, подписка, реферальная система)
 """
 from aiogram import Router, F, types
+from aiogram.fsm.context import FSMContext
 
 from main_bot.keyboards.common import Reply
 
@@ -10,7 +11,7 @@ router = Router()
 
 
 @router.callback_query(F.data.split("|")[0] == "MenuSubscription")
-async def choice(call: types.CallbackQuery):
+async def choice(call: types.CallbackQuery, state: FSMContext):
     """Обработчик выбора в меню подписки"""
     temp = call.data.split('|')
     await call.message.delete()
@@ -22,7 +23,7 @@ async def choice(call: types.CallbackQuery):
         },
         'subscribe': {
             'cor': show_subscribe_menu,
-            'args': (call,)
+            'args': (call, state,)
         },
         'referral': {
             'cor': show_referral_menu,
@@ -47,10 +48,10 @@ async def show_balance_menu(call: types.CallbackQuery):
     await show_balance(call.message, user)
 
 
-async def show_subscribe_menu(call: types.CallbackQuery):
+async def show_subscribe_menu(call: types.CallbackQuery, state: FSMContext):
     """Перенаправление на меню подписки из профиля"""
     from main_bot.handlers.user.profile.profile import show_subscribe
-    await show_subscribe(call.message)
+    await show_subscribe(call.message, state)
 
 
 async def show_referral_menu(call: types.CallbackQuery):
