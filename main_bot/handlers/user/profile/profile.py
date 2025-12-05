@@ -76,9 +76,31 @@ async def show_folders(message: types.Message):
 
 
 async def show_subscribe(message: types.Message):
+    """Показать выбор каналов для подписки (без промежуточного меню)"""
+    from main_bot.handlers.user.profile.subscribe import get_subscribe_list_resources
+    
+    service = "subscribe"
+    object_type = 'channels'
+    
+    # Получаем список каналов пользователя
+    user = await db.get_user(user_id=message.chat.id)
+    objects = await db.get_user_channels(
+        user_id=user.id,
+        limit=10,
+        sort_by=service
+    )
+    
     await message.answer(
-        text("subscribe_text"),
-        reply_markup=keyboards.profile_sub_choice()
+        text('subscribe_text:channels').format(
+            get_subscribe_list_resources(
+                objects=objects,
+                object_type=object_type,
+                sort_by=service
+            )
+        ),
+        reply_markup=keyboards.choice_period(
+            service=service
+        )
     )
 
 
