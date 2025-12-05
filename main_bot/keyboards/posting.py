@@ -33,8 +33,12 @@ class InlinePosting(InlineKeyboardBuilder):
             text=text('posting:content_plan'),
             callback_data='MenuPosting|content_plan'
         )
+        kb.button(
+            text=text('back:button'),
+            callback_data='MenuPosting|back'
+        )
 
-        kb.adjust(1, 1, 1)
+        kb.adjust(1, 1, 1, 1)
         return kb.as_markup()
 
     @classmethod
