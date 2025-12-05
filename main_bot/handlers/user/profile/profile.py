@@ -1,4 +1,5 @@
 from aiogram import types, Router, F
+from aiogram.fsm.context import FSMContext
 
 from main_bot.database.db import db
 from main_bot.database.user.model import User
@@ -42,10 +43,30 @@ async def show_balance(message: types.Message, user: User):
     )
 
 
-async def show_timezone(message: types.Message):
+async def show_timezone(message: types.Message, state: FSMContext):
     """Показать меню настройки часового пояса"""
-    from main_bot.handlers.user.profile.settings import show_timezone as settings_timezone
-    await settings_timezone(message)
+    from main_bot.database.db import db
+    from datetime import timedelta, datetime
+    from main_bot.states.user import Setting
+    
+    user = await db.get_user(user_id=message.chat.id)
+    delta = timedelta(hours=abs(user.timezone))
+
+    if user.timezone > 0:
+        timezone = datetime.utcnow() + delta
+    else:
+        timezone = datetime.utcnow() - delta
+
+    await message.answer(
+        text('input_timezone').format(
+            f"+{user.timezone}" if user.timezone > 0 else user.timezone,
+            timezone.strftime('%H:%M')
+        ),
+        reply_markup=keyboards.back(
+            data='InputTimezoneCancel'
+        )
+    )
+    await state.set_state(Setting.input_timezone)
 
 
 async def show_folders(message: types.Message):
@@ -93,11 +114,10 @@ async def show_support(message: types.Message, state: FSMContext):
     """Показать информацию о поддержке"""
     from main_bot.states.user import Support
     await message.answer(
-        "support_feedback": "📝 <b>Книга жалоб и предложений</b>\n\n"
-"Здесь вы можете оставить идеи по улучшению сервиса или сообщить о проблеме.\n\n"
-"❗️ Это не чат — одно сообщение рассматривается как один запрос.\nНужен новый вопрос → создайте новый тикет.\n\n"
-"✍️ Напишите ваше сообщение:"
-
+        "📝 <b>Книга жалоб и предложений</b>\n\n"
+        "Здесь вы можете оставить свои предложения по улучшению сервиса "
+        "или сообщить о проблемах.\n\n"
+        "Напишите ваше сообщение:",
         reply_markup=keyboards.back(data='CancelSupport'),
         parse_mode="HTML"
     )
