@@ -66,6 +66,12 @@ async def cancel(call: types.CallbackQuery, state: FSMContext):
     await show_top_up(call.message, state)
 
 
+async def back_to_method(call: types.CallbackQuery, state: FSMContext):
+    """Возврат к выбору способа оплаты с экрана ожидания"""
+    await call.message.delete()
+    await show_top_up(call.message, state)
+
+
 async def get_promo(message: types.Message, state: FSMContext, user: User):
     name = message.text
 
@@ -171,8 +177,7 @@ async def get_amount(message: types.Message, state: FSMContext):
     wait_msg = await message.answer(
         text('wait_payment').format(
             amount,
-            method_name,
-            amount
+            method_name
         ),
         reply_markup=keyboards.wait_payment(
             data="WaitBalancePaymentBack",
