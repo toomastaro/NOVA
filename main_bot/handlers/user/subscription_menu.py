@@ -37,6 +37,10 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
             'cor': show_transfer_sub_menu,
             'args': (call, state,)
         },
+        'info': {
+            'cor': show_info_menu,
+            'args': (call,)
+        },
         'back': {
             'cor': back_to_main,
             'args': (call.message,)
@@ -111,6 +115,12 @@ async def show_transfer_sub_menu(call: types.CallbackQuery, state: FSMContext):
     """Показать меню переноса подписки"""
     from main_bot.handlers.user.profile.transfer_subscription import show_transfer_sub_menu as transfer_menu
     await transfer_menu(call, state)
+
+
+async def show_info_menu(call: types.CallbackQuery):
+    """Показать меню информации"""
+    from main_bot.handlers.user.profile.info import show_info_menu as info_menu
+    await info_menu(call)
 
 
 async def back_to_main(message: types.Message):
