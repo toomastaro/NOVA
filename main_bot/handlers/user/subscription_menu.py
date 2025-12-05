@@ -40,7 +40,7 @@ async def choice(call: types.CallbackQuery):
 
 async def show_balance_menu(call: types.CallbackQuery):
     """Перенаправление на меню баланса из профиля"""
-    from main_bot.handlers.user.profile.balance import show_balance
+    from main_bot.handlers.user.profile.profile import show_balance
     from main_bot.database.db import db
     
     user = await db.get_user(user_id=call.from_user.id)
@@ -49,13 +49,13 @@ async def show_balance_menu(call: types.CallbackQuery):
 
 async def show_subscribe_menu(call: types.CallbackQuery):
     """Перенаправление на меню подписки из профиля"""
-    from main_bot.handlers.user.profile.subscribe import show_subscribe
+    from main_bot.handlers.user.profile.profile import show_subscribe
     await show_subscribe(call.message)
 
 
 async def show_referral_menu(call: types.CallbackQuery):
     """Перенаправление на меню реферальной системы из профиля"""
-    from main_bot.handlers.user.profile.referral import show_referral
+    from main_bot.handlers.user.profile.profile import show_referral
     from main_bot.database.db import db
     
     user = await db.get_user(user_id=call.from_user.id)

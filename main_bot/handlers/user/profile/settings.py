@@ -41,6 +41,31 @@ async def choice(call: types.CallbackQuery, state: FSMContext, user: User):
         await state.set_state(Setting.input_timezone)
 
 
+async def show_timezone(message: types.Message):
+    """Показать меню настройки часового пояса"""
+    from main_bot.database.db import db
+    from datetime import timedelta, datetime
+    from aiogram.fsm.context import FSMContext
+    
+    user = await db.get_user(user_id=message.chat.id)
+    delta = timedelta(hours=abs(user.timezone))
+
+    if user.timezone > 0:
+        timezone = datetime.utcnow() + delta
+    else:
+        timezone = datetime.utcnow() - delta
+
+    await message.answer(
+        text('input_timezone').format(
+            f"+{user.timezone}" if user.timezone > 0 else user.timezone,
+            timezone.strftime('%H:%M')
+        ),
+        reply_markup=keyboards.cancel(
+            data='InputTimezoneCancel'
+        )
+    )
+
+
 async def show_folders(message: types.Message):
     folders = await db.get_folders(message.chat.id)
 

@@ -21,8 +21,12 @@ class InlineProfile(InlineKeyboardBuilder):
         kb = cls()
 
         kb.button(
-            text=text('profile:settings'),
-            callback_data='MenuProfile|settings'
+            text=text('setting:timezone'),
+            callback_data='MenuProfile|timezone'
+        )
+        kb.button(
+            text=text('setting:folders'),
+            callback_data='MenuProfile|folders'
         )
         kb.button(
             text=text('reply_menu:support'),
@@ -33,7 +37,7 @@ class InlineProfile(InlineKeyboardBuilder):
             callback_data='MenuProfile|back'
         )
 
-        kb.adjust(1, 1, 1)
+        kb.adjust(1, 1, 1, 1)
         return kb.as_markup()
 
     @classmethod

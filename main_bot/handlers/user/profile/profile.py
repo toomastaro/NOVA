@@ -11,8 +11,12 @@ async def choice(call: types.CallbackQuery, user: User):
     await call.message.delete()
 
     menu = {
-        'settings': {
-            'cor': show_setting,
+        'timezone': {
+            'cor': show_timezone,
+            'args': (call.message,)
+        },
+        'folders': {
+            'cor': show_folders,
             'args': (call.message,)
         },
         'support': {
@@ -36,6 +40,18 @@ async def show_balance(message: types.Message, user: User):
         ),
         reply_markup=keyboards.profile_balance()
     )
+
+
+async def show_timezone(message: types.Message):
+    """Показать меню настройки часового пояса"""
+    from main_bot.handlers.user.profile.settings import show_timezone as settings_timezone
+    await settings_timezone(message)
+
+
+async def show_folders(message: types.Message):
+    """Показать меню папок"""
+    from main_bot.handlers.user.profile.settings import show_folders as settings_folders
+    await settings_folders(message)
 
 
 async def show_subscribe(message: types.Message):
