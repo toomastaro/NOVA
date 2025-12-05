@@ -21,18 +21,6 @@ class InlineProfile(InlineKeyboardBuilder):
         kb = cls()
 
         kb.button(
-            text=text('profile:balance'),
-            callback_data='MenuProfile|balance'
-        )
-        kb.button(
-            text=text('profile:subscribe'),
-            callback_data='MenuProfile|subscribe'
-        )
-        kb.button(
-            text=text('profile:referral'),
-            callback_data='MenuProfile|referral'
-        )
-        kb.button(
             text=text('profile:settings'),
             callback_data='MenuProfile|settings'
         )
@@ -45,7 +33,7 @@ class InlineProfile(InlineKeyboardBuilder):
             callback_data='MenuProfile|back'
         )
 
-        kb.adjust(2, 2, 1, 1)
+        kb.adjust(1, 1, 1)
         return kb.as_markup()
 
     @classmethod
@@ -483,4 +471,29 @@ class InlineProfile(InlineKeyboardBuilder):
         )
 
         kb.adjust(1)
+        return kb.as_markup()
+
+    @classmethod
+    def subscription_menu(cls):
+        """Меню подписки с балансом, подпиской и реферальной системой"""
+        kb = cls()
+
+        kb.button(
+            text=text('profile:balance'),
+            callback_data='MenuSubscription|balance'
+        )
+        kb.button(
+            text=text('profile:subscribe'),
+            callback_data='MenuSubscription|subscribe'
+        )
+        kb.button(
+            text=text('profile:referral'),
+            callback_data='MenuSubscription|referral'
+        )
+        kb.button(
+            text=text('back:button'),
+            callback_data='MenuSubscription|back'
+        )
+
+        kb.adjust(1, 1, 1, 1)
         return kb.as_markup()
