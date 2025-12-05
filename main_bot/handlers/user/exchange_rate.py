@@ -136,8 +136,22 @@ async def get_exchange_rate_of_custom_amount(message: types.Message, state: FSMC
         await message.answer(msg_text, reply_markup=keyboards.menu())
 
 
+async def back_to_main_menu(call: types.CallbackQuery):
+    """Возврат в главное меню"""
+    from main_bot.keyboards.common import Reply
+    await call.message.delete()
+    await call.message.answer(
+        "Главное меню",
+        reply_markup=Reply.menu()
+    )
+
+
 def hand_add():
     router = Router()
+    
+    router.callback_query.register(back_to_main_menu,
+                                   F.data == "MenuExchangeRate|back")
+    
     router.callback_query.register(back_to_start_exchange_rate,
                                    F.data == "MenuExchangeRate|settings|back")
 

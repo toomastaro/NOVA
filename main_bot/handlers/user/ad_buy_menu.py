@@ -24,3 +24,14 @@ async def show_creatives(call: types.CallbackQuery):
 async def show_purchases(call: types.CallbackQuery):
     """Показать меню рекламных закупов"""
     await call.message.edit_text("💰 Рекламные закупы", reply_markup=InlineAdPurchase.menu())
+
+
+@router.callback_query(F.data == "AdBuyMenu|back")
+async def back_to_main(call: types.CallbackQuery):
+    """Возврат в главное меню"""
+    from main_bot.keyboards.common import Reply
+    await call.message.delete()
+    await call.message.answer(
+        "Главное меню",
+        reply_markup=Reply.menu()
+    )

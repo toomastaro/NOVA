@@ -31,6 +31,10 @@ async def choice(call: types.CallbackQuery, user: User):
             'cor': show_support,
             'args': (call.message,)
         },
+        'back': {
+            'cor': back_to_main,
+            'args': (call.message,)
+        },
     }
 
     cor, args = menu[temp[1]].values()
@@ -90,6 +94,15 @@ async def show_support(message: types.Message):
         "или сообщить о проблемах.\n\n"
         "Напишите ваше сообщение:",
         reply_markup=keyboards.back(data='Support|back')
+    )
+
+
+async def back_to_main(message: types.Message):
+    """Возврат в главное меню"""
+    from main_bot.keyboards.common import Reply
+    await message.answer(
+        "Главное меню",
+        reply_markup=Reply.menu()
     )
 
 

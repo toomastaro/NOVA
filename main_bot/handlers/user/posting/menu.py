@@ -24,6 +24,10 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
             'cor': show_content,
             'args': (call.message,)
         },
+        'back': {
+            'cor': back_to_main,
+            'args': (call.message,)
+        },
     }
 
     cor, args = menu[temp[1]].values()
@@ -100,6 +104,15 @@ async def show_content(message: types.Message):
         reply_markup=keyboards.choice_object_content(
             channels=channels
         )
+    )
+
+
+async def back_to_main(message: types.Message):
+    """Возврат в главное меню"""
+    from main_bot.keyboards.common import Reply
+    await message.answer(
+        "Главное меню",
+        reply_markup=Reply.menu()
     )
 
 
