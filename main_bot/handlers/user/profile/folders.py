@@ -96,8 +96,6 @@ async def choice_object(call: types.CallbackQuery, state: FSMContext, user: User
 
         if not folder_edit:
             # Cancel creation -> go back to settings
-            from main_bot.keyboards import keyboards
-            from main_bot.utils.lang.language import text
             return await call.message.answer(
                 text('start_profile_text'),
                 reply_markup=keyboards.profile_menu()
@@ -207,8 +205,6 @@ async def cancel(call: types.CallbackQuery, state: FSMContext, user: User):
         await show_manage_folder(call.message, state)
     else:
         # Cancel creation -> back to settings
-        from main_bot.keyboards import keyboards
-        from main_bot.utils.lang.language import text
         await call.message.answer(
             text('start_profile_text'),
             reply_markup=keyboards.profile_menu()
