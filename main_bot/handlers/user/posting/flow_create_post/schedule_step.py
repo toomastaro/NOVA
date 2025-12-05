@@ -185,7 +185,7 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
     await call.message.edit_text(
         text("choice_channels:post").format(
             len(chosen),
-            "\\n".join(
+            "\n".join(
                 text("resource_title").format(obj.title) for obj in display_objects
             )
         ),
@@ -257,7 +257,7 @@ async def finish_params(call: types.CallbackQuery, state: FSMContext):
         return await call.message.edit_text(
             text("choice_channels:post").format(
                 len(chosen),
-                "\\n".join(
+                "\n".join(
                     text("resource_title").format(obj.title) for obj in display_objects
                 )
             ),
@@ -332,7 +332,7 @@ async def finish_params(call: types.CallbackQuery, state: FSMContext):
 
         await call.message.edit_text(
             text("manage:post:accept:public").format(
-                "\\n".join(
+                "\n".join(
                     text("resource_title").format(obj.title) for obj in objects
                     if obj.chat_id in chosen[:10]
                 ),
@@ -411,7 +411,7 @@ async def choice_delete_time(call: types.CallbackQuery, state: FSMContext):
     await call.message.edit_text(
         text("manage:post:finish_params").format(
             len(chosen),
-            "\\n".join(
+            "\n".join(
                 text("resource_title").format(obj.title) for obj in objects
                 if obj.chat_id in chosen[:10]
             )
@@ -459,7 +459,7 @@ async def cancel_send_time(call: types.CallbackQuery, state: FSMContext):
     await call.message.edit_text(
         text("manage:post:finish_params").format(
             len(chosen),
-            "\\n".join(
+            "\n".join(
                 text("resource_title").format(obj.title) for obj in objects
                 if obj.chat_id in chosen[:10]
             )
@@ -572,7 +572,7 @@ async def get_send_time(message: types.Message, state: FSMContext):
     await message.answer(
         text("manage:post:accept:date").format(
             *date_values,
-            "\\n".join(
+            "\n".join(
                 text("resource_title").format(obj.title) for obj in objects
                 if obj.chat_id in chosen[:10]
             ),

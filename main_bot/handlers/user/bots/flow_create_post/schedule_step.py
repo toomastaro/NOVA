@@ -99,7 +99,7 @@ async def finish_params(call: types.CallbackQuery, state: FSMContext):
     if temp[1] == "public":
         await call.message.edit_text(
             text("manage:post_bot:accept:public").format(
-                "\\n".join(
+                "\n".join(
                     text("resource_title").format(
                         obj.emoji_id,
                         obj.title
@@ -161,7 +161,7 @@ async def choice_delete_time(call: types.CallbackQuery, state: FSMContext):
     await call.message.edit_text(
         text("manage:post_bot:finish_params").format(
             len(chosen),
-            "\\n".join(
+            "\n".join(
                 text("resource_title").format(
                     obj.emoji_id,
                     obj.title
@@ -205,7 +205,7 @@ async def send_time_inline(call: types.CallbackQuery, state: FSMContext):
         return await call.message.edit_text(
             text("manage:post_bot:finish_params").format(
                 len(chosen),
-                "\\n".join(
+                "\n".join(
                     text("resource_title").format(
                         obj.emoji_id,
                         obj.title
@@ -329,7 +329,7 @@ async def get_send_time(message: types.Message, state: FSMContext):
     await message.answer(
         text("manage:post_bot:accept:date").format(
             *date_values,
-            "\\n".join(
+            "\n".join(
                 text("resource_title").format(
                     obj.emoji_id,
                     obj.title

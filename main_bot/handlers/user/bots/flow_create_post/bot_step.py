@@ -165,7 +165,7 @@ async def choice_bots(call: types.CallbackQuery, state: FSMContext):
     await call.message.edit_text(
         text("choice_bots:post").format(
             len(chosen),
-            "\\n".join(
+            "\n".join(
                 text("resource_title").format(
                     obj.emoji_id,
                     obj.title

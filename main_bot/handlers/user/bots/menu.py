@@ -76,7 +76,7 @@ async def show_choice_channel(message: types.Message, state: FSMContext):
     await message.answer(
         text("choice_bots:post").format(
             len(chosen),
-            "\\n".join(
+            "\n".join(
                 text("resource_title").format(
                     obj.emoji_id,
                     obj.title

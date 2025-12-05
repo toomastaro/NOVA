@@ -294,7 +294,7 @@ async def cancel_value(call: types.CallbackQuery, state: FSMContext):
         return await call.message.answer(
             text("choice_channels:post").format(
                 len(chosen),
-                "\\n".join(
+                "\n".join(
                     text("resource_title").format(obj.title) for obj in display_objects
                 )
             ),
@@ -450,7 +450,7 @@ async def get_value(message: types.Message, state: FSMContext):
         return await message.answer(
             text("choice_channels:post").format(
                 len(chosen),
-                "\\n".join(
+                "\n".join(
                     text("resource_title").format(obj.title) for obj in display_objects
                 )
             ),

@@ -63,7 +63,7 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
             # Возврат к финальным параметрам
             message_text = text("manage:post:finish_params").format(
                 len(chosen),
-                "\\n".join(
+                "\n".join(
                     text("resource_title").format(obj.title) for obj in objects
                     if obj.chat_id in chosen[:10]
                 )
@@ -120,14 +120,14 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
     if send_time:
         message_text = text("manage:post:success:date").format(
             *date_values,
-            "\\n".join(
+            "\n".join(
                 text("resource_title").format(obj.title) for obj in objects
                 if obj.chat_id in chosen[:10]
             )
         )
     else:
         message_text = text("manage:post:success:public").format(
-            "\\n".join(
+            "\n".join(
                 text("resource_title").format(obj.title) for obj in objects
                 if obj.chat_id in chosen[:10]
             )

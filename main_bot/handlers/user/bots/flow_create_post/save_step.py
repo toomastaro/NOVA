@@ -52,7 +52,7 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
         else:
             message_text = text("manage:post_bot:finish_params").format(
                 len(chosen),
-                "\\n".join(
+                "\n".join(
                     text("resource_title").format(
                         obj.emoji_id,
                         obj.title
@@ -96,7 +96,7 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
     if send_time:
         message_text = text("manage:post_bot:success:date").format(
             *date_values,
-            "\\n".join(
+            "\n".join(
                 text("resource_title").format(
                     obj.emoji_id,
                     obj.title
@@ -106,7 +106,7 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
         )
     else:
         message_text = text("manage:post_bot:success:public").format(
-            "\\n".join(
+            "\n".join(
                 text("resource_title").format(
                     obj.emoji_id,
                     obj.title

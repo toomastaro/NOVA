@@ -126,7 +126,7 @@ async def manage_post(call: types.CallbackQuery, state: FSMContext):
         return await call.message.answer(
             text("manage:post_bot:finish_params").format(
                 len(chosen),
-                "\\n".join(
+                "\n".join(
                     text("resource_title").format(
                         obj.emoji_id,
                         obj.title

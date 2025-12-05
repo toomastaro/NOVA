@@ -83,7 +83,7 @@ async def get_message(message: types.Message, state: FSMContext):
             if buttons:
                 rows.append("|".join(buttons))
         if rows:
-            buttons_str = "\\n".join(rows)
+            buttons_str = "\n".join(rows)
 
     # Создание поста в БД с выбранными каналами
     post = await db.add_post(

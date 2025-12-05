@@ -58,7 +58,7 @@ async def get_story_report_text(chosen, objects):
             text("resource_title").format(obj.title) + f" ({posted}/{limit})"
         )
 
-    return "\\n".join(lines)
+    return "\n".join(lines)
 
 
 async def set_folder_content(resource_id, chosen, chosen_folders):
