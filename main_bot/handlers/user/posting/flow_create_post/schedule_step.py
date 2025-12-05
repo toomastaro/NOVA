@@ -499,6 +499,7 @@ async def get_send_time(message: types.Message, state: FSMContext):
     Получение времени отправки от пользователя.
     
     Поддерживаемые форматы:
+    - HH:MM (только время, дата = сегодня)
     - DD.MM.YYYY HH:MM
     - HH:MM DD.MM.YYYY
     
@@ -517,6 +518,11 @@ async def get_send_time(message: types.Message, state: FSMContext):
         # Формат: HH:MM DD.MM.YYYY
         elif len(parts) == 2 and ':' in parts[0] and len(parts[1].split('.')) == 3:
             date = datetime.strptime(f"{parts[1]} {parts[0]}", "%d.%m.%Y %H:%M")
+        
+        # Формат: HH:MM (только время, используем сегодняшнюю дату)
+        elif len(parts) == 1 and ':' in parts[0]:
+            today = datetime.now().strftime("%d.%m.%Y")
+            date = datetime.strptime(f"{today} {parts[0]}", "%d.%m.%Y %H:%M")
         
         else:
             raise ValueError("Invalid format")
