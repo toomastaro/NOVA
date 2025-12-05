@@ -11,21 +11,9 @@ async def choice(call: types.CallbackQuery, user: User):
     await call.message.delete()
 
     menu = {
-        'balance': {
-            'cor': show_balance,
-            'args': (call.message, user,)
-        },
-        'subscribe': {
-            'cor': show_subscribe,
-            'args': (call.message,)
-        },
         'settings': {
             'cor': show_setting,
             'args': (call.message,)
-        },
-        'referral': {
-            'cor': show_referral,
-            'args': (call.message, user,)
         },
         'support': {
             'cor': show_support,

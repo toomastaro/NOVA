@@ -1,6 +1,6 @@
 from aiogram import Router
 
-from . import menu, start, set_resource, support, commands, exchange_rate, novastat, ad_creative, ad_buy_menu
+from . import menu, start, set_resource, support, commands, exchange_rate, novastat, ad_creative, ad_buy_menu, subscription_menu
 from .profile import get_router as profile_router
 from .posting import get_router as posting_router
 from .stories import get_router as stories_router
@@ -22,6 +22,7 @@ def get_router():
         bots_router(),
         ad_creative.get_router(),
         ad_buy_menu.router,
+        subscription_menu.router,
     ]
 
     router = Router(name='User')

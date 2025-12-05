@@ -30,6 +30,10 @@ async def choice(message: types.Message, state: FSMContext):
             'cor': profile,
             'args': (message,)
         },
+        text('reply_menu:subscription'): {
+            'cor': subscription,
+            'args': (message,)
+        },
     }
 
     cor, args = menu[message.text].values()
@@ -74,6 +78,14 @@ async def profile(message: types.Message):
     )
 
 
+async def subscription(message: types.Message):
+    """Меню подписки с балансом, подпиской и реферальной системой"""
+    await message.answer(
+        "💳 <b>Подписка</b>\n\nВ этом разделе вы можете управлять балансом, подписками и реферальной системой.",
+        reply_markup=keyboards.subscription_menu()
+    )
+
+
 def hand_add():
     router = Router()
     router.message.register(
@@ -86,6 +98,7 @@ def hand_add():
                 text('reply_menu:bots'),
                 text('reply_menu:support'),
                 text('reply_menu:profile'),
+                text('reply_menu:subscription'),
             }
         )
     )
