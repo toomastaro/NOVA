@@ -59,7 +59,7 @@ async def get_pay_info_text(state: FSMContext, user: User) -> str:
         usd_rate = 100
 
     total_price_usd = round(total_price / usd_rate, 2)
-    total_price_stars = int(total_price / 2)
+    total_price_stars = int(total_price / 1.2)  # Курс: 1 Star = 1.2₽
 
     total_count_resources = data.get('total_count_resources')
     chosen = data.get('chosen')

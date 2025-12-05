@@ -181,7 +181,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext, user: User):
 
     # stars
     else:
-        stars_amount = int(total_price / 2)
+        stars_amount = int(total_price / 1.2)  # Курс: 1 Star = 1.2₽
         prices = [LabeledPrice(label="XTR", amount=stars_amount)]
         order_id = str(random.randint(1, 999))
         pay_url = await call.bot.create_invoice_link(
@@ -428,10 +428,8 @@ async def get_promo(message: types.Message, state: FSMContext, user: User):
 
 
 async def success(message: types.Message, state: FSMContext, user: User):
-    await message.bot.refund_star_payment(
-        message.from_user.id,
-        message.successful_payment.telegram_payment_charge_id
-    )
+    # ВАЖНО: refund_star_payment убран - он делал возврат денег!
+    # Используйте его только для тестирования или реального возврата средств
 
     data = await state.get_data()
 
