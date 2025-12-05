@@ -1,0 +1,100 @@
+"""
+Модуль обработки ввода текста/сообщения для поста.
+
+Содержит логику:
+- Получение первичного сообщения от пользователя
+- Отмена создания поста
+- Парсинг текста, медиа и кнопок из сообщения
+"""
+import logging
+from aiogram import types
+from aiogram.fsm.context import FSMContext
+
+from main_bot.database.db import db
+from main_bot.handlers.user.menu import start_posting
+from main_bot.utils.message_utils import answer_post
+from main_bot.utils.lang.language import text
+from main_bot.utils.schemas import MessageOptions, Media
+
+logger = logging.getLogger(__name__)
+
+
+async def cancel_message(call: types.CallbackQuery, state: FSMContext):
+    """
+    Отмена создания поста - очистка состояния и возврат в меню постинга.
+    
+    Args:
+        call: Callback query от кнопки отмены
+        state: FSM контекст
+    """
+    await state.clear()
+    await call.message.delete()
+    await start_posting(call.message)
+
+
+async def get_message(message: types.Message, state: FSMContext):
+    """
+    Получение первичного сообщения для создания поста.
+    
+    Обрабатывает:
+    - Текст сообщения (с проверкой длины)
+    - Медиа (фото, видео, анимация)
+    - Inline кнопки (парсинг в строковый формат)
+    
+    Создает запись поста в БД и показывает превью.
+    
+    Args:
+        message: Сообщение от пользователя
+        state: FSM контекст
+    """
+    # Проверка длины текста
+    message_text_length = len(message.caption or message.text or "")
+    if message_text_length > 1024:
+        return await message.answer(
+            text('error_length_text')
+        )
+
+    # Парсинг сообщения в MessageOptions
+    dump_message = message.model_dump()
+    if dump_message.get("photo"):
+        dump_message["photo"] = Media(file_id=message.photo[-1].file_id)
+
+    message_options = MessageOptions(**dump_message)
+    if message_text_length:
+        if message_options.text:
+            message_options.text = message.html_text
+        if message_options.caption:
+            message_options.caption = message.html_text
+
+    # Парсинг inline кнопок
+    buttons_str = None
+    if message.reply_markup and message.reply_markup.inline_keyboard:
+        rows = []
+        for row in message.reply_markup.inline_keyboard:
+            buttons = []
+            for button in row:
+                if button.url:
+                    buttons.append(f"{button.text} — {button.url}")
+            if buttons:
+                rows.append("|".join(buttons))
+        if rows:
+            buttons_str = "\\n".join(rows)
+
+    # Создание поста в БД
+    post = await db.add_post(
+        return_obj=True,
+        chat_ids=[],
+        admin_id=message.from_user.id,
+        message_options=message_options.model_dump(),
+        buttons=buttons_str
+    )
+
+    # Обновление состояния
+    await state.clear()
+    await state.update_data(
+        show_more=False,
+        post=post
+    )
+
+    # Показ превью поста
+    await answer_post(message, state)
