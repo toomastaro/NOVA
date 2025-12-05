@@ -24,7 +24,13 @@ logger = logging.getLogger(__name__)
 
 
 async def delete_bot_posts(user_bot: UserBot, message_ids: list[dict]):
-    """Удалить сообщения бота"""
+    """
+    Удалить сообщения бота.
+    
+    Args:
+        user_bot: Объект пользовательского бота
+        message_ids: Список словарей с chat_id и message_id для удаления
+    """
     async with BotManager(user_bot.token) as bot_manager:
         validate = await bot_manager.validate_token()
         if not validate:
@@ -37,11 +43,16 @@ async def delete_bot_posts(user_bot: UserBot, message_ids: list[dict]):
             try:
                 await bot_manager.bot.delete_message(**message)
             except Exception as e:
-                logger.error(f"Error deleting bot message: {e}", exc_info=True)
+                logger.error(f"Ошибка при удалении сообщения бота: {e}", exc_info=True)
 
 
 async def start_delete_bot_posts():
-    """Периодическая задача: удаление сообщений ботов по расписанию"""
+    """
+    Периодическая задача: удаление сообщений ботов по расписанию.
+    
+    Проверяет все посты ботов с установленным временем удаления
+    и удаляет сообщения, если время истекло.
+    """
     bot_posts = await db.get_bot_posts_for_clear_messages()
 
     for bot_post in bot_posts:
@@ -58,9 +69,21 @@ async def start_delete_bot_posts():
 
 
 async def send_bot_messages(other_bot: Bot, bot_post: BotPost, users, filepath):
-    """Отправить сообщения через бота"""
+    """
+    Отправить сообщения через бота всем пользователям.
+    
+    Args:
+        other_bot: Экземпляр бота для отправки
+        bot_post: Объект поста для рассылки
+        users: Список ID пользователей для отправки
+        filepath: Путь к медиафайлу (если есть)
+        
+    Returns:
+        Словарь с результатами отправки
+    """
     message_options = MessageOptionsHello(**bot_post.message)
 
+    # Определяем тип сообщения и соответствующую функцию отправки
     if message_options.text:
         cor = other_bot.send_message
     elif message_options.photo:
@@ -75,6 +98,7 @@ async def send_bot_messages(other_bot: Bot, bot_post: BotPost, users, filepath):
 
     options = message_options.model_dump()
 
+    # Удаляем неиспользуемые поля
     try:
         options.pop("show_caption_above_media")
         options.pop("disable_web_page_preview")
@@ -82,6 +106,7 @@ async def send_bot_messages(other_bot: Bot, bot_post: BotPost, users, filepath):
     except KeyError:
         pass
 
+    # Удаляем поля в зависимости от типа сообщения
     if message_options.text:
         options.pop("photo")
         options.pop("video")
@@ -95,8 +120,7 @@ async def send_bot_messages(other_bot: Bot, bot_post: BotPost, users, filepath):
         options.pop("photo")
         options.pop("animation")
         options.pop("text")
-    # animation
-    else:
+    else:  # animation
         options.pop("photo")
         options.pop("video")
         options.pop("text")
@@ -106,12 +130,13 @@ async def send_bot_messages(other_bot: Bot, bot_post: BotPost, users, filepath):
     success = 0
     message_ids = []
 
+    # Отправка сообщений всем пользователям
     for user in users:
         try:
             options["chat_id"] = user
             if bot_post.text_with_name:
                 get_user = await other_bot.get_chat(user)
-                added_text = f"{get_user.username or get_user.first_name}\\n\\n"
+                added_text = f"{get_user.username or get_user.first_name}\n\n"
 
                 if message_options.text:
                     options["text"] = added_text + message_options.text
@@ -122,7 +147,7 @@ async def send_bot_messages(other_bot: Bot, bot_post: BotPost, users, filepath):
             message_ids.append({"message_id": message.message_id, "chat_id": user})
             success += 1
         except Exception as e:
-            logger.error(f"Error sending bot message to user {user}: {e}", exc_info=True)
+            logger.error(f"Ошибка при отправке сообщения бота пользователю {user}: {e}", exc_info=True)
 
         await asyncio.sleep(0.25)
 
@@ -130,7 +155,21 @@ async def send_bot_messages(other_bot: Bot, bot_post: BotPost, users, filepath):
 
 
 async def process_bot(user_bot: UserBot, bot_post: BotPost, users, filepath):
-    """Обработать отправку через бота"""
+    """
+    Обработать отправку через бота.
+    
+    Args:
+        user_bot: Объект пользовательского бота
+        bot_post: Объект поста для рассылки
+        users: Список ID пользователей
+        filepath: Путь к медиафайлу
+        
+    Returns:
+        Результаты отправки
+        
+    Raises:
+        Exception: При проблемах с токеном или статусом бота
+    """
     async with BotManager(user_bot.token) as bot_manager:
         validate = await bot_manager.validate_token()
 
@@ -149,11 +188,20 @@ async def process_bot(user_bot: UserBot, bot_post: BotPost, users, filepath):
 
 
 async def send_bot_post(bot_post: BotPost):
-    """Отправить пост через боты"""
+    """
+    Отправить пост через ботов.
+    
+    Обрабатывает отправку поста через всех ботов, привязанных к каналам.
+    Использует семафор для ограничения параллельных запросов.
+    
+    Args:
+        bot_post: Объект поста для отправки
+    """
     users_count = 0
     semaphore = asyncio.Semaphore(5)
 
     async def process_semaphore(*args):
+        """Обертка для ограничения параллельных запросов"""
         async with semaphore:
             return await process_bot(*args)
 
@@ -174,6 +222,7 @@ async def send_bot_post(bot_post: BotPost):
     tasks = []
     user_bot_objects = []
 
+    # Подготовка задач для каждого канала
     for chat_id in bot_post.chat_ids:
         channel = await db.get_channel_by_chat_id(chat_id)
         if not channel.subscribe:
@@ -203,6 +252,7 @@ async def send_bot_post(bot_post: BotPost):
     start_timestamp = int(time.time())
     end_timestamp = int(time.time())
     
+    # Выполнение всех задач
     if tasks:
         if file_id and filepath:
             await bot.download(file_id, filepath)
@@ -212,12 +262,14 @@ async def send_bot_post(bot_post: BotPost):
             if not isinstance(i, dict):
                 continue
 
+    # Удаление временного файла
     if file_id and filepath:
         try:
             os.remove(filepath)
         except Exception as e:
-            logger.error(f"Error removing file {filepath}: {e}", exc_info=True)
+            logger.error(f"Ошибка при удалении файла {filepath}: {e}", exc_info=True)
 
+    # Обновление статуса поста
     await db.update_bot_post(
         post_id=bot_post.id,
         success_send=success_count,
@@ -230,7 +282,11 @@ async def send_bot_post(bot_post: BotPost):
 
 
 async def send_bot_posts():
-    """Периодическая задача: отправка постов через ботов"""
+    """
+    Периодическая задача: отправка постов через ботов.
+    
+    Получает все посты, готовые к отправке, и запускает их обработку.
+    """
     posts = await db.get_bot_post_for_send()
     if not posts:
         return

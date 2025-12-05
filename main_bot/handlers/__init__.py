@@ -4,21 +4,16 @@ from aiogram import Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
-from apscheduler.triggers.interval import IntervalTrigger
 from dotenv import load_dotenv
 
 
 from main_bot.database.db import db
 from main_bot.utils.middlewares import GetUserMiddleware, ErrorMiddleware
-from main_bot.utils.schedulers import send_posts, unpin_posts, delete_posts, send_stories, send_bot_posts, \
-    check_subscriptions, start_delete_bot_posts, update_exchange_rates_in_db, mt_clients_self_check
+from main_bot.utils.schedulers import init_scheduler
 from .user import get_router as user_router
 from .admin import get_router as admin_router
 
 load_dotenv()
-
-
-RUB_USDT_TIMER = os.getenv('RUBUSDTTIMER')
 
 
 dp = Dispatcher(
@@ -40,84 +35,57 @@ def set_main_routers():
 
 
 def set_scheduler():
+    """
+    Инициализация планировщика задач.
+    
+    Использует init_scheduler для регистрации всех системных задач
+    с параметром replace_existing=True для предотвращения дублей при перезапуске.
+    
+    Использует SQLAlchemyJobStore для персистентности задач в PostgreSQL,
+    что позволяет восстанавливать все задачи после рестарта Docker контейнера.
+    """
+    from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
+    from config import Config
+    
+    # Формирование URL подключения к PostgreSQL
+    postgres_url = f"postgresql://{Config.PG_USER}:{Config.PG_PASS}@{Config.PG_HOST}/{Config.PG_DATABASE}"
+    
+    # Настройка jobstore для персистентности задач в БД
+    jobstores = {
+        'default': SQLAlchemyJobStore(url=postgres_url)
+    }
+    
+    # Создание планировщика с jobstore
     sch = AsyncIOScheduler(
+        jobstores=jobstores,
         timezone='Europe/Moscow'
     )
+    
+    # Регистрация задач очистки БД (выполняются в полночь)
     sch.add_job(
         func=db.clear_empty_bot_posts,
-        trigger=CronTrigger(
-            hour='0'
-        )
+        trigger=CronTrigger(hour='0'),
+        id="clear_empty_bot_posts_daily",
+        replace_existing=True,
+        name="Очистка пустых постов ботов"
     )
     sch.add_job(
         func=db.clear_empty_posts,
-        trigger=CronTrigger(
-            hour='0'
-        )
+        trigger=CronTrigger(hour='0'),
+        id="clear_empty_posts_daily",
+        replace_existing=True,
+        name="Очистка пустых постов"
     )
     sch.add_job(
         func=db.clear_empty_stories,
-        trigger=CronTrigger(
-            hour='0'
-        )
+        trigger=CronTrigger(hour='0'),
+        id="clear_empty_stories_daily",
+        replace_existing=True,
+        name="Очистка пустых сторис"
     )
-    sch.add_job(
-        func=send_posts,
-        trigger=CronTrigger(
-            second='*/10'
-        )
-    )
-    sch.add_job(
-        func=unpin_posts,
-        trigger=CronTrigger(
-            second='*/10'
-        )
-    )
-    sch.add_job(
-        func=delete_posts,
-        trigger=CronTrigger(
-            second='*/10'
-        )
-    )
-    sch.add_job(
-        func=start_delete_bot_posts,
-        trigger=CronTrigger(
-            second='*/10'
-        )
-    )
-    sch.add_job(
-        func=send_stories,
-        trigger=CronTrigger(
-            second='*/10'
-        )
-    )
-    sch.add_job(
-        func=send_bot_posts,
-        trigger=CronTrigger(
-            second='*/10'
-        )
-    )
-    sch.add_job(
-        func=check_subscriptions,
-        trigger=CronTrigger(
-            second="*/10"
-        )
-    )
-    sch.add_job(
-        func=update_exchange_rates_in_db,
-        trigger=IntervalTrigger(
-            seconds=int(RUB_USDT_TIMER)
-        )
-    )
-
-    sch.add_job(
-        func=mt_clients_self_check,
-        trigger=CronTrigger(
-            hour='3',
-            minute='0',
-            timezone='Europe/Moscow'
-        )
-    )
-
+    
+    # Регистрация всех системных задач через init_scheduler
+    init_scheduler(sch)
+    
     sch.start()
     sch.print_jobs()

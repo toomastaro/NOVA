@@ -18,7 +18,15 @@ logger = logging.getLogger(__name__)
 
 
 def get_sub_status(expire_time: int) -> tuple[str | None, int | None]:
-    """Получить статус подписки"""
+    """
+    Получить статус подписки на основе времени истечения.
+    
+    Args:
+        expire_time: Unix timestamp времени истечения подписки
+        
+    Returns:
+        Tuple из (статус, количество дней) или (None, None)
+    """
     if not expire_time:
         return None, None
 
@@ -34,7 +42,12 @@ def get_sub_status(expire_time: int) -> tuple[str | None, int | None]:
 
 
 async def check_subscriptions():
-    """Периодическая задача: проверка подписок и уведомления пользователей"""
+    """
+    Периодическая задача: проверка подписок и уведомления пользователей.
+    
+    Проверяет все активные каналы на истечение подписки и отправляет
+    уведомления пользователям за 3 дня, за 1 день и при истечении.
+    """
     for channel in await db.get_active_channels():
         for field, text_prefix in [
             ("subscribe", "post"),
@@ -62,13 +75,21 @@ async def check_subscriptions():
 
 
 async def mt_clients_self_check():
-    """Периодическая задача: самопроверка MT клиентов"""
+    """
+    Периодическая задача: самопроверка MT клиентов.
+    
+    Проверяет состояние всех активных MT клиентов:
+    - Наличие файла сессии
+    - Работоспособность клиента
+    - Обработка ошибок (AUTH_KEY_UNREGISTERED, FLOOD_WAIT и т.д.)
+    - Отправка алертов в поддержку при проблемах
+    """
     from sqlalchemy import select
 
     from main_bot.database.mt_client.model import MtClient
     from main_bot.utils.support_log import SupportAlert, send_support_alert
 
-    logger.info("Starting MtClient self-check")
+    logger.info("Запуск самопроверки MT клиентов")
 
     stmt = select(MtClient).where(MtClient.is_active == True)
     active_clients = await db.fetch(stmt)
@@ -78,7 +99,7 @@ async def mt_clients_self_check():
             session_path = Path(client.session_path)
             if not session_path.exists():
                 logger.error(
-                    f"Session file not found for client {client.id}: {session_path}"
+                    f"Файл сессии не найден для клиента {client.id}: {session_path}"
                 )
                 await db.update_mt_client(
                     client_id=client.id,
@@ -96,7 +117,7 @@ async def mt_clients_self_check():
                         client_alias=client.alias,
                         pool_type=client.pool_type,
                         error_code="SESSION_FILE_MISSING",
-                        manual_steps="Restore session file or delete client record.",
+                        manual_steps="Восстановить файл сессии или удалить запись клиента.",
                     ),
                 )
                 continue
@@ -132,7 +153,7 @@ async def mt_clients_self_check():
                                 client_alias=client.alias,
                                 pool_type=client.pool_type,
                                 error_code=error_code,
-                                manual_steps="Client session is dead. Replace session file or re-login.",
+                                manual_steps="Сессия клиента мертва. Замените файл сессии или выполните повторный вход.",
                             ),
                         )
 
@@ -153,7 +174,7 @@ async def mt_clients_self_check():
                                 client_alias=client.alias,
                                 pool_type=client.pool_type,
                                 error_code=error_code,
-                                manual_steps=f"Client is temporarily blocked for {updates['flood_wait_until'] - current_time}s. No action needed, just wait.",
+                                manual_steps=f"Клиент временно заблокирован на {updates['flood_wait_until'] - current_time}с. Действий не требуется, просто подождите.",
                             ),
                         )
                     else:
@@ -168,14 +189,14 @@ async def mt_clients_self_check():
                                 client_alias=client.alias,
                                 pool_type=client.pool_type,
                                 error_code=error_code,
-                                manual_steps="Investigate error code. Might need manual intervention.",
+                                manual_steps="Исследуйте код ошибки. Может потребоваться ручное вмешательство.",
                             ),
                         )
 
                 await db.update_mt_client(client_id=client.id, **updates)
 
         except Exception as e:
-            logger.error(f"Error checking MtClient {client.id}: {e}", exc_info=True)
+            logger.error(f"Ошибка при проверке MT клиента {client.id}: {e}", exc_info=True)
             await db.update_mt_client(
                 client_id=client.id,
                 status="ERROR",

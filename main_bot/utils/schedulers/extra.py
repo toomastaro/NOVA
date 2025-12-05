@@ -14,23 +14,38 @@ logger = logging.getLogger(__name__)
 
 
 async def update_exchange_rates_in_db():
-    """Периодическая задача: обновление курсов валют в БД"""
+    """
+    Периодическая задача: обновление курсов валют в БД.
+    
+    Получает актуальные курсы валют и обновляет их в базе данных.
+    Если курсы отсутствуют в БД, создает их из JSON файла.
+    """
+    # Получение текущего времени по МСК
     last_update = datetime.now(timezone(timedelta(hours=3)))
     last_update = last_update.replace(tzinfo=None)
+    
+    # Получение новых курсов валют
     new_update = await get_update_of_exchange_rates()
 
+    # Проверка наличия курсов в БД
     all_exchange_rate = await db.get_all_exchange_rate()
     if len(all_exchange_rate) == 0:
+        # Инициализация курсов из JSON файла
         json_format_exchange_rate = get_exchange_rates_from_json()
         for exchange_rate in json_format_exchange_rate:
             ed_id = int(exchange_rate["id"])
-            await db.add_exchange_rate(id=ed_id,
-                                       name=exchange_rate["name"],
-                                       rate=new_update[ed_id],
-                                       last_update=last_update)
+            await db.add_exchange_rate(
+                id=ed_id,
+                name=exchange_rate["name"],
+                rate=new_update[ed_id],
+                last_update=last_update
+            )
     else:
+        # Обновление существующих курсов
         for er_id in new_update.keys():
             if new_update[er_id] != 0:
-                await db.update_exchange_rate(exchange_rate_id=er_id,
-                                              rate=new_update[er_id],
-                                              last_update=last_update)
+                await db.update_exchange_rate(
+                    exchange_rate_id=er_id,
+                    rate=new_update[er_id],
+                    last_update=last_update
+                )

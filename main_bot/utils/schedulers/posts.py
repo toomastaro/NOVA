@@ -14,6 +14,8 @@ import time
 from pathlib import Path
 
 from aiogram import Bot
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.cron import CronTrigger
 from config import Config
 from instance_bot import bot
 from main_bot.database.db import db
@@ -474,3 +476,48 @@ async def delete_posts():
     await db.soft_delete_published_posts(
         row_ids=row_ids
     )
+
+
+def register_post_jobs(scheduler: AsyncIOScheduler):
+    """
+    Регистрация системных периодических задач для постов.
+    
+    Использует replace_existing=True для предотвращения дублей при перезапуске.
+    """
+    # Отправка отложенных постов (каждые 10 секунд)
+    scheduler.add_job(
+        func=send_posts,
+        trigger=CronTrigger(second='*/10'),
+        id="send_posts_periodic",
+        replace_existing=True,
+        name="Отправка отложенных постов"
+    )
+    
+    # Открепление постов (каждые 10 секунд)
+    scheduler.add_job(
+        func=unpin_posts,
+        trigger=CronTrigger(second='*/10'),
+        id="unpin_posts_periodic",
+        replace_existing=True,
+        name="Открепление постов"
+    )
+    
+    # Удаление постов (каждые 10 секунд)
+    scheduler.add_job(
+        func=delete_posts,
+        trigger=CronTrigger(second='*/10'),
+        id="delete_posts_periodic",
+        replace_existing=True,
+        name="Удаление постов по расписанию"
+    )
+    
+    # Проверка CPM отчетов (каждые 10 секунд)
+    scheduler.add_job(
+        func=check_cpm_reports,
+        trigger=CronTrigger(second='*/10'),
+        id="check_cpm_reports_periodic",
+        replace_existing=True,
+        name="Проверка CPM отчетов 24/48/72ч"
+    )
+    
+    logger.info("Зарегистрированы системные задачи для постов")
