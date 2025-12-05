@@ -97,9 +97,11 @@ async def choice(call: types.CallbackQuery, state: FSMContext, user: User):
     await call.message.delete()
 
     if temp[1] == 'cancel':
-        # Возврат в меню подписки
+        # Возврат в меню подписки с информацией о балансе
+        from main_bot.utils.lang.language import text
+        
         return await call.message.answer(
-            "💳 <b>Подписка</b>\n\nВ этом разделе вы можете управлять балансом, подписками и реферальной системой.",
+            text("balance_text").format(user.balance),
             reply_markup=keyboards.subscription_menu(),
             parse_mode="HTML"
         )
@@ -143,9 +145,11 @@ async def choice_period(call: types.CallbackQuery, state: FSMContext, user: User
 
     if temp[1] == 'back':
         await call.message.delete()
-        # Возврат в меню подписки
+        # Возврат в меню подписки с информацией о балансе
+        from main_bot.utils.lang.language import text
+        
         return await call.message.answer(
-            "💳 <b>Подписка</b>\n\nВ этом разделе вы можете управлять балансом, подписками и реферальной системой.",
+            text("balance_text").format(user.balance),
             reply_markup=keyboards.subscription_menu(),
             parse_mode="HTML"
         )

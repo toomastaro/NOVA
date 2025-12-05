@@ -17,9 +17,9 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
     await call.message.delete()
 
     menu = {
-        'balance': {
-            'cor': show_balance_menu,
-            'args': (call,)
+        'top_up': {
+            'cor': show_top_up_menu,
+            'args': (call, state,)
         },
         'subscribe': {
             'cor': show_subscribe_menu,
@@ -43,13 +43,10 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
     await cor(*args)
 
 
-async def show_balance_menu(call: types.CallbackQuery):
-    """Перенаправление на меню баланса из профиля"""
-    from main_bot.handlers.user.profile.profile import show_balance
-    from main_bot.database.db import db
-    
-    user = await db.get_user(user_id=call.from_user.id)
-    await show_balance(call.message, user)
+async def show_top_up_menu(call: types.CallbackQuery, state: FSMContext):
+    """Показать меню пополнения баланса"""
+    from main_bot.handlers.user.profile.balance import show_top_up
+    await show_top_up(call.message, state)
 
 
 async def show_subscribe_menu(call: types.CallbackQuery, state: FSMContext):

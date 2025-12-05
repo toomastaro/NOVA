@@ -481,8 +481,8 @@ class InlineProfile(InlineKeyboardBuilder):
         kb = cls()
 
         kb.button(
-            text=text('profile:balance'),
-            callback_data='MenuSubscription|balance'
+            text=text('balance:top_up'),
+            callback_data='MenuSubscription|top_up'
         )
         kb.button(
             text=text('profile:subscribe'),

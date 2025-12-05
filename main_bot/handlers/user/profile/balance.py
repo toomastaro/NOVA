@@ -11,10 +11,13 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
     await call.message.delete()
 
     if temp[1] == 'back':
-        # Возврат в меню подписки
-        from main_bot.keyboards import keyboards
+        # Возврат в меню подписки с информацией о балансе
+        from main_bot.database.db import db
+        from main_bot.utils.lang.language import text
+        
+        user = await db.get_user(user_id=call.from_user.id)
         await call.message.answer(
-            "💳 <b>Подписка</b>\n\nВ этом разделе вы можете управлять балансом, подписками и реферальной системой.",
+            text("balance_text").format(user.balance),
             reply_markup=keyboards.subscription_menu(),
             parse_mode="HTML"
         )

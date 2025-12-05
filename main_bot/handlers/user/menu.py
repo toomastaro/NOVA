@@ -84,8 +84,11 @@ async def profile(message: types.Message):
 
 async def subscription(message: types.Message):
     """Меню подписки с балансом, подпиской и реферальной системой"""
+    from main_bot.database.db import db
+    
+    user = await db.get_user(user_id=message.chat.id)
     await message.answer(
-        "💳 <b>Подписка</b>\n\nВ этом разделе вы можете управлять балансом, подписками и реферальной системой.",
+        text("balance_text").format(user.balance),
         reply_markup=keyboards.subscription_menu(),
         parse_mode="HTML"
     )
