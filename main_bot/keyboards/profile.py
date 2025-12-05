@@ -36,8 +36,12 @@ class InlineProfile(InlineKeyboardBuilder):
             text=text('profile:settings'),
             callback_data='MenuProfile|settings'
         )
+        kb.button(
+            text=text('reply_menu:support'),
+            callback_data='MenuProfile|support'
+        )
 
-        kb.adjust(2, 1)
+        kb.adjust(2, 2, 1)
         return kb.as_markup()
 
     @classmethod

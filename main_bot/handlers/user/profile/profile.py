@@ -27,6 +27,10 @@ async def choice(call: types.CallbackQuery, user: User):
             'cor': show_referral,
             'args': (call.message, user,)
         },
+        'support': {
+            'cor': show_support,
+            'args': (call.message,)
+        },
     }
 
     cor, args = menu[temp[1]].values()
@@ -74,6 +78,18 @@ async def show_referral(message: types.Message, user: User):
         reply_markup=keyboards.back(
             data='Referral|back'
         )
+    )
+
+
+async def show_support(message: types.Message):
+    """Показать информацию о поддержке"""
+    from main_bot.handlers.user.menu import start_profile
+    await message.answer(
+        "📝 <b>Книга жалоб и предложений</b>\n\n"
+        "Здесь вы можете оставить свои предложения по улучшению сервиса "
+        "или сообщить о проблемах.\n\n"
+        "Напишите ваше сообщение:",
+        reply_markup=keyboards.back(data='Support|back')
     )
 
 
