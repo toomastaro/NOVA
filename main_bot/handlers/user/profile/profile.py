@@ -6,14 +6,14 @@ from main_bot.keyboards import keyboards
 from main_bot.utils.lang.language import text
 
 
-async def choice(call: types.CallbackQuery, user: User):
+async def choice(call: types.CallbackQuery, user: User, state: FSMContext):
     temp = call.data.split('|')
     await call.message.delete()
 
     menu = {
         'timezone': {
             'cor': show_timezone,
-            'args': (call.message,)
+            'args': (call.message, state,)
         },
         'folders': {
             'cor': show_folders,
@@ -21,7 +21,7 @@ async def choice(call: types.CallbackQuery, user: User):
         },
         'support': {
             'cor': show_support,
-            'args': (call.message,)
+            'args': (call.message, state,)
         },
         'back': {
             'cor': back_to_main,
@@ -89,15 +89,19 @@ async def show_referral(message: types.Message, user: User):
     )
 
 
-async def show_support(message: types.Message):
+async def show_support(message: types.Message, state: FSMContext):
     """Показать информацию о поддержке"""
+    from main_bot.states.user import Support
     await message.answer(
-        "📝 <b>Книга жалоб и предложений</b>\n\n"
-        "Здесь вы можете оставить свои предложения по улучшению сервиса "
-        "или сообщить о проблемах.\n\n"
-        "Напишите ваше сообщение:",
-        reply_markup=keyboards.back(data='Support|back')
+        "support_feedback": "📝 <b>Книга жалоб и предложений</b>\n\n"
+"Здесь вы можете оставить идеи по улучшению сервиса или сообщить о проблеме.\n\n"
+"❗️ Это не чат — одно сообщение рассматривается как один запрос.\nНужен новый вопрос → создайте новый тикет.\n\n"
+"✍️ Напишите ваше сообщение:"
+
+        reply_markup=keyboards.back(data='CancelSupport'),
+        parse_mode="HTML"
     )
+    await state.set_state(Support.message)
 
 
 async def back_to_main(message: types.Message):

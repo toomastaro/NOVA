@@ -34,7 +34,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext, user: User):
                 f"+{user.timezone}" if user.timezone > 0 else user.timezone,
                 timezone.strftime('%H:%M')
             ),
-            reply_markup=keyboards.cancel(
+            reply_markup=keyboards.back(
                 data='InputTimezoneCancel'
             )
         )
