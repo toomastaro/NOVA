@@ -73,26 +73,16 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
                 text('error_min_choice')
             )
 
-        # Получаем все выбранные каналы для отображения
-        all_chosen_objects = await db.get_user_channels(
-            user_id=call.from_user.id,
-            from_array=chosen
+        # Сохраняем выбранные каналы
+        await state.update_data(chosen=chosen)
+        
+        # Переходим к вводу контента
+        await call.message.edit_text(
+            text('input_message'),
+            reply_markup=keyboards.cancel(data="InputPostCancel")
         )
-
-        return await call.message.edit_text(
-            text("manage:post:finish_params").format(
-                len(chosen),
-                "\\n".join(
-                    text("resource_title").format(
-                        obj.emoji_id,
-                        obj.title
-                    ) for obj in all_chosen_objects[:10]
-                )
-            ),
-            reply_markup=keyboards.finish_params(
-                obj=data.get('post')
-            )
-        )
+        await state.set_state(Posting.input_message)
+        return
 
     # Отмена / возврат назад
     if temp[1] == "cancel":

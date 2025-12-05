@@ -35,6 +35,10 @@ async def get_message(message: types.Message, state: FSMContext):
     Получение медиа для создания stories.
     Обрабатывает фото и видео с опциональным текстом.
     """
+    # Получаем выбранные каналы из state
+    data = await state.get_data()
+    chosen = data.get("chosen", [])
+    
     message_text_length = len(message.caption or "")
     if message_text_length > 1024:
         return await message.answer(
@@ -50,19 +54,38 @@ async def get_message(message: types.Message, state: FSMContext):
         if story_options.caption:
             story_options.caption = message.html_text
 
+    # Создаем story с выбранными каналами
     post = await db.add_story(
         return_obj=True,
-        chat_ids=[],
+        chat_ids=chosen,
         admin_id=message.from_user.id,
         story_options=story_options.model_dump(),
     )
 
     await state.clear()
     await state.update_data(
-        post=post
+        post=post,
+        chosen=chosen
     )
 
-    await answer_story(message, state)
+    # Получаем выбранные каналы для отображения
+    from main_bot.handlers.user.stories.flow_create_post.schedule_step import get_story_report_text
+    objects = await db.get_user_channels(
+        user_id=message.from_user.id,
+        sort_by="stories"
+    )
+    
+    # Показываем финальные параметры
+    await message.answer(
+        text("manage:story:finish_params").format(
+            len(chosen),
+            await get_story_report_text(chosen, objects)
+        ),
+        reply_markup=keyboards.finish_params(
+            obj=post,
+            data="FinishStoriesParams"
+        )
+    )
 
 
 async def manage_post(call: types.CallbackQuery, state: FSMContext):

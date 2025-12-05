@@ -124,16 +124,16 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
                 text('error_min_choice')
             )
 
-        return await call.message.edit_text(
-            text("manage:story:finish_params").format(
-                len(chosen),
-                await get_story_report_text(chosen, objects)
-            ),
-            reply_markup=keyboards.finish_params(
-                obj=data.get('post'),
-                data="FinishStoriesParams"
-            )
+        # Сохраняем выбранные каналы
+        await state.update_data(chosen=chosen)
+        
+        # Переходим к вводу медиа
+        await call.message.edit_text(
+            text('input_stories'),
+            reply_markup=keyboards.cancel(data="InputStoryCancel")
         )
+        await state.set_state(Stories.input_message)
+        return
 
     folders = await db.get_folders(
         user_id=call.from_user.id

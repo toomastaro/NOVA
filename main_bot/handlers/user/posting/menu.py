@@ -33,13 +33,49 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
 
 
 async def show_create_post(message: types.Message, state: FSMContext):
+    """
+    Начало создания поста.
+    
+    Новая логика:
+    1. Проверка наличия каналов с активной подпиской
+    2. Если нет - показ ошибки
+    3. Если есть - показ выбора каналов
+    """
+    # Получаем каналы пользователя с сортировкой по posting
+    channels = await db.get_user_channels(
+        user_id=message.chat.id,
+        sort_by="posting"
+    )
+    
+    # Проверяем наличие каналов с активной подпиской
+    channels_with_sub = [ch for ch in channels if ch.subscribe]
+    
+    if not channels_with_sub:
+        return await message.answer(
+            text('error_no_subscription_posting')
+        )
+    
+    # Получаем папки
+    folders = await db.get_folders(user_id=message.chat.id)
+    
+    # Инициализируем состояние
+    await state.update_data(
+        chosen=[],
+        chosen_folders=[],
+        current_folder_id=None
+    )
+    
+    # Показываем выбор каналов
     await message.answer(
-        text('input_message'),
-        reply_markup=keyboards.cancel(
-            data="InputPostCancel"
+        text("choice_channels:post").format(0, ""),
+        reply_markup=keyboards.choice_objects(
+            resources=channels_with_sub,
+            chosen=[],
+            folders=folders,
+            data="ChoicePostChannels"
         )
     )
-    await state.set_state(Posting.input_message)
+
 
 
 async def show_settings(message: types.Message):

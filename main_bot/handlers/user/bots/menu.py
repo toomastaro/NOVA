@@ -33,9 +33,29 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
 
 
 async def show_choice_channel(message: types.Message, state: FSMContext):
+    """
+    Начало создания рассылки для ботов.
+    
+    Новая логика:
+    1. Проверка наличия ботов в каналах
+    2. Проверка наличия ботов с активной подпиской
+    3. Если нет - показ ошибки
+    4. Если есть - показ выбора ботов
+    """
     channels = await db.get_bot_channels(message.chat.id)
     if not channels:
-        return await message.answer("Добавьте ботов в нужные каналы!")
+        return await message.answer(text('error_no_bots'))
+    
+    # Получаем ботов пользователя
+    bots = await db.get_user_bots(user_id=message.chat.id)
+    
+    # Проверяем наличие ботов с активной подпиской
+    bots_with_sub = [bot for bot in bots if bot.subscribe]
+    
+    if not bots_with_sub:
+        return await message.answer(
+            text('error_no_subscription_bots')
+        )
 
     objects = await db.get_user_channels(message.chat.id, from_array=[i.id for i in channels])
     folders = await db.get_folders(message.chat.id)
@@ -52,7 +72,7 @@ async def show_choice_channel(message: types.Message, state: FSMContext):
     await message.answer(
         text("choice_bots:post").format(
             len(chosen),
-            "\n".join(
+            "\\n".join(
                 text("resource_title").format(
                     obj.emoji_id,
                     obj.title

@@ -41,12 +41,16 @@ async def get_message(message: types.Message, state: FSMContext):
     - Медиа (фото, видео, анимация)
     - Inline кнопки (парсинг в строковый формат)
     
-    Создает запись поста в БД и показывает превью.
+    Создает запись поста в БД и показывает финальные параметры.
     
     Args:
         message: Сообщение от пользователя
         state: FSM контекст
     """
+    # Получаем выбранные каналы из state
+    data = await state.get_data()
+    chosen = data.get("chosen", [])
+    
     # Проверка длины текста
     message_text_length = len(message.caption or message.text or "")
     if message_text_length > 1024:
@@ -80,10 +84,10 @@ async def get_message(message: types.Message, state: FSMContext):
         if rows:
             buttons_str = "\\n".join(rows)
 
-    # Создание поста в БД
+    # Создание поста в БД с выбранными каналами
     post = await db.add_post(
         return_obj=True,
-        chat_ids=[],
+        chat_ids=chosen,
         admin_id=message.from_user.id,
         message_options=message_options.model_dump(),
         buttons=buttons_str
@@ -93,8 +97,27 @@ async def get_message(message: types.Message, state: FSMContext):
     await state.clear()
     await state.update_data(
         show_more=False,
-        post=post
+        post=post,
+        chosen=chosen
     )
 
-    # Показ превью поста
-    await answer_post(message, state)
+    # Получаем выбранные каналы для отображения
+    from main_bot.database.db import db as database
+    all_chosen_objects = await database.get_user_channels(
+        user_id=message.from_user.id,
+        from_array=chosen
+    )
+
+    # Показываем финальные параметры
+    await message.answer(
+        text("manage:post:finish_params").format(
+            len(chosen),
+            "\\n".join(
+                text("resource_title").format(
+                    obj.emoji_id,
+                    obj.title
+                ) for obj in all_chosen_objects[:10]
+            )
+        ),
+        reply_markup=keyboards.finish_params(obj=post)
+    )
