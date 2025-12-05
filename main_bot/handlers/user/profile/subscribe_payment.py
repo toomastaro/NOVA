@@ -267,7 +267,7 @@ async def align_subscribe(call: types.CallbackQuery, state: FSMContext, user: Us
         )
 
     if temp[1] == "cancel":
-        return await back_to_method(call, state, user)
+        return await back_to_method(call, state)
 
     if temp[1] == "align":
         chosen_objects = await db.get_user_channels(
@@ -302,7 +302,7 @@ async def align_subscribe(call: types.CallbackQuery, state: FSMContext, user: Us
             ),
             show_alert=True
         )
-        return await back_to_method(call, state, user)
+        return await back_to_method(call, state)
 
     if temp[1] == "choice_all":
         if len(align_chosen) == len(sub_objects):
@@ -338,16 +338,18 @@ async def cancel(call: types.CallbackQuery, state: FSMContext):
     await call.message.delete()
 
 
-async def back_to_method(call: types.CallbackQuery, state: FSMContext, user: User):
+async def back_to_method(call: types.CallbackQuery, state: FSMContext):
+    """Возврат к выбору способа оплаты с экрана ожидания"""
+    user = await db.get_user(user_id=call.from_user.id)
     data = await state.get_data()
+    
     if not data:
         await call.answer(text('keys_data_error'))
         return await call.message.delete()
 
-    await state.update_data(
-        method=None
-    )
+    await state.update_data(method=None)
     pay_info_text = await get_pay_info_text(state, user)
+    
     await call.message.edit_text(
         pay_info_text,
         reply_markup=keyboards.choice_payment_method(
@@ -356,6 +358,8 @@ async def back_to_method(call: types.CallbackQuery, state: FSMContext, user: Use
             has_promo=data.get('has_promo')
         )
     )
+
+
 
 
 async def get_promo(message: types.Message, state: FSMContext, user: User):
