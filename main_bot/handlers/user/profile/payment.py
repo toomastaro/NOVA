@@ -190,7 +190,7 @@ async def get_amount(message: types.Message, state: FSMContext):
         if method == PaymentMethod.CRYPTO_BOT:
             paid = await crypto_bot.is_paid(order_id)
 
-            if paid:
+            if not paid:  # Если НЕ оплачено - ждем
                 await asyncio.sleep(5)
                 continue
 
@@ -211,6 +211,7 @@ async def get_amount(message: types.Message, state: FSMContext):
             await state.set_state(Balance.pay_stars)
             return
 
+        # Если оплачено - начисляем баланс
         user = await db.get_user(
             user_id=message.from_user.id
         )

@@ -213,7 +213,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext, user: User):
         if method == PaymentMethod.CRYPTO_BOT:
             paid = await crypto_bot.is_paid(order_id)
 
-            if paid:
+            if not paid:  # Если НЕ оплачено - ждем
                 await asyncio.sleep(5)
                 continue
 
@@ -225,6 +225,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext, user: User):
             await state.set_state(Subscribe.pay_stars)
             return
 
+        # Если оплачено - начисляем подписку
         await give_subscribes(state, user)
 
         await state.clear()
