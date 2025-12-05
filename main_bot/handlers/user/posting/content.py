@@ -17,6 +17,38 @@ from main_bot.utils.lang.language import text
 logger = logging.getLogger(__name__)
 
 
+async def get_days_with_posts(channel_chat_id: int, year: int, month: int) -> set:
+    """
+    Получает множество дней месяца, в которые есть посты (включая удаленные).
+    
+    Args:
+        channel_chat_id: ID канала
+        year: Год
+        month: Месяц
+        
+    Returns:
+        set: Множество дней (int) с постами
+    """
+    from calendar import monthrange
+    _, last_day = monthrange(year, month)
+    month_start = datetime(year, month, 1)
+    month_end = datetime(year, month, last_day, 23, 59, 59)
+    
+    # Получаем все посты (запланированные и опубликованные)
+    all_month_posts = await db.get_posts(channel_chat_id, only_scheduled=False)
+    
+    days_with_posts = set()
+    for post in all_month_posts:
+        post_date = datetime.fromtimestamp(
+            post.send_time if hasattr(post, 'send_time') and post.send_time 
+            else post.created_timestamp
+        )
+        if month_start <= post_date <= month_end:
+            days_with_posts.add(post_date.day)
+    
+    return days_with_posts
+
+
 async def choice_channel(call: types.CallbackQuery, state: FSMContext):
     temp = call.data.split('|')
 
@@ -52,6 +84,10 @@ async def choice_channel(call: types.CallbackQuery, state: FSMContext):
     )
 
     await call.message.delete()
+    
+    # Получаем дни с постами за месяц для индикаторов на календаре
+    days_with_posts = await get_days_with_posts(channel.chat_id, day.year, day.month)
+    
     await call.message.answer(
         text("channel:content").format(
             *day_values,
@@ -60,7 +96,8 @@ async def choice_channel(call: types.CallbackQuery, state: FSMContext):
         ),
         reply_markup=keyboards.choice_row_content(
             posts=posts,
-            day=day
+            day=day,
+            days_with_posts=days_with_posts
         )
     )
 
@@ -97,6 +134,9 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
             day_values=day_values,
             show_more=show_more
         )
+        
+        # Получаем дни с постами за месяц для индикаторов
+        days_with_posts = await get_days_with_posts(channel.chat_id, day.year, day.month)
 
         return await call.message.edit_text(
             text("channel:content").format(
@@ -107,7 +147,8 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
             reply_markup=keyboards.choice_row_content(
                 posts=posts,
                 day=day,
-                show_more=show_more
+                show_more=show_more,
+                days_with_posts=days_with_posts
             )
         )
 

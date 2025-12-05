@@ -276,7 +276,8 @@ class InlineContent(InlineKeyboardBuilder):
             posts: List[Post | Story | BotPost],
             day: datetime,
             show_more: bool = False,
-            data: str = "ContentPost"
+            data: str = "ContentPost",
+            days_with_posts: set = None  # Множество дней (int), в которые есть посты
     ):
         kb = cls()
 
@@ -397,9 +398,15 @@ class InlineContent(InlineKeyboardBuilder):
                             )
                         )
                     else:
+                        # Проверяем, есть ли посты в этот день
+                        has_posts = days_with_posts and week_day in days_with_posts
+                        day_text = str(week_day) if week_day != day.day else '🔸'
+                        if has_posts and week_day != day.day:
+                            day_text = f'{week_day}•'  # Добавляем точку для дней с постами
+                        
                         days.append(
                             InlineKeyboardButton(
-                                text=str(week_day) if week_day != day.day else '🔸',
+                                text=day_text,
                                 callback_data=f'{data}|choice_day|{day.year}-{day.month}-{week_day}'
                             )
                         )
