@@ -21,16 +21,19 @@ async def show_info_menu(call: types.CallbackQuery):
 async def choice(call: types.CallbackQuery):
     """Обработчик выбора в меню информации"""
     temp = call.data.split('|')
-    await call.message.delete()
     
     if temp[1] == 'back':
         # Возврат в меню подписки с информацией о балансе
         user = await db.get_user(user_id=call.from_user.id)
+        await call.message.delete()
         return await call.message.answer(
             text("balance_text").format(user.balance),
             reply_markup=keyboards.subscription_menu(),
             parse_mode="HTML"
         )
+    
+    # Удаляем сообщение перед показом документа
+    await call.message.delete()
     
     # Политика конфиденциальности
     if temp[1] == 'privacy':
