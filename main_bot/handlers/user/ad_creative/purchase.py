@@ -6,7 +6,7 @@ from aiogram.types import Message, CallbackQuery
 from main_bot.database.db import db
 from main_bot.database.types import AdPricingType, AdTargetType
 from main_bot.database.ad_purchase.model import AdPurchase
-from main_bot.keyboards.keyboards import keyboards, InlineAdPurchase, InlineAdCreative
+from main_bot.keyboards import keyboards, InlineAdPurchase, InlineAdCreative
 from main_bot.states.user import AdPurchaseStates
 from main_bot.utils.lang.language import text
 

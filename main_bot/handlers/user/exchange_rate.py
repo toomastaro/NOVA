@@ -4,7 +4,7 @@ from datetime import datetime
 
 from main_bot.database.db import db
 from main_bot.database.user.model import User
-from main_bot.keyboards.keyboards import keyboards, InlineExchangeRate
+from main_bot.keyboards import keyboards, InlineExchangeRate
 from main_bot.states.user import ExchangeRate
 from main_bot.utils.exchange_rates import get_exchange_rates_from_json, format_exchange_rate_from_db
 from main_bot.utils.lang.language import text

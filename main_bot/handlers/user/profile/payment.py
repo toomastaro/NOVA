@@ -11,7 +11,7 @@ from main_bot.database.types import PaymentMethod
 from main_bot.database.user.model import User
 from main_bot.handlers.user.profile.balance import show_top_up
 from main_bot.handlers.user.profile.profile import show_balance
-from main_bot.keyboards.keyboards import keyboards
+from main_bot.keyboards import keyboards
 from main_bot.states.user import Balance
 from main_bot.utils.lang.language import text
 from main_bot.utils.payments.crypto_bot import crypto_bot

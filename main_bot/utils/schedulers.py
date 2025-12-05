@@ -19,7 +19,7 @@ from main_bot.database.post.model import Post
 from main_bot.database.story.model import Story
 from main_bot.database.types import Status
 from main_bot.database.user_bot.model import UserBot
-from main_bot.keyboards.keyboards import keyboards
+from main_bot.keyboards import keyboards
 from main_bot.utils.bot_manager import BotManager
 from main_bot.utils.functions import set_channel_session, get_path, get_path_video, process_bot
 from main_bot.utils.lang.language import text

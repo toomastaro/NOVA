@@ -12,7 +12,7 @@ from main_bot.handlers.user.posting.menu import show_create_post
 from main_bot.utils.functions import answer_post
 from main_bot.utils.lang.language import text
 from main_bot.utils.schemas import MessageOptions, Media, Hide, React
-from main_bot.keyboards.keyboards import keyboards
+from main_bot.keyboards import keyboards
 from main_bot.states.user import Posting, AddHide
 from main_bot.states.user import Posting, AddHide
 from main_bot.utils.backup_utils import send_to_backup, edit_backup_message, update_live_messages

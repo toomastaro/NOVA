@@ -12,7 +12,7 @@ from main_bot.utils.functions import answer_story
 from main_bot.utils.lang.language import text
 from main_bot.utils.schemas import Media, StoryOptions
 from main_bot.utils.session_manager import SessionManager
-from main_bot.keyboards.keyboards import keyboards
+from main_bot.keyboards import keyboards
 from pathlib import Path
 
 from main_bot.states.user import Stories

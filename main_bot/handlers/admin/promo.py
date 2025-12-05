@@ -2,7 +2,7 @@ from aiogram import types, Router, F
 from aiogram.fsm.context import FSMContext
 
 from main_bot.database.db import db
-from main_bot.keyboards.keyboards import keyboards
+from main_bot.keyboards import keyboards
 from main_bot.states.admin import Promo
 
 

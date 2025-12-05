@@ -2,7 +2,7 @@ from aiogram import types, Router, F
 
 from main_bot.database.db import db
 from main_bot.database.user.model import User
-from main_bot.keyboards.keyboards import keyboards
+from main_bot.keyboards import keyboards
 from main_bot.utils.lang.language import text
 
 

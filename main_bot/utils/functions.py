@@ -16,7 +16,7 @@ from main_bot.database.bot_post.model import BotPost
 from main_bot.database.db import db
 from main_bot.database.post.model import Post
 from main_bot.database.story.model import Story
-from main_bot.keyboards.keyboards import keyboards
+from main_bot.keyboards import keyboards
 from main_bot.utils.schemas import MessageOptions, StoryOptions, Protect, MessageOptionsHello, MessageOptionsCaptcha
 from main_bot.utils.session_manager import SessionManager
 from main_bot.utils.bot_manager import BotManager

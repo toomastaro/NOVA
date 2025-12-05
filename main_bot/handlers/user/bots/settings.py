@@ -12,7 +12,7 @@ from main_bot.database.user_bot.model import UserBot
 from main_bot.states.user import AddBot
 from main_bot.handlers.user.menu import start_bots
 from main_bot.handlers.user.bots.menu import show_settings
-from main_bot.keyboards.keyboards import keyboards
+from main_bot.keyboards import keyboards
 from main_bot.utils.bot_manager import BotManager
 from main_bot.utils.functions import create_emoji
 from main_bot.utils.lang.language import text

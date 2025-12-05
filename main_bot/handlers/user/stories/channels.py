@@ -2,7 +2,7 @@ from aiogram import types, F, Router
 
 from main_bot.database.db import db
 from main_bot.handlers.user.menu import start_stories
-from main_bot.keyboards.keyboards import keyboards
+from main_bot.keyboards import keyboards
 from main_bot.utils.functions import get_editors
 from main_bot.utils.lang.language import text
 

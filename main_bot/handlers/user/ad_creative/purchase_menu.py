@@ -3,7 +3,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery
 
 from main_bot.database.db import db
-from main_bot.keyboards.keyboards import InlineAdPurchase
+from main_bot.keyboards import InlineAdPurchase
 
 router = Router(name="AdPurchaseMenu")
 

@@ -1,5 +1,5 @@
 from aiogram import Router, F, types
-from main_bot.keyboards.keyboards import InlineAdCreative
+from main_bot.keyboards import InlineAdCreative
 
 router = Router(name="AdCreativeMenu")
 

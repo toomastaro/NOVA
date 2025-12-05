@@ -9,7 +9,7 @@ from main_bot.database.published_post.model import PublishedPost
 from main_bot.database.db import db
 from main_bot.handlers.user.menu import start_posting
 from main_bot.handlers.user.posting.menu import show_content
-from main_bot.keyboards.keyboards import keyboards
+from main_bot.keyboards import keyboards
 from main_bot.utils.functions import answer_post
 from main_bot.utils.lang.language import text
 

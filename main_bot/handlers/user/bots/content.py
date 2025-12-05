@@ -8,7 +8,7 @@ from main_bot.database.db import db
 from main_bot.database.types import Status
 from main_bot.handlers.user.menu import start_bots
 from main_bot.handlers.user.bots.menu import show_content
-from main_bot.keyboards.keyboards import keyboards
+from main_bot.keyboards import keyboards
 from main_bot.utils.functions import answer_bot_post
 from main_bot.utils.lang.language import text
 

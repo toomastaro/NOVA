@@ -8,7 +8,7 @@ from main_bot.database.db import db
 from main_bot.handlers.user.bots.bot_settings.menu import show_channel_setting, show_captcha
 from main_bot.states.user import Captcha
 from main_bot.utils.lang.language import text
-from main_bot.keyboards.keyboards import keyboards
+from main_bot.keyboards import keyboards
 from main_bot.utils.schemas import Media, MessageOptionsCaptcha
 from main_bot.utils.functions import answer_message
 

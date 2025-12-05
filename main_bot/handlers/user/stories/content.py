@@ -7,7 +7,7 @@ from main_bot.database.channel.model import Channel
 from main_bot.database.db import db
 from main_bot.handlers.user.menu import start_stories
 from main_bot.handlers.user.stories.menu import show_content
-from main_bot.keyboards.keyboards import keyboards
+from main_bot.keyboards import keyboards
 from main_bot.utils.functions import answer_story
 from main_bot.utils.lang.language import text
 

@@ -3,7 +3,7 @@ from aiogram.fsm.context import FSMContext
 
 from main_bot.database.db import db
 from main_bot.handlers.user.profile.profile import show_setting
-from main_bot.keyboards.keyboards import keyboards
+from main_bot.keyboards import keyboards
 from main_bot.states.user import Setting
 from main_bot.utils.lang.language import text
 

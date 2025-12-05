@@ -6,7 +6,7 @@ from main_bot.database.channel_bot_settings.model import ChannelBotSetting
 from main_bot.database.db import db
 from main_bot.handlers.user.bots.settings import show_bot_manage
 from main_bot.utils.lang.language import text
-from main_bot.keyboards.keyboards import keyboards
+from main_bot.keyboards import keyboards
 from main_bot.utils.schemas import HelloAnswer, ByeAnswer
 
 

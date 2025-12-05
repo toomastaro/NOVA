@@ -12,7 +12,7 @@ from main_bot.handlers.user.bots.bot_settings.menu import show_application, show
 from main_bot.states.user import Application
 from main_bot.utils.bot_manager import BotManager
 from main_bot.utils.lang.language import text
-from main_bot.keyboards.keyboards import keyboards
+from main_bot.keyboards import keyboards
 
 
 async def choice(call: types.CallbackQuery, state: FSMContext, db_obj: Database, channel_settings: ChannelBotSetting):

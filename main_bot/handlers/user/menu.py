@@ -1,7 +1,7 @@
 from aiogram import types, F, Router
 from aiogram.fsm.context import FSMContext
 
-from main_bot.keyboards.keyboards import keyboards
+from main_bot.keyboards import keyboards
 from main_bot.states.user import Support
 from main_bot.utils.lang.language import text
 

@@ -3,7 +3,7 @@ from aiogram import Bot, types
 from main_bot.database.db import db
 from main_bot.database.post.model import Post
 from main_bot.database.published_post.model import PublishedPost
-from main_bot.keyboards.keyboards import keyboards
+from main_bot.keyboards import keyboards
 from main_bot.utils.schemas import MessageOptions, Media
 from config import Config
 from instance_bot import bot

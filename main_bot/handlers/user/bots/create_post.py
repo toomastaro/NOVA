@@ -13,7 +13,7 @@ from main_bot.handlers.user.bots.menu import show_create_post, show_choice_chann
 from main_bot.utils.functions import answer_bot_post
 from main_bot.utils.lang.language import text
 from main_bot.utils.schemas import Media, MessageOptionsHello
-from main_bot.keyboards.keyboards import keyboards
+from main_bot.keyboards import keyboards
 from main_bot.states.user import Bots
 
 

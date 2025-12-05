@@ -6,7 +6,7 @@ from main_bot.database.types import FolderType
 from main_bot.database.user.model import User
 from main_bot.handlers.user.profile.profile import show_setting
 from main_bot.handlers.user.profile.settings import show_folders
-from main_bot.keyboards.keyboards import keyboards
+from main_bot.keyboards import keyboards
 from main_bot.states.user import Folder
 from main_bot.utils.lang.language import text
 

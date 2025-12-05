@@ -5,7 +5,7 @@ from hello_bot.database.db import Database
 from main_bot.database.db import db
 from main_bot.handlers.user.bots.bot_settings.menu import show_channel_setting
 from main_bot.utils.lang.language import text
-from main_bot.keyboards.keyboards import keyboards
+from main_bot.keyboards import keyboards
 
 
 async def choice_channel(call: types.CallbackQuery, state: FSMContext, db_obj: Database):
