@@ -11,7 +11,6 @@ from main_bot.utils.lang.language import text
 
 async def show_info_menu(call: types.CallbackQuery):
     """Показать меню информации"""
-    await call.message.delete()
     await call.message.answer(
         text("info:menu"),
         reply_markup=keyboards.info_menu(),

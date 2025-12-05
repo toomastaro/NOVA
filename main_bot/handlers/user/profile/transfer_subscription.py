@@ -35,7 +35,6 @@ async def show_transfer_sub_menu(call: types.CallbackQuery, state: FSMContext):
         transfer_chosen_recipients=[]
     )
     
-    await call.message.delete()
     await call.message.answer(
         text("transfer_sub:choose_donor"),
         reply_markup=keyboards.transfer_sub_choose_donor(

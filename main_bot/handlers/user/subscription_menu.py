@@ -101,7 +101,6 @@ async def show_align_sub_menu(call: types.CallbackQuery, state: FSMContext):
         align_chosen=[]
     )
 
-    await call.message.delete()
     await call.message.answer(
         text("align_sub"),
         reply_markup=keyboards.align_sub(
