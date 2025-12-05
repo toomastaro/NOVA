@@ -71,3 +71,37 @@ class ErrorMiddleware(BaseMiddleware):
                 f"Ошибка в обработчике {handler.__name__}",
                 exc_info=True
             )
+
+
+class VersionCheckMiddleware(BaseMiddleware):
+    """
+    Middleware для автоматической проверки версии бота.
+    
+    При обновлении версии бота автоматически очищает устаревшие FSM состояния,
+    чтобы пользователи работали с актуальной версией без необходимости
+    ручного сброса через /start.
+    """
+    
+    async def __call__(self, handler, event: Update, data):
+        from config import Config
+        
+        state = data.get("state")
+        
+        if state:
+            try:
+                state_data = await state.get_data()
+                bot_version = state_data.get("bot_version")
+                
+                # Если версия отличается или не установлена - сбрасываем состояние
+                if bot_version != Config.VERSION:
+                    logger.info(
+                        f"Обнаружена устаревшая версия бота у пользователя. "
+                        f"Старая: {bot_version}, Новая: {Config.VERSION}. Сброс состояния."
+                    )
+                    await state.clear()
+                    # Устанавливаем текущую версию
+                    await state.update_data(bot_version=Config.VERSION)
+            except Exception as e:
+                logger.error(f"Ошибка в VersionCheckMiddleware: {e}", exc_info=True)
+        
+        return await handler(event, data)

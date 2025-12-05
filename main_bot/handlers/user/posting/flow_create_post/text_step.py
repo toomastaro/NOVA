@@ -15,6 +15,7 @@ from main_bot.handlers.user.menu import start_posting
 from main_bot.utils.message_utils import answer_post
 from main_bot.utils.lang.language import text
 from main_bot.utils.schemas import MessageOptions, Media
+from main_bot.keyboards import keyboards
 
 logger = logging.getLogger(__name__)
 
@@ -102,8 +103,7 @@ async def get_message(message: types.Message, state: FSMContext):
     )
 
     # Получаем выбранные каналы для отображения
-    from main_bot.database.db import db as database
-    all_chosen_objects = await database.get_user_channels(
+    all_chosen_objects = await db.get_user_channels(
         user_id=message.from_user.id,
         from_array=chosen
     )

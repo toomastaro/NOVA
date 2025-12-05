@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 
 
 from main_bot.database.db import db
-from main_bot.utils.middlewares import GetUserMiddleware, ErrorMiddleware
+from main_bot.utils.middlewares import GetUserMiddleware, ErrorMiddleware, VersionCheckMiddleware
 from main_bot.utils.schedulers import init_scheduler
 from .user import get_router as user_router
 from .admin import get_router as admin_router
@@ -22,6 +22,10 @@ dp = Dispatcher(
 
 
 def set_main_routers():
+    # Регистрируем VersionCheckMiddleware первым для проверки версии
+    dp.update.middleware.register(
+        VersionCheckMiddleware()
+    )
     dp.update.middleware.register(
         GetUserMiddleware()
     )
