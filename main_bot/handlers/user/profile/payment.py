@@ -130,6 +130,16 @@ async def get_amount(message: types.Message, state: FSMContext):
         pay_url = result.get('url')
         order_id = result.get('invoice_id')
 
+    elif method == PaymentMethod.PLATEGA:
+        from main_bot.utils.payments.platega import platega_api
+        result = await platega_api.create_invoice(
+            order_id=str(random.randint(10000, 99999)),
+            amount=amount,
+            description='Пополнение баланса NovaTg'
+        )
+        pay_url = result.get('pay_url')
+        order_id = result.get('id')
+
     # stars
     else:
         stars_amount = int(amount / 2)
@@ -170,6 +180,14 @@ async def get_amount(message: types.Message, state: FSMContext):
             paid = await crypto_bot.is_paid(order_id)
 
             if paid:
+                await asyncio.sleep(5)
+                continue
+
+        if method == PaymentMethod.PLATEGA:
+            from main_bot.utils.payments.platega import platega_api
+            paid = await platega_api.is_paid(order_id)
+
+            if not paid:
                 await asyncio.sleep(5)
                 continue
 

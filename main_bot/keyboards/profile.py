@@ -136,11 +136,16 @@ class InlineProfile(InlineKeyboardBuilder):
             callback_data=f'{data}|crypto_bot'
         )
         kb.button(
+            text=text('payment:method:platega'),
+            callback_data=f'{data}|platega'
+        )
+        kb.button(
             text=text('back:button'),
             callback_data=f'{data}|back'
         )
 
-        adjust.extend([2, 1])
+        # Все кнопки по одной в ряд
+        adjust.extend([1, 1, 1, 1])
         kb.adjust(*adjust)
         return kb.as_markup()
 

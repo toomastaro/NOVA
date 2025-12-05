@@ -13,6 +13,7 @@ class PaymentMethod(str, Enum):
     CRYPTO_BOT = "CRYPTO_BOT"
     STARS = "STARS"
     BALANCE = "BALANCE"
+    PLATEGA = "PLATEGA"
 
     def __str__(self):
         return self.value

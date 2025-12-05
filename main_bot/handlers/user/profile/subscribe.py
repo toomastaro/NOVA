@@ -102,7 +102,6 @@ async def choice(call: types.CallbackQuery, state: FSMContext, user: User):
 
     if temp[1] == 'cancel':
         # Возврат в меню подписки
-        from main_bot.keyboards import keyboards
         return await call.message.answer(
             "💳 <b>Подписка</b>\n\nВ этом разделе вы можете управлять балансом, подписками и реферальной системой.",
             reply_markup=keyboards.subscription_menu(),
