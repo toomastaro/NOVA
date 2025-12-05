@@ -55,7 +55,6 @@ async def choice_channel(call: types.CallbackQuery, state: FSMContext):
     await call.message.answer(
         text("channel:content").format(
             *day_values,
-            channel.emoji_id,
             channel.title,
             text("no_content") if not posts else text("has_content").format(len(posts))
         ),
@@ -102,7 +101,6 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
         return await call.message.edit_text(
             text("channel:content").format(
                 *day_values,
-                channel.emoji_id,
                 channel.title,
                 text("no_content") if not posts else text("has_content").format(len(posts))
             ),
@@ -117,7 +115,6 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
         posts = await db.get_posts(channel.chat_id, only_scheduled=True)
         return await call.message.edit_text(
             text("channel:show_all:content").format(
-                channel.emoji_id,
                 channel.title,
                 text("no_content") if not posts else text("has_content").format(len(posts))
             ),
@@ -159,7 +156,6 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
         await call.message.answer(
             text("post:content").format(
                 *send_date_values,
-                channel.emoji_id,
                 channel.title
             ),
             reply_markup=keyboards.manage_remain_post(
@@ -188,7 +184,6 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
     await call.message.answer(
         text("post:content").format(
             *send_date_values,
-            channel.emoji_id,
             channel.title
         ),
         reply_markup=keyboards.manage_remain_post(
@@ -222,7 +217,6 @@ async def choice_time_objects(call: types.CallbackQuery, state: FSMContext):
         return await call.message.edit_text(
             text("channel:content").format(
                 *data.get("day_values"),
-                channel.emoji_id,
                 channel.title,
                 text("no_content") if not posts else text("has_content").format(len(posts))
             ),
@@ -253,7 +247,6 @@ async def manage_remain_post(call: types.CallbackQuery, state: FSMContext):
         return await call.message.edit_text(
             text("channel:content").format(
                 *data.get("day_values"),
-                data.get("channel").emoji_id,
                 data.get("channel").title,
                 text("no_content") if not posts else text("has_content").format(len(posts))
             ),
@@ -306,7 +299,6 @@ async def accept_delete_row_content(call: types.CallbackQuery, state: FSMContext
         return await call.message.edit_text(
             text("post:content").format(
                 *send_date_values,
-                channel.emoji_id,
                 channel.title
             ),
             reply_markup=keyboards.manage_remain_post(
@@ -328,7 +320,6 @@ async def accept_delete_row_content(call: types.CallbackQuery, state: FSMContext
         return await call.message.edit_text(
             text("channel:content").format(
                 *day_values,
-                channel.emoji_id,
                 channel.title,
                 text("no_content") if not posts else text("has_content").format(len(posts))
             ),
@@ -359,7 +350,6 @@ async def manage_published_post(call: types.CallbackQuery, state: FSMContext):
         return await call.message.edit_text(
             text("channel:content").format(
                 *data.get("day_values"),
-                data.get("channel").emoji_id,
                 data.get("channel").title,
                 text("no_content") if not posts else text("has_content").format(len(posts))
             ),
@@ -396,7 +386,6 @@ async def accept_delete_published_post(call: types.CallbackQuery, state: FSMCont
         return await call.message.edit_text(
             text("post:content").format(
                 *send_date_values,
-                channel.emoji_id,
                 channel.title
             ),
             reply_markup=keyboards.manage_published_post(
@@ -433,7 +422,6 @@ async def accept_delete_published_post(call: types.CallbackQuery, state: FSMCont
         return await call.message.edit_text(
             text("channel:content").format(
                 *day_values,
-                channel.emoji_id,
                 channel.title,
                 text("no_content") if not posts else text("has_content").format(len(posts))
             ),
