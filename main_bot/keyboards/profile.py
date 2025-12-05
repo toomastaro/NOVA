@@ -513,13 +513,17 @@ class InlineProfile(InlineKeyboardBuilder):
         """Меню информации с политикой конфиденциальности и пользовательским соглашением"""
         kb = cls()
 
-        kb.button(
-            text=text('info:privacy:button'),
-            callback_data='InfoMenu|privacy'
+        kb.add(
+            InlineKeyboardButton(
+                text=text('info:privacy:button'),
+                url=text('info:privacy:url')
+            )
         )
-        kb.button(
-            text=text('info:terms:button'),
-            callback_data='InfoMenu|terms'
+        kb.add(
+            InlineKeyboardButton(
+                text=text('info:terms:button'),
+                url=text('info:terms:url')
+            )
         )
         kb.button(
             text=text('back:button'),
