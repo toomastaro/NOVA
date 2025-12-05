@@ -73,11 +73,19 @@ async def show_align_sub_menu(call: types.CallbackQuery, state: FSMContext):
     from main_bot.database.db import db
     from main_bot.keyboards import keyboards
     from main_bot.utils.lang.language import text
+    import time
     
     user = await db.get_user(user_id=call.from_user.id)
-    sub_objects = await db.get_subscribe_channels(
+    all_sub_objects = await db.get_subscribe_channels(
         user_id=user.id
     )
+    
+    # Фильтруем только активные подписки (не истекшие)
+    now = int(time.time())
+    sub_objects = [
+        ch for ch in all_sub_objects 
+        if ch.subscribe and ch.subscribe > now
+    ]
 
     if len(sub_objects) < 2:
         return await call.answer(

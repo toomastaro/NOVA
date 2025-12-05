@@ -16,7 +16,14 @@ from main_bot.utils.lang.language import text
 async def show_transfer_sub_menu(call: types.CallbackQuery, state: FSMContext):
     """Показать меню выбора канала-донора для переноса подписки"""
     user = await db.get_user(user_id=call.from_user.id)
-    channels = await db.get_subscribe_channels(user_id=user.id)
+    all_channels = await db.get_subscribe_channels(user_id=user.id)
+    
+    # Фильтруем только активные подписки (не истекшие)
+    now = int(time.time())
+    channels = [
+        ch for ch in all_channels 
+        if ch.subscribe and ch.subscribe > now
+    ]
     
     if not channels:
         return await call.answer(
@@ -54,7 +61,13 @@ async def choose_donor(call: types.CallbackQuery, state: FSMContext, user: User)
     
     # Навигация
     if temp[1] in ['next', 'back']:
-        channels = await db.get_subscribe_channels(user_id=user.id)
+        all_channels = await db.get_subscribe_channels(user_id=user.id)
+        # Фильтруем только активные подписки
+        now = int(time.time())
+        channels = [
+            ch for ch in all_channels 
+            if ch.subscribe and ch.subscribe > now
+        ]
         return await call.message.edit_reply_markup(
             reply_markup=keyboards.transfer_sub_choose_donor(
                 channels=channels,

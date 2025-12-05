@@ -127,9 +127,17 @@ async def choice(call: types.CallbackQuery, state: FSMContext, user: User):
         )
 
     if temp[1] == "align_sub":
-        sub_objects = await db.get_subscribe_channels(
+        all_sub_objects = await db.get_subscribe_channels(
             user_id=user.id
         )
+        
+        # Фильтруем только активные подписки (не истекшие)
+        import time
+        now = int(time.time())
+        sub_objects = [
+            ch for ch in all_sub_objects 
+            if ch.subscribe and ch.subscribe > now
+        ]
 
         if len(sub_objects) < 2:
             return await call.answer(
@@ -267,9 +275,17 @@ async def align_subscribe(call: types.CallbackQuery, state: FSMContext, user: Us
         return await call.message.delete()
 
     align_chosen: list = data.get("align_chosen")
-    sub_objects = await db.get_subscribe_channels(
+    all_sub_objects = await db.get_subscribe_channels(
         user_id=user.id
     )
+    
+    # Фильтруем только активные подписки
+    import time
+    now = int(time.time())
+    sub_objects = [
+        ch for ch in all_sub_objects 
+        if ch.subscribe and ch.subscribe > now
+    ]
 
     if temp[1] in ["next", "back"]:
         return await call.message.edit_reply_markup(
