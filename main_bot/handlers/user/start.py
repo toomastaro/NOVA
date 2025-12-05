@@ -43,7 +43,8 @@ async def start(message: types.Message, state: FSMContext):
         f"📄 <a href='{text('info:terms:url')}'>Пользовательское соглашение</a>\n"
         f"🔒 <a href='{text('info:privacy:url')}'>Политика конфиденциальности</a>",
         reply_markup=keyboards.menu(),
-        parse_mode="HTML"
+        parse_mode="HTML",
+        disable_web_page_preview=True
     )
 
 
