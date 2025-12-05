@@ -163,6 +163,12 @@ class InlineProfile(InlineKeyboardBuilder):
             text=tariffs[0]['name'],
             callback_data='ChoiceSubscribePeriod|0'
         )
+        
+        # Кнопка "Выровнять подписку"
+        kb.button(
+            text=text('payment:method:align_sub'),
+            callback_data='AlignSubscription|start'
+        )
 
         kb.button(
             text=text('back:button'),
