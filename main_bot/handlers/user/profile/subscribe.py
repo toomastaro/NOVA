@@ -47,9 +47,7 @@ async def get_pay_info_text(state: FSMContext, user: User) -> str:
     data = await state.get_data()
 
     total_days = data.get('total_days')
-    old_total_price = data.get('old_total_price')
     method = data.get('method')
-    has_promo = data.get('has_promo')
     total_price = data.get('total_price')
 
     try:
@@ -66,7 +64,6 @@ async def get_pay_info_text(state: FSMContext, user: User) -> str:
     total_count_resources = data.get('total_count_resources')
     chosen = data.get('chosen')
     service = data.get('service')
-    object_type = data.get('object_type')
     cor = data.get('cor')
 
     objects = await cor(
@@ -75,24 +72,23 @@ async def get_pay_info_text(state: FSMContext, user: User) -> str:
         sort_by=service
     )
 
+    # Форматируем список каналов с их названиями
+    channels_list = "\n".join(
+        f"📺 {obj.title}" for obj in objects
+        if obj.id in chosen[:10]
+    )
+
+    # Форматируем способ оплаты (если выбран)
+    method_text = text("pay:info:method").format(text(f'payment:method:{method}')) if method else ""
+
     return text('pay:info').format(
-        total_days,
-        total_price,
-        total_count_resources,
-        text(f'pay:info:{object_type}'),
-        "\n".join(
-            text("resource_title").format(
-                obj.emoji_id,
-                obj.title
-            ) for obj in objects
-            if obj.id in chosen[:10]
-        ),
-        text("pay:info:method").format(text(f'payment:method:{method}')) if method else "",
-        total_price,
-        total_price_usd,
-        total_price_stars,
-        # "{}₽".format(old_total_price) if has_promo else "",
-        ""
+        channels_list,           # Список каналов
+        total_price,             # Цена в рублях
+        total_price_usd,         # Цена в USD
+        total_price_stars,       # Цена в звездах
+        total_days,              # Длительность
+        total_count_resources,   # Количество каналов
+        method_text              # Способ оплаты
     )
 
 

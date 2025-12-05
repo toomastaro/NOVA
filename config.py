@@ -26,6 +26,8 @@ class Config:
 
     # Payments
     CRYPTO_BOT_TOKEN = os.getenv('CRYPTO_BOT_TOKEN')
+    PLATEGA_MERCHANT = os.getenv('PLATEGA_MERCHANT')
+    PLATEGA_SECRET = os.getenv('PLATEGA_SECRET')
 
     # Features
     ENABLE_AD_BUY_MODULE = os.getenv("ENABLE_AD_BUY_MODULE", "false").lower() == "true"
