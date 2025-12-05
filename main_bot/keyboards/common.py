@@ -30,14 +30,12 @@ class Reply:
             # Если модуль рекламы выключен, добавляем пустую кнопку для симметрии
             kb.button(text=text('reply_menu:profile'))
         
-        # Третий ряд: Настройки - Подписка
+        # Третий ряд: Настройки - Подписка - Мои каналы
         kb.button(text=text('reply_menu:profile'))  # Теперь это "Настройки"
         kb.button(text=text('reply_menu:subscription'))
-        
-        # Четвертый ряд: Мои каналы
         kb.button(text=text('reply_menu:channels'))
 
-        kb.adjust(3, 3, 2, 1)  # 3 кнопки в первом ряду, 3 во втором, 2 в третьем, 1 в четвертом
+        kb.adjust(3, 3, 3)  # 3 кнопки в каждом ряду
             
         return kb.as_markup(
             resize_keyboard=True,
