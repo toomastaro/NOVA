@@ -91,7 +91,6 @@ async def show_referral(message: types.Message, user: User):
 
 async def show_support(message: types.Message):
     """Показать информацию о поддержке"""
-    from main_bot.handlers.user.menu import start_profile
     await message.answer(
         "📝 <b>Книга жалоб и предложений</b>\n\n"
         "Здесь вы можете оставить свои предложения по улучшению сервиса "

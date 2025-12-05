@@ -20,7 +20,7 @@ async def get_timezone(message: types.Message, state: FSMContext):
     except ValueError:
         return await message.answer(
             text('error_input_timezone'),
-            reply_markup=keyboards.cancel(
+            reply_markup=keyboards.back(
                 data='InputTimezoneCancel'
             )
         )
