@@ -31,13 +31,25 @@ async def get_timezone(message: types.Message, state: FSMContext):
     )
 
     await state.clear()
-    await show_setting(message)
+    # Возврат в меню настроек (профиль)
+    from main_bot.keyboards import keyboards
+    from main_bot.utils.lang.language import text
+    await message.answer(
+        text('start_profile_text'),
+        reply_markup=keyboards.profile_menu()
+    )
 
 
 async def cancel(call: types.CallbackQuery, state: FSMContext):
     await state.clear()
     await call.message.delete()
-    await show_setting(call.message)
+    # Возврат в меню настроек (профиль)
+    from main_bot.keyboards import keyboards
+    from main_bot.utils.lang.language import text
+    await call.message.answer(
+        text('start_profile_text'),
+        reply_markup=keyboards.profile_menu()
+    )
 
 
 def hand_add():

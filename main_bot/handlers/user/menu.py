@@ -34,6 +34,10 @@ async def choice(message: types.Message, state: FSMContext):
             'cor': subscription,
             'args': (message,)
         },
+        text('reply_menu:channels'): {
+            'cor': show_channels,
+            'args': (message,)
+        },
     }
 
     cor, args = menu[message.text].values()
@@ -82,7 +86,24 @@ async def subscription(message: types.Message):
     """Меню подписки с балансом, подпиской и реферальной системой"""
     await message.answer(
         "💳 <b>Подписка</b>\n\nВ этом разделе вы можете управлять балансом, подписками и реферальной системой.",
-        reply_markup=keyboards.subscription_menu()
+        reply_markup=keyboards.subscription_menu(),
+        parse_mode="HTML"
+    )
+
+
+async def show_channels(message: types.Message):
+    """Показать список каналов пользователя"""
+    from main_bot.database.db import db
+    
+    channels = await db.get_user_channels(
+        user_id=message.chat.id,
+        sort_by="posting"
+    )
+    await message.answer(
+        text('channels_text'),
+        reply_markup=keyboards.channels(
+            channels=channels
+        )
     )
 
 
@@ -99,6 +120,7 @@ def hand_add():
                 text('reply_menu:support'),
                 text('reply_menu:profile'),
                 text('reply_menu:subscription'),
+                text('reply_menu:channels'),
             }
         )
     )

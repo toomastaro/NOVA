@@ -33,8 +33,11 @@ class Reply:
         # Третий ряд: Настройки - Подписка
         kb.button(text=text('reply_menu:profile'))  # Теперь это "Настройки"
         kb.button(text=text('reply_menu:subscription'))
+        
+        # Четвертый ряд: Мои каналы
+        kb.button(text=text('reply_menu:channels'))
 
-        kb.adjust(3, 3, 2)  # 3 кнопки в первом ряду, 3 во втором, 2 в третьем
+        kb.adjust(3, 3, 2, 1)  # 3 кнопки в первом ряду, 3 во втором, 2 в третьем, 1 в четвертом
             
         return kb.as_markup(
             resize_keyboard=True,

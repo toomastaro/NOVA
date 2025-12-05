@@ -38,7 +38,13 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
     await call.message.delete()
 
     if temp[1] == 'cancel':
-        return await show_setting(call.message)
+        # Возврат в меню настроек (профиль)
+        from main_bot.keyboards import keyboards
+        from main_bot.utils.lang.language import text
+        return await call.message.answer(
+            text('start_profile_text'),
+            reply_markup=keyboards.profile_menu()
+        )
 
     if temp[1] == 'create':
         # Direct flow for creating channel collection
@@ -92,7 +98,12 @@ async def choice_object(call: types.CallbackQuery, state: FSMContext, user: User
 
         if not folder_edit:
             # Cancel creation -> go back to settings
-            return await show_setting(call.message)
+            from main_bot.keyboards import keyboards
+            from main_bot.utils.lang.language import text
+            return await call.message.answer(
+                text('start_profile_text'),
+                reply_markup=keyboards.profile_menu()
+            )
         else:
             await show_manage_folder(call.message, state)
 
@@ -198,7 +209,12 @@ async def cancel(call: types.CallbackQuery, state: FSMContext, user: User):
         await show_manage_folder(call.message, state)
     else:
         # Cancel creation -> back to settings
-        await show_setting(call.message)
+        from main_bot.keyboards import keyboards
+        from main_bot.utils.lang.language import text
+        await call.message.answer(
+            text('start_profile_text'),
+            reply_markup=keyboards.profile_menu()
+        )
 
 
 async def get_folder_name(message: types.Message, state: FSMContext, user: User):
