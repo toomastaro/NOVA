@@ -369,18 +369,40 @@ class InlineContent(InlineKeyboardBuilder):
             )
 
             month = monthcalendar(day.year, day.month)
-            for week in month:
+            for week_idx, week in enumerate(month):
                 days = []
-                for week_day in week:
-                    days.append(
-                        InlineKeyboardButton(
-                            text='...',
-                            callback_data='ContentPost|...'
-                        ) if week_day == 0 else InlineKeyboardButton(
-                            text=str(week_day) if week_day != day.day else '🔸',
-                            callback_data=f'{data}|choice_day|{day.year}-{day.month}-{week_day}'
+                for day_idx, week_day in enumerate(week):
+                    if week_day == 0:
+                        # Определяем дату из соседнего месяца
+                        if week_idx == 0:
+                            # Первая неделя - дни из предыдущего месяца
+                            prev_month = day.month - 1 if day.month > 1 else 12
+                            prev_year = day.year if day.month > 1 else day.year - 1
+                            prev_month_days = monthrange(prev_year, prev_month)[1]
+                            actual_day = prev_month_days - (6 - day_idx)
+                            date_str = f'{prev_year}-{prev_month}-{actual_day}'
+                        else:
+                            # Последняя неделя - дни из следующего месяца
+                            next_month = day.month + 1 if day.month < 12 else 1
+                            next_year = day.year if day.month < 12 else day.year + 1
+                            # Считаем сколько нулей уже было в этой неделе
+                            zeros_before = sum(1 for d in week[:day_idx] if d == 0)
+                            actual_day = zeros_before + 1
+                            date_str = f'{next_year}-{next_month}-{actual_day}'
+                        
+                        days.append(
+                            InlineKeyboardButton(
+                                text=str(actual_day),
+                                callback_data=f'{data}|choice_day|{date_str}'
+                            )
                         )
-                    )
+                    else:
+                        days.append(
+                            InlineKeyboardButton(
+                                text=str(week_day) if week_day != day.day else '🔸',
+                                callback_data=f'{data}|choice_day|{day.year}-{day.month}-{week_day}'
+                            )
+                        )
                 kb.row(*days)
 
             kb.row(
