@@ -126,36 +126,6 @@ async def choice(call: types.CallbackQuery, state: FSMContext, user: User):
             )
         )
 
-    if temp[1] == "align_sub":
-        all_sub_objects = await db.get_subscribe_channels(
-            user_id=user.id
-        )
-        
-        # Фильтруем только активные подписки (не истекшие)
-        import time
-        now = int(time.time())
-        sub_objects = [
-            ch for ch in all_sub_objects 
-            if ch.subscribe and ch.subscribe > now
-        ]
-
-        if len(sub_objects) < 2:
-            return await call.answer(
-                text("error_align_sub")
-            )
-
-        await state.update_data(
-            align_chosen=[]
-        )
-
-        return await call.message.edit_text(
-            text("align_sub"),
-            reply_markup=keyboards.align_sub(
-                sub_objects=sub_objects,
-                chosen=[]
-            )
-        )
-
     if temp[1] == 'promo':
         input_message = await call.message.answer(
             text('input_promo'),
