@@ -204,7 +204,7 @@
   "payment:method:promo": "🎁 Активировать промокод",
   "payment:method:stars": "⭐️ Звёзды",
   "payment:method:crypto_bot": "💎 CryptoBot",
-  "payment:method:platega": "💳 Platega (Карта РФ)",
+  "payment:method:platega": "💳 Банковская карта РФ",
   "payment:method:balance": "💰 Оплатить с баланса",
   "payment:method:align_sub": "🔄 Выровнять подписку",
   "input_promo": "🎁<b> Введите промокод:</b>",
