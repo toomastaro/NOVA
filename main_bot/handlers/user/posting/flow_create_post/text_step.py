@@ -108,6 +108,7 @@ async def get_message(message: types.Message, state: FSMContext):
         from_array=chosen
     )
 
+
     # Показываем финальные параметры
     await message.answer(
         text("manage:post:finish_params").format(
