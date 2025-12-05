@@ -98,8 +98,6 @@ async def choice(call: types.CallbackQuery, state: FSMContext, user: User):
 
     if temp[1] == 'cancel':
         # Возврат в меню подписки с информацией о балансе
-        from main_bot.utils.lang.language import text
-        
         return await call.message.answer(
             text("balance_text").format(user.balance),
             reply_markup=keyboards.subscription_menu(),
@@ -146,8 +144,6 @@ async def choice_period(call: types.CallbackQuery, state: FSMContext, user: User
     if temp[1] == 'back':
         await call.message.delete()
         # Возврат в меню подписки с информацией о балансе
-        from main_bot.utils.lang.language import text
-        
         return await call.message.answer(
             text("balance_text").format(user.balance),
             reply_markup=keyboards.subscription_menu(),
