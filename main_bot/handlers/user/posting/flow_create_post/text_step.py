@@ -102,23 +102,7 @@ async def get_message(message: types.Message, state: FSMContext):
         chosen=chosen
     )
 
-    # Получаем выбранные каналы для отображения
-    all_chosen_objects = await db.get_user_channels(
-        user_id=message.from_user.id,
-        from_array=chosen
-    )
 
 
-    # Показываем финальные параметры
-    await message.answer(
-        text("manage:post:finish_params").format(
-            len(chosen),
-            "\\n".join(
-                text("resource_title").format(
-                    obj.emoji_id,
-                    obj.title
-                ) for obj in all_chosen_objects[:10]
-            )
-        ),
-        reply_markup=keyboards.finish_params(obj=post)
-    )
+    # Показываем превью поста с возможностью редактирования
+    await answer_post(message, state)

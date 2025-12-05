@@ -92,13 +92,17 @@ class VersionCheckMiddleware(BaseMiddleware):
                 state_data = await state.get_data()
                 bot_version = state_data.get("bot_version")
                 
-                # Если версия отличается или не установлена - сбрасываем состояние
+                # Если версия отличается или не установлена
                 if bot_version != Config.VERSION:
-                    logger.info(
-                        f"Обнаружена устаревшая версия бота у пользователя. "
-                        f"Старая: {bot_version}, Новая: {Config.VERSION}. Сброс состояния."
-                    )
-                    await state.clear()
+                    # Логируем только если была старая версия (не первый запуск)
+                    if bot_version is not None:
+                        logger.info(
+                            f"Обнаружена устаревшая версия бота у пользователя. "
+                            f"Старая: {bot_version}, Новая: {Config.VERSION}. Сброс состояния."
+                        )
+                        # Сбрасываем состояние только если была старая версия
+                        await state.clear()
+                    
                     # Устанавливаем текущую версию
                     await state.update_data(bot_version=Config.VERSION)
             except Exception as e:

@@ -68,24 +68,9 @@ async def get_message(message: types.Message, state: FSMContext):
         chosen=chosen
     )
 
-    # Получаем выбранные каналы для отображения
-    from main_bot.handlers.user.stories.flow_create_post.schedule_step import get_story_report_text
-    objects = await db.get_user_channels(
-        user_id=message.from_user.id,
-        sort_by="stories"
-    )
-    
-    # Показываем финальные параметры
-    await message.answer(
-        text("manage:story:finish_params").format(
-            len(chosen),
-            await get_story_report_text(chosen, objects)
-        ),
-        reply_markup=keyboards.finish_params(
-            obj=post,
-            data="FinishStoriesParams"
-        )
-    )
+
+    # Показываем превью истории с возможностью редактирования
+    await answer_story(message, state)
 
 
 async def manage_post(call: types.CallbackQuery, state: FSMContext):
