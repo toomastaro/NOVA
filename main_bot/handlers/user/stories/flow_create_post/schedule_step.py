@@ -140,8 +140,10 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
     )
 
     if temp[1] == "cancel":
+        # Возврат в меню историй
+        from main_bot.handlers.user.menu import start_stories
         await call.message.delete()
-        return await answer_story(call.message, state)
+        return await start_stories(call.message)
 
     if temp[1] in ['next', 'back']:
         return await call.message.edit_reply_markup(

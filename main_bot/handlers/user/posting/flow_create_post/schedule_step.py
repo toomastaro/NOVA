@@ -103,9 +103,10 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
             else:
                 temp.append('0')
         else:
-            # Выход
+            # Выход - возврат в меню постинга
+            from main_bot.handlers.user.menu import start_posting
             await call.message.delete()
-            return await answer_post(call.message, state)
+            return await start_posting(call.message)
 
     # Пагинация
     if temp[1] in ['next', 'back']:

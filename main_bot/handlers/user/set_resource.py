@@ -258,7 +258,33 @@ async def manual_add_channel(message: types.Message, state: FSMContext):
         await start_posting(message)
 
     except Exception as e:
-        await message.answer(f"Произошла ошибка при добавлении канала: {e}")
+        # Логируем ошибку
+        logger.error(f"Ошибка при добавлении канала {chat_id}: {e}", exc_info=True)
+        
+        # Отправляем техническую информацию в бекап канал
+        from config import Config
+        if Config.BACKUP_CHAT_ID:
+            try:
+                await message.bot.send_message(
+                    Config.BACKUP_CHAT_ID,
+                    f"⚠️ <b>Ошибка при добавлении канала</b>\n\n"
+                    f"<b>Пользователь:</b> {message.from_user.id}\n"
+                    f"<b>Канал:</b> {chat_id}\n"
+                    f"<b>Ошибка:</b> <code>{e}</code>",
+                    parse_mode="HTML"
+                )
+            except:
+                pass
+        
+        # Показываем пользователю дружелюбное сообщение
+        await message.answer(
+            "❌ <b>Не удалось добавить канал.</b>\n\n"
+            "Пожалуйста, убедитесь что:\n"
+            "• Бот добавлен в администраторы канала\n"
+            "• У бота есть все необходимые права\n"
+            "• Вы являетесь администратором канала\n\n"
+            "Если проблема сохраняется, обратитесь в поддержку /support"
+        )
 
 
 def hand_add():
