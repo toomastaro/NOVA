@@ -501,11 +501,36 @@ class InlineProfile(InlineKeyboardBuilder):
             callback_data='MenuSubscription|transfer_sub'
         )
         kb.button(
+            text=text('info:button'),
+            callback_data='MenuSubscription|info'
+        )
+        kb.button(
             text=text('back:button'),
             callback_data='MenuSubscription|back'
         )
 
-        kb.adjust(1, 1, 1, 1, 1, 1)
+        kb.adjust(1, 1, 1, 1, 1, 1, 1)
+        return kb.as_markup()
+
+    @classmethod
+    def info_menu(cls):
+        """Меню информации с политикой конфиденциальности и пользовательским соглашением"""
+        kb = cls()
+
+        kb.button(
+            text=text('info:privacy:button'),
+            callback_data='InfoMenu|privacy'
+        )
+        kb.button(
+            text=text('info:terms:button'),
+            callback_data='InfoMenu|terms'
+        )
+        kb.button(
+            text=text('back:button'),
+            callback_data='InfoMenu|back'
+        )
+
+        kb.adjust(1, 1, 1)
         return kb.as_markup()
 
     @classmethod
