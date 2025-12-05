@@ -615,12 +615,22 @@ async def background_join_channel(chat_id: int, user_id: int = None):
                             "Теперь доступна публикация stories."
                         )
                     elif bot_rights.get("has_admin") and not bot_rights.get("can_promote"):
-                        message = (
-                            "⚠️ <b>Права администратора частично выданы</b>\n\n"
-                            f"<b>Причина:</b> {bot_rights.get('reason', 'Неизвестно')}\n\n"
-                            "MTProto-клиент добавлен как обычный участник.\n"
-                            "Для публикации stories дайте боту права 'Добавление администраторов' в канале."
-                        )
+                        # Отправляем техническую информацию в бекап канал
+                        if Config.BACKUP_CHAT_ID:
+                            try:
+                                await main_bot_obj.send_message(
+                                    Config.BACKUP_CHAT_ID,
+                                    f"⚠️ <b>Права администратора частично выданы</b>\n\n"
+                                    f"<b>Канал:</b> {chat_id}\n"
+                                    f"<b>Пользователь:</b> {user_id}\n"
+                                    f"<b>Причина:</b> {bot_rights.get('reason', 'Неизвестно')}\n\n"
+                                    "MTProto-клиент добавлен как обычный участник.",
+                                    parse_mode="HTML"
+                                )
+                            except:
+                                pass
+                        # Не отправляем сообщение пользователю
+                        message = None
                     else:
                         message = (
                             "❌ <b>Права администратора не выданы</b>\n\n"
@@ -630,11 +640,12 @@ async def background_join_channel(chat_id: int, user_id: int = None):
                         )
                     
                     try:
-                        await main_bot_obj.send_message(
-                            chat_id=user_id,
-                            text=message,
-                            parse_mode="HTML"
-                        )
+                        if message:  # Отправляем только если message не None
+                            await main_bot_obj.send_message(
+                                chat_id=user_id,
+                                text=message,
+                                parse_mode="HTML"
+                            )
                     except Exception as e:
                         logger.error(f"Failed to send notification to user {user_id}: {e}")
                 
