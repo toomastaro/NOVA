@@ -256,52 +256,12 @@ async def finish_params(call: types.CallbackQuery, state: FSMContext):
         sort_by="posting"
     )
 
-    # Возврат к выбору каналов
+    # Возврат к редактированию поста
     if temp[1] == 'cancel':
-        current_folder_id = data.get("current_folder_id")
-        
-        if current_folder_id:
-            folder = await db.get_folder_by_id(current_folder_id)
-            objects = []
-            if folder and folder.content:
-                for chat_id in folder.content:
-                    channel = await db.get_channel_by_chat_id(int(chat_id))
-                    if channel:
-                        objects.append(channel)
-            folders = []
-        else:
-            objects = await db.get_user_channels_without_folders(
-                user_id=call.from_user.id
-            )
-            folders = await db.get_folders(
-                user_id=call.from_user.id
-            )
-
-        # Пересчитываем список для отображения
-        display_objects = await db.get_user_channels(
-            user_id=call.from_user.id,
-            from_array=chosen[:10]
-        )
-
-        # Форматируем список выбранных каналов
-        if chosen:
-            channels_list = "\n\n<blockquote expandable>" + "\n".join(
-                text("resource_title").format(obj.title) for obj in display_objects
-            ) + "</blockquote>"
-        else:
-            channels_list = ""
-        
-        return await call.message.edit_text(
-            text("choice_channels:post").format(
-                len(chosen),
-                channels_list
-            ),
-            reply_markup=keyboards.choice_objects(
-                resources=objects,
-                chosen=chosen,
-                folders=folders
-            )
-        )
+        # Показываем превью поста с возможностью редактирования
+        await call.message.delete()
+        await answer_post(call.message, state)
+        return
 
     # Переключение отчетов
     if temp[1] == "report":

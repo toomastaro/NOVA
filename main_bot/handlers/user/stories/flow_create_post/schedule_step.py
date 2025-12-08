@@ -264,24 +264,10 @@ async def finish_params(call: types.CallbackQuery, state: FSMContext):
     )
 
     if temp[1] == 'cancel':
-        chosen_folders: list = data.get("chosen_folders")
-        folders = await db.get_folders(
-            user_id=call.from_user.id
-        )
-
-        return await call.message.edit_text(
-            text("choice_channels:story").format(
-                len(chosen),
-                await get_story_report_text(chosen, objects)
-            ),
-            reply_markup=keyboards.choice_objects(
-                resources=objects,
-                chosen=chosen,
-                folders=folders,
-                chosen_folders=chosen_folders,
-                data="ChoiceStoriesChannels"
-            )
-        )
+        # Показываем превью сторис
+        await call.message.delete()
+        await answer_story(call.message, state)
+        return
 
     if temp[1] == "report":
         post = await db.update_story(
