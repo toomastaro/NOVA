@@ -172,6 +172,10 @@ async def choice_period(call: types.CallbackQuery, state: FSMContext, user: User
     service = data.get('service')
     object_type = data.get('object_type')
     
+    # Защита от потери данных в state
+    if not object_type:
+        object_type = 'channels'
+    
     # Определяем функцию динамически
     if object_type == 'bots':
         cor = db.get_user_bots
@@ -214,6 +218,10 @@ async def choice_object_subscribe(call: types.CallbackQuery, state: FSMContext, 
     # cor = data.get('cor')
     service = data.get('service')
     object_type = data.get('object_type')
+    
+    # Защита от потери данных в state
+    if not object_type:
+        object_type = 'channels'
     
     # Определяем функцию динамически
     if object_type == 'bots':

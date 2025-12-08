@@ -92,8 +92,8 @@ async def choice_channel(call: types.CallbackQuery, state: FSMContext):
     
     await call.message.answer(
         text("channel:content").format(
-            channel.title,
             *day_values,
+            channel.title,
             text("no_content") if not posts else text("has_content").format(len(posts))
         ),
         reply_markup=keyboards.choice_row_content(
