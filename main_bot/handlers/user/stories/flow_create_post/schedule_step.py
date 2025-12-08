@@ -163,13 +163,26 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
             chosen.clear()
             chosen_folders.clear()
         else:
-            extend_list = [i.chat_id for i in objects if i.chat_id not in chosen and i.subscribe]
-            if not extend_list:
+            # Проверяем подписку для всех каналов
+            channels_without_sub = []
+            for obj in objects:
+                if not obj.subscribe:
+                    channels_without_sub.append(obj.title)
+            
+            if channels_without_sub:
+                # Показываем список каналов без подписки
+                channels_list = "\n".join(f"• {title}" for title in channels_without_sub[:5])
+                if len(channels_without_sub) > 5:
+                    channels_list += f"\n... и ещё {len(channels_without_sub) - 5}"
+                
                 return await call.answer(
-                    text("error_sub_all")
+                    f"❌ Невозможно выбрать все каналы\n\n"
+                    f"Следующие каналы не имеют активной подписки:\n{channels_list}\n\n"
+                    f"Оплатите подписку через меню 💎 Подписка",
+                    show_alert=True
                 )
-
-            chosen.extend(extend_list)
+            
+            extend_list = [i.chat_id for i in objects if i.chat_id not in chosen]
             if folders:
                 for folder in folders:
                     sub_channels = []

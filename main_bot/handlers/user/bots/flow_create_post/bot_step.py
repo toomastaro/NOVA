@@ -100,12 +100,26 @@ async def choice_bots(call: types.CallbackQuery, state: FSMContext):
             chosen.clear()
             chosen_folders.clear()
         else:
-            extend_list = [i.chat_id for i in objects if i.chat_id not in chosen and i.subscribe]
-            if not extend_list:
+            # Проверяем подписку для всех ботов
+            bots_without_sub = []
+            for obj in objects:
+                if not obj.subscribe:
+                    bots_without_sub.append(obj.title)
+            
+            if bots_without_sub:
+                # Показываем список ботов без подписки
+                bots_list = "\n".join(f"• {title}" for title in bots_without_sub[:5])
+                if len(bots_without_sub) > 5:
+                    bots_list += f"\n... и ещё {len(bots_without_sub) - 5}"
+                
                 return await call.answer(
-                    text("error_sub_all:bots")
+                    f"❌ Невозможно выбрать всех ботов\n\n"
+                    f"Следующие боты не имеют активной подписки:\n{bots_list}\n\n"
+                    f"Оплатите подписку через меню 💎 Подписка",
+                    show_alert=True
                 )
-
+            
+            extend_list = [i.chat_id for i in objects if i.chat_id not in chosen]
             chosen.extend(extend_list)
             if folders:
                 for folder in folders:

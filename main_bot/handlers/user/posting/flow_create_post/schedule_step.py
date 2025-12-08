@@ -134,7 +134,26 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
                 if cid in chosen:
                     chosen.remove(cid)
         else:
-            # Выбираем все видимые
+            # Проверяем подписку для всех каналов
+            channels_without_sub = []
+            for obj in objects:
+                if not obj.subscribe:
+                    channels_without_sub.append(obj.title)
+            
+            if channels_without_sub:
+                # Показываем список каналов без подписки
+                channels_list = "\n".join(f"• {title}" for title in channels_without_sub[:5])
+                if len(channels_without_sub) > 5:
+                    channels_list += f"\n... и ещё {len(channels_without_sub) - 5}"
+                
+                return await call.answer(
+                    f"❌ Невозможно выбрать все каналы\n\n"
+                    f"Следующие каналы не имеют активной подписки:\n{channels_list}\n\n"
+                    f"Оплатите подписку через меню 💎 Подписка",
+                    show_alert=True
+                )
+            
+            # Выбираем все видимые (все с подпиской)
             for cid in current_ids:
                 if cid not in chosen:
                     chosen.append(cid)
