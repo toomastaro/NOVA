@@ -57,19 +57,29 @@ async def check_subscriptions():
             if not status:
                 continue
 
+            # Проверяем, было ли уже отправлено уведомление сегодня
+            notification_key = f"sub_notify_{channel.id}_{field}_{status}"
+            last_notified = await db.get_cache(notification_key)
+            
+            # Если уведомление уже отправлялось сегодня, пропускаем
+            import time as time_module
+            current_day = time_module.strftime("%Y-%m-%d", time_module.localtime())
+            if last_notified == current_day:
+                continue
+
             if status == "expired":
-                msg = text(f"expire_off_sub").format(channel.emoji_id, channel.title)
+                msg = text(f"expire_off_sub").format(channel.title)
                 await db.update_channel_by_id(channel.id, **{field: None})
             else:
                 msg = text(f"expire_sub").format(
-                    channel.emoji_id,
                     channel.title,
-                    days,
                     time.strftime("%d.%m.%Y", time.localtime(expire_time)),
                 )
 
             try:
-                await bot.send_message(channel.admin_id, msg)
+                await bot.send_message(channel.admin_id, msg, parse_mode="HTML")
+                # Сохраняем дату отправки уведомления
+                await db.set_cache(notification_key, current_day, ttl=86400)
             except Exception as e:
                 logger.error(f"[{text_prefix.upper()}_NOTIFY] {channel.title}: {e}", exc_info=True)
 
