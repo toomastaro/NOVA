@@ -144,13 +144,21 @@ async def get_amount(message: types.Message, state: FSMContext):
 
     elif method == PaymentMethod.PLATEGA:
         from main_bot.utils.payments.platega import platega_api
+        
+        # Create persistent payment link
+        payment_link = await db.create_payment_link(
+            user_id=message.from_user.id,
+            amount=amount,
+            payload={'type': 'balance'}
+        )
+        
         result = await platega_api.create_invoice(
-            order_id=str(random.randint(10000, 99999)),
+            order_id=str(payment_link.id),
             amount=amount,
             description='Пополнение баланса NovaTg'
         )
         pay_url = result.get('pay_url')
-        order_id = result.get('id')
+        order_id = result.get('id')  # This is Platega's internal ID, but we track by our ID passed above
 
     # stars
     else:

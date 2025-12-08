@@ -184,8 +184,27 @@ async def choice(call: types.CallbackQuery, state: FSMContext, user: User):
 
     elif method == PaymentMethod.PLATEGA:
         from main_bot.utils.payments.platega import platega_api
+        
+        # Snapshot of what is being purchased
+        sub_payload = {
+            'type': 'subscribe',
+            'chosen': data.get('chosen'),
+            'total_days': data.get('total_days'),
+            'total_price': data.get('total_price'),
+            'promo_name': data.get('promo_name'),
+            'service': data.get('service'),
+            'object_type': data.get('object_type'),
+            'referral_id': user.referral_id
+        }
+
+        payment_link = await db.create_payment_link(
+            user_id=user.id,
+            amount=total_price,
+            payload=sub_payload
+        )
+
         result = await platega_api.create_invoice(
-            order_id=str(random.randint(10000, 99999)),
+            order_id=str(payment_link.id),
             amount=total_price,
             description='Оплата подписки NovaTg'
         )

@@ -20,7 +20,7 @@ from main_bot.database.ad_creative.crud import AdCreativeCrud
 from main_bot.database.ad_purchase.crud import AdPurchaseCrud
 from main_bot.database.mt_client.crud import MtClientCrud
 from main_bot.database.mt_client_channel.crud import MtClientChannelCrud
-from main_bot.database.novastat_cache.crud import NovaStatCacheCrud
+from main_bot.database.payment_link.crud import PaymentLinkCrud
 from main_bot.database import engine, Base
 
 
@@ -54,6 +54,9 @@ class Database(
     
     # NovaStat Cache
     NovaStatCacheCrud,
+
+    # Payments
+    PaymentLinkCrud
 ):
     @staticmethod
     async def create_tables():
