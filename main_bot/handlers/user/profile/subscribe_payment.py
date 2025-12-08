@@ -298,7 +298,7 @@ async def align_subscribe(call: types.CallbackQuery, state: FSMContext, user: Us
         await call.answer(text('keys_data_error'))
         return await call.message.delete()
 
-    align_chosen: list = data.get("align_chosen")
+    align_chosen: list = data.get("align_chosen", [])
     all_sub_objects = await db.get_subscribe_channels(
         user_id=user.id
     )
@@ -362,8 +362,8 @@ async def align_subscribe(call: types.CallbackQuery, state: FSMContext, user: Us
         if len(align_chosen) == len(sub_objects):
             align_chosen.clear()
         else:
-            objects_ids = [i.chat_id for i in sub_objects]
-            align_chosen.extend(objects_ids)
+            align_chosen.clear()
+            align_chosen.extend([i.chat_id for i in sub_objects])
 
     if temp[1].isdigit():
         resource_id = int(temp[1])
