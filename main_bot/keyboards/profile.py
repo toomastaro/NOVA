@@ -315,7 +315,7 @@ class InlineProfile(InlineKeyboardBuilder):
     @classmethod
     def folders(cls, folders: List[UserFolder], remover: int = 0):
         kb = cls()
-        count_rows = 3
+        count_rows = 6
 
         for a, idx in enumerate(range(remover, len(folders))):
             if a < count_rows:
@@ -326,7 +326,7 @@ class InlineProfile(InlineKeyboardBuilder):
                     )
                 )
 
-        kb.adjust(1)
+        kb.adjust(2)
 
         if len(folders) <= count_rows:
             pass

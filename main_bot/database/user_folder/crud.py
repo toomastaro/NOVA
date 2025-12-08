@@ -39,7 +39,7 @@ class UserFolderCrud(DatabaseMixin):
             select(UserFolder).where(
                 UserFolder.user_id == user_id,
                 UserFolder.type == folder_type
-            )
+            ).order_by(UserFolder.title)
         )
 
     async def get_folder_by_title(self, title: str, user_id: int) -> UserFolder:
