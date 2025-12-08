@@ -50,6 +50,7 @@ async def get_days_with_posts(channel_chat_id: int, year: int, month: int) -> se
     return days_with_posts
 
 
+@safe_handler("Posting Choice Channel")
 async def choice_channel(call: types.CallbackQuery, state: FSMContext):
     temp = call.data.split('|')
 
@@ -91,8 +92,8 @@ async def choice_channel(call: types.CallbackQuery, state: FSMContext):
     
     await call.message.answer(
         text("channel:content").format(
-            *day_values,
             channel.title,
+            *day_values,
             text("no_content") if not posts else text("has_content").format(len(posts))
         ),
         reply_markup=keyboards.choice_row_content(
@@ -103,6 +104,7 @@ async def choice_channel(call: types.CallbackQuery, state: FSMContext):
     )
 
 
+@safe_handler("Posting Choice Row Content")
 async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
     temp = call.data.split("|")
     data = await state.get_data()
@@ -141,8 +143,8 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
 
         return await call.message.edit_text(
             text("channel:content").format(
-                *day_values,
                 channel.title,
+                *day_values,
                 text("no_content") if not posts else text("has_content").format(len(posts))
             ),
             reply_markup=keyboards.choice_row_content(
@@ -234,6 +236,7 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
     )
 
 
+@safe_handler("Posting Choice Time Objects")
 async def choice_time_objects(call: types.CallbackQuery, state: FSMContext):
     temp = call.data.split("|")
     data = await state.get_data()
@@ -259,8 +262,8 @@ async def choice_time_objects(call: types.CallbackQuery, state: FSMContext):
         days_with_posts = await get_days_with_posts(channel.chat_id, day.year, day.month)
         return await call.message.edit_text(
             text("channel:content").format(
-                *data.get("day_values"),
                 channel.title,
+                *data.get("day_values"),
                 text("no_content") if not posts else text("has_content").format(len(posts))
             ),
             reply_markup=keyboards.choice_row_content(
@@ -272,6 +275,7 @@ async def choice_time_objects(call: types.CallbackQuery, state: FSMContext):
         )
 
 
+@safe_handler("Posting Manage Remain Post")
 async def manage_remain_post(call: types.CallbackQuery, state: FSMContext):
     temp = call.data.split('|')
     data = await state.get_data()
@@ -292,8 +296,8 @@ async def manage_remain_post(call: types.CallbackQuery, state: FSMContext):
         days_with_posts = await get_days_with_posts(channel.chat_id, day.year, day.month)
         return await call.message.edit_text(
             text("channel:content").format(
-                *data.get("day_values"),
                 data.get("channel").title,
+                *data.get("day_values"),
                 text("no_content") if not posts else text("has_content").format(len(posts))
             ),
             reply_markup=keyboards.choice_row_content(
@@ -329,6 +333,7 @@ async def manage_remain_post(call: types.CallbackQuery, state: FSMContext):
             )
 
 
+@safe_handler("Posting Accept Delete Row Content")
 async def accept_delete_row_content(call: types.CallbackQuery, state: FSMContext):
     temp = call.data.split("|")
     data = await state.get_data()
@@ -367,8 +372,8 @@ async def accept_delete_row_content(call: types.CallbackQuery, state: FSMContext
         days_with_posts = await get_days_with_posts(channel.chat_id, day.year, day.month)
         return await call.message.edit_text(
             text("channel:content").format(
-                *day_values,
                 channel.title,
+                *day_values,
                 text("no_content") if not posts else text("has_content").format(len(posts))
             ),
             reply_markup=keyboards.choice_row_content(
@@ -380,6 +385,7 @@ async def accept_delete_row_content(call: types.CallbackQuery, state: FSMContext
 
 
 
+@safe_handler("Posting Manage Published Post")
 async def manage_published_post(call: types.CallbackQuery, state: FSMContext):
     temp = call.data.split('|')
     data = await state.get_data()
@@ -398,8 +404,8 @@ async def manage_published_post(call: types.CallbackQuery, state: FSMContext):
             await call.bot.delete_message(call.message.chat.id, post_message.message_id)
         return await call.message.edit_text(
             text("channel:content").format(
-                *data.get("day_values"),
                 data.get("channel").title,
+                *data.get("day_values"),
                 text("no_content") if not posts else text("has_content").format(len(posts))
             ),
             reply_markup=keyboards.choice_row_content(
@@ -417,6 +423,7 @@ async def manage_published_post(call: types.CallbackQuery, state: FSMContext):
         )
 
 
+@safe_handler("Posting Accept Delete Published Post")
 async def accept_delete_published_post(call: types.CallbackQuery, state: FSMContext):
     temp = call.data.split("|")
     data = await state.get_data()
@@ -472,8 +479,8 @@ async def accept_delete_published_post(call: types.CallbackQuery, state: FSMCont
         days_with_posts = await get_days_with_posts(channel.chat_id, day.year, day.month)
         return await call.message.edit_text(
             text("channel:content").format(
-                *day_values,
                 channel.title,
+                *day_values,
                 text("no_content") if not posts else text("has_content").format(len(posts))
             ),
             reply_markup=keyboards.choice_row_content(
