@@ -97,7 +97,7 @@ async def show_subscribe(message: types.Message, state: FSMContext = None):
         await state.update_data(
             service=service,
             object_type=object_type,
-            cor=cor,
+            # cor не сохраняем в state
         )
     
     await message.answer(
@@ -231,13 +231,9 @@ async def subscription_menu_choice(call: types.CallbackQuery, user: User, state:
         )
     
     elif temp[1] == 'back':
-        # Возврат в профиль
+        # Возврат в главное меню
         await call.message.delete()
-        await call.message.answer(
-            text("balance_text").format(user.balance),
-            reply_markup=keyboards.subscription_menu(),
-            parse_mode="HTML"
-        )
+        await back_to_main(call.message)
 
 
 async def back_to_main(message: types.Message):
