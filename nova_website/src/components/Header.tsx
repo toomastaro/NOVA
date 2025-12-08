@@ -1,5 +1,4 @@
 import { Button } from "@/components/ui/button";
-import { ModeToggle } from "@/components/mode-toggle";
 
 const Header = () => {
   return (
@@ -18,7 +17,6 @@ const Header = () => {
           <a href="#pricing" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
             Цены
           </a>
-          <ModeToggle />
           <Button variant="outline" size="sm" asChild>
             <a href="https://t.me/mousesquad" target="_blank" rel="noopener noreferrer">
               Поддержка
