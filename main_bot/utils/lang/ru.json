@@ -150,7 +150,7 @@
   "manage:bot:del_channel": "➖ Отвязать канал",
   "manage:bot:refresh_token": "♻️ Обновить токен",
   "manage:bot:check_token": "🔎 Проверить токен",
-  "manage:bot:import_db": "📥 Импорт базы",
+  "manage:bot:import_db": "📥 Импорт базы ",
   "manage:bot:export_db": "📤 Экспорт базы",
   "manage:bot:set_on": "🟢 Включить бота",
   "manage:bot:set_off": "🔴 Выключить бота",
