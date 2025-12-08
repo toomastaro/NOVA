@@ -119,7 +119,7 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
 
     channel: Channel = data.get("channel")
     show_more: bool = data.get("show_more")
-    day: datetime = data.get("day")
+    day: datetime = data.get("day") or datetime.today()
 
     if temp[1] in ['next_day', 'next_month', 'back_day', 'back_month', "choice_day", "show_more"]:
         if temp[1] == "choice_day":
