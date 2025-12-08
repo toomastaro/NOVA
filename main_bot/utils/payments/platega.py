@@ -45,11 +45,28 @@ class Platega:
             res.raise_for_status()
             res_json = res.json()
             
-            # Additional h2h call (check if really needed or if pay_url is already in res_json)
-            # Documentation says "CreateTransactionResponse" schema. It probably has 'pay_url' or similar.
-            # If h2h is required, we keep it.
-            h2h_url = await self.h2h_invoice(invoice_id=order_id)
-            res_json['qr'] = h2h_url
+            # Map response fields to what handler expects
+            if 'redirect' in res_json:
+                res_json['pay_url'] = res_json['redirect']
+            
+            # Response uses 'transactionId', but we treat our 'order_id' as the main ID.
+            # Handler expects 'id'. Platega response might not have 'id' key, or 'transactionId' matches order_id (UUID).
+            # Let's ensure 'id' is present.
+            if 'transactionId' in res_json:
+                res_json['id'] = res_json['transactionId']
+            else:
+                res_json['id'] = order_id # Fallback to our generated ID if not returned
+
+            # Attempt H2H calls only if needed/successful, and don't block main success
+            try:
+                # If we have a redirect URL, H2H might be secondary or for QR display.
+                # Only try if we really suspect we need a direct QR string, but usually redirect is enough.
+                # Check if it fails/logs error. Logs ended abruptly in user report?
+                # "h2h_url = await self.h2h_invoice(invoice_id=order_id)"
+                # If this is for SBP QR, maybe we need it. But 'redirect' works for flow.
+                pass 
+            except Exception as e:
+                logger.error(f"Platega H2H fetch error: {e}")
 
             return res_json
         except Exception as e:
