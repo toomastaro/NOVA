@@ -156,6 +156,74 @@ async def show_support(message: types.Message, state: FSMContext):
     await state.set_state(Support.message)
 
 
+async def subscription_menu_choice(call: types.CallbackQuery, user: User, state: FSMContext):
+    """Обработчик выбора пунктов меню подписки"""
+    temp = call.data.split('|')
+    
+    if temp[1] == 'align_sub':
+        # Показать меню выравнивания подписки
+        await call.message.delete()
+        
+        # Получаем все каналы пользователя
+        channels = await db.get_user_channels(user_id=user.id)
+        
+        if not channels:
+            return await call.message.answer(
+                text("error_no_channels"),
+                reply_markup=keyboards.subscription_menu()
+            )
+        
+        await state.update_data(align_chosen=[])
+        
+        await call.message.answer(
+            text("align_sub"),
+            reply_markup=keyboards.align_sub(
+                sub_objects=channels,
+                chosen=[],
+                remover=0
+            )
+        )
+    
+    elif temp[1] == 'transfer_sub':
+        # Показать меню переноса подписки
+        from main_bot.handlers.user.profile.transfer_subscription import show_transfer_sub_menu
+        await call.message.delete()
+        await show_transfer_sub_menu(call, state)
+    
+    elif temp[1] == 'top_up':
+        # Пополнение баланса
+        from main_bot.handlers.user.profile.payment import show_payment
+        await call.message.delete()
+        await show_payment(call.message, user)
+    
+    elif temp[1] == 'subscribe':
+        # Подписка на каналы
+        await call.message.delete()
+        await show_subscribe(call.message, state)
+    
+    elif temp[1] == 'referral':
+        # Реферальная программа
+        await call.message.delete()
+        await show_referral(call.message, user)
+    
+    elif temp[1] == 'info':
+        # Информация о подписке
+        await call.message.delete()
+        await call.message.answer(
+            text("subscription_info"),
+            reply_markup=keyboards.back(data='MenuSubscription|back')
+        )
+    
+    elif temp[1] == 'back':
+        # Возврат в профиль
+        await call.message.delete()
+        await call.message.answer(
+            text("balance_text").format(user.balance),
+            reply_markup=keyboards.subscription_menu(),
+            parse_mode="HTML"
+        )
+
+
 async def back_to_main(message: types.Message):
     """Возврат в главное меню"""
     from main_bot.keyboards.common import Reply
@@ -168,4 +236,5 @@ async def back_to_main(message: types.Message):
 def hand_add():
     router = Router()
     router.callback_query.register(choice, F.data.split("|")[0] == "MenuProfile")
+    router.callback_query.register(subscription_menu_choice, F.data.split("|")[0] == "MenuSubscription")
     return router
