@@ -314,7 +314,7 @@ class InlineContent(InlineKeyboardBuilder):
 
             kb.row(
                 InlineKeyboardButton(
-                    text="{} | {} | {}".format(
+                    text="{} {} {}".format(
                         datetime.fromtimestamp(post.send_time or post.start_timestamp).strftime(
                             "%H:%M"
                         ),
