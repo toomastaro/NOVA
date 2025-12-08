@@ -180,7 +180,8 @@ async def choose_recipients(call: types.CallbackQuery, state: FSMContext, user: 
         if len(chosen) == len(recipient_channels):
             chosen.clear()
         else:
-            chosen = [ch.chat_id for ch in recipient_channels]
+            chosen.clear()
+            chosen.extend([ch.chat_id for ch in recipient_channels])
     
     # Выбор/отмена выбора канала
     elif temp[1].isdigit():
@@ -201,7 +202,7 @@ async def choose_recipients(call: types.CallbackQuery, state: FSMContext, user: 
         await execute_transfer(call, state, user, chosen)
         return
     
-    # Обновляем state и клавиатуру
+    # Обновляем state ПЕРЕД обновлением UI
     await state.update_data(
         transfer_chosen_recipients=chosen
     )
