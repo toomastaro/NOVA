@@ -49,10 +49,33 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
 
     channel = await db.get_channel_by_chat_id(int(temp[1]))
     editors_str = await get_editors(call, channel.chat_id)
+    
+    # Получаем информацию о создателе
+    try:
+        creator = await call.bot.get_chat(channel.admin_id)
+        creator_name = f"@{creator.username}" if creator.username else creator.full_name
+    except:
+        creator_name = "Неизвестно"
+    
+    # Форматируем дату добавления
+    from datetime import datetime
+    created_date = datetime.fromtimestamp(channel.created_timestamp)
+    created_str = created_date.strftime("%d.%m.%Y в %H:%M")
+    
+    # Статус подписки
+    if channel.subscribe:
+        from datetime import datetime
+        sub_date = datetime.fromtimestamp(channel.subscribe)
+        subscribe_str = f"✅ Активна до {sub_date.strftime('%d.%m.%Y')}"
+    else:
+        subscribe_str = "❌ Не активна"
 
     await call.message.edit_text(
         text('channel_info').format(
             channel.title,
+            creator_name,
+            created_str,
+            subscribe_str,
             editors_str
         ),
         reply_markup=keyboards.manage_channel()

@@ -185,12 +185,18 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
         from_array=chosen[:10]
     )
 
+    # Форматируем список выбранных каналов
+    if chosen:
+        channels_list = "\n\n<blockquote expandable>" + "\n".join(
+            text("resource_title").format(obj.title) for obj in display_objects
+        ) + "</blockquote>"
+    else:
+        channels_list = ""
+    
     await call.message.edit_text(
         text("choice_channels:post").format(
             len(chosen),
-            "\n".join(
-                text("resource_title").format(obj.title) for obj in display_objects
-            )
+            channels_list
         ),
         reply_markup=keyboards.choice_objects(
             resources=objects,
@@ -258,12 +264,18 @@ async def finish_params(call: types.CallbackQuery, state: FSMContext):
             from_array=chosen[:10]
         )
 
+        # Форматируем список выбранных каналов
+        if chosen:
+            channels_list = "\n\n<blockquote expandable>" + "\n".join(
+                text("resource_title").format(obj.title) for obj in display_objects
+            ) + "</blockquote>"
+        else:
+            channels_list = ""
+        
         return await call.message.edit_text(
             text("choice_channels:post").format(
                 len(chosen),
-                "\n".join(
-                    text("resource_title").format(obj.title) for obj in display_objects
-                )
+                channels_list
             ),
             reply_markup=keyboards.choice_objects(
                 resources=objects,
