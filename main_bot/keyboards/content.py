@@ -480,13 +480,12 @@ class InlineContent(InlineKeyboardBuilder):
                     message_text = message_text.replace('tg-emoji emoji-id', '').replace('</tg-emoji>', '')
                     message_text = re.sub(r'<[^>]+>', '', message_text)
 
-                kb.row(
                     InlineKeyboardButton(
-                        text="{} {} | {}".format(
-                            emoji,
+                        text="{} | {} | {}".format(
                             datetime.fromtimestamp(getattr(objects[idx], "send_time")).strftime(
-                                "%d.%m.%Y %H:%M"
+                                "%H:%M"
                             ),
+                            emoji,
                             message_text or "Медиа"
                         ),
                         callback_data="{}|{}".format(
