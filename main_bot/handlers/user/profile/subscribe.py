@@ -40,7 +40,7 @@ def get_subscribe_list_resources(objects, object_type, sort_by):
                     )
                 )
 
-        obj_text = text("resource_title").format(obj.emoji_id, obj.title)
+        obj_text = text("resource_title").format(obj.title)
         empty_text += obj_text + sub_text + "\n"
 
     return empty_text
