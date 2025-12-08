@@ -314,11 +314,11 @@ class InlineContent(InlineKeyboardBuilder):
 
             kb.row(
                 InlineKeyboardButton(
-                    text="{} {} | {}".format(
-                        emoji,
+                    text="{} | {} | {}".format(
                         datetime.fromtimestamp(post.send_time or post.start_timestamp).strftime(
-                            "%d.%m.%Y %H:%M"
+                            "%H:%M"
                         ),
+                        emoji,
                         message_text or "Медиа"
                     ),
                     callback_data=callback
