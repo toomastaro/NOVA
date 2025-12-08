@@ -257,12 +257,18 @@ async def choice(call: types.CallbackQuery, state: FSMContext, user: User):
                 continue
 
         if method == PaymentMethod.PLATEGA:
-            from main_bot.utils.payments.platega import platega_api
-            paid = await platega_api.is_paid(order_id)
+            # Webhook handles the payment and crediting.
+            # We just watch DB for status update to clean up UI.
+            payment_link = await db.get_payment_link(order_id)
+            if payment_link and payment_link.status == 'PAID':
+                await call.message.delete()
+                # Success message is sent by webhook
+                await profile(call.message)
+                await state.clear()
+                return
 
-            if not paid:
-                await asyncio.sleep(5)
-                continue
+            await asyncio.sleep(5)
+            continue
 
         if method == PaymentMethod.STARS:
             await state.update_data(

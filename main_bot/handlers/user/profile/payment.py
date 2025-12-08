@@ -203,12 +203,20 @@ async def get_amount(message: types.Message, state: FSMContext):
                 continue
 
         if method == PaymentMethod.PLATEGA:
-            from main_bot.utils.payments.platega import platega_api
-            paid = await platega_api.is_paid(order_id)
+            # Webhook handles the payment and crediting.
+            # We just watch DB for status update to clean up UI.
+            payment_link = await db.get_payment_link(order_id)
+            if payment_link and payment_link.status == 'PAID':
+                await wait_msg.delete()
+                # Success message is sent by webhook
+                # Just refresh balance view for user
+                user = await db.get_user(user_id=message.from_user.id)
+                await show_balance(message, user)
+                await state.clear()
+                return
 
-            if not paid:
-                await asyncio.sleep(5)
-                continue
+            await asyncio.sleep(5)
+            continue
 
         if method == PaymentMethod.STARS:
             await state.update_data(
