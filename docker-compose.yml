@@ -68,6 +68,7 @@ services:
     volumes:
       - ./nginx/conf:/etc/nginx/conf.d
       - ./nginx/ssl:/etc/nginx/ssl
+      - ./static_site:/var/www/static
     depends_on:
       app:
         condition: service_healthy
