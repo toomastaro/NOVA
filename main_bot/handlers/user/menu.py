@@ -4,8 +4,13 @@ from aiogram.fsm.context import FSMContext
 from main_bot.keyboards import keyboards
 from main_bot.states.user import Support
 from main_bot.utils.lang.language import text
+from main_bot.utils.logger import logging
+from main_bot.utils.error_handler import safe_handler
+
+logger = logging.getLogger(__name__)
 
 
+@safe_handler("Menu Choice")
 async def choice(message: types.Message, state: FSMContext):
     await state.clear()
 
@@ -40,10 +45,14 @@ async def choice(message: types.Message, state: FSMContext):
         },
     }
 
-    cor, args = menu[message.text].values()
-    await cor(*args)
+    if message.text in menu:
+        cor, args = menu[message.text].values()
+        await cor(*args)
+    else:
+        logger.warning(f"Unknown menu command: {message.text}")
 
 
+@safe_handler("Start Posting Menu")
 async def start_posting(message: types.Message):
     await message.answer(
         text('start_post_text'),
@@ -51,6 +60,7 @@ async def start_posting(message: types.Message):
     )
 
 
+@safe_handler("Start Stories Menu")
 async def start_stories(message: types.Message):
     await message.answer(
         text('start_stories_text'),
@@ -58,6 +68,7 @@ async def start_stories(message: types.Message):
     )
 
 
+@safe_handler("Start Bots Menu")
 async def start_bots(message: types.Message):
     await message.answer(
         text('start_bots_text'),
@@ -65,6 +76,7 @@ async def start_bots(message: types.Message):
     )
 
 
+@safe_handler("Start Support")
 async def support(message: types.Message, state: FSMContext):
     await message.answer(
         text('start_support_text'),
@@ -75,6 +87,7 @@ async def support(message: types.Message, state: FSMContext):
     await state.set_state(Support.message)
 
 
+@safe_handler("Start Profile")
 async def profile(message: types.Message):
     await message.answer(
         text('start_profile_text'),
@@ -82,6 +95,7 @@ async def profile(message: types.Message):
     )
 
 
+@safe_handler("Start Subscription")
 async def subscription(message: types.Message):
     """Меню подписки с балансом, подпиской и реферальной системой"""
     from main_bot.database.db import db
@@ -94,6 +108,7 @@ async def subscription(message: types.Message):
     )
 
 
+@safe_handler("Show Channels")
 async def show_channels(message: types.Message):
     """Показать список каналов пользователя"""
     from main_bot.database.db import db
