@@ -341,7 +341,7 @@ async def align_subscribe(call: types.CallbackQuery, state: FSMContext, user: Us
             [
                 round((i.subscribe - now) / 86400)
                 for i in chosen_objects
-                if (i.subscribe - now) > 86400
+                if i.subscribe and (i.subscribe - now) > 86400  # Проверяем что subscribe не None
             ]
         )
 
