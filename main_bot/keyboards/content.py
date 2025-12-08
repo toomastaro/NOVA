@@ -109,7 +109,7 @@ class InlineContent(InlineKeyboardBuilder):
         )
         kb.button(
             text=text('back:button'),
-            callback_data="ChoicePostChannels|back|0"
+            callback_data=f"{data}|cancel"
         )
 
         kb.adjust(1)

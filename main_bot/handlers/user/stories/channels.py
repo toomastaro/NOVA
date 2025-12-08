@@ -105,8 +105,9 @@ async def manage_channel(call: types.CallbackQuery):
             text('delete_channel'),
             show_alert=True
         )
-
-    await cancel(call)
+    
+    if temp[1] == 'cancel':
+        return await cancel(call)
 
 
 def hand_add():
