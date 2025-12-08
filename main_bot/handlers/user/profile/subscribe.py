@@ -67,7 +67,17 @@ async def get_pay_info_text(state: FSMContext, user: User) -> str:
     total_count_resources = data.get('total_count_resources')
     chosen = data.get('chosen')
     service = data.get('service')
-    cor = data.get('cor')
+    # cor = data.get('cor')
+    
+    # Определяем функцию динамически (для pay_info)
+    # Здесь нужно определить object_type, но он не передан явно в data для всех кейсов
+    # Попробуем определить по наличию ключа в data или по умолчанию channels
+    object_type = data.get('object_type', 'channels')
+    
+    if object_type == 'bots':
+        cor = db.get_user_bots
+    else:
+        cor = db.get_user_channels
 
     objects = await cor(
         user_id=user.id,
@@ -125,7 +135,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext, user: User):
     await state.update_data(
         service=service,
         object_type=object_type,
-        cor=cor,
+        # cor не сохраняем в state
     )
     await call.message.answer(
         message_text.format(
@@ -158,9 +168,15 @@ async def choice_period(call: types.CallbackQuery, state: FSMContext, user: User
         await call.answer(text('keys_data_error'))
         return await call.message.delete()
 
-    cor = data.get('cor')
+    # cor = data.get('cor')  <- Получение функции из state вызывает ошибку
     service = data.get('service')
     object_type = data.get('object_type')
+    
+    # Определяем функцию динамически
+    if object_type == 'bots':
+        cor = db.get_user_bots
+    else:
+        cor = db.get_user_channels
 
     objects = await cor(
         user_id=user.id,
@@ -195,9 +211,15 @@ async def choice_object_subscribe(call: types.CallbackQuery, state: FSMContext, 
         await call.answer(text('keys_data_error'))
         return await call.message.delete()
 
-    cor = data.get('cor')
+    # cor = data.get('cor')
     service = data.get('service')
     object_type = data.get('object_type')
+    
+    # Определяем функцию динамически
+    if object_type == 'bots':
+        cor = db.get_user_bots
+    else:
+        cor = db.get_user_channels
     tariff_id = data.get('tariff_id')
     chosen: list = data.get('chosen')
 
@@ -232,7 +254,6 @@ async def choice_object_subscribe(call: types.CallbackQuery, state: FSMContext, 
             text(f'subscribe:chosen:{object_type}').format(
                 "\n".join(
                     text("resource_title").format(
-                        obj.emoji_id,
                         obj.title
                     ) for obj in objects
                     if obj.id in chosen[:10]
