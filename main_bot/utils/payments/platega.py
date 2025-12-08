@@ -20,6 +20,9 @@ class Platega:
         )
 
     async def create_invoice(self, order_id: str, amount: float, description: str):
+        import logging
+        logger = logging.getLogger(__name__)
+
         params = {
           "paymentMethod": 2,
           "id": order_id,
@@ -33,16 +36,25 @@ class Platega:
         }
 
         try:
+            logger.info(f"Platega Creating invoice: {params}")
             res = await self.client.post('/transaction/process', json=params)
+            
+            logger.info(f"Platega Response Status: {res.status_code}")
+            logger.info(f"Platega Response Body: {res.text}")
+
+            res.raise_for_status()
             res_json = res.json()
+            
+            # Additional h2h call (check if really needed or if pay_url is already in res_json)
+            # Documentation says "CreateTransactionResponse" schema. It probably has 'pay_url' or similar.
+            # If h2h is required, we keep it.
+            h2h_url = await self.h2h_invoice(invoice_id=order_id)
+            res_json['qr'] = h2h_url
+
+            return res_json
         except Exception as e:
-            print(e)
+            logger.error(f"Platega Create Invoice Error: {e}", exc_info=True)
             return {}
-
-        h2h_url = await self.h2h_invoice(invoice_id=order_id)
-        res_json['qr'] = h2h_url
-
-        return res_json
 
     async def h2h_invoice(self, invoice_id: str):
         res = await self.client.get(f'/h2h/{invoice_id}')
