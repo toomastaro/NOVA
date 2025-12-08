@@ -220,6 +220,8 @@ async def choice_object_subscribe(call: types.CallbackQuery, state: FSMContext, 
     object_type = data.get('object_type')
     
     # Защита от потери данных в state
+    if not service:
+        service = 'subscribe'
     if not object_type:
         object_type = 'channels'
     
@@ -228,7 +230,14 @@ async def choice_object_subscribe(call: types.CallbackQuery, state: FSMContext, 
         cor = db.get_user_bots
     else:
         cor = db.get_user_channels
+    
     tariff_id = data.get('tariff_id')
+    
+    # Если тариф не выбран (например, после перезапуска бота с потерей state), возвращаем в меню
+    if tariff_id is None:
+        await call.answer(text('keys_data_error'))
+        return await call.message.delete()
+        
     chosen: list = data.get('chosen')
 
     if temp[1] == 'cancel':
@@ -324,7 +333,6 @@ async def choice_object_subscribe(call: types.CallbackQuery, state: FSMContext, 
         text(f'subscribe:chosen:{object_type}').format(
             "\n".join(
                 text("resource_title").format(
-                    obj.emoji_id,
                     obj.title
                 ) for obj in objects
                 if obj.id in chosen[:10]
