@@ -175,13 +175,28 @@ async def subscription_menu_choice(call: types.CallbackQuery, user: User, state:
         
         await state.update_data(align_chosen=[])
         
+        # Форматируем список каналов с датами подписки
+        from datetime import datetime
+        import time
+        
+        channels_info = []
+        for ch in channels:
+            if ch.subscribe and ch.subscribe > int(time.time()):
+                sub_date = datetime.fromtimestamp(ch.subscribe).strftime('%d.%m.%Y')
+                channels_info.append(f"📺 {ch.title} — до {sub_date}")
+            else:
+                channels_info.append(f"📺 {ch.title} — нет подписки")
+        
+        channels_list = "\n".join(channels_info)
+        
         await call.message.answer(
-            text("align_sub"),
+            f"{text('align_sub')}\n\n<blockquote>{channels_list}</blockquote>",
             reply_markup=keyboards.align_sub(
                 sub_objects=channels,
                 chosen=[],
                 remover=0
-            )
+            ),
+            parse_mode="HTML"
         )
     
     elif temp[1] == 'transfer_sub':
