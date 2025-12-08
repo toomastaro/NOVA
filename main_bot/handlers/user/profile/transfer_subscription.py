@@ -45,12 +45,12 @@ async def show_transfer_sub_menu(call: types.CallbackQuery, state: FSMContext):
 
 async def choose_donor(call: types.CallbackQuery, state: FSMContext, user: User):
     """Обработчик выбора канала-донора"""
+    from main_bot.utils.lang.language import text
+    
     temp = call.data.split('|')
     
     if temp[1] == 'cancel':
         # Возврат в меню подписки с информацией о балансе
-        from main_bot.utils.lang.language import text
-        
         await call.message.delete()
         return await call.message.answer(
             text("balance_text").format(user.balance),
