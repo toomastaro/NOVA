@@ -70,7 +70,8 @@ async def manage_post(call: types.CallbackQuery, state: FSMContext):
                 )
             )
 
-        await db.delete_post(data.get('post').id)
+        if post:
+            await db.delete_post(post.id)
         await call.message.delete()
         return await show_create_post(call.message, state)
 
