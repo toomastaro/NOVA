@@ -366,14 +366,18 @@ async def align_subscribe(call: types.CallbackQuery, state: FSMContext, user: Us
 
     if temp[1].isdigit():
         resource_id = int(temp[1])
+        logger.info(f"Align: channel {resource_id} clicked, current chosen: {align_chosen}")
         if resource_id in align_chosen:
             align_chosen.remove(resource_id)
+            logger.info(f"Align: removed {resource_id}, new chosen: {align_chosen}")
         else:
             align_chosen.append(resource_id)
+            logger.info(f"Align: added {resource_id}, new chosen: {align_chosen}")
 
     await state.update_data(
         align_chosen=align_chosen
     )
+    logger.info(f"Align: state updated with chosen: {align_chosen}")
     
     try:
         await call.message.edit_reply_markup(
@@ -383,8 +387,10 @@ async def align_subscribe(call: types.CallbackQuery, state: FSMContext, user: Us
                 remover=int(temp[2])
             )
         )
-    except Exception:
+        logger.info("Align: UI updated successfully")
+    except Exception as e:
         # Игнорируем ошибку если сообщение не изменилось
+        logger.warning(f"Align: UI update failed: {e}")
         pass
 
 
