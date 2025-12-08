@@ -12,6 +12,7 @@ from main_bot.handlers.user.posting.menu import show_content
 from main_bot.keyboards import keyboards
 from main_bot.utils.functions import answer_post
 from main_bot.utils.lang.language import text
+from main_bot.utils.error_handler import safe_handler
 
 
 logger = logging.getLogger(__name__)
