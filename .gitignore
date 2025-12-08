@@ -30,3 +30,7 @@ data/
 main_bot/utils/sessions/
 
 backups/
+
+# 🌐 Static Site
+static_site/node_modules/
+static_site/dist/
