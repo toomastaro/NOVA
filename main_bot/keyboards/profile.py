@@ -670,11 +670,11 @@ class InlineProfile(InlineKeyboardBuilder):
         kb.row(
             InlineKeyboardButton(
                 text=text('back:button'),
-                callback_data='TransferSubRecipients|cancel'
+                callback_data=f'TransferSubRecipients|cancel|{remover}'
             ),
             InlineKeyboardButton(
                 text='🔀 Перенести',
-                callback_data='TransferSubRecipients|transfer'
+                callback_data=f'TransferSubRecipients|transfer|{remover}'
             )
         )
         
