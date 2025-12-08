@@ -211,18 +211,22 @@ async def choose_recipients(call: types.CallbackQuery, state: FSMContext, user: 
         if ch.chat_id in chosen[:10]
     ) if chosen else ""
     
-    await call.message.edit_text(
-        text("transfer_sub:choose_recipients").format(
-            donor_title,
-            days_available,
-            chosen_text
-        ),
-        reply_markup=keyboards.transfer_sub_choose_recipients(
-            channels=recipient_channels,
-            chosen=chosen,
-            remover=int(temp[2])
+    try:
+        await call.message.edit_text(
+            text("transfer_sub:choose_recipients").format(
+                donor_title,
+                days_available,
+                chosen_text
+            ),
+            reply_markup=keyboards.transfer_sub_choose_recipients(
+                channels=recipient_channels,
+                chosen=chosen,
+                remover=int(temp[2])
+            )
         )
-    )
+    except Exception:
+        # Игнорируем ошибку если сообщение не изменилось
+        pass
 
 
 async def execute_transfer(call: types.CallbackQuery, state: FSMContext, user: User, chosen: list):
