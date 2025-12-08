@@ -340,6 +340,11 @@ async def get_value(message: types.Message, state: FSMContext):
 
     post: Post = data.get("post")
     
+    # Проверка наличия поста
+    if not post:
+        await message.answer(text('keys_data_error'))
+        return
+    
     # Обработка текста и медиа
     if param in ["text", "media"]:
         message_options = MessageOptions(**post.message_options)
@@ -425,9 +430,9 @@ async def get_value(message: types.Message, state: FSMContext):
         
         # Refresh post object to get updated backup_message_id if fallback occurred
         if data.get("is_published"):
-            post = await db.get_published_post_by_id(post.id)
+            post = await db.get_published_post_by_id(post.id) if post else None
         else:
-            post = await db.get_post(post.id)
+            post = await db.get_post(post.id) if post else None
 
         # Update live messages if published
         if data.get("is_published"):

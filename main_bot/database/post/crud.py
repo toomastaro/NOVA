@@ -116,10 +116,8 @@ class PostCrud(DatabaseMixin):
         return await self.fetch(
             select(Post).where(
                 func.cardinality(Post.chat_ids) > 0,
-                or_(
-                    Post.send_time.is_(None),
-                    Post.send_time < current_time
-                )
+                Post.send_time.isnot(None),
+                Post.send_time < current_time
             )
         )
 
