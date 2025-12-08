@@ -74,7 +74,7 @@ async def edit_backup_message(post: Post | PublishedPost, message_options: Messa
     """
     Updates the message in the backup channel to match the current post state.
     """
-    if not post.backup_chat_id or not post.backup_message_id:
+    if not post or not post.backup_chat_id or not post.backup_message_id:
         return
 
     if not message_options:

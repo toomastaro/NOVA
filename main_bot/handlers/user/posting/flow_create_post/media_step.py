@@ -395,7 +395,6 @@ async def get_value(message: types.Message, state: FSMContext):
 
             # Проверка валидности кнопок/реакций
             try:
-                post: Post = data.get("post")
                 check = await message.answer("...", reply_markup=keyboards.manage_post(post))
                 await check.delete()
             except (IndexError, TypeError):
