@@ -16,6 +16,9 @@ from main_bot.utils.session_manager import SessionManager
 
 logger = logging.getLogger(__name__)
 
+# Хранилище отправленных уведомлений (сбрасывается при перезапуске)
+_sent_notifications = set()
+
 
 def get_sub_status(expire_time: int) -> tuple[str | None, int | None]:
     """
@@ -48,6 +51,9 @@ async def check_subscriptions():
     Проверяет все активные каналы на истечение подписки и отправляет
     уведомления пользователям за 3 дня, за 1 день и при истечении.
     """
+    import time as time_module
+    current_day = time_module.strftime("%Y-%m-%d", time_module.localtime())
+    
     for channel in await db.get_active_channels():
         for field, text_prefix in [
             ("subscribe", "post"),
@@ -58,13 +64,8 @@ async def check_subscriptions():
                 continue
 
             # Проверяем, было ли уже отправлено уведомление сегодня
-            notification_key = f"sub_notify_{channel.id}_{field}_{status}"
-            last_notified = await db.get_cache(notification_key)
-            
-            # Если уведомление уже отправлялось сегодня, пропускаем
-            import time as time_module
-            current_day = time_module.strftime("%Y-%m-%d", time_module.localtime())
-            if last_notified == current_day:
+            notification_key = f"{current_day}_{channel.id}_{field}_{status}"
+            if notification_key in _sent_notifications:
                 continue
 
             if status == "expired":
@@ -78,8 +79,8 @@ async def check_subscriptions():
 
             try:
                 await bot.send_message(channel.admin_id, msg, parse_mode="HTML")
-                # Сохраняем дату отправки уведомления
-                await db.set_cache(notification_key, current_day, ttl=86400)
+                # Добавляем в set отправленных уведомлений
+                _sent_notifications.add(notification_key)
             except Exception as e:
                 logger.error(f"[{text_prefix.upper()}_NOTIFY] {channel.title}: {e}", exc_info=True)
 
