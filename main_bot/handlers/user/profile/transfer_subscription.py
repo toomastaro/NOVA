@@ -37,24 +37,6 @@ async def show_transfer_sub_menu(call: types.CallbackQuery, state: FSMContext):
     
     await call.message.answer(
         text("transfer_sub:choose_donor"),
-        reply_markup=keyboards.transfer_sub_choose_donor(
-            channels=channels
-        )
-    )
-
-
-async def choose_donor(call: types.CallbackQuery, state: FSMContext, user: User):
-    """Обработчик выбора канала-донора"""
-    from main_bot.utils.lang.language import text
-    
-    temp = call.data.split('|')
-    
-    if temp[1] == 'cancel':
-        # Возврат в меню подписки с информацией о балансе
-        await call.message.delete()
-        return await call.message.answer(
-            text("balance_text").format(user.balance),
-            reply_markup=keyboards.subscription_menu(),
             parse_mode="HTML"
         )
     
@@ -177,28 +159,36 @@ async def choose_recipients(call: types.CallbackQuery, state: FSMContext, user: 
     
     # Выбрать всё / Отменить всё
     if temp[1] == 'choice_all':
+        logger.info(f"Transfer: choice_all clicked, current chosen: {len(chosen)}, total channels: {len(recipient_channels)}")
         if len(chosen) == len(recipient_channels):
             chosen.clear()
         else:
             chosen.clear()
             chosen.extend([ch.chat_id for ch in recipient_channels])
+        logger.info(f"Transfer: after choice_all, chosen: {chosen}")
     
     # Выбор/отмена выбора канала
     elif temp[1].isdigit():
         channel_id = int(temp[1])
+        logger.info(f"Transfer: channel {channel_id} clicked, currently chosen: {chosen}")
         if channel_id in chosen:
             chosen.remove(channel_id)
+            logger.info(f"Transfer: removed {channel_id}")
         else:
             chosen.append(channel_id)
+            logger.info(f"Transfer: added {channel_id}")
     
     # Перенести подписку
     elif temp[1] == 'transfer':
+        logger.info(f"Transfer: transfer button clicked, chosen: {chosen}")
         if not chosen:
+            logger.warning("Transfer: no channels chosen")
             return await call.answer(
                 text("error_transfer_min_recipients"),
                 show_alert=True
             )
         
+        logger.info(f"Transfer: executing transfer for {len(chosen)} channels")
         await execute_transfer(call, state, user, chosen)
         return
     

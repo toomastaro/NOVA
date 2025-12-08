@@ -291,7 +291,11 @@ async def choice(call: types.CallbackQuery, state: FSMContext, user: User):
 
 
 async def align_subscribe(call: types.CallbackQuery, state: FSMContext, user: User):
+    import logging
+    logger = logging.getLogger(__name__)
+    
     temp = call.data.split("|")
+    logger.info(f"Align: align_subscribe called with callback_data: {call.data}")
     data = await state.get_data()
 
     if not data:
@@ -317,10 +321,12 @@ async def align_subscribe(call: types.CallbackQuery, state: FSMContext, user: Us
         return await back_to_method(call, state)
 
     if temp[1] == "align":
+        logger.info(f"Align: align button clicked, chosen channels: {align_chosen}")
         chosen_objects = await db.get_user_channels(
             user_id=user.id,
             from_array=align_chosen
         )
+        logger.info(f"Align: found {len(chosen_objects)} channels to align")
 
         now = int(time.time())
         total_remain_days = sum(
