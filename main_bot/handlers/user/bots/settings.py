@@ -16,8 +16,13 @@ from main_bot.keyboards import keyboards
 from main_bot.utils.bot_manager import BotManager
 from main_bot.utils.functions import create_emoji
 from main_bot.utils.lang.language import text
+import logging
+from main_bot.utils.error_handler import safe_handler
+
+logger = logging.getLogger(__name__)
 
 
+@safe_handler("Bots Show Bot Manage")
 async def show_bot_manage(message: types.Message, user_bot: UserBot):
     bot_database = Database()
     bot_database.schema = user_bot.schema
@@ -37,17 +42,15 @@ async def show_bot_manage(message: types.Message, user_bot: UserBot):
 
     await message.answer(
         text("bot:info").format(
-            user_bot.emoji_id,
             user_bot.title,
+            count_users.get("active"),
+            count_users.get("total"),
             "\n".join(
                 text("resource_title").format(
-                    channel.emoji_id,
                     channel.title
                 ) for channel in channels
             ) if channels else "❌",
             "✅" if status else "❌",
-            count_users.get("active"),
-            count_users.get("total"),
         ),
         reply_markup=keyboards.manage_bot(
             user_bot=user_bot,
@@ -56,6 +59,7 @@ async def show_bot_manage(message: types.Message, user_bot: UserBot):
     )
 
 
+@safe_handler("Bots Settings Choice")
 async def choice(call: types.CallbackQuery, state: FSMContext):
     temp = call.data.split('|')
 
@@ -97,6 +101,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
     await show_bot_manage(call.message, user_bot)
 
 
+@safe_handler("Bots Settings Cancel")
 async def cancel(call: types.CallbackQuery, state: FSMContext):
     bots = await db.get_user_bots(
         user_id=call.from_user.id,
@@ -112,6 +117,7 @@ async def cancel(call: types.CallbackQuery, state: FSMContext):
     )
 
 
+@safe_handler("Bots Get Token")
 async def get_token(message: types.Message, state: FSMContext):
     token = message.text
     if message.forward_from:
@@ -191,6 +197,7 @@ async def get_token(message: types.Message, state: FSMContext):
     )
 
 
+@safe_handler("Bots Manage Bot")
 async def manage_bot(call: types.CallbackQuery, state: FSMContext):
     temp = call.data.split('|')
     data = await state.get_data()
@@ -272,6 +279,7 @@ async def manage_bot(call: types.CallbackQuery, state: FSMContext):
         )
 
 
+@safe_handler("Bots Update Token")
 async def update_token(message: types.Message, state: FSMContext):
     token = message.text
     data = await state.get_data()
@@ -314,6 +322,7 @@ async def update_token(message: types.Message, state: FSMContext):
     await show_bot_manage(message, user_bot)
 
 
+@safe_handler("Bots Back Update")
 async def back_update(call: types.CallbackQuery, state: FSMContext):
     data = await state.get_data()
     if not data:
@@ -329,6 +338,7 @@ async def back_update(call: types.CallbackQuery, state: FSMContext):
     await show_bot_manage(call.message, user_bot)
 
 
+@safe_handler("Bots Delete Bot")
 async def delete_bot(call: types.CallbackQuery, state: FSMContext):
     temp = call.data.split('|')
     data = await state.get_data()
@@ -355,6 +365,7 @@ async def delete_bot(call: types.CallbackQuery, state: FSMContext):
     await show_bot_manage(call.message, data.get("user_bot"))
 
 
+@safe_handler("Bots Get Import File")
 async def get_import_file(message: types.Message, state: FSMContext):
     file = await message.bot.get_file(message.document.file_id)
     file_name = file.file_path.split('/')[-1]
@@ -393,7 +404,7 @@ async def get_import_file(message: types.Message, state: FSMContext):
         await other_db.many_insert_user(users)
 
     except Exception as e:
-        print(e)
+        logger.error(f"Error importing file: {e}")
         return await message.answer(
             text("error_import")
         )
@@ -407,6 +418,7 @@ async def get_import_file(message: types.Message, state: FSMContext):
     await show_bot_manage(message, data.get("user_bot"))
 
 
+@safe_handler("Bots Choice Export")
 async def choice_export(call: types.CallbackQuery, state: FSMContext):
     temp = call.data.split("|")
     data = await state.get_data()
@@ -459,7 +471,7 @@ async def choice_export(call: types.CallbackQuery, state: FSMContext):
             export_file.close()
 
     except Exception as e:
-        print(e)
+        logger.error(f"Error exporting users: {e}")
         return await call.message.answer(
             text("error_export")
         )
@@ -469,7 +481,7 @@ async def choice_export(call: types.CallbackQuery, state: FSMContext):
             document=types.FSInputFile(filepath)
         )
     except Exception as e:
-        print(e)
+        logger.error(f"Error sending export file: {e}")
         await call.message.answer(text("error_export"))
     finally:
         os.remove(filepath)

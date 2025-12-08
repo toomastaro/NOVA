@@ -18,6 +18,7 @@ from main_bot.utils.lang.language import text
 from main_bot.keyboards import keyboards
 
 logger = logging.getLogger(__name__)
+from main_bot.utils.error_handler import safe_handler
 
 
 async def set_folder_content(resource_id, chosen, chosen_folders):
@@ -51,6 +52,7 @@ async def set_folder_content(resource_id, chosen, chosen_folders):
     return chosen, chosen_folders
 
 
+@safe_handler("Bots Choice Bots")
 async def choice_bots(call: types.CallbackQuery, state: FSMContext):
     """Выбор ботов для публикации."""
     temp = call.data.split('|')
@@ -167,7 +169,6 @@ async def choice_bots(call: types.CallbackQuery, state: FSMContext):
             len(chosen),
             "\n".join(
                 text("resource_title").format(
-                    obj.emoji_id,
                     obj.title
                 ) for obj in objects
                 if obj.chat_id in chosen[:10]

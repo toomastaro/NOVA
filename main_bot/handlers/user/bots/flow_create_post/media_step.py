@@ -20,8 +20,10 @@ from main_bot.keyboards import keyboards
 from main_bot.states.user import Bots
 
 logger = logging.getLogger(__name__)
+from main_bot.utils.error_handler import safe_handler
 
 
+@safe_handler("Bots Cancel Message")
 async def cancel_message(call: types.CallbackQuery, state: FSMContext):
     """Отмена создания поста для ботов."""
     data = await state.get_data()
@@ -32,6 +34,7 @@ async def cancel_message(call: types.CallbackQuery, state: FSMContext):
     await show_choice_channel(call.message, state)
 
 
+@safe_handler("Bots Get Message")
 async def get_message(message: types.Message, state: FSMContext):
     """Получение сообщения для создания поста для ботов."""
     message_text_length = len(message.caption or message.text or "")
@@ -66,6 +69,7 @@ async def get_message(message: types.Message, state: FSMContext):
     await answer_bot_post(message, state)
 
 
+@safe_handler("Bots Manage Post")
 async def manage_post(call: types.CallbackQuery, state: FSMContext):
     """Управление постом для ботов."""
     temp = call.data.split('|')
@@ -128,7 +132,6 @@ async def manage_post(call: types.CallbackQuery, state: FSMContext):
                 len(chosen),
                 "\n".join(
                     text("resource_title").format(
-                        obj.emoji_id,
                         obj.title
                     ) for obj in objects
                     if obj.chat_id in chosen[:10]
@@ -161,6 +164,7 @@ async def manage_post(call: types.CallbackQuery, state: FSMContext):
         )
 
 
+@safe_handler("Bots Cancel Value")
 async def cancel_value(call: types.CallbackQuery, state: FSMContext):
     """Отмена редактирования параметра."""
     temp = call.data.split('|')
@@ -222,6 +226,7 @@ async def cancel_value(call: types.CallbackQuery, state: FSMContext):
     await answer_bot_post(call.message, state)
 
 
+@safe_handler("Bots Get Value")
 async def get_value(message: types.Message, state: FSMContext):
     """Получение нового значения параметра."""
     data = await state.get_data()
@@ -263,7 +268,7 @@ async def get_value(message: types.Message, state: FSMContext):
                 r = await message.answer('...', reply_markup=reply_markup)
                 await r.delete()
             except Exception as e:
-                print(e)
+                logger.error(f"Error creating buttons: {e}")
                 return await message.answer(
                     text("error_input")
                 )

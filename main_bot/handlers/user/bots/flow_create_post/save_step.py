@@ -17,8 +17,10 @@ from main_bot.keyboards import keyboards
 from main_bot.states.user import Bots
 
 logger = logging.getLogger(__name__)
+from main_bot.utils.error_handler import safe_handler
 
 
+@safe_handler("Bots Accept")
 async def accept(call: types.CallbackQuery, state: FSMContext):
     """
     Подтверждение и сохранение поста для ботов.
@@ -94,11 +96,12 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
     )
 
     if send_time:
+        weekday, day, month, year, _time = date_values
         message_text = text("manage:post_bot:success:date").format(
-            *date_values,
+            f"{day} {month} {year} {_time}",
+            weekday,
             "\n".join(
                 text("resource_title").format(
-                    obj.emoji_id,
                     obj.title
                 ) for obj in objects
                 if obj.chat_id in chosen[:10]
@@ -108,7 +111,6 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
         message_text = text("manage:post_bot:success:public").format(
             "\n".join(
                 text("resource_title").format(
-                    obj.emoji_id,
                     obj.title
                 ) for obj in objects
                 if obj.chat_id in chosen[:10]

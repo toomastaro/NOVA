@@ -21,8 +21,10 @@ from main_bot.keyboards import keyboards
 from main_bot.states.user import Bots
 
 logger = logging.getLogger(__name__)
+from main_bot.utils.error_handler import safe_handler
 
 
+@safe_handler("Bots Finish Params")
 async def finish_params(call: types.CallbackQuery, state: FSMContext):
     """Настройка финальных параметров поста для ботов."""
     temp = call.data.split('|')
@@ -101,7 +103,6 @@ async def finish_params(call: types.CallbackQuery, state: FSMContext):
             text("manage:post_bot:accept:public").format(
                 "\n".join(
                     text("resource_title").format(
-                        obj.emoji_id,
                         obj.title
                     ) for obj in objects
                     if obj.chat_id in chosen[:10]
@@ -113,6 +114,7 @@ async def finish_params(call: types.CallbackQuery, state: FSMContext):
         )
 
 
+@safe_handler("Bots Choice Delete Time")
 async def choice_delete_time(call: types.CallbackQuery, state: FSMContext):
     """Выбор времени автоудаления поста для ботов."""
     temp = call.data.split("|")
@@ -163,7 +165,6 @@ async def choice_delete_time(call: types.CallbackQuery, state: FSMContext):
             len(chosen),
             "\n".join(
                 text("resource_title").format(
-                    obj.emoji_id,
                     obj.title
                 ) for obj in objects
                 if obj.chat_id in chosen[:10]
@@ -176,6 +177,7 @@ async def choice_delete_time(call: types.CallbackQuery, state: FSMContext):
     )
 
 
+@safe_handler("Bots Send Time Inline")
 async def send_time_inline(call: types.CallbackQuery, state: FSMContext):
     """Обработка inline выбора времени отправки (календарь)."""
     data = await state.get_data()
@@ -207,7 +209,6 @@ async def send_time_inline(call: types.CallbackQuery, state: FSMContext):
                 len(chosen),
                 "\n".join(
                     text("resource_title").format(
-                        obj.emoji_id,
                         obj.title
                     ) for obj in objects
                     if obj.chat_id in chosen[:10]
@@ -244,6 +245,7 @@ async def send_time_inline(call: types.CallbackQuery, state: FSMContext):
         )
 
 
+@safe_handler("Bots Get Send Time")
 async def get_send_time(message: types.Message, state: FSMContext):
     """Получение времени отправки от пользователя."""
     input_date = message.text.strip()
@@ -268,7 +270,7 @@ async def get_send_time(message: types.Message, state: FSMContext):
         send_time = time.mktime(date.timetuple())
 
     except Exception as e:
-        print(e)
+        logger.error(f"Error parsing send time: {e}")
         return await message.answer(
             text("error_value")
         )
@@ -328,10 +330,10 @@ async def get_send_time(message: types.Message, state: FSMContext):
 
     await message.answer(
         text("manage:post_bot:accept:date").format(
-            *date_values,
+            f"{day} {month} {year} {_time}",
+            weekday,
             "\n".join(
                 text("resource_title").format(
-                    obj.emoji_id,
                     obj.title
                 ) for obj in objects
                 if obj.chat_id in chosen[:10]
