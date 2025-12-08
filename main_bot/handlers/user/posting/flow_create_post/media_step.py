@@ -74,7 +74,7 @@ async def manage_post(call: types.CallbackQuery, state: FSMContext):
         await call.message.delete()
         return await show_create_post(call.message, state)
 
-    # Переход к выбору каналов
+    # Переход к настройкам или выбору каналов
     if temp[1] == "next":
         if is_edit:
             post_message = await answer_post(call.message, state, from_edit=True)
@@ -94,28 +94,28 @@ async def manage_post(call: types.CallbackQuery, state: FSMContext):
                     is_published=data.get("is_published")
                 )
             )
-
-        objects = await db.get_user_channels_without_folders(
-            user_id=call.from_user.id
+        
+        # Для нового поста - переход к настройкам
+        chosen = data.get("chosen", [])
+        display_objects = await db.get_user_channels(
+            user_id=call.from_user.id,
+            from_array=chosen[:10]
         )
-        folders = await db.get_folders(
-            user_id=call.from_user.id
-        )
-        await state.update_data(
-            chosen=[],
-            current_folder_id=None
-        )
-
-        await call.message.delete()
-        return await call.message.answer(
-            text("choice_channels:post").format(
-                0, ""
+        
+        # Форматируем список выбранных каналов
+        if chosen:
+            channels_list = "\n\n<blockquote expandable>" + "\n".join(
+                text("resource_title").format(obj.title) for obj in display_objects
+            ) + "</blockquote>"
+        else:
+            channels_list = ""
+        
+        return await call.message.edit_text(
+            text("manage:post:finish_params").format(
+                len(chosen),
+                channels_list
             ),
-            reply_markup=keyboards.choice_objects(
-                resources=objects,
-                chosen=[],
-                folders=folders
-            )
+            reply_markup=keyboards.finish_params(obj=post)
         )
 
     # Показать/скрыть дополнительные параметры
