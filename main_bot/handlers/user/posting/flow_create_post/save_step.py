@@ -7,6 +7,7 @@
 - Отправка в backup канал
 """
 import logging
+import time
 from aiogram import types
 from aiogram.fsm.context import FSMContext
 
@@ -98,7 +99,7 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
     if temp[1] == "send_time":
         kwargs["send_time"] = send_time or post.send_time
     if temp[1] == "public":
-        kwargs["send_time"] = None
+        kwargs["send_time"] = int(time.time()) - 1
 
     logger.info(f"Accepting post {post.id}. Chosen channels: {chosen}")
 
