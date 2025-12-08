@@ -8,9 +8,14 @@ from main_bot.keyboards.common import Reply
 
 
 router = Router()
+import logging
+from main_bot.utils.error_handler import safe_handler
+
+logger = logging.getLogger(__name__)
 
 
 @router.callback_query(F.data.split("|")[0] == "MenuSubscription")
+@safe_handler("Subscription Menu Choice")
 async def choice(call: types.CallbackQuery, state: FSMContext):
     """Обработчик выбора в меню подписки"""
     temp = call.data.split('|')
@@ -51,18 +56,21 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
     await cor(*args)
 
 
+@safe_handler("Show Top Up Menu")
 async def show_top_up_menu(call: types.CallbackQuery, state: FSMContext):
     """Показать меню пополнения баланса"""
     from main_bot.handlers.user.profile.balance import show_top_up
     await show_top_up(call.message, state)
 
 
+@safe_handler("Show Subscribe Menu")
 async def show_subscribe_menu(call: types.CallbackQuery, state: FSMContext):
     """Перенаправление на меню подписки из профиля"""
     from main_bot.handlers.user.profile.profile import show_subscribe
     await show_subscribe(call.message, state)
 
 
+@safe_handler("Show Referral Menu")
 async def show_referral_menu(call: types.CallbackQuery):
     """Перенаправление на меню реферальной системы из профиля"""
     from main_bot.handlers.user.profile.profile import show_referral
@@ -72,6 +80,7 @@ async def show_referral_menu(call: types.CallbackQuery):
     await show_referral(call.message, user)
 
 
+@safe_handler("Show Align Sub Menu")
 async def show_align_sub_menu(call: types.CallbackQuery, state: FSMContext):
     """Показать меню выравнивания подписки"""
     from main_bot.database.db import db
@@ -110,18 +119,21 @@ async def show_align_sub_menu(call: types.CallbackQuery, state: FSMContext):
     )
 
 
+@safe_handler("Show Transfer Sub Menu")
 async def show_transfer_sub_menu(call: types.CallbackQuery, state: FSMContext):
     """Показать меню переноса подписки"""
     from main_bot.handlers.user.profile.transfer_subscription import show_transfer_sub_menu as transfer_menu
     await transfer_menu(call, state)
 
 
+@safe_handler("Show Info Menu")
 async def show_info_menu(call: types.CallbackQuery):
     """Показать меню информации"""
     from main_bot.handlers.user.profile.info import show_info_menu as info_menu
     await info_menu(call)
 
 
+@safe_handler("Subscription Back To Main")
 async def back_to_main(message: types.Message):
     """Возврат в главное меню"""
     await message.answer(

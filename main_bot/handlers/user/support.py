@@ -5,8 +5,13 @@ from config import Config
 from main_bot.keyboards import keyboards
 from main_bot.states.user import Support
 from main_bot.utils.lang.language import text
+import logging
+from main_bot.utils.error_handler import safe_handler
+
+logger = logging.getLogger(__name__)
 
 
+@safe_handler("Support Back")
 async def support_back(call: types.CallbackQuery, state: FSMContext):
     await state.clear()
 
@@ -17,6 +22,7 @@ async def support_back(call: types.CallbackQuery, state: FSMContext):
     )
 
 
+@safe_handler("Get User Message")
 async def get_user_message(message: types.Message, state: FSMContext):
     if message.photo:
         await message.bot.send_photo(
@@ -49,12 +55,14 @@ async def get_user_message(message: types.Message, state: FSMContext):
     )
 
 
+@safe_handler("Get Support Message")
 async def get_support_message(message: types.Message):
     try:
         user_id = message.reply_to_message.caption.split('ID: ')[1] \
             if message.reply_to_message.caption else message.reply_to_message.text.split('ID: ')[1]
     except Exception as e:
-        return print(e)
+        logger.error(f"Error parsing user ID from support message: {e}")
+        return
 
     if message.photo:
         await message.bot.send_photo(

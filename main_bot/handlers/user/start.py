@@ -6,8 +6,13 @@ from config import Config
 from main_bot.keyboards import keyboards
 from main_bot.utils.lang.language import text
 from main_bot.utils.middlewares import StartMiddle
+import logging
+from main_bot.utils.error_handler import safe_handler
+
+logger = logging.getLogger(__name__)
 
 
+@safe_handler("Start Command")
 async def start(message: types.Message, state: FSMContext):
     await state.clear()
     

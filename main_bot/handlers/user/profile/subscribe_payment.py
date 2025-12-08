@@ -14,6 +14,9 @@ from main_bot.handlers.user.profile.subscribe import get_pay_info_text
 from main_bot.keyboards import keyboards
 from main_bot.states.user import Subscribe
 from main_bot.utils.lang.language import text
+import logging
+
+logger = logging.getLogger(__name__)
 from main_bot.utils.payments.crypto_bot import crypto_bot
 
 
@@ -397,7 +400,7 @@ async def get_promo(message: types.Message, state: FSMContext, user: User):
             data.get('input_message_id')
         )
     except Exception as e:
-        print(e)
+        logger.error(f"Error deleting message: {e}")
 
     name = message.text
     promo = await db.get_promo(name)
@@ -428,7 +431,7 @@ async def get_promo(message: types.Message, state: FSMContext, user: User):
             message_id
         )
     except Exception as e:
-        print(e)
+        logger.error(f"Error deleting message: {e}")
 
     await state.update_data(
         old_total_price=old_total_price,

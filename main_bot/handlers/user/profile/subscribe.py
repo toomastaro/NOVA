@@ -11,6 +11,9 @@ from main_bot.handlers.user.menu import profile
 from main_bot.handlers.user.profile.profile import show_subscribe
 from main_bot.keyboards import keyboards
 from main_bot.utils.lang.language import text
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def get_subscribe_list_resources(objects, object_type, sort_by):
@@ -55,7 +58,7 @@ async def get_pay_info_text(state: FSMContext, user: User) -> str:
             res = await client.get('https://api.coinbase.com/v2/prices/USD-RUB/spot')
             usd_rate = float(res.json().get('data').get('amount', 100))
     except Exception as e:
-        print(e)
+        logger.error(f"Error fetching USD rate: {e}")
         usd_rate = 100
 
     total_price_usd = round(total_price / usd_rate, 2)
