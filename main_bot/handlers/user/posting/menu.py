@@ -5,8 +5,13 @@ from main_bot.database.db import db
 from main_bot.keyboards import keyboards
 from main_bot.states.user import Posting
 from main_bot.utils.lang.language import text
+from main_bot.utils.logger import logging
+from main_bot.utils.error_handler import safe_handler
+
+logger = logging.getLogger(__name__)
 
 
+@safe_handler("Posting Menu Choice")
 async def choice(call: types.CallbackQuery, state: FSMContext):
     await state.clear()
     temp = call.data.split('|')
@@ -30,12 +35,15 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
         },
     }
 
-    cor, args = menu[temp[1]].values()
+    if temp[1] in menu:
+        cor, args = menu[temp[1]].values()
+        await call.message.delete()
+        await cor(*args)
+    else:
+        logger.warning(f"Unknown posting menu command: {temp[1]}")
 
-    await call.message.delete()
-    await cor(*args)
 
-
+@safe_handler("Posting Show Create Post")
 async def show_create_post(message: types.Message, state: FSMContext):
     """
     Начало создания поста.
@@ -81,7 +89,7 @@ async def show_create_post(message: types.Message, state: FSMContext):
     )
 
 
-
+@safe_handler("Posting Show Settings")
 async def show_settings(message: types.Message):
     channels = await db.get_user_channels(
         user_id=message.chat.id,
@@ -95,6 +103,7 @@ async def show_settings(message: types.Message):
     )
 
 
+@safe_handler("Posting Show Content")
 async def show_content(message: types.Message):
     channels = await db.get_user_channels(
         user_id=message.chat.id
@@ -107,6 +116,7 @@ async def show_content(message: types.Message):
     )
 
 
+@safe_handler("Posting Back To Main")
 async def back_to_main(message: types.Message):
     """Возврат в главное меню"""
     from main_bot.keyboards.common import Reply

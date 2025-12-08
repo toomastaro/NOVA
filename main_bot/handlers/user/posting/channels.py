@@ -7,8 +7,13 @@ from main_bot.keyboards import keyboards
 from main_bot.states.user import AddChannel
 from main_bot.utils.functions import get_editors
 from main_bot.utils.lang.language import text
+from main_bot.utils.logger import logging
+from main_bot.utils.error_handler import safe_handler
+
+logger = logging.getLogger(__name__)
 
 
+@safe_handler("Posting Channel Choice")
 async def choice(call: types.CallbackQuery, state: FSMContext):
     temp = call.data.split('|')
 
@@ -47,7 +52,6 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
 
     await call.message.edit_text(
         text('channel_info').format(
-            channel.emoji_id,
             channel.title,
             editors_str
         ),
@@ -55,6 +59,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
     )
 
 
+@safe_handler("Posting Channel Cancel")
 async def cancel(call: types.CallbackQuery):
     channels = await db.get_user_channels(
         user_id=call.from_user.id,
@@ -68,6 +73,7 @@ async def cancel(call: types.CallbackQuery):
     )
 
 
+@safe_handler("Posting Manage Channel")
 async def manage_channel(call: types.CallbackQuery):
     temp = call.data.split('|')
 
