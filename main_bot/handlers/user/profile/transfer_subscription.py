@@ -184,6 +184,18 @@ async def choose_recipients(call: types.CallbackQuery, state: FSMContext, user: 
         if len(chosen) == len(recipient_channels):
             chosen.clear()
         else:
+            chosen.clear()
+            chosen.extend([ch.chat_id for ch in recipient_channels])
+        logger.info(f"Transfer: after choice_all, chosen: {chosen}")
+    
+    # Выбор/отмена выбора канала (может быть отрицательным ID)
+    elif temp[1].lstrip('-').isdigit():
+        channel_id = int(temp[1])
+        logger.info(f"Transfer: channel {channel_id} clicked, currently chosen: {chosen}")
+        if channel_id in chosen:
+            chosen.remove(channel_id)
+            logger.info(f"Transfer: removed {channel_id}")
+        else:
             chosen.append(channel_id)
             logger.info(f"Transfer: added {channel_id}")
     
