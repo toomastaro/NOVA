@@ -32,5 +32,6 @@ main_bot/utils/sessions/
 backups/
 
 # 🌐 Static Site
-#static_site/node_modules/
-#static_site/dist/
+# 🌐 Static Site
+nova_website/node_modules/
+nova_website/dist/

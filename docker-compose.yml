@@ -67,7 +67,7 @@ services:
     volumes:
       - ./nginx/conf:/etc/nginx/conf.d
       - ./nginx/ssl:/etc/nginx/ssl
-      - ./nova_website:/var/www/static
+      - ./nova_website:/var/www/nova_website
     depends_on:
       app:
         condition: service_healthy
