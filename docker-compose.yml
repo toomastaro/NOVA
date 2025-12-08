@@ -67,7 +67,7 @@ services:
     volumes:
       - ./nginx/conf:/etc/nginx/conf.d
       - ./nginx/ssl:/etc/nginx/ssl
-      - ./static_site:/var/www/static
+      - ./nova_website:/var/www/static
     depends_on:
       app:
         condition: service_healthy
@@ -83,7 +83,7 @@ services:
     image: node:20-alpine
     working_dir: /app
     volumes:
-      - ./static_site:/app
+      - ./nova_website:/app
     command: sh -c "if [ -f package.json ]; then npm install && npm run build; fi"
     networks:
       - nova-network
