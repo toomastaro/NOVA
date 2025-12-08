@@ -6,7 +6,11 @@ from main_bot.keyboards import keyboards
 from main_bot.states.user import Bots
 from main_bot.utils.lang.language import text
 
+import logging
+from main_bot.utils.error_handler import safe_handler
 
+logger = logging.getLogger(__name__)
+@safe_handler("Bots Menu Choice")
 async def choice(call: types.CallbackQuery, state: FSMContext):
     await state.clear()
     temp = call.data.split('|')
@@ -36,6 +40,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
     await cor(*args)
 
 
+@safe_handler("Bots Show Choice Channel")
 async def show_choice_channel(message: types.Message, state: FSMContext):
     """
     Начало создания рассылки для ботов.
@@ -78,7 +83,6 @@ async def show_choice_channel(message: types.Message, state: FSMContext):
             len(chosen),
             "\n".join(
                 text("resource_title").format(
-                    obj.emoji_id,
                     obj.title
                 ) for obj in objects
                 if obj.chat_id in chosen[:10]
@@ -95,6 +99,7 @@ async def show_choice_channel(message: types.Message, state: FSMContext):
     )
 
 
+@safe_handler("Bots Show Create Post")
 async def show_create_post(message: types.Message, state: FSMContext):
     await message.answer(
         text('input_message'),
@@ -105,6 +110,7 @@ async def show_create_post(message: types.Message, state: FSMContext):
     await state.set_state(Bots.input_message)
 
 
+@safe_handler("Bots Show Settings")
 async def show_settings(message: types.Message):
     bots = await db.get_user_bots(
         user_id=message.chat.id,
@@ -118,6 +124,7 @@ async def show_settings(message: types.Message):
     )
 
 
+@safe_handler("Bots Show Content")
 async def show_content(message: types.Message):
     channels = await db.get_bot_channels(message.chat.id)
     objects = await db.get_user_channels(message.chat.id, from_array=[i.id for i in channels])
@@ -131,6 +138,7 @@ async def show_content(message: types.Message):
     )
 
 
+@safe_handler("Bots Back To Main")
 async def back_to_main(message: types.Message):
     """Возврат в главное меню"""
     from main_bot.keyboards.common import Reply
