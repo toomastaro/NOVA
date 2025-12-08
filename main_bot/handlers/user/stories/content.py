@@ -10,6 +10,7 @@ from main_bot.handlers.user.stories.menu import show_content
 from main_bot.keyboards import keyboards
 from main_bot.utils.functions import answer_story
 from main_bot.utils.lang.language import text
+from main_bot.utils.error_handler import safe_handler
 
 
 async def get_days_with_stories(channel_chat_id: int, year: int, month: int) -> set:

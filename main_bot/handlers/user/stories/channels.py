@@ -5,7 +5,10 @@ from main_bot.handlers.user.menu import start_stories
 from main_bot.keyboards import keyboards
 from main_bot.utils.functions import get_editors
 from main_bot.utils.lang.language import text
+import logging
+from main_bot.utils.error_handler import safe_handler
 
+logger = logging.getLogger(__name__)
 
 @safe_handler("Stories Channel Choice")
 async def choice(call: types.CallbackQuery):

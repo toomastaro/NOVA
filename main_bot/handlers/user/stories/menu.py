@@ -5,7 +5,10 @@ from main_bot.database.db import db
 from main_bot.keyboards import keyboards
 from main_bot.states.user import Stories
 from main_bot.utils.lang.language import text
+import logging
+from main_bot.utils.error_handler import safe_handler
 
+logger = logging.getLogger(__name__)
 
 @safe_handler("Stories Menu Choice")
 async def choice(call: types.CallbackQuery, state: FSMContext):
