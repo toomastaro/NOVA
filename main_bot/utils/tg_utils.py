@@ -154,11 +154,11 @@ async def get_editors(call: types.CallbackQuery, chat_id: int):
         logger.error(f"Ошибка при получении редакторов канала {chat_id}: {e}")
         editors.append("Не удалось обнаружить")
 
-    return "\\n".join(
+    return "\n".join(
         "@{}".format(i.user.username)
         if i.user.username else i.user.full_name
         for i in editors
-    ) + "\\n"
+    )
 
 
 
