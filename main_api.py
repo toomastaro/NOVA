@@ -118,27 +118,45 @@ async def other_update(request: Request, token: str):
 
 @app.post("/webhook/platega")
 async def platega_webhook(request: Request):
+    import logging
+    logger = logging.getLogger(__name__)
+    
     headers = request.headers
     merchant_id = headers.get('X-MerchantId')
     secret = headers.get('X-Secret')
 
+    # Log incoming request (masked secret for security if needed, but here simple info)
+    logger.info(f"Platega Callback received. MerchantId: {merchant_id}, Secret provided: {'Yes' if secret else 'No'}")
+
     if merchant_id != Config.PLATEGA_MERCHANT or secret != Config.PLATEGA_SECRET:
+        logger.warning(f"Platega Invalid credentials. Expected Merchant: {Config.PLATEGA_MERCHANT}, Got: {merchant_id}")
         return {"status": "error", "message": "Invalid credentials"}
 
-    data = await request.json()
+    try:
+        data = await request.json()
+    except Exception as e:
+        logger.error(f"Platega JSON parse error: {e}")
+        return {"status": "error", "message": "Invalid JSON"}
+
+    logger.info(f"Platega Payload: {data}")
     
     order_id = data.get('id')
     status = data.get('status')
     
     if not order_id or not status:
+        logger.warning("Platega Invalid payload: Missing id or status")
         return {"status": "error", "message": "Invalid payload"}
 
     payment_link = await db.get_payment_link(order_id)
     if not payment_link:
+        logger.warning(f"Platega Payment link not found for Order ID: {order_id}")
         return {"status": "error", "message": "Payment link not found"}
 
     if payment_link.status == "PAID":
+        logger.info(f"Platega Order {order_id} already PAID")
         return {"status": "ok", "message": "Already paid"}
+
+    logger.info(f"Platega Processing Order {order_id} with Status {status}")
 
     if status == "CONFIRMED":
         await db.update_payment_link_status(order_id, "PAID")
@@ -150,6 +168,8 @@ async def platega_webhook(request: Request):
         # Logic for Balance Top-up
         if payment_type == 'balance':
             amount = payment_link.amount
+            logger.info(f"Platega Adding balance {amount} to user {user_id}")
+            
             user = await db.get_user(user_id=user_id)
             if user:
                 await db.update_user(user_id=user.id, balance=user.balance + amount)
@@ -159,11 +179,12 @@ async def platega_webhook(request: Request):
                 try:
                     from main_bot.utils.lang.language import text
                     await bot.send_message(user_id, text('success_payment').format(amount))
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.error(f"Failed to send success message to {user_id}: {e}")
 
         # Logic for Subscription
         elif payment_type == 'subscribe':
+            logger.info(f"Platega Granting subscription to user {user_id}")
             from main_bot.utils.subscribe_service import grant_subscription
             
             chosen = payload.get('chosen')
@@ -180,21 +201,26 @@ async def platega_webhook(request: Request):
             if referral_id:
                 ref_user = await db.get_user(referral_id)
                 if ref_user:
-                    has_purchase = await db.has_purchase(user_id)
-                    percent = 15 if has_purchase else 60
-                    total_ref_earn = int(total_price / 100 * percent)
+                    try:
+                        has_purchase = await db.has_purchase(user_id)
+                        percent = 15 if has_purchase else 60
+                        total_ref_earn = int(total_price / 100 * percent)
+                        
+                        logger.info(f"Platega Referral bonus {total_ref_earn} to {referral_id}")
 
-                    await db.update_user(
-                        user_id=ref_user.id,
-                        balance=ref_user.balance + total_ref_earn,
-                        referral_earned=ref_user.referral_earned + total_ref_earn
-                    )
+                        await db.update_user(
+                            user_id=ref_user.id,
+                            balance=ref_user.balance + total_ref_earn,
+                            referral_earned=ref_user.referral_earned + total_ref_earn
+                        )
+                    except Exception as e:
+                        logger.error(f"Referral logic error: {e}")
 
             try:
                 from main_bot.utils.lang.language import text
                 await bot.send_message(user_id, text('success_subscribe_pay'))
-            except Exception:
-                pass
+            except Exception as e:
+                logger.error(f"Failed to send success message to {user_id}: {e}")
 
     return {"status": "ok"}
 
