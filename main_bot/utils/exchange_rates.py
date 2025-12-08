@@ -21,21 +21,29 @@ import pathlib
 current_dir = pathlib.Path(__file__).parent.resolve()
 
 async def get_crypto_bot_usdt_rub_rate():
-    api_token = os.getenv('CRYPTO_BOT_API_TOKEN')
+    api_token = os.getenv('CRYPTO_BOT_API_TOKEN') or os.getenv('CRYPTO_BOT_TOKEN')
+    
+    if not api_token:
+        print("CRYPTO_BOT_API_TOKEN not found in env")
+        return 0
+
     url = "https://pay.crypt.bot/api/getExchangeRates"
 
     headers = {
         "Crypto-Pay-API-Token": api_token,
     }
 
-    async with aiohttp.ClientSession() as session:
-        async with session.get(url, headers=headers) as response:
-            data = await response.json()
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, headers=headers) as response:
+                data = await response.json()
 
-            if data.get('ok'):
-                for rate in data.get('result', []):
-                    if rate.get('source') == 'USDT' and rate.get('target') == 'RUB':
-                        return float(rate.get('rate'))
+                if data.get('ok'):
+                    for rate in data.get('result', []):
+                        if rate.get('source') == 'USDT' and rate.get('target') == 'RUB':
+                            return float(rate.get('rate'))
+    except Exception as e:
+        print(f"Error fetching crypto bot rates: {e}")
 
     return 0
 
@@ -184,8 +192,11 @@ if __name__ == "__main__":
 
 
     async def test():
-        rate = await get_p2p_bybit_usdt_rub_rate()
-        print(rate)
+        rate_bybit = await get_p2p_bybit_usdt_rub_rate()
+        print(f"Bybit: {rate_bybit}")
+        
+        rate_crypto = await get_crypto_bot_usdt_rub_rate()
+        print(f"CryptoBot: {rate_crypto}")
 
 
     asyncio.run(test())
