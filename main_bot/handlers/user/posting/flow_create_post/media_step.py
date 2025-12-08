@@ -392,6 +392,7 @@ async def get_value(message: types.Message, state: FSMContext):
 
                 post.reaction = dict_react
                 value = dict_react
+                
 
             # Проверка валидности кнопок/реакций
             try:
