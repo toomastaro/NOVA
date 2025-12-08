@@ -363,7 +363,36 @@ async def align_subscribe(call: types.CallbackQuery, state: FSMContext, user: Us
             ),
             show_alert=True
         )
-        return await back_to_method(call, state)
+        
+        # Обновляем список каналов с новыми датами после выравнивания
+        await state.update_data(align_chosen=[])
+        
+        # Получаем обновленный список всех каналов пользователя
+        all_channels = await db.get_user_channels(user_id=user.id)
+        
+        # Форматируем список каналов с датами подписки
+        from datetime import datetime
+        channels_list = []
+        for ch in all_channels:
+            if ch.subscribe and ch.subscribe > int(time.time()):
+                expire_date = datetime.fromtimestamp(ch.subscribe).strftime('%d.%m.%Y')
+                channels_list.append(f"📺 {ch.title} — подписка до {expire_date}")
+            else:
+                channels_list.append(f"📺 {ch.title} — нет подписки")
+        
+        channels_text = "\n".join(channels_list)
+        
+        await call.message.edit_text(
+            f"✅ <b>Подписка успешно выровнена для {len(chosen_objects)} каналов!</b>\n\n"
+            f"<b>Обновленный список каналов:</b>\n"
+            f"<blockquote>{channels_text}</blockquote>",
+            reply_markup=keyboards.align_sub(
+                sub_objects=all_channels,
+                chosen=[]
+            ),
+            parse_mode="HTML"
+        )
+        return
 
     if temp[1] == "choice_all":
         if len(align_chosen) == len(sub_objects):
