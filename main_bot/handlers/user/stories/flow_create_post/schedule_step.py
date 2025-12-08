@@ -23,6 +23,7 @@ from main_bot.utils.schemas import StoryOptions
 from main_bot.utils.session_manager import SessionManager
 from main_bot.keyboards import keyboards
 from main_bot.states.user import Stories
+from main_bot.utils.error_handler import safe_handler
 
 logger = logging.getLogger(__name__)
 
@@ -102,6 +103,7 @@ async def set_folder_content(resource_id, chosen, chosen_folders):
     return chosen, chosen_folders
 
 
+@safe_handler("Stories Choice Channels")
 async def choice_channels(call: types.CallbackQuery, state: FSMContext):
     """Выбор каналов для публикации stories."""
     temp = call.data.split('|')
@@ -229,6 +231,7 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
     )
 
 
+@safe_handler("Stories Finish Params")
 async def finish_params(call: types.CallbackQuery, state: FSMContext):
     """Настройка финальных параметров stories перед публикацией."""
     temp = call.data.split('|')
@@ -308,6 +311,7 @@ async def finish_params(call: types.CallbackQuery, state: FSMContext):
         )
 
 
+@safe_handler("Stories Choice Delete Time")
 async def choice_delete_time(call: types.CallbackQuery, state: FSMContext):
     """Выбор времени автоудаления stories."""
     temp = call.data.split("|")
@@ -365,6 +369,7 @@ async def choice_delete_time(call: types.CallbackQuery, state: FSMContext):
     )
 
 
+@safe_handler("Stories Cancel Send Time")
 async def cancel_send_time(call: types.CallbackQuery, state: FSMContext):
     """Отмена ввода времени отправки."""
     data = await state.get_data()
@@ -402,6 +407,7 @@ async def cancel_send_time(call: types.CallbackQuery, state: FSMContext):
     )
 
 
+@safe_handler("Stories Get Send Time")
 async def get_send_time(message: types.Message, state: FSMContext):
     """
     Получение времени отправки от пользователя.
@@ -432,7 +438,7 @@ async def get_send_time(message: types.Message, state: FSMContext):
         send_time = time.mktime(date.timetuple())
 
     except Exception as e:
-        print(e)
+        logger.error(f"Error parsing send time: {e}")
         return await message.answer(
             text("error_value")
         )
@@ -495,7 +501,8 @@ async def get_send_time(message: types.Message, state: FSMContext):
 
     await message.answer(
         text("manage:story:accept:date").format(
-            *date_values,
+            f"{day} {month} {year} {_time}",
+            weekday,
             await get_story_report_text(chosen, objects),
             f"{int(options.period / 3600)} ч."  # type: ignore
             if options.period else text("manage:post:del_time:not")

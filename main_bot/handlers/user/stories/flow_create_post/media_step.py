@@ -19,10 +19,12 @@ from main_bot.utils.lang.language import text
 from main_bot.utils.schemas import Media, StoryOptions
 from main_bot.keyboards import keyboards
 from main_bot.states.user import Stories
+from main_bot.utils.error_handler import safe_handler
 
 logger = logging.getLogger(__name__)
 
 
+@safe_handler("Stories Cancel Message")
 async def cancel_message(call: types.CallbackQuery, state: FSMContext):
     """Отмена создания stories - очистка состояния и возврат в меню."""
     await state.clear()
@@ -30,6 +32,7 @@ async def cancel_message(call: types.CallbackQuery, state: FSMContext):
     await start_stories(call.message)
 
 
+@safe_handler("Stories Get Message")
 async def get_message(message: types.Message, state: FSMContext):
     """
     Получение медиа для создания stories.
@@ -73,6 +76,7 @@ async def get_message(message: types.Message, state: FSMContext):
     await answer_story(message, state)
 
 
+@safe_handler("Stories Manage Post")
 async def manage_post(call: types.CallbackQuery, state: FSMContext):
     """Управление stories - обработка различных действий."""
     temp = call.data.split('|')
@@ -193,6 +197,7 @@ async def manage_post(call: types.CallbackQuery, state: FSMContext):
         )
 
 
+@safe_handler("Stories Cancel Value")
 async def cancel_value(call: types.CallbackQuery, state: FSMContext):
     """Отмена редактирования параметра или удаление значения."""
     temp = call.data.split('|')
@@ -239,6 +244,7 @@ async def cancel_value(call: types.CallbackQuery, state: FSMContext):
     await answer_story(call.message, state)
 
 
+@safe_handler("Stories Get Value")
 async def get_value(message: types.Message, state: FSMContext):
     """Получение нового значения параметра от пользователя."""
     data = await state.get_data()

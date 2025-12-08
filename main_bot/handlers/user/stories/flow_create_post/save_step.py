@@ -14,11 +14,13 @@ from main_bot.database.story.model import Story
 from main_bot.utils.lang.language import text
 from main_bot.keyboards import keyboards
 from main_bot.states.user import Stories
+from main_bot.utils.error_handler import safe_handler
 from .schedule_step import get_story_report_text
 
 logger = logging.getLogger(__name__)
 
 
+@safe_handler("Stories Accept")
 async def accept(call: types.CallbackQuery, state: FSMContext):
     """
     Подтверждение и сохранение stories.
@@ -91,8 +93,9 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
     )
 
     if send_time:
+        weekday, day, month, year, _time = date_values
         message_text = text("manage:story:success:date").format(
-            *date_values,
+            f"{day} {month} {year} {_time} ({weekday})",
             await get_story_report_text(chosen, objects)
         )
     else:

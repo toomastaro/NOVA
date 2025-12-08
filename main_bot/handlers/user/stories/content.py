@@ -41,6 +41,7 @@ async def get_days_with_stories(channel_chat_id: int, year: int, month: int) -> 
     return days_with_stories
 
 
+@safe_handler("Stories Choice Channel")
 async def choice_channel(call: types.CallbackQuery, state: FSMContext):
     temp = call.data.split('|')
 
@@ -75,11 +76,13 @@ async def choice_channel(call: types.CallbackQuery, state: FSMContext):
         show_more=False
     )
 
+    days_with_stories = await get_days_with_stories(channel.chat_id, day.year, day.month)
+
     await call.message.delete()
     await call.message.answer(
         text("channel:content").format(
-            *day_values,
             channel.title,
+            *day_values,
             text("no_content:story") if not posts else text("has_content:story").format(len(posts))
         ),
         reply_markup=keyboards.choice_row_content(
@@ -90,6 +93,7 @@ async def choice_channel(call: types.CallbackQuery, state: FSMContext):
     )
 
 
+@safe_handler("Stories Choice Row Content")
 async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
     temp = call.data.split("|")
     data = await state.get_data()
@@ -179,6 +183,7 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
     )
 
 
+@safe_handler("Stories Choice Time Objects")
 async def choice_time_objects(call: types.CallbackQuery, state: FSMContext):
     temp = call.data.split("|")
     data = await state.get_data()
@@ -203,10 +208,11 @@ async def choice_time_objects(call: types.CallbackQuery, state: FSMContext):
 
     if temp[1] == "cancel":
         posts = await db.get_stories(channel.chat_id, day)
+        days_with_stories = await get_days_with_stories(channel.chat_id, day.year, day.month)
         return await call.message.edit_text(
             text("channel:content").format(
-                *data.get("day_values"),
                 channel.title,
+                *data.get("day_values"),
                 text("no_content:story") if not posts else text("has_content:story").format(len(posts))
             ),
             reply_markup=keyboards.choice_row_content(
@@ -218,6 +224,7 @@ async def choice_time_objects(call: types.CallbackQuery, state: FSMContext):
         )
 
 
+@safe_handler("Stories Manage Remain Post")
 async def manage_remain_post(call: types.CallbackQuery, state: FSMContext):
     temp = call.data.split('|')
     data = await state.get_data()
@@ -229,12 +236,13 @@ async def manage_remain_post(call: types.CallbackQuery, state: FSMContext):
         day = data.get('day')
         posts = await db.get_stories(data.get("channel").chat_id, day)
 
+        days_with_stories = await get_days_with_stories(data.get("channel").chat_id, day.year, day.month)
+
         await data.get("post_message").delete()
         return await call.message.edit_text(
             text("channel:content").format(
-                *data.get("day_values"),
-                data.get("channel").emoji_id,
                 data.get("channel").title,
+                *data.get("day_values"),
                 text("no_content:story") if not posts else text("has_content:story").format(len(posts))
             ),
             reply_markup=keyboards.choice_row_content(
@@ -262,6 +270,7 @@ async def manage_remain_post(call: types.CallbackQuery, state: FSMContext):
         )
 
 
+@safe_handler("Stories Accept Delete Row Content")
 async def accept_delete_row_content(call: types.CallbackQuery, state: FSMContext):
     temp = call.data.split("|")
     data = await state.get_data()
@@ -290,11 +299,13 @@ async def accept_delete_row_content(call: types.CallbackQuery, state: FSMContext
         await db.delete_post(post.id)
         posts = await db.get_stories(channel.chat_id, day)
 
+        days_with_stories = await get_days_with_stories(channel.chat_id, day.year, day.month)
+
         await data.get("post_message").delete()
         return await call.message.edit_text(
             text("channel:content").format(
-                *day_values,
                 channel.title,
+                *day_values,
                 text("no_content:story") if not posts else text("has_content:story").format(len(posts))
             ),
             reply_markup=keyboards.choice_row_content(

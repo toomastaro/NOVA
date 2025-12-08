@@ -7,6 +7,7 @@ from main_bot.states.user import Stories
 from main_bot.utils.lang.language import text
 
 
+@safe_handler("Stories Menu Choice")
 async def choice(call: types.CallbackQuery, state: FSMContext):
     await state.clear()
     temp = call.data.split('|')
@@ -30,12 +31,17 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
         },
     }
 
+    if temp[1] not in menu:
+        logger.warning(f"Unknown menu option: {temp[1]}")
+        return await call.answer("Unknown option")
+        
     cor, args = menu[temp[1]].values()
 
     await call.message.delete()
     await cor(*args)
 
 
+@safe_handler("Stories Show Create Post")
 async def show_create_post(message: types.Message, state: FSMContext):
     """
     Начало создания истории.
@@ -82,6 +88,7 @@ async def show_create_post(message: types.Message, state: FSMContext):
 
 
 
+@safe_handler("Stories Show Settings")
 async def show_settings(message: types.Message):
     channels = await db.get_user_channels(
         user_id=message.chat.id,
@@ -96,6 +103,7 @@ async def show_settings(message: types.Message):
     )
 
 
+@safe_handler("Stories Show Content")
 async def show_content(message: types.Message):
     channels = await db.get_user_channels(
         user_id=message.chat.id
@@ -109,6 +117,7 @@ async def show_content(message: types.Message):
     )
 
 
+@safe_handler("Stories Back To Main")
 async def back_to_main(message: types.Message):
     """Возврат в главное меню"""
     from main_bot.keyboards.common import Reply

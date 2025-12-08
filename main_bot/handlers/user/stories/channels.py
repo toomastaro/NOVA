@@ -7,6 +7,7 @@ from main_bot.utils.functions import get_editors
 from main_bot.utils.lang.language import text
 
 
+@safe_handler("Stories Channel Choice")
 async def choice(call: types.CallbackQuery):
     temp = call.data.split('|')
 
@@ -45,7 +46,6 @@ async def choice(call: types.CallbackQuery):
 
     await call.message.edit_text(
         text('channel_info').format(
-            channel.emoji_id,
             channel.title,
             editors_str
         ),
@@ -55,6 +55,7 @@ async def choice(call: types.CallbackQuery):
     )
 
 
+@safe_handler("Stories Channel Cancel")
 async def cancel(call: types.CallbackQuery):
     channels = await db.get_user_channels(
         user_id=call.from_user.id,
@@ -69,6 +70,7 @@ async def cancel(call: types.CallbackQuery):
     )
 
 
+@safe_handler("Stories Manage Channel")
 async def manage_channel(call: types.CallbackQuery):
     temp = call.data.split('|')
 
