@@ -15,8 +15,20 @@ router = Router(name="AdCreative")
 
 @router.callback_query(F.data == "AdCreative|create")
 async def create_creative_start(call: CallbackQuery, state: FSMContext):
-    await call.message.answer("Перешлите пост или подборку постов, из которых нужно сделать креатив.")
+    await call.message.edit_text(
+        "Перешлите пост или подборку постов, из которых нужно сделать креатив.",
+        reply_markup=InlineAdCreative.create_creative_cancel()
+    )
     await state.set_state(AdCreativeStates.waiting_for_content)
+    # Don't answer callback if we edited text, but wait, usually we answer callbacks to stop loading animation.
+    # call.answer() is fine.
+    # But wait, original code used call.message.answer, creating a NEW message. 
+    # If we want "Back" behavior, editing is often better, but if it was a new message, user might expect new message.
+    # However, for "Cancel" flow, staying in same message (edit) is usually cleaner.
+    # I will change .answer to .edit_text to keep context, or .answer if "Back" button in menu expects new message stack.
+    # Inline menu usually edits.
+    # Original code: await call.message.answer(...)
+    # I will change to edit_text for smoother experience as requested ("cancel... button leads back").
     await call.answer()
 
 
@@ -128,10 +140,23 @@ async def list_creatives(call: CallbackQuery):
         c.slots = slots # Monkey patch for display
         creatives_with_slots.append(c)
         
+    if not creatives_with_slots:
+        await call.message.edit_text(
+            "У вас пока нет созданных креативов.\nНажмите 'Создать креатив', чтобы добавить первый.",
+            reply_markup=InlineAdCreative.menu()
+        )
+        return
+
     await call.message.edit_text(
         "Ваши креативы:",
         reply_markup=InlineAdCreative.creative_list(creatives_with_slots)
     )
+
+
+@router.callback_query(F.data == "AdCreative|cancel_creation")
+async def cancel_creation(call: CallbackQuery, state: FSMContext):
+    await state.clear()
+    await call.message.edit_text("Создание креатива отменено.", reply_markup=InlineAdCreative.menu())
 
 
 @router.callback_query(F.data.startswith("AdCreative|delete|"))

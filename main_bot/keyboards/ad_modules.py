@@ -8,6 +8,13 @@ class InlineAdCreative(InlineKeyboardBuilder):
     """Клавиатуры для рекламных креативов"""
     
     @classmethod
+    def create_creative_cancel(cls):
+        kb = cls()
+        kb.button(text="Отмена", callback_data="AdCreative|cancel_creation")
+        kb.adjust(1)
+        return kb.as_markup()
+
+    @classmethod
     def menu(cls):
         kb = cls()
         kb.button(text="Создать креатив", callback_data="AdCreative|create")
@@ -41,6 +48,10 @@ class InlineAdCreative(InlineKeyboardBuilder):
 class InlineAdPurchase(InlineKeyboardBuilder):
     """Клавиатуры для рекламных закупов"""
     
+    @classmethod
+    def menu(cls):
+        return cls.main_menu()
+
     @classmethod
     def main_menu(cls):
         from config import Config
