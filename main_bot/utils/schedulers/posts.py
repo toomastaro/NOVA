@@ -325,7 +325,7 @@ async def check_cpm_reports():
                 if exchange_rate and exchange_rate.rate > 0:
                     usd_rate = exchange_rate.rate
 
-            channels_text = text("resource_title").format(channel.emoji_id, channel.title) + f" - 👀 {views}"
+            channels_text = text("resource_title").format(channel.title) + f" - 👀 {views}"
             
             full_report = text("cpm:report:header").format(post.post_id, period) + "\\n"
             full_report += text("cpm:report:stats").format(
@@ -404,7 +404,7 @@ async def delete_posts():
         total_views = sum(obj["views"] for obj in message_objects)
         rub_price = round(float(cpm_price * float(total_views / 1000)), 2)
         channels_text = "\\n".join(
-            text("resource_title").format(obj["channel"].emoji_id, obj["channel"].title) + f" - 👀 {obj['views']}"
+            text("resource_title").format(obj["channel"].title) + f" - 👀 {obj['views']}"
             for obj in message_objects
         )
 
