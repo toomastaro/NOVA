@@ -16,10 +16,12 @@ from main_bot.utils.lang.language import text
 from main_bot.utils.schemas import Hide, React
 from main_bot.keyboards import keyboards
 from main_bot.states.user import AddHide
+from main_bot.utils.error_handler import safe_handler
 
 logger = logging.getLogger(__name__)
 
 
+@safe_handler("Posting Add Hide Value")
 async def add_hide_value(call: types.CallbackQuery, state: FSMContext):
     """
     Начало добавления hide кнопки.
@@ -50,6 +52,7 @@ async def add_hide_value(call: types.CallbackQuery, state: FSMContext):
         await state.set_state(AddHide.button_name)
 
 
+@safe_handler("Posting Back Input Button Name")
 async def back_input_button_name(call: types.CallbackQuery, state: FSMContext):
     """
     Возврат назад при добавлении hide кнопки.
@@ -96,6 +99,7 @@ async def back_input_button_name(call: types.CallbackQuery, state: FSMContext):
         return await state.set_state(AddHide.not_member_text)
 
 
+@safe_handler("Posting Get Button Name")
 async def get_button_name(message: types.Message, state: FSMContext):
     """
     Получение имени hide кнопки.
@@ -116,6 +120,7 @@ async def get_button_name(message: types.Message, state: FSMContext):
     await state.set_state(AddHide.not_member_text)
 
 
+@safe_handler("Posting Get Not Member Text")
 async def get_not_member_text(message: types.Message, state: FSMContext):
     """
     Получение текста для неподписчиков.
@@ -141,6 +146,7 @@ async def get_not_member_text(message: types.Message, state: FSMContext):
     await state.set_state(AddHide.for_member_text)
 
 
+@safe_handler("Posting Get For Member Text")
 async def get_for_member_text(message: types.Message, state: FSMContext):
     """
     Получение текста для подписчиков и сохранение hide кнопки.
@@ -193,6 +199,7 @@ async def get_for_member_text(message: types.Message, state: FSMContext):
     )
 
 
+@safe_handler("Posting Click Hide")
 async def click_hide(call: types.CallbackQuery):
     """
     Обработка клика на hide кнопку в опубликованном посте.
@@ -227,6 +234,7 @@ async def click_hide(call: types.CallbackQuery):
         )
 
 
+@safe_handler("Posting Click React")
 async def click_react(call: types.CallbackQuery):
     """
     Обработка клика на реакцию в опубликованном посте.

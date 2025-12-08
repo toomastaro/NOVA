@@ -16,10 +16,12 @@ from main_bot.utils.message_utils import answer_post
 from main_bot.utils.lang.language import text
 from main_bot.utils.schemas import MessageOptions, Media
 from main_bot.keyboards import keyboards
+from main_bot.utils.error_handler import safe_handler
 
 logger = logging.getLogger(__name__)
 
 
+@safe_handler("Posting Text Cancel")
 async def cancel_message(call: types.CallbackQuery, state: FSMContext):
     """
     Отмена создания поста - очистка состояния и возврат в меню постинга.
@@ -33,6 +35,7 @@ async def cancel_message(call: types.CallbackQuery, state: FSMContext):
     await start_posting(call.message)
 
 
+@safe_handler("Posting Text Get Message")
 async def get_message(message: types.Message, state: FSMContext):
     """
     Получение первичного сообщения для создания поста.

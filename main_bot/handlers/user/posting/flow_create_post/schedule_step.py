@@ -19,10 +19,12 @@ from main_bot.utils.message_utils import answer_post
 from main_bot.utils.lang.language import text
 from main_bot.keyboards import keyboards
 from main_bot.states.user import Posting
+from main_bot.utils.error_handler import safe_handler
 
 logger = logging.getLogger(__name__)
 
 
+@safe_handler("Posting Choice Channels")
 async def choice_channels(call: types.CallbackQuery, state: FSMContext):
     """
     Выбор каналов для публикации поста.
@@ -198,6 +200,7 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
     )
 
 
+@safe_handler("Posting Finish Params")
 async def finish_params(call: types.CallbackQuery, state: FSMContext):
     """
     Настройка финальных параметров поста перед публикацией.
@@ -343,6 +346,7 @@ async def finish_params(call: types.CallbackQuery, state: FSMContext):
         )
 
 
+@safe_handler("Posting Choice Delete Time")
 async def choice_delete_time(call: types.CallbackQuery, state: FSMContext):
     """
     Выбор времени автоудаления поста.
@@ -422,6 +426,7 @@ async def choice_delete_time(call: types.CallbackQuery, state: FSMContext):
     )
 
 
+@safe_handler("Posting Cancel Send Time")
 async def cancel_send_time(call: types.CallbackQuery, state: FSMContext):
     """
     Отмена ввода времени отправки.
@@ -470,6 +475,7 @@ async def cancel_send_time(call: types.CallbackQuery, state: FSMContext):
     )
 
 
+@safe_handler("Posting Get Send Time")
 async def get_send_time(message: types.Message, state: FSMContext):
     """
     Получение времени отправки от пользователя.
@@ -506,7 +512,7 @@ async def get_send_time(message: types.Message, state: FSMContext):
         send_time = time.mktime(date.timetuple())
 
     except Exception as e:
-        print(e)
+        logger.error(f"Error parsing send time: {e}")
         return await message.answer(
             text("error_value")
         )
@@ -571,7 +577,8 @@ async def get_send_time(message: types.Message, state: FSMContext):
 
     await message.answer(
         text("manage:post:accept:date").format(
-            *date_values,
+            f"{day} {month} {year} {_time}",
+            weekday,
             "\n".join(
                 text("resource_title").format(obj.title) for obj in objects
                 if obj.chat_id in chosen[:10]

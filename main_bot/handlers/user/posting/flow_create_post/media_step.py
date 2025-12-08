@@ -19,10 +19,12 @@ from main_bot.utils.schemas import MessageOptions, Media
 from main_bot.utils.backup_utils import edit_backup_message, update_live_messages
 from main_bot.keyboards import keyboards
 from main_bot.states.user import Posting
+from main_bot.utils.error_handler import safe_handler
 
 logger = logging.getLogger(__name__)
 
 
+@safe_handler("Posting Manage Post")
 async def manage_post(call: types.CallbackQuery, state: FSMContext):
     """
     Управление постом - обработка различных действий с постом.
@@ -220,6 +222,7 @@ async def manage_post(call: types.CallbackQuery, state: FSMContext):
         )
 
 
+@safe_handler("Posting Cancel Value")
 async def cancel_value(call: types.CallbackQuery, state: FSMContext):
     """
     Отмена редактирования параметра или удаление значения параметра.
@@ -306,6 +309,7 @@ async def cancel_value(call: types.CallbackQuery, state: FSMContext):
     await answer_post(call.message, state)
 
 
+@safe_handler("Posting Get Value")
 async def get_value(message: types.Message, state: FSMContext):
     """
     Получение нового значения параметра от пользователя.

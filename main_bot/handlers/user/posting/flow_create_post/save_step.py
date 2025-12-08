@@ -16,10 +16,12 @@ from main_bot.utils.lang.language import text
 from main_bot.utils.backup_utils import send_to_backup
 from main_bot.keyboards import keyboards
 from main_bot.states.user import Posting
+from main_bot.utils.error_handler import safe_handler
 
 logger = logging.getLogger(__name__)
 
 
+@safe_handler("Posting Accept")
 async def accept(call: types.CallbackQuery, state: FSMContext):
     """
     Подтверждение и сохранение поста.
@@ -118,8 +120,9 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
 
     # Формируем сообщение об успехе
     if send_time:
+        weekday, day, month, year, _time = date_values
         message_text = text("manage:post:success:date").format(
-            *date_values,
+            f"{day} {month} {year} {_time} ({weekday})",
             "\n".join(
                 text("resource_title").format(obj.title) for obj in objects
                 if obj.chat_id in chosen[:10]
