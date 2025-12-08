@@ -374,13 +374,18 @@ async def align_subscribe(call: types.CallbackQuery, state: FSMContext, user: Us
     await state.update_data(
         align_chosen=align_chosen
     )
-    await call.message.edit_reply_markup(
-        reply_markup=keyboards.align_sub(
-            sub_objects=sub_objects,
-            chosen=align_chosen,
-            remover=int(temp[2])
+    
+    try:
+        await call.message.edit_reply_markup(
+            reply_markup=keyboards.align_sub(
+                sub_objects=sub_objects,
+                chosen=align_chosen,
+                remover=int(temp[2])
+            )
         )
-    )
+    except Exception:
+        # Игнорируем ошибку если сообщение не изменилось
+        pass
 
 
 async def cancel(call: types.CallbackQuery, state: FSMContext):
