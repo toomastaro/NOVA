@@ -11,6 +11,7 @@ class Config:
 
     # Bot
     BOT_TOKEN = os.getenv('BOT_TOKEN')
+    BOT_LINK = os.getenv('BOT_LINK', 'https://t.me/novatg')
     BACKUP_CHAT_ID = int(os.getenv('NOVA_BKP')) if os.getenv('NOVA_BKP') else 0
     ADMIN_SUPPORT = int(os.getenv("ADMIN_SUPPORT"))
 

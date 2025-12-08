@@ -31,8 +31,8 @@ class Platega:
             "currency": "RUB"
           },
           "description": description,
-          "return": "https://t.me/FastDomainBot",
-          "failedUrl": "https://t.me/FastDomainBot",
+          "return": Config.BOT_LINK,
+          "failedUrl": Config.BOT_LINK,
         }
 
         try:
