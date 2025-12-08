@@ -364,7 +364,8 @@ async def align_subscribe(call: types.CallbackQuery, state: FSMContext, user: Us
             align_chosen.clear()
             align_chosen.extend([i.chat_id for i in sub_objects])
 
-    if temp[1].isdigit():
+    # Проверяем, является ли это ID канала (может быть отрицательным)
+    if temp[1].lstrip('-').isdigit():
         resource_id = int(temp[1])
         logger.info(f"Align: channel {resource_id} clicked, current chosen: {align_chosen}")
         if resource_id in align_chosen:
