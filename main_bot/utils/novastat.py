@@ -144,6 +144,22 @@ class NovaStatService:
         
         return None
 
+    def _map_error(self, e: Exception) -> str:
+        err_str = str(e)
+        if "InviteHashInvalid" in err_str:
+            return "Некорректная ссылка приглашения. Проверьте адрес."
+        if "InviteHashExpired" in err_str:
+            return "Ссылка приглашения устарела или отозвана."
+        if "ChannelsTooMuch" in err_str:
+            return "Техническое ограничение: бот перегружен каналами."
+        if "USER_NOT_PARTICIPANT" in err_str:
+            return "Бот не смог вступить в канал (нет автоприёма?)"
+        if "CHAT_ADMIN_REQUIRED" in err_str:
+            return "Требуются права администратора для просмотра."
+        if "CHANNEL_PRIVATE" in err_str:
+             return "Канал приватный и недоступен."
+        return f"{err_str}"
+
     async def async_refresh_stats(self, channel_identifier: str, days_limit: int, horizon: int):
         """Асинхронное обновление статистики в кэше"""
         try:
@@ -219,7 +235,7 @@ class NovaStatService:
                     channel_identifier,
                     horizon,
                     {},
-                    error_message="Нет доступных external клиентов"
+                    error_message="Нет доступных клиентов для анализа"
                 )
                 return
             
@@ -243,13 +259,7 @@ class NovaStatService:
                 await manager.close()
                 
         except Exception as e:
-            error_msg = str(e)
-            
-            # Обработать специфичные ошибки
-            if "USER_NOT_PARTICIPANT" in error_msg or "CHAT_ADMIN_REQUIRED" in error_msg:
-                error_msg = "Канал недоступен: бот не участник"
-            elif "CHANNEL_PRIVATE" in error_msg:
-                error_msg = "Канал приватный"
+            error_msg = self._map_error(e)
             
             await db.set_cache(
                 channel_identifier,
@@ -336,13 +346,7 @@ class NovaStatService:
                         # Join был, но клиент все равно не участник
                         # Это значит либо ссылка без автоприема, либо проблемы с Telegram
                         raise Exception(
-                            "Не удалось присоединиться к каналу. "
-                            "Возможные причины:\n"
-                            "• Ссылка без автоприёма (требуется подтверждение администратора)\n"
-                            "• Загруженность серверов Telegram\n"
-                            "Попробуйте:\n"
-                            "• Предоставить ссылку с автоприёмом\n"
-                            "• Повторить попытку позже"
+                            "Не удалось вступить в канал. Вероятно, ссылка не имеет автоприёма (требуется одобрение админа)."
                         )
                     
                     # Отправить alert для других ошибок доступа
