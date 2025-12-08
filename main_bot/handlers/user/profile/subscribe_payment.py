@@ -322,6 +322,14 @@ async def align_subscribe(call: types.CallbackQuery, state: FSMContext, user: Us
 
     if temp[1] == "align":
         logger.info(f"Align: align button clicked, chosen channels: {align_chosen}")
+        
+        # Проверка: минимум 2 канала
+        if len(align_chosen) < 2:
+            return await call.answer(
+                "❌ Выберите минимум 2 канала для выравнивания",
+                show_alert=True
+            )
+        
         chosen_objects = await db.get_user_channels(
             user_id=user.id,
             from_array=align_chosen
@@ -411,6 +419,15 @@ async def back_to_method(call: types.CallbackQuery, state: FSMContext):
     if not data:
         await call.answer(text('keys_data_error'))
         return await call.message.delete()
+    
+    # Если нет данных о методе оплаты (например, пришли из align_sub), возвращаемся в меню подписки
+    if not data.get('method') or not data.get('total_price'):
+        await call.message.delete()
+        return await call.message.answer(
+            text("balance_text").format(user.balance),
+            reply_markup=keyboards.subscription_menu(),
+            parse_mode="HTML"
+        )
 
     await state.update_data(method=None)
     pay_info_text = await get_pay_info_text(state, user)

@@ -229,7 +229,7 @@ class InlineProfile(InlineKeyboardBuilder):
                 callback_data=f'ChoiceResourceAlignSubscribe|cancel|{remover}'
             ),
             InlineKeyboardButton(
-                text=text('save:button'),
+                text='🔄 Выровнять',
                 callback_data=f'ChoiceResourceAlignSubscribe|align|{remover}'
             )
         )
