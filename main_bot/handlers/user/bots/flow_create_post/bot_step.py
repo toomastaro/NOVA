@@ -133,7 +133,8 @@ async def choice_bots(call: types.CallbackQuery, state: FSMContext):
                 user_bot = await db.get_channel_by_chat_id(resource_id)
                 if not user_bot.subscribe:
                     return await call.answer(
-                        text("error_sub_channel:bots")
+                        text("error_sub_channel:bots").format(user_bot.title),
+                        show_alert=True
                     )
 
                 chosen.append(resource_id)
