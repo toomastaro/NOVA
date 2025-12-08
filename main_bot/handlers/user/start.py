@@ -43,8 +43,10 @@ async def start(message: types.Message, state: FSMContext):
                 # Invalid ref parameter format, ignore
                 pass
     
+    version_text = f"Version: {Config.VERSION}\n\n" if message.from_user.id in getattr(Config, 'ADMINS', []) else ""
+
     await message.answer(
-        text("start_text") + f"\n\nVersion: {Config.VERSION}\n\n"
+        text("start_text") + f"\n\n{version_text}"
         f"📄 <a href='{text('info:terms:url')}'>Пользовательское соглашение</a>\n"
         f"🔒 <a href='{text('info:privacy:url')}'>Политика конфиденциальности</a>",
         reply_markup=keyboards.menu(),
