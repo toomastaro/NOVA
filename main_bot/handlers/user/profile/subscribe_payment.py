@@ -304,7 +304,7 @@ async def align_subscribe(call: types.CallbackQuery, state: FSMContext, user: Us
 
     align_chosen: list = data.get("align_chosen", [])
     
-    # Получаем ВСЕ каналы пользователя (не только с активной подпиской)
+    # Получаем ВСЕ каналы пользователя (не только с активной подпиской) 
     # Пользователь может захотеть выровнять подписки даже если на некоторых каналах их нет
     sub_objects = await db.get_user_channels(user_id=user.id)
 
