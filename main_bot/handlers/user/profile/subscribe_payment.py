@@ -299,17 +299,10 @@ async def align_subscribe(call: types.CallbackQuery, state: FSMContext, user: Us
         return await call.message.delete()
 
     align_chosen: list = data.get("align_chosen", [])
-    all_sub_objects = await db.get_subscribe_channels(
-        user_id=user.id
-    )
     
-    # Фильтруем только активные подписки
-    import time
-    now = int(time.time())
-    sub_objects = [
-        ch for ch in all_sub_objects 
-        if ch.subscribe and ch.subscribe > now
-    ]
+    # Получаем ВСЕ каналы пользователя (не только с активной подпиской)
+    # Пользователь может захотеть выровнять подписки даже если на некоторых каналах их нет
+    sub_objects = await db.get_user_channels(user_id=user.id)
 
     if temp[1] in ["next", "back"]:
         return await call.message.edit_reply_markup(

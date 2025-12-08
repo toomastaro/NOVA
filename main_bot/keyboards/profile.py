@@ -226,11 +226,11 @@ class InlineProfile(InlineKeyboardBuilder):
         kb.row(
             InlineKeyboardButton(
                 text=text('back:button'),
-                callback_data='ChoiceResourceAlignSubscribe|cancel'
+                callback_data=f'ChoiceResourceAlignSubscribe|cancel|{remover}'
             ),
             InlineKeyboardButton(
                 text=text('save:button'),
-                callback_data='ChoiceResourceAlignSubscribe|align'
+                callback_data=f'ChoiceResourceAlignSubscribe|align|{remover}'
             )
         )
 
