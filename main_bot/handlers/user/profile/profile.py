@@ -207,9 +207,9 @@ async def subscription_menu_choice(call: types.CallbackQuery, user: User, state:
     
     elif temp[1] == 'top_up':
         # Пополнение баланса
-        from main_bot.handlers.user.profile.payment import show_payment
+        from main_bot.handlers.user.profile.balance import show_top_up
         await call.message.delete()
-        await show_payment(call.message, user)
+        await show_top_up(call.message, state)
     
     elif temp[1] == 'subscribe':
         # Подписка на каналы
@@ -226,7 +226,8 @@ async def subscription_menu_choice(call: types.CallbackQuery, user: User, state:
         await call.message.delete()
         await call.message.answer(
             text("subscription_info"),
-            reply_markup=keyboards.back(data='MenuSubscription|back')
+            reply_markup=keyboards.info_menu(),
+            parse_mode="HTML"
         )
     
     elif temp[1] == 'back':
@@ -248,8 +249,22 @@ async def back_to_main(message: types.Message):
     )
 
 
+async def info_menu_choice(call: types.CallbackQuery, user: User):
+    temp = call.data.split('|')
+    
+    if temp[1] == 'back':
+        # Возврат в меню подписки
+        await call.message.delete()
+        await call.message.answer(
+            text("balance_text").format(user.balance),
+            reply_markup=keyboards.subscription_menu(),
+            parse_mode="HTML"
+        )
+
+
 def hand_add():
     router = Router()
     router.callback_query.register(choice, F.data.split("|")[0] == "MenuProfile")
     router.callback_query.register(subscription_menu_choice, F.data.split("|")[0] == "MenuSubscription")
+    router.callback_query.register(info_menu_choice, F.data.split("|")[0] == "InfoMenu")
     return router
