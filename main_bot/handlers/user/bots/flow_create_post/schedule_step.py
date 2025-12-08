@@ -97,9 +97,10 @@ async def finish_params(call: types.CallbackQuery, state: FSMContext):
             )
         )
         await state.set_state(Bots.input_send_time)
+        return
 
     if temp[1] == "public":
-        await call.message.edit_text(
+        return await call.message.edit_text(
             text("manage:post_bot:accept:public").format(
                 "\n".join(
                     text("resource_title").format(

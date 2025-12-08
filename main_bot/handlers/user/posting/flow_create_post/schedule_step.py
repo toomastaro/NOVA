@@ -325,7 +325,7 @@ async def finish_params(call: types.CallbackQuery, state: FSMContext):
 
     # Выбор времени удаления
     if temp[1] == "delete_time":
-        await call.message.edit_text(
+        return await call.message.edit_text(
             text("manage:post:new:delete_time"),
             reply_markup=keyboards.choice_delete_time()
         )
@@ -340,13 +340,14 @@ async def finish_params(call: types.CallbackQuery, state: FSMContext):
             reply_markup=keyboards.back(data="BackSendTimePost")
         )
         await state.set_state(Posting.input_send_time)
+        return
 
     # Немедленная публикация
     if temp[1] == "public":
         if post.cpm_price and not post.delete_time:
             return await call.answer(text("error_cpm_without_timer"), show_alert=True)
 
-        await call.message.edit_text(
+        return await call.message.edit_text(
             text("manage:post:accept:public").format(
                 "\n".join(
                     text("resource_title").format(obj.title) for obj in objects

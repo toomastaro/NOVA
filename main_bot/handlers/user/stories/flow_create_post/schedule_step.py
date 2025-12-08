@@ -287,7 +287,7 @@ async def finish_params(call: types.CallbackQuery, state: FSMContext):
         )
 
     if temp[1] == "delete_time":
-        await call.message.edit_text(
+        return await call.message.edit_text(
             text("manage:story:new:delete_time"),
             reply_markup=keyboards.choice_delete_time_story()
         )
@@ -298,9 +298,10 @@ async def finish_params(call: types.CallbackQuery, state: FSMContext):
             reply_markup=keyboards.back(data="BackSendTimeStories")
         )
         await state.set_state(Stories.input_send_time)
+        return
 
     if temp[1] == "public":
-        await call.message.edit_text(
+        return await call.message.edit_text(
             text("manage:story:accept:public").format(
                 await get_story_report_text(chosen, objects),
                 f"{int(options.period / 3600)} ч."  # type: ignore
