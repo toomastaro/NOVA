@@ -83,9 +83,7 @@ class InlinePosting(InlineKeyboardBuilder):
             InlineKeyboardButton(
                 text=text("manage:post:{}:desc:button".format("edit" if options.text or options.caption else "add")),
                 callback_data=f'ManagePost|text|{post.id}'
-            )
-        )
-        kb.row(
+            ),
             InlineKeyboardButton(
                 text=text("manage:post:{}:media:button".format(
                     "edit" if options.photo or options.video or options.animation else "add")
@@ -97,6 +95,12 @@ class InlinePosting(InlineKeyboardBuilder):
             InlineKeyboardButton(
                 text=text("manage:post:add:url_buttons:button"),
                 callback_data=f'ManagePost|buttons|{post.id}'
+            ),
+            InlineKeyboardButton(
+                text=text("manage:post:notification:button").format(
+                    "🔔" if not options.disable_notification else "🔕"
+                ),
+                callback_data=f'ManagePost|notification|{post.id}'
             )
         )
 
@@ -145,14 +149,7 @@ class InlinePosting(InlineKeyboardBuilder):
                     callback_data=f'ManagePost|reaction|{post.id}'
                 )
             )
-            kb.row(
-                InlineKeyboardButton(
-                    text=text("manage:post:notification:button").format(
-                        "🔔" if not options.disable_notification else "🔕"
-                    ),
-                    callback_data=f'ManagePost|notification|{post.id}'
-                )
-            )
+
             kb.row(
                 InlineKeyboardButton(
                     text=text("manage:post:hide_more:button"),
