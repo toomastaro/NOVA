@@ -492,10 +492,6 @@ class InlineProfile(InlineKeyboardBuilder):
             callback_data='MenuSubscription|subscribe'
         )
         kb.button(
-            text=text('profile:referral'),
-            callback_data='MenuSubscription|referral'
-        )
-        kb.button(
             text=text('payment:method:align_sub'),
             callback_data='MenuSubscription|align_sub'
         )
@@ -506,6 +502,10 @@ class InlineProfile(InlineKeyboardBuilder):
         kb.button(
             text=text('info:button'),
             callback_data='MenuSubscription|info'
+        )
+        kb.button(
+            text=text('profile:referral'),
+            callback_data='MenuSubscription|referral'
         )
         kb.button(
             text=text('back:button'),
