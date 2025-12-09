@@ -105,7 +105,7 @@ class InlineProfile(InlineKeyboardBuilder):
         return kb.as_markup()
 
     @classmethod
-    def choice_payment_method(cls, data: str, has_promo: bool = False, is_subscribe: bool = False):
+    def choice_payment_method(cls, data: str, has_promo: bool = False, is_subscribe: bool = False, show_promo: bool = False):
         kb = cls()
 
         adjust = []
@@ -113,6 +113,14 @@ class InlineProfile(InlineKeyboardBuilder):
             kb.button(
                 text=text('payment:method:balance'),
                 callback_data=f'{data}|balance'
+            )
+            adjust.extend([1])
+
+        # Показываем промокод только если show_promo=True (не при продлении)
+        if show_promo and not has_promo:
+            kb.button(
+                text=text('payment:method:promo'),
+                callback_data=f'{data}|promo'
             )
             adjust.extend([1])
 

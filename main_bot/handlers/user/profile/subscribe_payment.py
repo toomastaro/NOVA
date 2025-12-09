@@ -548,6 +548,9 @@ async def back_to_method(call: types.CallbackQuery, state: FSMContext):
     user = await db.get_user(user_id=call.from_user.id)
     data = await state.get_data()
     
+    # Сбрасываем флаг ожидания оплаты чтобы прервать цикл
+    await state.update_data(waiting_payment=False)
+    
     if not data:
         await call.answer(text('keys_data_error'))
         return await call.message.delete()
