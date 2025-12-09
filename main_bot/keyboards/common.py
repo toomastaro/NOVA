@@ -67,7 +67,7 @@ class InlineCommon(InlineKeyboardBuilder):
         kb = cls()
 
         kb.button(
-            text=text('cancel'),
+            text=text('back:button'),
             callback_data=data
         )
 
