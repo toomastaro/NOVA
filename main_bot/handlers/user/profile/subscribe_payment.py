@@ -585,29 +585,16 @@ async def back_to_method(call: types.CallbackQuery, state: FSMContext):
     # Сбрасываем флаг ожидания оплаты чтобы прервать цикл
     await state.update_data(waiting_payment=False)
     
-    if not data:
-        await call.answer(text('keys_data_error'))
-        await safe_delete(call.message)
-        return
+    # Полная очистка состояния (рестарт сценария)
+    await state.clear()
     
-    # Если нет данных о методе оплаты (например, пришли из align_sub), возвращаемся в меню подписки
-    if not data.get('method') or not data.get('total_price'):
-        await safe_delete(call.message)
-        return await call.message.answer(
-            text("balance_text").format(user.balance),
-            reply_markup=keyboards.subscription_menu(),
-            parse_mode="HTML"
-        )
+    await safe_delete(call.message)
 
-    await state.update_data(method=None)
-    pay_info_text = await get_pay_info_text(state, user)
-    
-    await call.message.edit_text(
-        pay_info_text,
-        reply_markup=keyboards.choice_payment_method(
-            data='ChoicePaymentMethodSubscribe',
-            is_subscribe=True
-        )
+    # Возвращаем пользователя в меню подписки
+    await call.message.answer(
+        text("balance_text").format(user.balance),
+        reply_markup=keyboards.subscription_menu(),
+        parse_mode="HTML"
     )
 
 

@@ -107,8 +107,11 @@ async def back_to_method(call: types.CallbackQuery, state: FSMContext):
     # Сбрасываем флаг ожидания оплаты чтобы прервать цикл
     await state.update_data(waiting_payment=False)
     
+    await state.clear()
     await safe_delete(call.message)
-    await show_top_up(call.message, state)
+    
+    user = await db.get_user(user_id=call.from_user.id)
+    await show_balance(call.message, user)
 
 
 async def get_promo(message: types.Message, state: FSMContext, user: User):

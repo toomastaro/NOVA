@@ -109,7 +109,7 @@ class InlineCommon(InlineKeyboardBuilder):
             url=pay_url
         )
         kb.button(
-            text=text('back:button'),
+            text=text('cancel'),
             callback_data=f'{data}'
         )
 
