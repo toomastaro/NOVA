@@ -46,7 +46,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext, user: User):
         return await state.set_state(Balance.input_promo)
 
     await state.update_data(
-        method=temp[1]
+        method=temp[1].upper()
     )
     await call.message.answer(
         text('input_amount'),
