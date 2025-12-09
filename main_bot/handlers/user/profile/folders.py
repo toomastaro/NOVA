@@ -112,13 +112,12 @@ async def choice_object(call: types.CallbackQuery, state: FSMContext, user: User
     if temp[1] in ['next', 'back']:
         return await call.message.edit_text(
             text(f'folders:chosen:{object_type}').format(
-                "\n".join(
+                "<blockquote expandable>" + "\n".join(
                     text("resource_title").format(
-                        obj.emoji_id,
                         obj.title
                     ) for obj in objects
                     if obj.chat_id in chosen[:10]
-                )
+                ) + "</blockquote>"
             ),
             reply_markup=keyboards.choice_object_folders(
                 resources=objects,
@@ -172,13 +171,12 @@ async def choice_object(call: types.CallbackQuery, state: FSMContext, user: User
     )
     await call.message.edit_text(
         text(f'folders:chosen:{object_type}').format(
-            "\n".join(
+            "<blockquote expandable>" + "\n".join(
                 text("resource_title").format(
-                    obj.emoji_id,
                     obj.title
                 ) for obj in objects
                 if obj.chat_id in chosen[:10]
-            )
+            ) + "</blockquote>"
         ),
         reply_markup=keyboards.choice_object_folders(
             resources=objects,
@@ -278,7 +276,7 @@ async def get_folder_name(message: types.Message, state: FSMContext, user: User)
         
         await message.answer(
             text(f'folders:chosen:{object_type}').format(
-                ""
+                "<blockquote expandable>" + "" + "</blockquote>"
             ),
             reply_markup=keyboards.choice_object_folders(
                 resources=objects,
@@ -341,13 +339,12 @@ async def manage_folder(call: types.CallbackQuery, state: FSMContext, user: User
         )
         await call.message.answer(
             text(f'folders:chosen:{object_type}').format(
-                "\n".join(
+                "<blockquote expandable>" + "\n".join(
                     text("resource_title").format(
-                        obj.emoji_id,
                         obj.title
                     ) for obj in objects
                     if obj.chat_id in chosen[:10]
-                )
+                ) + "</blockquote>"
             ),
             reply_markup=keyboards.choice_object_folders(
                 resources=objects,
