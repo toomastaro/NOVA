@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nova Bot — Тестирование</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <div class="container header-content">
+            <a href="index.html" class="logo">
+                <span>N</span><span>☐</span><span>VA</span> <span style="font-size: 0.8em; margin-left: 10px; color: var(--muted-foreground);">QA</span>
+            </a>
+            <nav class="nav-links">
+                <a href="index.html" class="active">Главная</a>
+                <a href="subscription.html">Подписка</a>
+                <a href="settings.html">Настройки</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="container">
+        <h1>Центр ручного тестирования</h1>
+        <p class="subtitle">
+            Этот раздел предназначен для ручного тестирования функционала бота Nova. 
+            Следуйте инструкциям в тест-кейсах для проверки работоспособности системы.
+        </p>
+
+        <div class="grid">
+            <!-- Subscription Card -->
+            <div class="card">
+                <h3 class="card-title">💎 Подписки и Оплата</h3>
+                <p class="card-desc">
+                    Проверка покупки подписки через CryptoBot и Telegram Stars, 
+                    а также начисление реферальных бонусов.
+                </p>
+                <a href="subscription.html" class="btn">Перейти к тестам</a>
+            </div>
+
+            <!-- Settings Card -->
+            <div class="card">
+                <h3 class="card-title">⚙️ Настройки и Профиль</h3>
+                <p class="card-desc">
+                    Тестирование смены языка, настройки часового пояса 
+                    и привязки кошельков.
+                </p>
+                <a href="settings.html" class="btn">Перейти к тестам</a>
+            </div>
+
+            <!-- Posting Card (Planned) -->
+            <div class="card" style="opacity: 0.5;">
+                <h3 class="card-title">📝 Контент-план (Скоро)</h3>
+                <p class="card-desc">
+                    Создание, редактирование и удаление постов. 
+                    Работа с отложенным постингом.
+                </p>
+                <button class="btn" disabled style="background-color: var(--muted); cursor: not-allowed;">В разработке</button>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 Nova Bot. QA Department.</p>
+        </div>
+    </footer>
+</body>
+</html>

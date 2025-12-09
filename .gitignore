@@ -33,5 +33,5 @@ backups/
 
 # 🌐 Static Site
 # 🌐 Static Site
-nova_website/node_modules/
-nova_website/dist/
+#nova_website/node_modules/
+#nova_website/dist/

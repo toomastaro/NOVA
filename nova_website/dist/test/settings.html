@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Тестирование настроек — Nova</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <header>
+        <div class="container header-content">
+            <a href="index.html" class="logo">
+                <span>N</span><span>☐</span><span>VA</span> <span
+                    style="font-size: 0.8em; margin-left: 10px; color: var(--muted-foreground);">QA</span>
+            </a>
+            <nav class="nav-links">
+                <a href="index.html">Главная</a>
+                <a href="subscription.html">Подписка</a>
+                <a href="settings.html" class="active">Настройки</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="container">
+        <h1>Тестирование Настроек</h1>
+        <p class="subtitle">
+            Этот раздел посвящен проверке конфигурации профиля, смены языка и часового пояса.
+        </p>
+
+        <div class="test-suite">
+
+            <!-- SET-01 -->
+            <div class="test-case" id="SET-01">
+                <div class="tc-header">
+                    <div>
+                        <span class="tc-id">SET-01</span>
+                        <span class="tc-title">Смена языка интерфейса</span>
+                    </div>
+                    <span class="badge">Medium</span>
+                </div>
+                <div class="tc-body">
+                    <div class="tc-section">
+                        <div class="tc-label">Предварительные условия</div>
+                        <div class="tc-content">
+                            Бот запущен. Текущий язык — любой.
+                        </div>
+                    </div>
+
+                    <div class="tc-section">
+                        <div class="tc-label">Шаги воспроизведения</div>
+                        <ol class="step-list">
+                            <li>Перейдите в <b>👤 Профиль</b> -> <b>⚙️ Настройки</b>.</li>
+                            <li>Нажмите на кнопку <b>🌐 Язык</b> (Language).</li>
+                            <li>В появившемся меню выберите английский флаг (🇺🇸 English).</li>
+                            <li>Подождите пару секунд для обновления меню.</li>
+                        </ol>
+                    </div>
+
+                    <div class="tc-section">
+                        <div class="tc-label">Ожидаемый результат</div>
+                        <div class="expected-result">
+                            1. Бот присылает сообщение: "Language switched to English".<br>
+                            2. Все кнопки меню мгновенно меняются на английские (Profile, Settings,
+                            Subscription...).<br>
+                            3. Нажмите "Back" и вернитесь в главное меню — оно должно быть на английском.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SET-02 -->
+            <div class="test-case" id="SET-02">
+                <div class="tc-header">
+                    <div>
+                        <span class="tc-id">SET-02</span>
+                        <span class="tc-title">Настройка часового пояса</span>
+                    </div>
+                    <span class="badge">High</span>
+                </div>
+                <div class="tc-body">
+                    <div class="tc-section">
+                        <div class="tc-label">Описание</div>
+                        <div class="tc-content">
+                            Важно для корректной работы отложенного постинга.
+                        </div>
+                    </div>
+
+                    <div class="tc-section">
+                        <div class="tc-label">Шаги воспроизведения</div>
+                        <ol class="step-list">
+                            <li>Перейдите в <b>👤 Профиль</b> -> <b>⚙️ Настройки</b>.</li>
+                            <li>Нажмите <b>🕒 Часовой пояс</b>.</li>
+                            <li>Введите смещение относительно UTC (например, <code>+3</code> для Москвы или
+                                <code>-5</code> для Нью-Йорка) и отправьте боту сообщением.</li>
+                            <li>Создайте тестовый отложенный пост (Меню -> Контент план -> Создать пост).</li>
+                        </ol>
+                    </div>
+
+                    <div class="tc-section">
+                        <div class="tc-label">Ожидаемый результат</div>
+                        <div class="expected-result">
+                            1. Бот подтверждает смену часового пояса.<br>
+                            2. При создании поста время публикации отображается корректно в вашем новом часовом поясе.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SET-03 -->
+            <div class="test-case" id="SET-03">
+                <div class="tc-header">
+                    <div>
+                        <span class="tc-id">SET-03</span>
+                        <span class="tc-title">Привязка TON кошелька</span>
+                    </div>
+                    <span class="badge">Low</span>
+                </div>
+                <div class="tc-body">
+                    <div class="tc-section">
+                        <div class="tc-label">Описание</div>
+                        <div class="tc-content">
+                            Проверка UI привязки кошелька (functional placeholder).
+                        </div>
+                    </div>
+
+                    <div class="tc-section">
+                        <div class="tc-label">Шаги воспроизведения</div>
+                        <ol class="step-list">
+                            <li>Перейдите в <b>👤 Профиль</b>.</li>
+                            <li>Нажмите <b>👛 Кошелек</b> (Wallet).</li>
+                            <li>Следуйте инструкциям по подключению Tonkeeper (если активно).</li>
+                        </ol>
+                    </div>
+
+                    <div class="tc-section">
+                        <div class="tc-label">Ожидаемый результат</div>
+                        <div class="expected-result">
+                            1. Открывается модальное окно или ссылка на Ton Connect.<br>
+                            2. После привязки адрес кошелька отображается в профиле.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 Nova Bot. QA Department.</p>
+        </div>
+    </footer>
+</body>
+
+</html>
