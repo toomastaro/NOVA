@@ -63,6 +63,13 @@ class ChannelCrud(DatabaseMixin):
             ).values(**kwargs)
         )
 
+    async def update_channel_by_id(self, channel_id: int, **kwargs):
+        await self.execute(
+            update(Channel).where(
+                Channel.id == channel_id
+            ).values(**kwargs)
+        )
+
     async def add_channel(self, **kwargs):
         await self.execute(
             insert(Channel).values(**kwargs)
