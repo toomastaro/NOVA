@@ -116,7 +116,11 @@ async def back_to_method(call: types.CallbackQuery, state: FSMContext):
     await safe_delete(call.message)
     
     user = await db.get_user(user_id=call.from_user.id)
-    await show_balance(call.message, user)
+    await call.message.answer(
+        text("balance_text").format(user.balance),
+        reply_markup=keyboards.subscription_menu(),
+        parse_mode="HTML"
+    )
 
 
 async def get_promo(message: types.Message, state: FSMContext, user: User):
