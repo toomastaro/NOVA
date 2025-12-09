@@ -225,7 +225,7 @@ async def subscription_menu_choice(call: types.CallbackQuery, user: User, state:
         # Информация о подписке
         await call.message.delete()
         await call.message.answer(
-            text("subscription_info"),
+            text("info:menu"),
             reply_markup=keyboards.info_menu(),
             parse_mode="HTML"
         )
