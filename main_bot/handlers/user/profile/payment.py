@@ -235,7 +235,7 @@ async def get_amount(message: types.Message, state: FSMContext):
             method_name
         ),
         reply_markup=keyboards.wait_payment(
-            data="WaitBalancePaymentBack",
+            data="cancel_bal_pay",
             pay_url=pay_url
         )
     )
@@ -354,7 +354,7 @@ def hand_add():
     router = Router()
     router.callback_query.register(choice, F.data.split("|")[0] == "ChoicePaymentMethod")
     router.callback_query.register(cancel, F.data.split("|")[0] == "BalanceAmountCancel")
-    router.callback_query.register(back_to_method, F.data == "WaitBalancePaymentBack")
+    router.callback_query.register(back_to_method, F.data == "cancel_bal_pay")
     router.message.register(get_promo, Balance.input_promo, F.text)
     router.message.register(get_amount, Balance.input_amount, F.text)
     router.pre_checkout_query.register(process_pre_checkout_query)
