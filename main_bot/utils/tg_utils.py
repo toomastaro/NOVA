@@ -604,16 +604,13 @@ async def background_join_channel(chat_id: int, user_id: int = None):
                 if res.get("success"):
                     logger.info(f"Успешно добавлен клиент в канал {chat_id} на попытке {attempt+1}")
                 
-                # Отправить уведомление пользователю о правах бота
+                # Отправить уведомление пользователю только при ошибках
                 if user_id:
                     bot_rights = res.get("bot_rights", {})
                     
+                    # Не отправляем сообщение при успешном промоуте
                     if bot_rights.get("promoted"):
-                        message = (
-                            "✅ <b>Права администратора успешно выданы!</b>\n\n"
-                            "MTProto-клиент добавлен в канал с правами администратора.\n"
-                            "Теперь доступна публикация stories."
-                        )
+                        message = None
                     elif bot_rights.get("has_admin") and not bot_rights.get("can_promote"):
                         # Отправляем техническую информацию в бекап канал
                         if Config.BACKUP_CHAT_ID:
