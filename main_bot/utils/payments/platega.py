@@ -88,6 +88,24 @@ class Platega:
             return False
 
         return payment.get('status') == 'CONFIRMED'
+    
+    async def cancel_invoice(self, invoice_id: str):
+        """Отменить платеж Platega"""
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        try:
+            logger.info(f"Platega Cancelling invoice: {invoice_id}")
+            res = await self.client.post(f'/transaction/{invoice_id}/cancel')
+            logger.info(f"Platega Cancel Response Status: {res.status_code}")
+            logger.info(f"Platega Cancel Response Body: {res.text}")
+            
+            if res.status_code == 200:
+                return True
+            return False
+        except Exception as e:
+            logger.error(f"Platega Cancel Invoice Error: {e}", exc_info=True)
+            return False
 
 
 platega_api = Platega(

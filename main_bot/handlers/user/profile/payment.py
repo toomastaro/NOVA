@@ -68,6 +68,23 @@ async def cancel(call: types.CallbackQuery, state: FSMContext):
 
 async def back_to_method(call: types.CallbackQuery, state: FSMContext):
     """Возврат к выбору способа оплаты с экрана ожидания"""
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    data = await state.get_data()
+    
+    # Отменяем платеж Platega если он был создан
+    payment_method = data.get('payment_method')
+    payment_order_id = data.get('payment_order_id')
+    
+    if payment_method == PaymentMethod.PLATEGA and payment_order_id:
+        try:
+            from main_bot.utils.payments.platega import platega_api
+            await platega_api.cancel_invoice(payment_order_id)
+            logger.info(f"Cancelled Platega invoice {payment_order_id}")
+        except Exception as e:
+            logger.error(f"Failed to cancel Platega invoice: {e}")
+    
     # Сбрасываем флаг ожидания оплаты чтобы прервать цикл
     await state.update_data(waiting_payment=False)
     
@@ -196,8 +213,13 @@ async def get_amount(message: types.Message, state: FSMContext):
         )
     )
 
-    # Устанавливаем флаг что ожидаем оплату
-    await state.update_data(waiting_payment=True, amount=amount)
+    # Устанавливаем флаг что ожидаем оплату и сохраняем данные для отмены
+    await state.update_data(
+        waiting_payment=True,
+        amount=amount,
+        payment_order_id=order_id,
+        payment_method=method
+    )
 
     end_time = time.time() + 3600
     while time.time() < end_time:
