@@ -50,6 +50,125 @@ async def get_days_with_posts(channel_chat_id: int, year: int, month: int) -> se
     return days_with_posts
 
 
+
+async def generate_post_info_text(post_obj, is_published: bool = False) -> str:
+    """
+    Генерирует текст информации о посте для меню управления.
+    
+    Args:
+        post_obj: Объект Post или PublishedPost
+        is_published: Флаг того, что пост уже опубликован
+    """
+    try:
+        author = await db.get_user(post_obj.admin_id)
+        author_name = f"<a href='tg://user?id={author.id}'>{author.first_name}</a>" if author else "Неизвестно"
+    except:
+        author_name = "Неизвестно"
+
+    channels_text = ""
+    # Получаем список каналов
+    if is_published:
+        # Для опубликованного поста - ищем все связанные публикации по post_id
+        # PublishedPost.post_id хранит ID родительского поста (или уникальный ID группы)
+        published_posts = await db.get_published_posts_by_post_id(post_obj.post_id)
+        
+        channels_text = "<blockquote>Пост скопирован в:\n"
+        for p in published_posts:
+            channel = await db.get_channel_by_chat_id(p.chat_id)
+            if channel:
+                # Получаем кол-во подписчиков для display (если есть в базе)
+                # Предположим у channel есть subscribers_count, если нет - временно поле
+                subs = getattr(channel, 'subscribers_count', '???')
+                link = f"{channel.username}" if channel.username else "link"
+                # Формируем строку канала
+                # channel.title (link) (subscribers 👥)
+                # Если ссылка недоступна, просто title
+                
+                # Построение ссылки на канал
+                url = f"https://t.me/{channel.username}" if channel.username else ""
+                title_link = f"<a href='{url}'>{channel.title}</a>" if url else channel.title
+                
+                channels_text += f"📢 {title_link} (<code>{p.chat_id}</code>)\n"
+        channels_text += "</blockquote>"
+        
+        # Основной блок Published
+        # Ссылка на пост (берем первый попавшийся или текущий)
+        post_link = f"https://t.me/c/{str(post_obj.chat_id).replace('-100', '')}/{post_obj.message_id}"
+        if hasattr(post_obj, 'chat_id'): # Try to make a public link if username exists
+             ch = await db.get_channel_by_chat_id(post_obj.chat_id)
+             if ch and ch.username:
+                 post_link = f"https://t.me/{ch.username}/{post_obj.message_id}"
+
+        date_str = datetime.fromtimestamp(post_obj.created_timestamp).strftime("%d %B %Y г. в %H:%M")
+        
+        status_line = "<b>Статус: 👀 Опубликован</b>"
+        
+        return (
+            f"{status_line}\n"
+            f"Ссылка: {post_link}\n"
+            f"Дата: {date_str}\n"
+            f"Автор: {author_name}\n\n"
+            f"{channels_text}"
+        )
+
+    else:
+        # Post (Scheduled or Deleted)
+        status = getattr(post_obj, 'status', 'active')
+        
+        if status == 'deleted':
+            # DELETED REPORT
+            deleted_at = getattr(post_obj, 'deleted_at', None)
+            deleted_str = datetime.fromtimestamp(deleted_at).strftime("%d %B %Y г. в %H:%M") if deleted_at else "Неизвестно"
+            pub_date = datetime.fromtimestamp(post_obj.send_time).strftime("%d %B %Y г. в %H:%M") if post_obj.send_time else "Неизвестно"
+            
+            # Получаем каналы куда планировалось/было
+            # post_obj.chat_ids - список ID
+            channels_text = "<blockquote>Пост должен был быть в:\n"
+            for chat_id in post_obj.chat_ids:
+                channel = await db.get_channel_by_chat_id(chat_id)
+                if channel:
+                    channels_text += f"📢 {channel.title}\n"
+            channels_text += "</blockquote>"
+            
+            # Доп инфо (просмотры и т.д. нужны данные из PublishedPost если он был опубликован и удален)
+            # Если пост просто удален из запланированных - просмотров нет.
+            # Если статус 'deleted', возможно он был опубликован, а потом удален ботом?
+            # В текущей реализации 'deleted' ставится при софт-удалении.
+            
+            return (
+                f"<b>Отчёт об удалении поста</b>\n"
+                f"Удален: {deleted_str}\n"
+                f"Автор: {author_name}\n\n"
+                f"{channels_text}\n"
+                f"🗑 Таймер удаления: {int(post_obj.delete_time/3600) if post_obj.delete_time else 'Нет'} ч\n"
+                # f"👁 Просмотры поста: {post_obj.views_24h or 0}\n" # Если есть данные
+            )
+            
+        else:
+            # SCHEDULED
+            date_str = datetime.fromtimestamp(post_obj.send_time).strftime("%d %B %Y г. в %H:%M")
+            
+            channels_text = "<blockquote>Пост будет скопирован в:\n"
+            for chat_id in post_obj.chat_ids:
+                channel = await db.get_channel_by_chat_id(chat_id)
+                if channel:
+                     # Построение ссылки
+                    url = f"https://t.me/{channel.username}" if channel.username else ""
+                    title_link = f"<a href='{url}'>{channel.title}</a>" if url else channel.title
+                    
+                    # Получаем подписчиков (mock)
+                    subs = "???" 
+                    channels_text += f"📢 {title_link} ({subs} 👥)\n"
+            channels_text += "</blockquote>"
+            
+            return (
+                f"<b>Статус: 🕔 Ожидает публикации</b>\n"
+                f"Дата: {date_str}\n"
+                f"Автор: {author_name}\n\n"
+                f"{channels_text}"
+            )
+
+
 @safe_handler("Posting Choice Channel")
 async def choice_channel(call: types.CallbackQuery, state: FSMContext):
     temp = call.data.split('|')
@@ -170,25 +289,18 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
     if temp[1] == "...":
         return await call.answer()
     
+    
     # Handle PublishedPost
     if call.data.startswith("ContentPublishedPost"):
         post_id = int(temp[1])
         logger.info(f"User {call.from_user.id} viewing published post {post_id}")
         post = await db.get_published_post_by_id(post_id)
-        # Use created_timestamp as send_time for display
-        send_date = datetime.fromtimestamp(post.created_timestamp)
-        send_date_values = (send_date.day, text("month").get(str(send_date.month)), send_date.year,)
-        
-        # Convert PublishedPost to Post-like object for editing compatibility if needed
-        # or just pass it as 'post' if create_post.py handles it.
-        # create_post.py expects 'post' to have 'id', 'message_options', etc.
-        # PublishedPost now has message_options.
         
         await state.update_data(
             post=post,
-            send_date_values=send_date_values,
-            is_edit=True, # Enable editing
-            is_published=True # Flag to indicate it's a published post
+            send_date_values=datetime.fromtimestamp(post.created_timestamp).timetuple(), # Mock/Simplification
+            is_edit=True, 
+            is_published=True 
         )
 
         post_message = await answer_post(call.message, state, from_edit=True)
@@ -197,14 +309,14 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
         )
 
         await call.message.delete()
+        
+        # New Text Generation
+        info_text = await generate_post_info_text(post, is_published=True)
+        
         await call.message.answer(
-            text("post:content").format(
-                *send_date_values,
-                channel.title
-            ),
-            reply_markup=keyboards.manage_remain_post(
-                post=post,
-                is_published=True
+            info_text,
+            reply_markup=keyboards.manage_published_post(
+                post=post
             )
         )
         return
@@ -216,7 +328,8 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
     await state.update_data(
         post=post,
         send_date_values=send_date_values,
-        is_edit=True
+        is_edit=True,
+        is_published=False # Explicitly set false
     )
 
     post_message = await answer_post(call.message, state, from_edit=True)
@@ -225,11 +338,12 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
     )
 
     await call.message.delete()
+    
+    # New Text Generation
+    info_text = await generate_post_info_text(post, is_published=False)
+    
     await call.message.answer(
-        text("post:content").format(
-            *send_date_values,
-            channel.title
-        ),
+        info_text,
         reply_markup=keyboards.manage_remain_post(
             post=post
         )
@@ -283,9 +397,11 @@ async def manage_remain_post(call: types.CallbackQuery, state: FSMContext):
         await call.answer(text('keys_data_error'))
         return await call.message.delete()
 
+    channel = data.get("channel")
+    day = data.get("day")
+
     if temp[1] == "cancel":
-        day = data.get('day')
-        posts = await db.get_posts(data.get("channel").chat_id, day)
+        posts = await db.get_posts(channel.chat_id, day)
 
         post_message = data.get("post_message")
         if isinstance(post_message, types.Message):
@@ -296,7 +412,7 @@ async def manage_remain_post(call: types.CallbackQuery, state: FSMContext):
         days_with_posts = await get_days_with_posts(channel.chat_id, day.year, day.month)
         return await call.message.edit_text(
             text("channel:content").format(
-                data.get("channel").title,
+                channel.title,
                 *data.get("day_values"),
                 text("no_content") if not posts else text("has_content").format(len(posts))
             ),
@@ -313,6 +429,7 @@ async def manage_remain_post(call: types.CallbackQuery, state: FSMContext):
             text("accept:delete:post"),
             reply_markup=keyboards.accept_delete_row_content(data=callback_data)
         )
+        return
 
     if temp[1] == "change":
         await call.message.delete()
@@ -331,10 +448,12 @@ async def manage_remain_post(call: types.CallbackQuery, state: FSMContext):
                 message_id=post_message.message_id,
                 reply_markup=reply_markup
             )
+        return
 
 
 @safe_handler("Posting Accept Delete Row Content")
 async def accept_delete_row_content(call: types.CallbackQuery, state: FSMContext):
+    # ... logic existing ...
     temp = call.data.split("|")
     data = await state.get_data()
     if not data:
@@ -348,11 +467,11 @@ async def accept_delete_row_content(call: types.CallbackQuery, state: FSMContext
     post = data.get("post")
 
     if temp[1] == "cancel":
+        # New Text Generation
+        info_text = await generate_post_info_text(post, is_published=data.get("is_published"))
+        
         return await call.message.edit_text(
-            text("post:content").format(
-                *send_date_values,
-                channel.title
-            ),
+            info_text,
             reply_markup=keyboards.manage_remain_post(
                 post=post,
                 is_published=data.get("is_published")
@@ -384,7 +503,6 @@ async def accept_delete_row_content(call: types.CallbackQuery, state: FSMContext
         )
 
 
-
 @safe_handler("Posting Manage Published Post")
 async def manage_published_post(call: types.CallbackQuery, state: FSMContext):
     temp = call.data.split('|')
@@ -392,6 +510,8 @@ async def manage_published_post(call: types.CallbackQuery, state: FSMContext):
     if not data:
         await call.answer(text('keys_data_error'))
         return await call.message.delete()
+
+    post = data.get('post')
 
     if temp[1] == "cancel":
         day = data.get('day')
@@ -402,6 +522,10 @@ async def manage_published_post(call: types.CallbackQuery, state: FSMContext):
             await post_message.delete()
         else:
             await call.bot.delete_message(call.message.chat.id, post_message.message_id)
+        
+        # FIX: return to content list should look right
+        days_with_posts = await get_days_with_posts(data.get("channel").chat_id, day.year, day.month)
+        
         return await call.message.edit_text(
             text("channel:content").format(
                 data.get("channel").title,
@@ -410,7 +534,8 @@ async def manage_published_post(call: types.CallbackQuery, state: FSMContext):
             ),
             reply_markup=keyboards.choice_row_content(
                 posts=posts,
-                day=day
+                day=day,
+                days_with_posts=days_with_posts
             )
         )
 
@@ -421,7 +546,55 @@ async def manage_published_post(call: types.CallbackQuery, state: FSMContext):
                 data="AcceptDeletePublishedPost"
             )
         )
-
+        return
+        
+    if temp[1] == "change":
+        await call.message.delete()
+        post_message = data.get("post_message")
+        reply_markup = keyboards.manage_post(
+            post=post,
+            is_edit=True
+        )
+        
+        if isinstance(post_message, types.Message):
+            await post_message.edit_reply_markup(reply_markup=reply_markup)
+        else:
+            await call.bot.edit_message_reply_markup(
+                chat_id=call.message.chat.id,
+                message_id=post_message.message_id,
+                reply_markup=reply_markup
+            )
+        return
+        
+    if temp[1] == "timer":
+         # Open choice delete time
+        return await call.message.edit_text(
+            text("manage:post:new:delete_time"),
+            reply_markup=keyboards.choice_delete_time()
+        )
+        
+    if temp[1] == "cpm":
+        if not post.delete_time:
+            return await call.answer(text("error_cpm_without_timer"), show_alert=True)
+            
+        await state.update_data(param='cpm_price') # Reuse existing logic name if possible
+        
+        await call.message.delete()
+        message_text = text("manage:post:new:cpm_price")
+        
+        input_msg = await call.message.answer(
+            message_text,
+            reply_markup=keyboards.param_cancel(
+                param='cpm_price'
+            )
+        )
+        from main_bot.states.user import Posting
+        await state.set_state(Posting.input_value)
+        await state.update_data(
+            input_msg_id=input_msg.message_id
+        )
+        return
+        
 
 @safe_handler("Posting Accept Delete Published Post")
 async def accept_delete_published_post(call: types.CallbackQuery, state: FSMContext):
@@ -434,22 +607,23 @@ async def accept_delete_published_post(call: types.CallbackQuery, state: FSMCont
 
     day = data.get("day")
     day_values = data.get("day_values")
-    send_date_values = data.get("send_date_values")
+    # send_date_values = data.get("send_date_values")
     channel = data.get("channel")
     post = data.get("post")
 
     if temp[1] == "cancel":
+        # New Text Generation
+        info_text = await generate_post_info_text(post, is_published=True)
+        
         return await call.message.edit_text(
-            text("post:content").format(
-                *send_date_values,
-                channel.title
-            ),
+            info_text,
             reply_markup=keyboards.manage_published_post(
                 post=post
             )
         )
 
     if temp[1] == "accept":
+         # ... existing delete logic ...
         logger.info(f"User {call.from_user.id} deleting published post {post.id} (message_id: {post.message_id}) and all related posts")
         
         # Fetch all related published posts

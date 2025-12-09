@@ -426,12 +426,8 @@ class InlinePosting(InlineKeyboardBuilder):
         is_deleted = getattr(post, 'status', 'active') == 'deleted'
 
         if is_deleted:
-            deleted_at = getattr(post, 'deleted_at', None)
-            del_time_str = datetime.fromtimestamp(deleted_at).strftime("%d.%m.%Y %H:%M") if deleted_at else "N/A"
-            kb.button(
-                text=f"🗑 Удален: {del_time_str}",
-                callback_data="noop"
-            )
+            # Report is shown in text, buttons are for returning
+            # User requested: "посмотреть отчет об удалении поста" - done via text
             kb.button(
                 text=text("back:button"),
                 callback_data="ManageRemainPost|cancel"
@@ -440,54 +436,107 @@ class InlinePosting(InlineKeyboardBuilder):
             return kb.as_markup()
 
         if not is_published:
+            # SCHEDULED
+            # 1. Изменить пост
+            kb.button(
+                text=text("manage:post:change:button"),
+                callback_data="ManageRemainPost|change"
+            )
+            
+            # 2. Настроить таймер удаления
+            kb.button(
+                text=text("manage:post:del_time:button").format(
+                    f"{int(post.delete_time / 3600)} ч."  # type: ignore
+                    if post.delete_time else text("manage:post:del_time:not")
+                ),
+                callback_data="FinishPostParams|delete_time"
+            )
+            
+            # 3. Настроить CPM (добавлено)
+            kb.button(
+                text=text("manage:post:add:cpm:button").format(
+                    f"{post.cpm_price}₽" if post.cpm_price else "❌"
+                ),
+                callback_data="FinishPostParams|cpm_price"
+            )
+            
+            # 4. Изменить время (Send Time)
             kb.button(
                 text=text("manage:post:send_time").format(
-                    datetime.fromtimestamp(post.send_time).strftime("%d.%m.%Y %H:%M")
+                    datetime.fromtimestamp(post.send_time).strftime("%d.%m %H:%M")
                 ),
                 callback_data="FinishPostParams|send_time"
             )
-        
-        kb.button(
-            text=text("manage:post:del_time:button").format(
-                f"{int(post.delete_time / 3600)} ч."  # type: ignore
-                if post.delete_time else text("manage:post:del_time:not")
-            ),
-            callback_data="FinishPostParams|delete_time"
-        )
-        kb.button(
-            text=text("manage:post:change:button"),
-            callback_data="ManageRemainPost|change"
-        )
-        kb.button(
-            text=text("manage:post:delete:button"),
-            callback_data="ManageRemainPost|delete"
-        )
-        kb.button(
-            text=text("back:button"),
-            callback_data="ManageRemainPost|cancel"
-        )
-        
-        if not is_published:
+            
+            # 5. Опубликовать сейчас
             kb.button(
                 text=text("manage:post:public:button"),
                 callback_data="FinishPostParams|public"
             )
+            
+            # 6. Удалить
+            kb.button(
+                text=text("manage:post:delete:button"),
+                callback_data="ManageRemainPost|delete"
+            )
 
-        kb.adjust(1, 1, 2)
-        return kb.as_markup()
+            # 7. Назад
+            kb.button(
+                text=text("back:button"),
+                callback_data="ManageRemainPost|cancel"
+            )
+        
+            # Layout: 
+            # [Change]
+            # [Timer] [CPM]
+            # [Time] [Public Now]
+            # [Delete] [Back]
+            kb.adjust(1, 2, 2, 2)
+            return kb.as_markup()
+            
+        else:
+            # Should not happen here usually, but if called for published
+            return cls.manage_published_post(post) # type: ignore
+
 
     @classmethod
     def manage_published_post(cls, post: PublishedPost):
         kb = cls()
 
+        # 1. Изменить пост
+        # Используем тот же callback что и для scheduled, обработаем в хендлере
+        kb.button(
+            text=text("manage:post:change:button"),
+            callback_data="ManagePublishedPost|change"
+        )
+        
+        # 2. Таймер удаления / CPM
+        # Для опубликованных тоже можно менять таймер?
+        # User request: "настроить/перенастроить таймер удаления и СПМ настройку"
+        kb.button(
+            text=text("manage:post:del_time:button").format(
+                f"{int(post.delete_time / 3600)} ч."  # type: ignore
+                 if post.delete_time else text("manage:post:del_time:not")
+            ),
+            callback_data="ManagePublishedPost|timer" # Custom callback to handle logic
+        )
+        
+        kb.button(
+             text=text("manage:post:add:cpm:button").format(
+                    f"{post.cpm_price}₽" if post.cpm_price else "❌"
+                ),
+                callback_data="ManagePublishedPost|cpm"
+        )
+
         kb.button(
             text=text("manage:post:delete:button"),
             callback_data="ManagePublishedPost|delete"
         )
+        
         kb.button(
             text=text("back:button"),
             callback_data="ManagePublishedPost|cancel"
         )
 
-        kb.adjust(1)
+        kb.adjust(1, 2, 2)
         return kb.as_markup()
