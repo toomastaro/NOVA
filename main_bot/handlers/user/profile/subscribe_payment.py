@@ -558,6 +558,12 @@ async def cancel(call: types.CallbackQuery, state: FSMContext):
 
 async def back_to_method(call: types.CallbackQuery, state: FSMContext):
     """Возврат к выбору способа оплаты с экрана ожидания"""
+    logger.info(f"back_to_method called: {call.data}")
+    try:
+        await call.answer()
+    except:
+        pass
+
     user = await db.get_user(user_id=call.from_user.id)
     data = await state.get_data()
     
@@ -565,7 +571,7 @@ async def back_to_method(call: types.CallbackQuery, state: FSMContext):
     payment_method = data.get('payment_method')
     payment_order_id = data.get('payment_order_id')
     
-    logger.info(f"back_to_method: payment_method={payment_method}, payment_order_id={payment_order_id}, PaymentMethod.PLATEGA={PaymentMethod.PLATEGA}")
+    logger.info(f"back_to_method: method={payment_method}, order_id={payment_order_id}")
     
     if payment_method == PaymentMethod.PLATEGA and payment_order_id:
         try:
@@ -577,8 +583,10 @@ async def back_to_method(call: types.CallbackQuery, state: FSMContext):
 
     if payment_method == PaymentMethod.CRYPTO_BOT and payment_order_id:
         try:
-            await crypto_bot.delete_invoice(payment_order_id)
-            logger.info(f"Cancelled CryptoBot invoice {payment_order_id}")
+            # Приводим к int, так как CryptoBot требует int
+            invoice_id = int(payment_order_id)
+            await crypto_bot.delete_invoice(invoice_id)
+            logger.info(f"Cancelled CryptoBot invoice {invoice_id}")
         except Exception as e:
             logger.error(f"Failed to cancel CryptoBot invoice: {e}")
     
