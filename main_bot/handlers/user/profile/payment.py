@@ -214,6 +214,25 @@ async def get_amount(message: types.Message, state: FSMContext):
             if not paid:  # Если НЕ оплачено - ждем
                 await asyncio.sleep(5)
                 continue
+            
+            # Если оплачено - начисляем баланс
+            user = await db.get_user(user_id=message.from_user.id)
+            user = await db.update_user(
+                user_id=user.id,
+                return_obj=True,
+                balance=user.balance + amount
+            )
+            await db.add_payment(
+                user_id=user.id,
+                amount=amount,
+                method=method
+            )
+            await wait_msg.delete()
+            await message.answer(
+                text('success_payment').format(amount)
+            )
+            await show_balance(message, user)
+            return
 
         if method == PaymentMethod.PLATEGA:
             # Webhook handles the payment and crediting.
@@ -239,30 +258,6 @@ async def get_amount(message: types.Message, state: FSMContext):
             )
             await state.set_state(Balance.pay_stars)
             return
-
-        # Если оплачено - начисляем баланс
-        user = await db.get_user(
-            user_id=message.from_user.id
-        )
-        user = await db.update_user(
-            user_id=user.id,
-            return_obj=True,
-            balance=user.balance + amount
-        )
-        await db.add_payment(
-            user_id=user.id,
-            amount=amount,
-            method=method
-        )
-
-        await wait_msg.delete()
-        await message.answer(
-            text('success_payment').format(
-                amount
-            )
-        )
-        await show_balance(message, user)
-        return
 
 
 async def process_pre_checkout_query(call: types.PreCheckoutQuery):

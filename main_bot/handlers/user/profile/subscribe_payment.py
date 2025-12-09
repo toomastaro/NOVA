@@ -361,6 +361,13 @@ async def choice(call: types.CallbackQuery, state: FSMContext, user: User):
             if not paid:  # Если НЕ оплачено - ждем
                 await asyncio.sleep(5)
                 continue
+            
+            # Если оплачено - начисляем подписку
+            await give_subscribes(state, user)
+            await call.message.delete()
+            await show_subscription_success(call.message, state, user)
+            await state.clear()
+            return
 
         if method == PaymentMethod.PLATEGA:
             # Webhook handles the payment and crediting.
@@ -383,14 +390,6 @@ async def choice(call: types.CallbackQuery, state: FSMContext, user: User):
             )
             await state.set_state(Subscribe.pay_stars)
             return
-
-        # Если оплачено - начисляем подписку
-        await give_subscribes(state, user)
-
-        await call.message.delete()
-        await show_subscription_success(call.message, state, user)
-        await state.clear()
-        return
 
 
 async def align_subscribe(call: types.CallbackQuery, state: FSMContext, user: User):
