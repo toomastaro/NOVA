@@ -571,8 +571,7 @@ async def back_to_method(call: types.CallbackQuery, state: FSMContext):
         pay_info_text,
         reply_markup=keyboards.choice_payment_method(
             data='ChoicePaymentMethodSubscribe',
-            is_subscribe=True,
-            has_promo=data.get('has_promo')
+            is_subscribe=True
         )
     )
 

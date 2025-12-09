@@ -306,9 +306,7 @@ async def choice_object_subscribe(call: types.CallbackQuery, state: FSMContext, 
             pay_info_text,
             reply_markup=keyboards.choice_payment_method(
                 data='ChoicePaymentMethodSubscribe',
-                is_subscribe=True,
-                has_promo=True,
-                show_promo=True  # Показываем промокод при первой покупке
+                is_subscribe=True
             )
         )
 

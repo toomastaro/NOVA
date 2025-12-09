@@ -116,8 +116,8 @@ class InlineProfile(InlineKeyboardBuilder):
             )
             adjust.extend([1])
 
-        # Показываем промокод только если show_promo=True (не при продлении)
-        if show_promo and not has_promo:
+        # Показываем промокод ТОЛЬКО для пополнения баланса (не для подписки)
+        if not is_subscribe and not has_promo:
             kb.button(
                 text=text('payment:method:promo'),
                 callback_data=f'{data}|promo'

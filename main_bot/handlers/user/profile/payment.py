@@ -68,6 +68,9 @@ async def cancel(call: types.CallbackQuery, state: FSMContext):
 
 async def back_to_method(call: types.CallbackQuery, state: FSMContext):
     """Возврат к выбору способа оплаты с экрана ожидания"""
+    # Сбрасываем флаг ожидания оплаты чтобы прервать цикл
+    await state.update_data(waiting_payment=False)
+    
     await call.message.delete()
     await show_top_up(call.message, state)
 
@@ -193,8 +196,18 @@ async def get_amount(message: types.Message, state: FSMContext):
         )
     )
 
+    # Устанавливаем флаг что ожидаем оплату
+    await state.update_data(waiting_payment=True, amount=amount)
+
     end_time = time.time() + 3600
     while time.time() < end_time:
+        # Проверяем не отменил ли пользователь оплату
+        current_data = await state.get_data()
+        if not current_data.get('waiting_payment'):
+            import logging
+            logging.getLogger(__name__).info(f"Balance payment cancelled by user for method {method}")
+            return
+        
         if method == PaymentMethod.CRYPTO_BOT:
             paid = await crypto_bot.is_paid(order_id)
 
