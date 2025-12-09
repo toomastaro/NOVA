@@ -106,6 +106,76 @@ async def give_subscribes(state: FSMContext, user: User):
         )
 
 
+async def show_subscription_success(message: types.Message, state: FSMContext, user: User):
+    """Показать красивое сообщение с обновленными подписками после оплаты"""
+    from datetime import datetime
+    
+    data = await state.get_data()
+    object_type = data.get('object_type', 'channels')
+    chosen: list = data.get('chosen', [])
+    total_days: int = data.get('total_days', 0)
+    
+    # Получаем обновленные объекты
+    if object_type == 'bots':
+        updated_objects = await db.get_user_bots(user_id=user.id, from_array=chosen)
+        emoji = "🤖"
+        object_name = "бот"
+    else:
+        updated_objects = await db.get_user_channels(user_id=user.id, from_array=chosen)
+        emoji = "📺"
+        object_name = "канал"
+    
+    # Формируем список с датами
+    objects_list = []
+    for obj in updated_objects:
+        if obj.subscribe and obj.subscribe > int(time.time()):
+            expire_date = datetime.fromtimestamp(obj.subscribe).strftime('%d.%m.%Y')
+            objects_list.append(f"{emoji} <b>{obj.title}</b>\n   └ подписка до <code>{expire_date}</code>")
+        else:
+            objects_list.append(f"{emoji} <b>{obj.title}</b>\n   └ нет подписки")
+    
+    objects_text = "\n\n".join(objects_list)
+    count = len(updated_objects)
+    
+    # Склонение слов
+    if object_type == 'bots':
+        if count == 1:
+            count_text = "1 боту"
+        elif count in [2, 3, 4]:
+            count_text = f"{count} ботам"
+        else:
+            count_text = f"{count} ботам"
+    else:
+        if count == 1:
+            count_text = "1 каналу"
+        elif count in [2, 3, 4]:
+            count_text = f"{count} каналам"
+        else:
+            count_text = f"{count} каналам"
+    
+    # Склонение дней
+    if total_days == 1:
+        days_text = "1 день"
+    elif total_days in [2, 3, 4]:
+        days_text = f"{total_days} дня"
+    else:
+        days_text = f"{total_days} дней"
+    
+    success_text = (
+        f"✅ <b>Подписка успешно продлена!</b>\n\n"
+        f"<b>Продлено:</b> {count_text} на {days_text}\n\n"
+        f"<b>Обновленные подписки:</b>\n\n"
+        f"{objects_text}"
+    )
+    
+    await message.answer(
+        success_text,
+        reply_markup=keyboards.subscription_menu(),
+        parse_mode="HTML"
+    )
+
+
+
 async def choice(call: types.CallbackQuery, state: FSMContext, user: User):
     temp = call.data.split('|')
     data = await state.get_data()
@@ -181,13 +251,10 @@ async def choice(call: types.CallbackQuery, state: FSMContext, user: User):
         )
         await give_subscribes(state, user)
 
-        await state.clear()
         await call.message.delete()
-        await call.message.answer(
-            text('success_subscribe_pay')
-        )
-
-        return await subscription(call.message)
+        await show_subscription_success(call.message, state, user)
+        await state.clear()
+        return
 
     method = temp[1]
     total_price = data.get('total_price')
@@ -284,8 +351,8 @@ async def choice(call: types.CallbackQuery, state: FSMContext, user: User):
             payment_link = await db.get_payment_link(order_id)
             if payment_link and payment_link.status == 'PAID':
                 await call.message.delete()
-                # Success message is sent by webhook
-                await subscription(call.message)
+                # Success message is sent by webhook, but we show our custom one
+                await show_subscription_success(call.message, state, user)
                 await state.clear()
                 return
 
@@ -303,12 +370,9 @@ async def choice(call: types.CallbackQuery, state: FSMContext, user: User):
         # Если оплачено - начисляем подписку
         await give_subscribes(state, user)
 
-        await state.clear()
         await call.message.delete()
-        await call.message.answer(
-            text('success_subscribe_pay')
-        )
-        await subscription(call.message)
+        await show_subscription_success(call.message, state, user)
+        await state.clear()
         return
 
 
@@ -577,12 +641,9 @@ async def success(message: types.Message, state: FSMContext, user: User):
 
     await give_subscribes(state, user)
 
-    await state.clear()
     await message.delete()
-    await message.answer(
-        text('success_subscribe_pay')
-    )
-    await subscription(message)
+    await show_subscription_success(message, state, user)
+    await state.clear()
 
 
 def hand_add():
