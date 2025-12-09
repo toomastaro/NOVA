@@ -178,7 +178,7 @@ async def get_amount(message: types.Message, state: FSMContext):
     await state.clear()
 
     method = data.get('method')
-    method_name = text('payment:method:{}'.format(method))
+    method_name = text('payment:method:{}'.format(method.lower()))
     method = method.upper()
 
     if method == PaymentMethod.CRYPTO_BOT:
