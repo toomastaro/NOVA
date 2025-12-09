@@ -629,12 +629,8 @@ async def background_join_channel(chat_id: int, user_id: int = None):
                         # Не отправляем сообщение пользователю
                         message = None
                     else:
-                        message = (
-                            "❌ <b>Права администратора не выданы</b>\n\n"
-                            f"<b>Причина:</b> {bot_rights.get('reason', 'Неизвестно')}\n\n"
-                            "MTProto-клиент добавлен как обычный участник.\n"
-                            "Для полной функциональности дайте боту права администратора в канале."
-                        )
+                        # Не отправляем сообщение пользователю при ошибке выдачи прав
+                        message = None
                     
                     try:
                         if message:  # Отправляем только если message не None
