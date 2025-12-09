@@ -77,13 +77,15 @@ async def back_to_method(call: types.CallbackQuery, state: FSMContext):
     payment_method = data.get('payment_method')
     payment_order_id = data.get('payment_order_id')
     
+    logger.info(f"back_to_method (balance): payment_method={payment_method}, payment_order_id={payment_order_id}")
+    
     if payment_method == PaymentMethod.PLATEGA and payment_order_id:
         try:
-            from main_bot.utils.payments.platega import platega_api
-            await platega_api.cancel_invoice(payment_order_id)
-            logger.info(f"Cancelled Platega invoice {payment_order_id}")
+            # Platega не имеет публичного API для отмены, поэтому просто обновляем статус в БД
+            await db.update_payment_link_status(payment_order_id, "CANCELLED")
+            logger.info(f"Marked Platega payment link {payment_order_id} as CANCELLED in DB")
         except Exception as e:
-            logger.error(f"Failed to cancel Platega invoice: {e}")
+            logger.error(f"Failed to cancel Platega payment link: {e}")
     
     # Сбрасываем флаг ожидания оплаты чтобы прервать цикл
     await state.update_data(waiting_payment=False)
