@@ -33,7 +33,8 @@ async def show_top_up(message: types.Message, state: FSMContext):
     await message.answer(
         text('choice_top_up_method'),
         reply_markup=keyboards.choice_payment_method(
-            data='ChoicePaymentMethod'
+            data='ChoicePaymentMethod',
+            has_promo=True
         )
     )
 

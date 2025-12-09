@@ -23,9 +23,21 @@ from main_bot.utils.payments.crypto_bot import crypto_bot
 async def give_subscribes(state: FSMContext, user: User):
     data = await state.get_data()
 
-    cor = data.get('cor')
+    # cor = data.get('cor')
     service = data.get('service')
     object_type = data.get('object_type')
+
+    # Защита от потери данных
+    if not service:
+        service = 'subscribe'
+    if not object_type:
+        object_type = 'channels'
+
+    # Определяем функцию динамически
+    if object_type == 'bots':
+        cor = db.get_user_bots
+    else:
+        cor = db.get_user_channels
     chosen: list = data.get('chosen')
     total_days: int = data.get('total_days')
     total_price: int = data.get('total_price')
@@ -103,10 +115,21 @@ async def choice(call: types.CallbackQuery, state: FSMContext, user: User):
         return await call.message.delete()
 
     if temp[1] == 'back':
-        cor = data.get('cor')
+        # cor = data.get('cor')
         service = data.get('service')
         object_type = data.get('object_type')
-        chosen: list = data.get('chosen')
+        
+        # Защита от потери данных
+        if not service:
+            service = 'subscribe'
+        if not object_type:
+            object_type = 'channels'
+
+        # Определяем функцию динамически
+        if object_type == 'bots':
+            cor = db.get_user_bots
+        else:
+            cor = db.get_user_channels
 
         objects = await cor(
             user_id=user.id,
@@ -117,7 +140,6 @@ async def choice(call: types.CallbackQuery, state: FSMContext, user: User):
             text(f'subscribe:chosen:{object_type}').format(
                 "\n".join(
                     text("resource_title").format(
-                        obj.emoji_id,
                         obj.title
                     ) for obj in objects
                     if obj.id in chosen[:10]
