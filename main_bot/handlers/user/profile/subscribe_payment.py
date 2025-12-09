@@ -9,7 +9,7 @@ from aiogram.types import LabeledPrice
 from main_bot.database.db import db
 from main_bot.database.types import PaymentMethod
 from main_bot.database.user.model import User
-from main_bot.handlers.user.menu import profile
+from main_bot.handlers.user.menu import subscription
 from main_bot.handlers.user.profile.subscribe import get_pay_info_text
 from main_bot.keyboards import keyboards
 from main_bot.states.user import Subscribe
@@ -187,7 +187,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext, user: User):
             text('success_subscribe_pay')
         )
 
-        return await profile(call.message)
+        return await subscription(call.message)
 
     method = temp[1]
     total_price = data.get('total_price')
@@ -285,7 +285,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext, user: User):
             if payment_link and payment_link.status == 'PAID':
                 await call.message.delete()
                 # Success message is sent by webhook
-                await profile(call.message)
+                await subscription(call.message)
                 await state.clear()
                 return
 
@@ -308,7 +308,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext, user: User):
         await call.message.answer(
             text('success_subscribe_pay')
         )
-        await profile(call.message)
+        await subscription(call.message)
         return
 
 
@@ -582,7 +582,7 @@ async def success(message: types.Message, state: FSMContext, user: User):
     await message.answer(
         text('success_subscribe_pay')
     )
-    await profile(message)
+    await subscription(message)
 
 
 def hand_add():
