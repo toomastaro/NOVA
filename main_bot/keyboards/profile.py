@@ -116,13 +116,6 @@ class InlineProfile(InlineKeyboardBuilder):
             )
             adjust.extend([1])
 
-        if has_promo:
-            kb.button(
-                text=text('payment:method:promo'),
-                callback_data=f'{data}|promo'
-            )
-            adjust.extend([1])
-
         kb.button(
             text=text('payment:method:stars'),
             callback_data=f'{data}|stars'
