@@ -701,6 +701,14 @@ def hand_add():
     router.callback_query.register(align_subscribe, F.data.split("|")[0] == "ChoiceResourceAlignSubscribe")
     router.callback_query.register(cancel, F.data.split("|")[0] == "SubscribePromoCancel")
     router.callback_query.register(back_to_method, F.data == "cancel_sub_pay")
+    
+    # Debug handler
+    async def debug_handler(call: types.CallbackQuery):
+        import logging
+        logging.getLogger(__name__).info(f"DEBUG: Unhandled callback in subscribe_payment: {call.data}")
+    
+    router.callback_query.register(debug_handler)
+
     router.message.register(get_promo, Subscribe.input_promo, F.text)
     router.message.register(success, Subscribe.pay_stars, F.successful_payment)
     return router
