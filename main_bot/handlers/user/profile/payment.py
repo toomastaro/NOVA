@@ -96,6 +96,13 @@ async def back_to_method(call: types.CallbackQuery, state: FSMContext):
             logger.info(f"Marked Platega payment link {payment_order_id} as CANCELLED in DB")
         except Exception as e:
             logger.error(f"Failed to cancel Platega payment link: {e}")
+
+    if payment_method == PaymentMethod.CRYPTO_BOT and payment_order_id:
+        try:
+            await crypto_bot.delete_invoice(payment_order_id)
+            logger.info(f"Cancelled CryptoBot invoice {payment_order_id}")
+        except Exception as e:
+            logger.error(f"Failed to cancel CryptoBot invoice: {e}")
     
     # Сбрасываем флаг ожидания оплаты чтобы прервать цикл
     await state.update_data(waiting_payment=False)
