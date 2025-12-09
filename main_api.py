@@ -193,11 +193,16 @@ async def process_successful_payment(user_id: int, payload: dict, amount: float 
             from main_bot.database.types import PaymentMethod
             # Determine method from payload or default?
             method_str = payload.get('method', 'UNKNOWN')
+            
+            # Map string to Enum
             if method_str == 'CRYPTO_BOT':
                 method = PaymentMethod.CRYPTO_BOT
-            else:
+            elif method_str == 'PLATEGA':
                 method = PaymentMethod.PLATEGA
-            
+            else:
+                # Fallback based on logic if method is not in payload (legacy Platega links)
+                method = PaymentMethod.PLATEGA
+
             await db.add_payment(user_id=user.id, amount=amount, method=method)
             
             try:
@@ -213,24 +218,25 @@ async def process_successful_payment(user_id: int, payload: dict, amount: float 
         
         chosen = payload.get('chosen')
         total_days = payload.get('total_days')
-        service = payload.get('service')
+        service_name = payload.get('service')
         object_type = payload.get('object_type')
-        
-        await grant_subscription(user_id, chosen, total_days, service, object_type)
-        
-        # Referral logic
-        referral_id = payload.get('referral_id')
         total_price = payload.get('total_price')
+        
+        await grant_subscription(user_id, chosen, total_days, service_name, object_type)
+        
+        # Referral logic: Check BEFORE adding current purchase
+        referral_id = payload.get('referral_id')
         
         if referral_id:
             ref_user = await db.get_user(referral_id)
             if ref_user:
                 try:
+                    # Проверяем была ли покупка РАНЕЕ
                     has_purchase = await db.has_purchase(user_id)
                     percent = 15 if has_purchase else 60
                     total_ref_earn = int(total_price / 100 * percent)
                     
-                    logger.info(f"Referral bonus {total_ref_earn} to {referral_id}")
+                    logger.info(f"Referral bonus {total_ref_earn} to {referral_id} (percent={percent}%)")
 
                     await db.update_user(
                         user_id=ref_user.id,
@@ -239,6 +245,36 @@ async def process_successful_payment(user_id: int, payload: dict, amount: float 
                     )
                 except Exception as e:
                     logger.error(f"Referral logic error: {e}")
+
+        # Записываем покупку
+        from main_bot.database.types import Service, PaymentMethod
+        
+        # Determine Method
+        method_str = payload.get('method', 'PLATEGA') 
+        if method_str == 'CRYPTO_BOT':
+            method = PaymentMethod.CRYPTO_BOT
+        else:
+            method = PaymentMethod.PLATEGA
+            
+        # Determine Service Enum
+        service_enum = Service.POSTING
+        if service_name == 'stories':
+            service_enum = Service.STORIES
+        elif object_type == 'bots':
+             service_enum = Service.BOTS
+             
+        await db.add_purchase(
+            user_id=user_id,
+            amount=total_price,
+            method=method,
+            service=service_enum
+        )
+
+        try:
+            from main_bot.utils.lang.language import text
+            await bot.send_message(user_id, text('success_subscribe_pay'))
+        except Exception as e:
+            logger.error(f"Failed to send success message to {user_id}: {e}")
 
         try:
             from main_bot.utils.lang.language import text

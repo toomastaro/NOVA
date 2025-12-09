@@ -268,6 +268,14 @@ async def choice(call: types.CallbackQuery, state: FSMContext, user: User):
         )
         await give_subscribes(state, user)
 
+        # Записываем покупку для корректного расчета реферальных в будущем
+        await db.add_purchase(
+            user_id=user.id,
+            amount=total_price,
+            method=PaymentMethod.BALANCE,
+            service=data.get('service', 'POSTING') # Default to POSTING if not set? Or get from data
+        )
+        
         await safe_delete(call.message)
         await show_subscription_success(call.message, state, user)
         await state.clear()
@@ -291,7 +299,8 @@ async def choice(call: types.CallbackQuery, state: FSMContext, user: User):
         'promo_name': data.get('promo_name'),
         'service': data.get('service'),
         'object_type': data.get('object_type'),
-        'referral_id': user.referral_id
+        'referral_id': user.referral_id,
+        'method': method  # Добавил метод!
     }
 
     if method == PaymentMethod.CRYPTO_BOT:
