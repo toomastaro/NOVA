@@ -213,9 +213,15 @@ async def manual_add_channel(message: types.Message, state: FSMContext):
         return
 
     # Check if bot is admin
-    bot_member = await message.bot.get_chat_member(chat_id, (await message.bot.get_me()).id)
-    if bot_member.status != ChatMemberStatus.ADMINISTRATOR:
-        await message.answer("Бот не является администратором этого канала. Пожалуйста, добавьте бота в администраторы и попробуйте снова.")
+    try:
+        bot_member = await message.bot.get_chat_member(chat_id, (await message.bot.get_me()).id)
+        if bot_member.status != ChatMemberStatus.ADMINISTRATOR:
+            await message.answer("Бот не является администратором этого канала. Пожалуйста, добавьте бота в администраторы и попробуйте снова.")
+            return
+    except Exception as e:
+        # Бот не является членом канала
+        logger.error(f"Бот не является членом канала {chat_id}: {e}")
+        await message.answer("Бот не добавлен в этот канал. Пожалуйста, добавьте бота в канал с правами администратора и попробуйте снова.")
         return
         
     # Check if user is admin
