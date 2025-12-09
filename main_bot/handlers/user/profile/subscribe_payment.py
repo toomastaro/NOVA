@@ -344,8 +344,17 @@ async def choice(call: types.CallbackQuery, state: FSMContext, user: User):
         )
     )
 
+    # Устанавливаем флаг что ожидаем оплату
+    await state.update_data(waiting_payment=True)
+
     end_time = time.time() + 3600
     while time.time() < end_time:
+        # Проверяем не отменил ли пользователь оплату
+        current_data = await state.get_data()
+        if not current_data.get('waiting_payment'):
+            logger.info(f"Payment cancelled by user for method {method}")
+            return
+        
         if method == PaymentMethod.CRYPTO_BOT:
             paid = await crypto_bot.is_paid(order_id)
 
