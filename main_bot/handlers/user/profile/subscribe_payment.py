@@ -281,10 +281,24 @@ async def choice(call: types.CallbackQuery, state: FSMContext, user: User):
         method=method
     )
 
+    # Создаем payload для платежа (общий для всех методов)
+    sub_payload = {
+        'user_id': user.id,  # Важно для вебхука CryptoBot
+        'type': 'subscribe',
+        'chosen': data.get('chosen'),
+        'total_days': data.get('total_days'),
+        'total_price': data.get('total_price'),
+        'promo_name': data.get('promo_name'),
+        'service': data.get('service'),
+        'object_type': data.get('object_type'),
+        'referral_id': user.referral_id
+    }
+
     if method == PaymentMethod.CRYPTO_BOT:
         result = await crypto_bot.create_invoice(
             amount=round(total_price * 1.03, 2),
-            asset='USDT'
+            asset='USDT',
+            payload=sub_payload
         )
         pay_url = result.get('url')
         order_id = result.get('invoice_id')
@@ -292,18 +306,6 @@ async def choice(call: types.CallbackQuery, state: FSMContext, user: User):
     elif method == PaymentMethod.PLATEGA:
         from main_bot.utils.payments.platega import platega_api
         
-        # Snapshot of what is being purchased
-        sub_payload = {
-            'type': 'subscribe',
-            'chosen': data.get('chosen'),
-            'total_days': data.get('total_days'),
-            'total_price': data.get('total_price'),
-            'promo_name': data.get('promo_name'),
-            'service': data.get('service'),
-            'object_type': data.get('object_type'),
-            'referral_id': user.referral_id
-        }
-
         payment_link = await db.create_payment_link(
             user_id=user.id,
             amount=total_price,
@@ -361,49 +363,9 @@ async def choice(call: types.CallbackQuery, state: FSMContext, user: User):
         payment_method=method
     )
 
-    end_time = time.time() + 3600
-    while time.time() < end_time:
-        # Проверяем не отменил ли пользователь оплату
-        current_data = await state.get_data()
-        if not current_data.get('waiting_payment'):
-            logger.info(f"Payment cancelled by user for method {method}")
-            return
-        
-        if method == PaymentMethod.CRYPTO_BOT:
-            paid = await crypto_bot.is_paid(order_id)
-
-            if not paid:  # Если НЕ оплачено - ждем
-                await asyncio.sleep(5)
-                continue
-            
-            # Если оплачено - начисляем подписку
-            await give_subscribes(state, user)
-            await safe_delete(call.message)
-            await show_subscription_success(call.message, state, user)
-            await state.clear()
-            return
-
-        if method == PaymentMethod.PLATEGA:
-            # Webhook handles the payment and crediting.
-            # We just watch DB for status update to clean up UI.
-            payment_link = await db.get_payment_link(order_id)
-            if payment_link and payment_link.status == 'PAID':
-                await safe_delete(call.message)
-                # Success message is sent by webhook, but we show our custom one
-                await show_subscription_success(call.message, state, user)
-                await state.clear()
-                return
-
-            await asyncio.sleep(5)
-            continue
-
-        if method == PaymentMethod.STARS:
-            await state.update_data(
-                payment_to='subscribe',
-                stars_payment=True
-            )
-            await state.set_state(Subscribe.pay_stars)
-            return
+    # Цикл ожидания удален в пользу вебхуков
+    # Оплата Stars обрабатывается через pre_checkout_query и successful_payment
+    return
 
 
 async def align_subscribe(call: types.CallbackQuery, state: FSMContext, user: User):

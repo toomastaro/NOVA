@@ -17,7 +17,7 @@ class CryptoBot:
                 if course.source == currency and course.target == 'RUB':
                     return round(float(summa / course.rate), 8)
 
-    async def create_invoice(self, amount: float, asset: str = 'USDT'):
+    async def create_invoice(self, amount: float, asset: str = 'USDT', payload: dict = None):
         async with AioCryptoPay(token=self.api_token) as crypto_pay:
             crypto_pay: AioCryptoPay
 
@@ -25,10 +25,18 @@ class CryptoBot:
                 summa=amount,
                 currency=asset
             )
-            invoice = await crypto_pay.create_invoice(
-                amount=amount,
-                asset=asset
-            )
+            
+            kwargs = {
+                'amount': amount,
+                'asset': asset
+            }
+            
+            if payload:
+                import json
+                # CryptoBot payload limit 4kb
+                kwargs['payload'] = json.dumps(payload)
+
+            invoice = await crypto_pay.create_invoice(**kwargs)
 
             return {
                 'url': invoice.bot_invoice_url,

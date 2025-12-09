@@ -136,68 +136,183 @@ async def platega_webhook(request: Request):
     if status == "CONFIRMED":
         await db.update_payment_link_status(order_id, "PAID")
         
-        payload = payment_link.payload
-        payment_type = payload.get('type')
-        user_id = int(payment_link.user_id)
+        await process_successful_payment(
+            user_id=int(payment_link.user_id),
+            payload=payment_link.payload
+        )
 
-        # Logic for Balance Top-up
-        if payment_type == 'balance':
-            amount = payment_link.amount
-            logger.info(f"Platega Adding balance {amount} to user {user_id}")
-            
-            user = await db.get_user(user_id=user_id)
-            if user:
-                await db.update_user(user_id=user.id, balance=user.balance + amount)
-                from main_bot.database.types import PaymentMethod
-                await db.add_payment(user_id=user.id, amount=amount, method=PaymentMethod.PLATEGA)
-                
-                try:
-                    from main_bot.utils.lang.language import text
-                    await bot.send_message(user_id, text('success_payment').format(amount))
-                except Exception as e:
-                    logger.error(f"Failed to send success message to {user_id}: {e}")
+    return {"status": "ok"}
 
-        # Logic for Subscription
-        elif payment_type == 'subscribe':
-            logger.info(f"Platega Granting subscription to user {user_id}")
-            from main_bot.utils.subscribe_service import grant_subscription
-            
-            chosen = payload.get('chosen')
-            total_days = payload.get('total_days')
-            service = payload.get('service')
-            object_type = payload.get('object_type')
-            
-            await grant_subscription(user_id, chosen, total_days, service, object_type)
-            
-            # Referral logic
-            referral_id = payload.get('referral_id')
-            total_price = payload.get('total_price')
-            
-            if referral_id:
-                ref_user = await db.get_user(referral_id)
-                if ref_user:
-                    try:
-                        has_purchase = await db.has_purchase(user_id)
-                        percent = 15 if has_purchase else 60
-                        total_ref_earn = int(total_price / 100 * percent)
-                        
-                        logger.info(f"Platega Referral bonus {total_ref_earn} to {referral_id}")
 
-                        await db.update_user(
-                            user_id=ref_user.id,
-                            balance=ref_user.balance + total_ref_earn,
-                            referral_earned=ref_user.referral_earned + total_ref_earn
-                        )
-                    except Exception as e:
-                        logger.error(f"Referral logic error: {e}")
+async def process_successful_payment(user_id: int, payload: dict):
+    """Shared logic for processing successful payments (Platega & CryptoBot)"""
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    payment_type = payload.get('type')
+    
+    # Logic for Balance Top-up
+    if payment_type == 'balance':
+        # Amount comes from payload for CryptoBot, or was in payment_link for Platega
+        # For Platega it was payment_link.amount. But here we rely on payload.
+        # Platega payload doesn't have amount stored in JSON usually? 
+        # Wait, Platega stores amount in DB column payment_link.amount.
+        # We need to handle this difference.
+        
+        # We should pass amount explicitly or rely on it being in payload.
+        # Let's ensure we pass amount in payload for CryptoBot.
+        # For Platega, currently amount is NOT in payload. 
+        # We can pass amount as argument to this function?
+        pass
 
+# Wait, this refactoring is tricky because Platega stores amount in DB, but CryptoBot will store it in payload.
+# Let's add amount to arguments.
+
+async def process_successful_payment(user_id: int, payload: dict, amount: float = None):
+    import logging
+    logger = logging.getLogger(__name__)
+
+    payment_type = payload.get('type')
+    
+    # Logic for Balance Top-up
+    if payment_type == 'balance':
+        # If amount not passed (e.g. from payload), try to get it from payload
+        if amount is None:
+            amount = payload.get('amount')
+            
+        if not amount:
+            logger.error(f"Payment {payment_type} for user {user_id} has no amount!")
+            return
+
+        amount = float(amount)
+        logger.info(f"Adding balance {amount} to user {user_id}")
+        
+        user = await db.get_user(user_id=user_id)
+        if user:
+            await db.update_user(user_id=user.id, balance=user.balance + amount)
+            from main_bot.database.types import PaymentMethod
+            # Determine method from payload or default?
+            method_str = payload.get('method', 'UNKNOWN')
+            if method_str == 'CRYPTO_BOT':
+                method = PaymentMethod.CRYPTO_BOT
+            else:
+                method = PaymentMethod.PLATEGA
+            
+            await db.add_payment(user_id=user.id, amount=amount, method=method)
+            
             try:
                 from main_bot.utils.lang.language import text
-                await bot.send_message(user_id, text('success_subscribe_pay'))
+                await bot.send_message(user_id, text('success_payment').format(amount))
             except Exception as e:
                 logger.error(f"Failed to send success message to {user_id}: {e}")
 
-    return {"status": "ok"}
+    # Logic for Subscription
+    elif payment_type == 'subscribe':
+        logger.info(f"Granting subscription to user {user_id}")
+        from main_bot.utils.subscribe_service import grant_subscription
+        
+        chosen = payload.get('chosen')
+        total_days = payload.get('total_days')
+        service = payload.get('service')
+        object_type = payload.get('object_type')
+        
+        await grant_subscription(user_id, chosen, total_days, service, object_type)
+        
+        # Referral logic
+        referral_id = payload.get('referral_id')
+        total_price = payload.get('total_price')
+        
+        if referral_id:
+            ref_user = await db.get_user(referral_id)
+            if ref_user:
+                try:
+                    has_purchase = await db.has_purchase(user_id)
+                    percent = 15 if has_purchase else 60
+                    total_ref_earn = int(total_price / 100 * percent)
+                    
+                    logger.info(f"Referral bonus {total_ref_earn} to {referral_id}")
+
+                    await db.update_user(
+                        user_id=ref_user.id,
+                        balance=ref_user.balance + total_ref_earn,
+                        referral_earned=ref_user.referral_earned + total_ref_earn
+                    )
+                except Exception as e:
+                    logger.error(f"Referral logic error: {e}")
+
+        try:
+            from main_bot.utils.lang.language import text
+            await bot.send_message(user_id, text('success_subscribe_pay'))
+        except Exception as e:
+            logger.error(f"Failed to send success message to {user_id}: {e}")
+
+
+@app.post("/webhook/cryptobot")
+async def cryptobot_webhook(request: Request):
+    import logging
+    import hashlib
+    import hmac
+    import json
+    logger = logging.getLogger(__name__)
+
+    try:
+        body = await request.body()
+        data = await request.json()
+    except Exception as e:
+        logger.error(f"CryptoBot JSON parse error: {e}")
+        return {"ok": False}
+
+    # Verify signature
+    signature = request.headers.get('crypto-pay-api-signature')
+    if not signature:
+        logger.warning("CryptoBot Missing signature")
+        return {"ok": False}
+
+    token = Config.CRYPTO_BOT_TOKEN
+    secret = hashlib.sha256(token.encode()).digest()
+    # CryptoBot verifies RAW body (unparsed)
+    hmac_digest = hmac.new(secret, body, hashlib.sha256).hexdigest()
+
+    if hmac_digest != signature:
+        logger.warning(f"CryptoBot Invalid signature. Got: {signature}, Calc: {hmac_digest}")
+        return {"ok": False}
+
+    if data.get('update_type') != 'invoice_paid':
+        return {"ok": True}
+
+    payload_data = data.get('payload', {})
+    # Payload in update is an object with 'payload' field which is our custom string
+    # "payload": { ... "payload": "{\"user_id\":...}" ... }
+    
+    # Wait, the structure is data -> payload (Invoice) -> payload (String custom data)
+    invoice = data.get('payload', {})
+    custom_payload_str = invoice.get('payload')
+    
+    if not custom_payload_str:
+        logger.warning("CryptoBot No custom payload in invoice")
+        return {"ok": True}
+
+    try:
+        custom_payload = json.loads(custom_payload_str)
+    except Exception as e:
+        logger.error(f"CryptoBot Payload JSON error: {e}")
+        return {"ok": True}
+
+    user_id = custom_payload.get('user_id')
+    if not user_id:
+        logger.error("CryptoBot No user_id in payload")
+        return {"ok": True}
+
+    logger.info(f"CryptoBot Invoice Paid. Processing for user {user_id}")
+    
+    # Process payment
+    await process_successful_payment(
+        user_id=int(user_id),
+        payload=custom_payload,
+        amount=float(invoice.get('amount', 0)) # Ensure amount is passed if needed, mainly for reference/balance
+    )
+
+    return {"ok": True}
 
 
 @app.post("/webhook/{token}")

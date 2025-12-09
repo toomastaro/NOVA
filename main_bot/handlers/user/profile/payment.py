@@ -186,9 +186,16 @@ async def get_amount(message: types.Message, state: FSMContext):
     method = method.upper()
 
     if method == PaymentMethod.CRYPTO_BOT:
+        balance_payload = {
+            'user_id': message.from_user.id,
+            'type': 'balance',
+            'amount': amount,
+            'method': 'CRYPTO_BOT'
+        }
         result = await crypto_bot.create_invoice(
             amount=round(amount * 1.03, 2),
-            asset='USDT'
+            asset='USDT',
+            payload=balance_payload
         )
         pay_url = result.get('url')
         order_id = result.get('invoice_id')
