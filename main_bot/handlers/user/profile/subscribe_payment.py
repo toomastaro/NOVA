@@ -115,15 +115,23 @@ async def show_subscription_success(message: types.Message, state: FSMContext, u
     chosen: list = data.get('chosen', [])
     total_days: int = data.get('total_days', 0)
     
+    logger.info(f"show_subscription_success: object_type={object_type}, chosen={chosen}, total_days={total_days}")
+    
     # Получаем обновленные объекты
     if object_type == 'bots':
-        updated_objects = await db.get_user_bots(user_id=user.id, from_array=chosen)
+        # Получаем все боты пользователя и фильтруем по chosen
+        all_bots = await db.get_user_bots(user_id=user.id)
+        updated_objects = [bot for bot in all_bots if bot.id in chosen]
         emoji = "🤖"
         object_name = "бот"
     else:
-        updated_objects = await db.get_user_channels(user_id=user.id, from_array=chosen)
+        # Получаем все каналы пользователя и фильтруем по chosen
+        all_channels = await db.get_user_channels(user_id=user.id)
+        updated_objects = [channel for channel in all_channels if channel.id in chosen]
         emoji = "📺"
         object_name = "канал"
+    
+    logger.info(f"show_subscription_success: found {len(updated_objects)} objects")
     
     # Формируем список с датами
     objects_list = []
