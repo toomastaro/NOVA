@@ -700,7 +700,7 @@ def hand_add():
     router.callback_query.register(choice, F.data.split("|")[0] == "ChoicePaymentMethodSubscribe")
     router.callback_query.register(align_subscribe, F.data.split("|")[0] == "ChoiceResourceAlignSubscribe")
     router.callback_query.register(cancel, F.data.split("|")[0] == "SubscribePromoCancel")
-    router.callback_query.register(back_to_method, F.data.split("|")[0] == "WaitSubscribePaymentBack")
+    router.callback_query.register(back_to_method, F.data == "WaitSubscribePaymentBack")
     router.message.register(get_promo, Subscribe.input_promo, F.text)
     router.message.register(success, Subscribe.pay_stars, F.successful_payment)
     return router
