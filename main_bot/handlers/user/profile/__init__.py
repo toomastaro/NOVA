@@ -4,11 +4,11 @@ from . import profile, balance, payment, subscribe, subscribe_payment, referral,
 
 def get_router():
     routers = [
+        payment.hand_add(),
+        subscribe_payment.hand_add(),
         profile.hand_add(),
         balance.hand_add(),
-        payment.hand_add(),
         subscribe.hand_add(),
-        subscribe_payment.hand_add(),
         transfer_subscription.hand_add(),
         info.hand_add(),
         referral.hand_add(),
