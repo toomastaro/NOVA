@@ -92,7 +92,7 @@ async def get_pay_info_text(state: FSMContext, user: User) -> str:
     )
 
     # Форматируем способ оплаты (если выбран)
-    method_text = text("pay:info:method").format(text(f'payment:method:{method}')) if method else ""
+    method_text = text("pay:info:method").format(text(f'payment:method:{method.lower()}')) if method else ""
 
     return text('pay:info').format(
         channels_list,           # Список каналов
