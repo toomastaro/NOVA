@@ -65,6 +65,7 @@ async def generate_post_info_text(post_obj, is_published: bool = False) -> str:
     except:
         author_name = "Неизвестно"
 
+    
     channels_text = ""
     # Получаем список каналов
     if is_published:
@@ -77,15 +78,12 @@ async def generate_post_info_text(post_obj, is_published: bool = False) -> str:
             channel = await db.get_channel_by_chat_id(p.chat_id)
             if channel:
                 # Получаем кол-во подписчиков для display (если есть в базе)
-                # Предположим у channel есть subscribers_count, если нет - временно поле
                 subs = getattr(channel, 'subscribers_count', '???')
-                link = f"{channel.username}" if channel.username else "link"
-                # Формируем строку канала
-                # channel.title (link) (subscribers 👥)
-                # Если ссылка недоступна, просто title
                 
-                # Построение ссылки на канал
-                url = f"https://t.me/{channel.username}" if channel.username else ""
+                # Построение ссылки на канал (нет username в БД, поэтому просто title)
+                # Если в будущем добавим username в БД, раскомментируем
+                # url = f"https://t.me/{channel.username}" if getattr(channel, 'username', None) else ""
+                url = ""
                 title_link = f"<a href='{url}'>{channel.title}</a>" if url else channel.title
                 
                 channels_text += f"📢 {title_link} (<code>{p.chat_id}</code>)\n"
@@ -93,11 +91,14 @@ async def generate_post_info_text(post_obj, is_published: bool = False) -> str:
         
         # Основной блок Published
         # Ссылка на пост (берем первый попавшийся или текущий)
-        post_link = f"https://t.me/c/{str(post_obj.chat_id).replace('-100', '')}/{post_obj.message_id}"
-        if hasattr(post_obj, 'chat_id'): # Try to make a public link if username exists
-             ch = await db.get_channel_by_chat_id(post_obj.chat_id)
-             if ch and ch.username:
-                 post_link = f"https://t.me/{ch.username}/{post_obj.message_id}"
+        # Приватная ссылка: t.me/c/CHANNEL_ID/MSG_ID (нужно убрать -100)
+        chat_id_str = str(post_obj.chat_id).replace('-100', '')
+        post_link = f"https://t.me/c/{chat_id_str}/{post_obj.message_id}"
+
+        # Если бы был username, могли бы сделать публичную ссылку
+        # ch = await db.get_channel_by_chat_id(post_obj.chat_id)
+        # if ch and getattr(ch, 'username', None):
+        #      post_link = f"https://t.me/{ch.username}/{post_obj.message_id}"
 
         date_str = datetime.fromtimestamp(post_obj.created_timestamp).strftime("%d %B %Y г. в %H:%M")
         
@@ -119,10 +120,8 @@ async def generate_post_info_text(post_obj, is_published: bool = False) -> str:
             # DELETED REPORT
             deleted_at = getattr(post_obj, 'deleted_at', None)
             deleted_str = datetime.fromtimestamp(deleted_at).strftime("%d %B %Y г. в %H:%M") if deleted_at else "Неизвестно"
-            pub_date = datetime.fromtimestamp(post_obj.send_time).strftime("%d %B %Y г. в %H:%M") if post_obj.send_time else "Неизвестно"
             
             # Получаем каналы куда планировалось/было
-            # post_obj.chat_ids - список ID
             channels_text = "<blockquote>Пост должен был быть в:\n"
             for chat_id in post_obj.chat_ids:
                 channel = await db.get_channel_by_chat_id(chat_id)
@@ -130,18 +129,12 @@ async def generate_post_info_text(post_obj, is_published: bool = False) -> str:
                     channels_text += f"📢 {channel.title}\n"
             channels_text += "</blockquote>"
             
-            # Доп инфо (просмотры и т.д. нужны данные из PublishedPost если он был опубликован и удален)
-            # Если пост просто удален из запланированных - просмотров нет.
-            # Если статус 'deleted', возможно он был опубликован, а потом удален ботом?
-            # В текущей реализации 'deleted' ставится при софт-удалении.
-            
             return (
                 f"<b>Отчёт об удалении поста</b>\n"
                 f"Удален: {deleted_str}\n"
                 f"Автор: {author_name}\n\n"
                 f"{channels_text}\n"
                 f"🗑 Таймер удаления: {int(post_obj.delete_time/3600) if post_obj.delete_time else 'Нет'} ч\n"
-                # f"👁 Просмотры поста: {post_obj.views_24h or 0}\n" # Если есть данные
             )
             
         else:
@@ -153,10 +146,9 @@ async def generate_post_info_text(post_obj, is_published: bool = False) -> str:
                 channel = await db.get_channel_by_chat_id(chat_id)
                 if channel:
                      # Построение ссылки
-                    url = f"https://t.me/{channel.username}" if channel.username else ""
+                    url = "" # Нет username
                     title_link = f"<a href='{url}'>{channel.title}</a>" if url else channel.title
                     
-                    # Получаем подписчиков (mock)
                     subs = "???" 
                     channels_text += f"📢 {title_link} ({subs} 👥)\n"
             channels_text += "</blockquote>"
