@@ -20,6 +20,14 @@ logger = logging.getLogger(__name__)
 from main_bot.utils.payments.crypto_bot import crypto_bot
 
 
+
+async def safe_delete(message: types.Message):
+    """Безопасное удаление сообщения"""
+    try:
+        await message.delete()
+    except Exception:
+        pass
+
 async def give_subscribes(state: FSMContext, user: User):
     data = await state.get_data()
 
@@ -190,7 +198,8 @@ async def choice(call: types.CallbackQuery, state: FSMContext, user: User):
 
     if not data:
         await call.answer(text('keys_data_error'))
-        return await call.message.delete()
+        await safe_delete(call.message)
+        return
 
     if temp[1] == 'back':
         # cor = data.get('cor')
@@ -213,7 +222,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext, user: User):
             user_id=user.id,
             sort_by=service
         )
-        await call.message.delete()
+        await safe_delete(call.message)
         return await call.message.answer(
             text(f'subscribe:chosen:{object_type}').format(
                 "\n".join(
@@ -259,7 +268,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext, user: User):
         )
         await give_subscribes(state, user)
 
-        await call.message.delete()
+        await safe_delete(call.message)
         await show_subscription_success(call.message, state, user)
         await state.clear()
         return
@@ -369,7 +378,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext, user: User):
             
             # Если оплачено - начисляем подписку
             await give_subscribes(state, user)
-            await call.message.delete()
+            await safe_delete(call.message)
             await show_subscription_success(call.message, state, user)
             await state.clear()
             return
@@ -379,7 +388,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext, user: User):
             # We just watch DB for status update to clean up UI.
             payment_link = await db.get_payment_link(order_id)
             if payment_link and payment_link.status == 'PAID':
-                await call.message.delete()
+                await safe_delete(call.message)
                 # Success message is sent by webhook, but we show our custom one
                 await show_subscription_success(call.message, state, user)
                 await state.clear()
@@ -571,11 +580,12 @@ async def back_to_method(call: types.CallbackQuery, state: FSMContext):
     
     if not data:
         await call.answer(text('keys_data_error'))
-        return await call.message.delete()
+        await safe_delete(call.message)
+        return
     
     # Если нет данных о методе оплаты (например, пришли из align_sub), возвращаемся в меню подписки
     if not data.get('method') or not data.get('total_price'):
-        await call.message.delete()
+        await safe_delete(call.message)
         return await call.message.answer(
             text("balance_text").format(user.balance),
             reply_markup=keyboards.subscription_menu(),

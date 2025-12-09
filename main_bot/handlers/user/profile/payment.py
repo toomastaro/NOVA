@@ -17,15 +17,25 @@ from main_bot.utils.lang.language import text
 from main_bot.utils.payments.crypto_bot import crypto_bot
 
 
+
+async def safe_delete(message: types.Message):
+    """Безопасное удаление сообщения"""
+    try:
+        await message.delete()
+    except Exception:
+        pass
+
+
 async def choice(call: types.CallbackQuery, state: FSMContext, user: User):
     temp = call.data.split('|')
     data = await state.get_data()
 
     if not data:
         await call.answer(text('keys_data_error'))
-        return await call.message.delete()
+        await safe_delete(call.message)
+        return
 
-    await call.message.delete()
+    await safe_delete(call.message)
 
     if temp[1] == 'back':
         # Возврат в меню подписки с информацией о балансе
@@ -62,7 +72,7 @@ async def cancel(call: types.CallbackQuery, state: FSMContext):
     await state.clear()
     await state.update_data(data)
 
-    await call.message.delete()
+    await safe_delete(call.message)
     await show_top_up(call.message, state)
 
 
@@ -90,7 +100,7 @@ async def back_to_method(call: types.CallbackQuery, state: FSMContext):
     # Сбрасываем флаг ожидания оплаты чтобы прервать цикл
     await state.update_data(waiting_payment=False)
     
-    await call.message.delete()
+    await safe_delete(call.message)
     await show_top_up(call.message, state)
 
 
@@ -251,7 +261,7 @@ async def get_amount(message: types.Message, state: FSMContext):
                 amount=amount,
                 method=method
             )
-            await wait_msg.delete()
+            await safe_delete(wait_msg)
             await message.answer(
                 text('success_payment').format(amount)
             )
@@ -263,7 +273,7 @@ async def get_amount(message: types.Message, state: FSMContext):
             # We just watch DB for status update to clean up UI.
             payment_link = await db.get_payment_link(order_id)
             if payment_link and payment_link.status == 'PAID':
-                await wait_msg.delete()
+                await safe_delete(wait_msg)
                 # Success message is sent by webhook
                 # Just refresh balance view for user
                 user = await db.get_user(user_id=message.from_user.id)
