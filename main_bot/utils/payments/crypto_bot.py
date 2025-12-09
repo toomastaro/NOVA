@@ -48,6 +48,18 @@ class CryptoBot:
 
             return invoice.status == 'paid'
 
+    async def delete_invoice(self, invoice_id: int):
+        async with AioCryptoPay(token=self.api_token) as crypto_pay:
+            crypto_pay: AioCryptoPay
+
+            try:
+                await crypto_pay.delete_invoice(invoice_id=invoice_id)
+                return True
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).error(f"Error deleting CryptoBot invoice: {e}")
+                return False
+
 
 crypto_bot = CryptoBot(
     api_token=Config.CRYPTO_BOT_TOKEN
