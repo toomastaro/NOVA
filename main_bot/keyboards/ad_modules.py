@@ -26,12 +26,21 @@ class InlineAdCreative(InlineKeyboardBuilder):
     @classmethod
     def creative_list(cls, creatives: list, page: int = 0):
         kb = cls()
+        from datetime import datetime
+        
         for creative in creatives:
+            # Format: 🎨 DD.MM.YYYY Name (N ссылок)
+            # Assuming creative has created_timestamp, defaulting to now if missing (shouldn't be)
+            ts = getattr(creative, 'created_timestamp', 0)
+            date_str = datetime.fromtimestamp(ts).strftime("%d.%m.%Y")
+            
+            slots_count = len(creative.slots) if hasattr(creative, 'slots') else 0
+            
             kb.button(
-                text=f"{creative.name} ({len(creative.slots)} ссылок)",
+                text=f"🎨 {date_str} {creative.name} ({slots_count} ссылок)",
                 callback_data=f"AdCreative|view|{creative.id}"
             )
-        kb.button(text="Назад", callback_data="AdCreative|menu")
+        kb.button(text="Назад", callback_data="AdBuyMenu|menu")
         kb.adjust(1)
         return kb.as_markup()
 
@@ -75,9 +84,9 @@ class InlineAdPurchase(InlineKeyboardBuilder):
     @classmethod
     def pricing_type_menu(cls):
         kb = cls()
-        kb.button(text="По заявке)", callback_data="AdPurchase|pricing|CPL")
-        kb.button(text="По подписке)", callback_data="AdPurchase|pricing|CPS")
-        kb.button(text="Фикс)", callback_data="AdPurchase|pricing|FIXED")
+        kb.button(text="По заявке (CPL)", callback_data="AdPurchase|pricing|CPL")
+        kb.button(text="По подписке (CPS)", callback_data="AdPurchase|pricing|CPS")
+        kb.button(text="Фикс (FIXED)", callback_data="AdPurchase|pricing|FIXED")
         kb.button(text="Назад", callback_data="AdPurchase|cancel")
         kb.adjust(1)
         return kb.as_markup()
@@ -145,12 +154,23 @@ class InlineAdPurchase(InlineKeyboardBuilder):
         kb = cls()
         from datetime import datetime
         
+        # Mapping for pricing types
+        type_ru = {
+            "CPL": "Заявка",
+            "CPS": "Подписка",
+            "FIXED": "Фикс"
+        }
+        
         for p in purchases:
             # p is AdPurchase object, needs creative_name attached or fetched
             name = getattr(p, 'creative_name', f"Creative #{p.creative_id}")
-            # Format: DD.MM Name
-            date_str = datetime.fromtimestamp(p.created_timestamp).strftime("%d.%m")
-            text_str = f"{date_str} {name}"
+            # Format: 🛒 DD.MM.YYYY Name (Type)
+            date_str = datetime.fromtimestamp(p.created_timestamp).strftime("%d.%m.%Y")
+            
+            p_type = p.pricing_type.value if hasattr(p.pricing_type, 'value') else str(p.pricing_type)
+            ru_type = type_ru.get(p_type, p_type)
+            
+            text_str = f"🛒 {date_str} {name} ({ru_type})"
             
             kb.button(text=text_str, callback_data=f"AdPurchase|view|{p.id}")
         
