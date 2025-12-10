@@ -393,22 +393,27 @@ class NovaStatService:
                         # Но так как у нас уже есть client, используем его напрямую
                         
                         # Попытка join
-                        if "t.me/" in channel_identifier:
-                            # Это ссылка
-                            if "t.me/+" in channel_identifier or "joinchat" in channel_identifier:
-                                # Private invite link
-                                hash_arg = channel_identifier.split('/')[-1].replace('+', '')
-                                await client(functions.messages.ImportChatInviteRequest(hash=hash_arg))
+                        if isinstance(channel_identifier, str):
+                            if "t.me/" in channel_identifier:
+                                # Это ссылка
+                                if "t.me/+" in channel_identifier or "joinchat" in channel_identifier:
+                                    # Private invite link
+                                    hash_arg = channel_identifier.split('/')[-1].replace('+', '')
+                                    await client(functions.messages.ImportChatInviteRequest(hash=hash_arg))
+                                else:
+                                    # Public link
+                                    username = channel_identifier.split('/')[-1]
+                                    await client(functions.channels.JoinChannelRequest(channel=username))
+                            elif channel_identifier.startswith('@'):
+                                # Username
+                                await client(functions.channels.JoinChannelRequest(channel=channel_identifier[1:]))
                             else:
-                                # Public link
-                                username = channel_identifier.split('/')[-1]
-                                await client(functions.channels.JoinChannelRequest(channel=username))
-                        elif channel_identifier.startswith('@'):
-                            # Username
-                            await client(functions.channels.JoinChannelRequest(channel=channel_identifier[1:]))
+                                # Assume username without @
+                                await client(functions.channels.JoinChannelRequest(channel=channel_identifier))
                         else:
-                            # Assume username without @
-                            await client(functions.channels.JoinChannelRequest(channel=channel_identifier))
+                             logger.warning(f"Cannot join channel by ID/Entity automatically: {channel_identifier}")
+                             # If we have an integer ID and access failed, we can't do much without an invite link.
+                             # But usually 'our' channel implies we are admin/member.
                         
                         join_attempted = True
                         logger.info(f"Join attempt successful for {channel_identifier}, retrying get_entity...")
@@ -448,7 +453,7 @@ class NovaStatService:
                         channel_id = None
                         try:
                             # Extract channel ID from identifier if it's a link
-                            if "t.me/" in channel_identifier:
+                            if isinstance(channel_identifier, str) and "t.me/" in channel_identifier:
                                 username = channel_identifier.split('/')[-1]
                                 channel = await db.get_channel_by_username(username)
                                 if channel:
@@ -456,13 +461,15 @@ class NovaStatService:
                         except:
                             pass
                         
+                        safe_username = channel_identifier if isinstance(channel_identifier, str) else str(channel_identifier)
+                        
                         await send_support_alert(main_bot_obj, SupportAlert(
                             event_type='STATS_ACCESS_DENIED',
                             client_id=None,  # External client, we don't track which one
                             client_alias=None,
                             pool_type='external',
                             channel_id=channel_id,
-                            channel_username=channel_identifier if not channel_id else None,
+                            channel_username=safe_username if not channel_id else None,
                             is_our_channel=channel is not None,
                             error_code=error_str.split('(')[0].strip() if '(' in error_str else error_str[:50],
                             error_text=f"Не удалось получить статистику канала: {error_str[:100]}"
