@@ -180,13 +180,12 @@ class ChannelCrud(DatabaseMixin):
         )
 
     async def get_all_channels(self) -> List[Channel]:
-        """Получить все каналы (для админ-панели)"""
+        """Получить все каналы (для админ-панели и шедулера)"""
         channels = await self.fetch(
             select(Channel).order_by(Channel.id.desc())
         )
         
-        # Фильтруем дубликаты по chat_id, оставляя самые новые (первые в списке из-за сортировки id desc?? Нет, fetch возвращает порядок БД)
-        # Хотя order_by id desc, значит новые имеют больший ID и будут первыми.
+        # Фильтруем дубликаты по chat_id, оставляя самые новые
         seen = set()
         unique_channels = []
         for ch in channels:
@@ -195,6 +194,10 @@ class ChannelCrud(DatabaseMixin):
                 seen.add(ch.chat_id)
                 
         return unique_channels
+
+    async def get_channels(self) -> List[Channel]:
+        """Alias for get_all_channels"""
+        return await self.get_all_channels()
 
     async def get_channel_by_id(self, channel_id: int) -> Channel | None:
         """Получить канал по ID (row_id)"""

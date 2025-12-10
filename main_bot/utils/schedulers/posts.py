@@ -374,17 +374,7 @@ async def delete_posts():
     for post in db_posts:
         views, channel = await get_views_for_post(post)
 
-        # Save final views to DB so manual CPM report shows correct data
-        update_args = {}
-        if not post.views_24h:
-             update_args['views_24h'] = views
-        elif not post.views_48h:
-             update_args['views_48h'] = views
-        else:
-             update_args['views_72h'] = views
-        
-        if update_args:
-             await db.update_published_post(post.id, **update_args)
+
 
         if post.post_id not in posts:
             posts[post.post_id] = []
