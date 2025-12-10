@@ -8,15 +8,20 @@ from main_bot.utils.error_handler import safe_handler
 logger = logging.getLogger(__name__)
 
 @router.message(F.text == "🛒 Закуп")
+@router.callback_query(F.data == "AdBuyMenu|menu")
 @safe_handler("Show Ad Buy Menu")
-async def show_ad_buy_menu(message: types.Message):
+async def show_ad_buy_menu(event: types.Message | types.CallbackQuery):
     """Показать меню закупов с рекламными креативами и закупами"""
     kb = types.InlineKeyboardMarkup(inline_keyboard=[
         [types.InlineKeyboardButton(text="🎨 Рекламные креативы", callback_data="AdBuyMenu|creatives")],
         [types.InlineKeyboardButton(text="💰 Рекламные закупы", callback_data="AdBuyMenu|purchases")],
         [types.InlineKeyboardButton(text="⬅️ Назад", callback_data="AdBuyMenu|back")]
     ])
-    await message.answer("🛒 <b>Закуп</b>\n\nВыберите раздел:", reply_markup=kb)
+    
+    if isinstance(event, types.Message):
+        await event.answer("🛒 <b>Закуп</b>\n\nВыберите раздел:", reply_markup=kb)
+    else:
+        await event.message.edit_text("🛒 <b>Закуп</b>\n\nВыберите раздел:", reply_markup=kb)
 
 
 @router.callback_query(F.data == "AdBuyMenu|creatives")
