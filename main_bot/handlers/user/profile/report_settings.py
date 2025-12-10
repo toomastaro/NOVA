@@ -4,6 +4,7 @@ from aiogram.fsm.state import State, StatesGroup
 
 from main_bot.database.db import db
 from main_bot.keyboards.profile import InlineProfile
+from main_bot.keyboards import keyboards
 from main_bot.utils.lang.language import text
 
 
@@ -96,7 +97,7 @@ async def start_edit_text(call: types.CallbackQuery, state: FSMContext):
     
     await call.message.edit_text(
         text('report:input_text'),
-        reply_markup=InlineProfile.back(
+        reply_markup=keyboards.back(
             data=f'ReportSetting|cancel_edit|{setting_type}'
         )
     )
