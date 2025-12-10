@@ -111,7 +111,7 @@ async def generate_post_info_text(post_obj, is_published: bool = False) -> str:
              return (
                 f"<b>Статус: 🗑 Удален</b>\n"
                 f"📅 Создан: {created_str}\n"
-                f"🗑 Удален: {del_time}\n"
+                f"🗑 Удален: {del_time}\n\n"
                 f"{channels_text}"
              )
         else:
