@@ -270,6 +270,8 @@ async def check_cpm_reports():
     """Периодическая задача: проверка и отправка CPM отчетов за 24/48/72 часа"""
     from sqlalchemy import select, update
     from main_bot.database.published_post.model import PublishedPost
+    from main_bot.utils.report_signature import get_report_signatures
+    import html
     
     current_time = int(time.time())
     
@@ -325,16 +327,20 @@ async def check_cpm_reports():
                 if exchange_rate and exchange_rate.rate > 0:
                     usd_rate = exchange_rate.rate
 
-            channels_text = text("resource_title").format(channel.title) + f" - 👀 {views}"
+            channels_text = text("resource_title").format(html.escape(channel.title)) + f" - 👀 {views}"
+            channels_text = f"<blockquote expandable>{channels_text}</blockquote>"
             
-            full_report = text("cpm:report:header").format(post.post_id, period) + "\\n"
+            full_report = text("cpm:report:header").format(post.post_id, period) + "\n"
             full_report += text("cpm:report:stats").format(
                 period,
                 views,
                 rub_price,
                 round(rub_price / usd_rate, 2),
                 round(usd_rate, 2)
-            ) + "\\n\\n" + channels_text
+            ) + "\n\n" + channels_text
+            
+            # Добавляем подпись
+            full_report += await get_report_signatures(user, 'cpm', bot)
             
             await bot.send_message(
                 chat_id=post.admin_id,
@@ -347,6 +353,9 @@ async def check_cpm_reports():
 
 async def delete_posts():
     """Периодическая задача: удаление постов по расписанию"""
+    from main_bot.utils.report_signature import get_report_signatures
+    import html
+
     db_posts = await db.get_posts_for_delete()
 
     row_ids = []
@@ -403,10 +412,12 @@ async def delete_posts():
 
         total_views = sum(obj["views"] for obj in message_objects)
         rub_price = round(float(cpm_price * float(total_views / 1000)), 2)
-        channels_text = "\\n".join(
-            text("resource_title").format(obj["channel"].title) + f" - 👀 {obj['views']}"
+        
+        channels_text_inner = "\n".join(
+            text("resource_title").format(html.escape(obj["channel"].title)) + f" - 👀 {obj['views']}"
             for obj in message_objects
         )
+        channels_text = f"<blockquote expandable>{channels_text_inner}</blockquote>"
 
         try:
             representative_post = message_objects[0]["post_obj"]
@@ -430,8 +441,8 @@ async def delete_posts():
                 if v48 is not None:
                      rub_48 = round(float(cpm_price * float(v48 / 1000)), 2)
                      lines.append(text("cpm:report:history_row").format("48ч", v48, rub_48))
-                lines.append("\\n" + channels_text)
-                return "\\n".join(lines)
+                lines.append("\n" + channels_text)
+                return "\n".join(lines)
 
             report_text = ""
             hours = int(delete_duration / 3600)
@@ -464,6 +475,9 @@ async def delete_posts():
                     exchange_rate_update_time.strftime("%H:%M %d.%m.%Y") if exchange_rate_update_time else "N/A"
                 )
 
+            # Добавляем подпись
+            report_text += await get_report_signatures(user, 'cpm', bot)
+            
             await bot.send_message(
                 chat_id=admin_id,
                 text=report_text

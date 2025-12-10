@@ -160,10 +160,14 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
         delete_str = f"🗑 <b>Удаление через:</b> {int(post.delete_time / 3600)} ч."
 
     # Channels List
-    channels_block = "\n".join(
-        f"&gt; {html.escape(obj.title)}" for obj in objects
-        if obj.chat_id in chosen
-    )
+    # Ensure quotes and HTML safety
+    channels_block = ""
+    if chosen:
+        channels_str = "\n".join(
+            f"{html.escape(obj.title)}" for obj in objects
+            if obj.chat_id in chosen
+        )
+        channels_block = f"<blockquote expandable>{channels_str}</blockquote>"
 
     otlog_text = (
         f"📊 <b>Отчет о публикации</b>\n\n"
@@ -173,16 +177,19 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
     if delete_str:
         otlog_text += f"{delete_str}\n"
     
-    otlog_text += (
-        f"\n📢 <b>Каналы:</b>\n"
-        f"{channels_block}"
-    )
+    if channels_block:
+        otlog_text += (
+            f"\n📢 <b>Каналы:</b>\n"
+            f"{channels_block}"
+        )
 
     # 3. Send OTLOG and Menu
     await state.clear()
     await call.message.delete()
+    
+    # Send OTLOG
     await call.message.answer(
         otlog_text,
-        reply_markup=keyboards.create_finish(),
+        reply_markup=keyboards.posting_menu(),
         parse_mode="HTML"
     )

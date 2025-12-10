@@ -105,7 +105,7 @@ async def manage_post(call: types.CallbackQuery, state: FSMContext):
         
         # Форматируем список выбранных каналов
         if chosen:
-            channels_list = "\n\n<blockquote expandable>" + "\n".join(
+            channels_list = "<blockquote expandable>" + "\n".join(
                 text("resource_title").format(obj.title) for obj in display_objects
             ) + "</blockquote>"
         else:
