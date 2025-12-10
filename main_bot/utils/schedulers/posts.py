@@ -9,6 +9,8 @@
 """
 import asyncio
 import logging
+import re
+import html
 import os
 import time
 from pathlib import Path
@@ -334,7 +336,9 @@ async def check_cpm_reports():
             
             opts = post.message_options or {}
             raw_text = opts.get('text') or opts.get('caption') or "Без текста"
-            preview_text = raw_text[:15] + "..." if len(raw_text) > 15 else raw_text
+            clean_text = re.sub(r'<[^>]+>', '', raw_text)
+            preview_text_raw = clean_text[:15] + "..." if len(clean_text) > 15 else clean_text
+            preview_text = html.escape(preview_text_raw)
 
             full_report = text("cpm:report:header").format(preview_text, period) + "\n"
             full_report += text("cpm:report:stats").format(
@@ -435,7 +439,9 @@ async def delete_posts():
             
             opts = representative_post.message_options or {}
             raw_text = opts.get('text') or opts.get('caption') or "Без текста"
-            preview_text = raw_text[:15] + "..." if len(raw_text) > 15 else raw_text
+            clean_text = re.sub(r'<[^>]+>', '', raw_text)
+            preview_text_raw = clean_text[:15] + "..." if len(clean_text) > 15 else clean_text
+            preview_text = html.escape(preview_text_raw)
 
             def format_report(title_suffix, current_views, v24=None, v48=None):
                 lines = []
