@@ -168,8 +168,7 @@ async def generate_post_info_text(post_obj, is_published: bool = False) -> str:
             
             return (
                 f"<b>Статус: 🕔 Ожидает публикации</b>\n"
-                f"Дата: {date_str}\n"
-                f"Автор: {author_name}\n\n"
+                f"Дата: {date_str}\n\n"
                 f"{channels_text}"
             )
 

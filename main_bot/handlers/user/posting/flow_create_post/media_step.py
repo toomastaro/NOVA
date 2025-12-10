@@ -74,12 +74,11 @@ async def manage_post(call: types.CallbackQuery, state: FSMContext):
                 )
             else:
                 # Return to Draft/Scheduled View
+                from main_bot.handlers.user.posting.content import generate_post_info_text
+                info_text = await generate_post_info_text(post, is_published=False)
+
                 return await call.message.answer(
-                    text("post:content").format(
-                        *data.get("send_date_values"),
-                        data.get("channel").emoji_id,
-                        data.get("channel").title
-                    ),
+                    info_text,
                     reply_markup=keyboards.manage_remain_post(
                         post=post,
                         is_published=False
