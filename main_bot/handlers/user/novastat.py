@@ -303,125 +303,114 @@ async def run_analysis_background(message: types.Message, channels: list, depth:
     except Exception as e:
         await message.answer(f"❌ Произошла ошибка при фоновом анализе: {e}")
 
-async def run_analysis_logic(message: types.Message, channels: list, depth: int, state: FSMContext, status_msg: types.Message = None):
-    # Новая логика с кэшированием
-    results = []
-    failed = []
+def _format_stats_body(stats):
+    link = stats.get('link')
+    title_link = f"<a href='{link}'>{stats['title']}</a>" if link else stats['title']
     
-    total_channels = len(channels)
+    text = f"📢 Канал: {title_link}\n"
+    text += f"👥 Подписчиков: {stats['subscribers']}\n\n"
+    
+    text += f"👁️ <b>Просмотры:</b>\n"
+    text += f"├ 24 часа: {stats['views'].get(24, 0)}\n"
+    text += f"├ 48 часов: {stats['views'].get(48, 0)}\n"
+    text += f"└ 72 часа: {stats['views'].get(72, 0)}\n\n"
+    
+    text += f"📈 <b>ER:</b>\n"
+    text += f"├ 24 часа: {stats['er'].get(24, 0)}%\n"
+    text += f"├ 48 часов: {stats['er'].get(48, 0)}%\n"
+    text += f"└ 72 часа: {stats['er'].get(72, 0)}%\n\n"
+    return text
+
+async def run_analysis_logic(message: types.Message, channels: list, depth: int, state: FSMContext, status_msg: types.Message = None):
+    # Initial status
+    if status_msg:
+         await status_msg.edit_text(f"⏳ Начинаю анализ {len(channels)} каналов (глубина {depth} дн.)...", link_preview_options=types.LinkPreviewOptions(is_disabled=True))
+    
+    total_views = {24: 0, 48: 0, 72: 0}
+    total_er = {24: 0.0, 48: 0.0, 72: 0.0}
+    valid_count = 0
+    results = []
     
     for i, ch in enumerate(channels, 1):
-        if status_msg:
-            await status_msg.edit_text(f"📊 Собираю статистику: {ch} ({i}/{total_channels})...", link_preview_options=types.LinkPreviewOptions(is_disabled=True))
-        
-        # collect_stats теперь использует кэш и external MtClient
+        # Collect
         stats = await novastat_service.collect_stats(ch, depth, horizon=24)
         
         if stats:
-            # Проверить структуру результата
-            if 'views' not in stats or 'er' not in stats:
-                logger.error(f"Invalid stats structure for {ch}: {stats}")
-                failed.append({"channel": ch, "error": "Неверная структура данных"})
-                continue
-            
-            # Проверить наличие всех горизонтов и заполнить отсутствующие нулями
-            missing_horizons = []
-            for h in [24, 48, 72]:
-                if h not in stats['views']:
-                    stats['views'][h] = 0
-                    missing_horizons.append(h)
-                if h not in stats['er']:
-                    stats['er'][h] = 0.0
-            
-            if missing_horizons:
-                logger.warning(f"Missing horizons {missing_horizons} for {ch}, filled with zeros. This is normal for cached data.")
-            
-            logger.info(f"Successfully collected stats for {ch}: views={stats['views']}, er={stats['er']}")
+            valid_count += 1
             results.append(stats)
-        else:
-            # Проверить, есть ли ошибка в кэше
-            cache = await db.get_cache(ch, 24)
-            if cache and cache.error_message:
-                failed.append({"channel": ch, "error": cache.error_message})
-            else:
-                failed.append({"channel": ch, "error": "Не удалось получить статистику"})
-
-    if not results:
-        text_err = (
-            "❌ Не удалось получить статистику ни по одному каналу.\n"
-        )
-        if failed:
-            text_err += "\nОшибки:\n"
-            for f in failed[:5]:  # Показать первые 5 ошибок
-                text_err += f"• {f['channel']}: {f['error']}\n"
-        
-        if status_msg:
-            await status_msg.edit_text(text_err, link_preview_options=types.LinkPreviewOptions(is_disabled=True))
-        else:
-            await message.answer(text_err, link_preview_options=types.LinkPreviewOptions(is_disabled=True))
-        return
-
-    # 3. Analyze
-    if status_msg:
-        await status_msg.edit_text("🔄 Анализирую данные...", link_preview_options=types.LinkPreviewOptions(is_disabled=True))
-
-    # Calculate totals for views and averages for ER
-    total_views = {24: 0, 48: 0, 72: 0}
-    total_er = {24: 0.0, 48: 0.0, 72: 0.0}
-    count = len(results)
-    
-    for res in results:
-        for h in [24, 48, 72]:
-            total_views[h] += res['views'][h]
-            total_er[h] += res['er'][h]
             
-    # Views are summed (Total), ER is averaged
-    final_views = total_views 
-    if count > 0:
-        avg_er = {h: round(total_er[h] / count, 2) for h in [24, 48, 72]}
-    else:
-        avg_er = {24: 0.0, 48: 0.0, 72: 0.0}
-    
-    # Store results for CPM calculation
-    data_to_store = {'last_analysis_views': final_views}
-    if count == 1:
-        data_to_store['single_channel_info'] = {
-            'title': results[0]['title'],
-            'username': results[0]['username'],
-            'link': results[0].get('link'),
-            'subscribers': results[0]['subscribers']
-        }
-    else:
-        data_to_store['single_channel_info'] = None
-        
-    await state.update_data(**data_to_store)
-    
-    report = f"📊 <b>Отчет аналитики ({count} каналов)</b>\n\n"
-    
-    if count == 1:
-        res = results[0]
-        link = res.get('link')
-        title_link = f"<a href='{link}'>{res['title']}</a>" if link else res['title']
-        report += f"📢 Канал: {title_link}\n"
-        report += f"👥 Подписчиков: {res['subscribers']}\n\n"
+            # Если каналов больше 1, отправляем отчет по каждому сразу
+            if len(channels) > 1:
+                ind_report = f"📊 <b>Аналитика канала ({i}/{len(channels)})</b>\n\n"
+                ind_report += _format_stats_body(stats)
+                try:
+                    await message.answer(ind_report, parse_mode="HTML", link_preview_options=types.LinkPreviewOptions(is_disabled=True))
+                except Exception as e:
+                    logger.error(f"Failed to send individual report for {ch}: {e}")
+                    # Try simplified message
+                    await message.answer(f"📊 Аналитика ({ch}): получена (ошибка форматирования)", link_preview_options=types.LinkPreviewOptions(is_disabled=True))
 
-    report += f"👁️ <b>Суммарные просмотры:</b>\n"
-    report += f"├ 24 часа: {final_views[24]}\n"
-    report += f"├ 48 часов: {final_views[48]}\n"
-    report += f"└ 72 часа: {final_views[72]}\n\n"
-    
-    report += f"📈 <b>Средний ER:</b>\n"
-    report += f"├ 24 часа: {avg_er[24]}%\n"
-    report += f"├ 48 часов: {avg_er[48]}%\n"
-    report += f"└ 72 часа: {avg_er[72]}%\n\n"
-    
-    if failed:
-        report += f"⚠️ Не удалось обработать: {len(failed)} каналов.\n"
+            # Accumulate
+            for h in [24, 48, 72]:
+                total_views[h] = total_views.get(h, 0) + stats.get('views', {}).get(h, 0)
+                total_er[h] = total_er.get(h, 0) + stats.get('er', {}).get(h, 0)
+        else:
+            # Error checks
+            error_text = f"❌ Не удалось получить статистику: {html.escape(str(ch))}"
+            cache = await db.get_cache(str(ch), 24)
+            if cache and cache.error_message:
+                error_text += f"\nПричина: {html.escape(cache.error_message)}"
+                
+            await message.answer(error_text, link_preview_options=types.LinkPreviewOptions(is_disabled=True))
 
+    # Delete initial processing status
     if status_msg:
         await status_msg.delete()
+
+    if valid_count == 0:
+        await message.answer("❌ Не удалось получить данные ни по одному каналу.")
+        return
+
+    # Prepare Summary
+    summary_views = total_views
+    summary_er = {h: round(total_er[h] / valid_count, 2) for h in [24, 48, 72]}
     
-    await message.answer(report, reply_markup=InlineNovaStat.analysis_result(), parse_mode="HTML", link_preview_options=types.LinkPreviewOptions(is_disabled=True))
+    # Save for CPM
+    await state.update_data(last_analysis_views=summary_views)
+    
+    if len(channels) == 1:
+        # Single channel case: This IS the report.
+        stats = results[0]
+        
+        single_info = {
+            'title': stats['title'],
+            'username': stats['username'],
+            'link': stats.get('link'),
+            'subscribers': stats['subscribers']
+        }
+        await state.update_data(single_channel_info=single_info)
+        
+        report = f"📊 <b>Отчет аналитики</b>\n\n"
+        report += _format_stats_body(stats)
+        
+        await message.answer(report, reply_markup=InlineNovaStat.analysis_result(), parse_mode="HTML", link_preview_options=types.LinkPreviewOptions(is_disabled=True))
+        
+    else:
+        # Summary
+        await state.update_data(single_channel_info=None)
+        
+        report = f"📊 <b>ОБЩИЙ ОТЧЕТ ({valid_count} каналов)</b>\n\n"
+        report += f"👁️ <b>Суммарные просмотры:</b>\n"
+        report += f"├ 24 часа: {summary_views[24]}\n"
+        report += f"├ 48 часов: {summary_views[48]}\n"
+        report += f"└ 72 часа: {summary_views[72]}\n\n"
+        
+        report += f"📈 <b>Средний ER:</b>\n"
+        report += f"├ 24 часа: {summary_er[24]}%\n"
+        report += f"├ 48 часов: {summary_er[48]}%\n"
+        report += f"└ 72 часа: {summary_er[72]}%\n\n"
+        
+        await message.answer(report, reply_markup=InlineNovaStat.analysis_result(), parse_mode="HTML", link_preview_options=types.LinkPreviewOptions(is_disabled=True))
 
 
 @router.message(NovaStatStates.waiting_for_channels)
