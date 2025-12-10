@@ -25,6 +25,10 @@ async def choice(call: types.CallbackQuery, state: FSMContext, user: User):
         from main_bot.handlers.user.profile.report_settings import show_report_settings_menu
         await show_report_settings_menu(call)
 
+    if temp[1] == 'support':
+        from main_bot.handlers.user.profile.profile import show_support
+        await show_support(call.message, state)
+
     if temp[1] == 'timezone':
         delta = timedelta(hours=abs(user.timezone))
 

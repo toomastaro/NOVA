@@ -101,6 +101,10 @@ class InlineProfile(InlineKeyboardBuilder):
             callback_data='Setting|report_settings'
         )
         kb.button(
+            text=text('reply_menu:support'),
+            callback_data='Setting|support'
+        )
+        kb.button(
             text=text('back:button'),
             callback_data='Setting|back'
         )
