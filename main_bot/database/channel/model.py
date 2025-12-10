@@ -29,3 +29,9 @@ class Channel(Base):
     
     # Распределение нагрузки (Round-robin)
     last_client_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True, default=None, comment='ID последнего использованного клиента')
+
+    # Статистика
+    subscribers_count: Mapped[int] = mapped_column(default=0, comment='Количество подписчиков')
+    novastat_24h: Mapped[int] = mapped_column(default=0, comment='Просмотры за 24ч (NovaStat)')
+    novastat_48h: Mapped[int] = mapped_column(default=0, comment='Просмотры за 48ч (NovaStat)')
+    novastat_72h: Mapped[int] = mapped_column(default=0, comment='Просмотры за 72ч (NovaStat)')

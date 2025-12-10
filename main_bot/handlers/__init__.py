@@ -9,9 +9,10 @@ from dotenv import load_dotenv
 
 from main_bot.database.db import db
 from main_bot.utils.middlewares import GetUserMiddleware, ErrorMiddleware, VersionCheckMiddleware
-from main_bot.utils.schedulers import init_scheduler
+from main_bot.utils.schedulers import init_scheduler, register_channel_jobs
 from .user import get_router as user_router
 from .admin import get_router as admin_router
+
 
 load_dotenv()
 
@@ -38,7 +39,7 @@ def set_main_routers():
     )
 
 
-def set_scheduler():
+async def set_scheduler():
     """
     Инициализация планировщика задач.
     
@@ -90,6 +91,9 @@ def set_scheduler():
     
     # Регистрация всех системных задач через init_scheduler
     init_scheduler(sch)
+    
+    # Регистрация задач для каналов
+    await register_channel_jobs(sch)
     
     sch.start()
     sch.print_jobs()

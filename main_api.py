@@ -39,7 +39,7 @@ async def lifespan(_app: FastAPI):
     time.tzset()
 
     set_main_routers()
-    set_scheduler()
+    await set_scheduler()
 
     import logging
     logger = logging.getLogger(__name__)

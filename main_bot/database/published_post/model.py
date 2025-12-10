@@ -39,9 +39,10 @@ class PublishedPost(Base):
     deleted_at: Mapped[Optional[int]] = mapped_column(default=None, comment='Время удаления')
 
     # Данные отчетов CPM (Views Reporting)
-    views_24h: Mapped[Optional[int]] = mapped_column(default=None)
-    views_48h: Mapped[Optional[int]] = mapped_column(default=None)
-    views_72h: Mapped[Optional[int]] = mapped_column(default=None)
+    # Данные отчетов CPM (Views Reporting)
+    views_24h: Mapped[Optional[int]] = mapped_column(default=0)
+    views_48h: Mapped[Optional[int]] = mapped_column(default=0)
+    views_72h: Mapped[Optional[int]] = mapped_column(default=0)
     report_24h_sent: Mapped[bool] = mapped_column(default=False)
     report_48h_sent: Mapped[bool] = mapped_column(default=False)
     report_72h_sent: Mapped[bool] = mapped_column(default=False)

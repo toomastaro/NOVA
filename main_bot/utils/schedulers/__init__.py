@@ -39,14 +39,23 @@ from .cleanup import (
     mt_clients_self_check,
 )
 
+from .channels import (
+    register_channel_jobs,
+    update_channel_stats,
+    schedule_channel_job,
+)
+
 from .extra import (
     update_exchange_rates_in_db,
 )
 
 logger = logging.getLogger(__name__)
 
+scheduler_instance: AsyncIOScheduler | None = None
 
 def init_scheduler(scheduler: AsyncIOScheduler):
+    global scheduler_instance
+    scheduler_instance = scheduler
     """
     Инициализация и регистрация всех системных периодических задач.
     
@@ -180,4 +189,9 @@ __all__ = [
     
     # Вспомогательные
     "update_exchange_rates_in_db",
+    
+    # Channels
+    "register_channel_jobs",
+    "update_channel_stats",
+    "schedule_channel_job",
 ]

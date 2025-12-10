@@ -9,6 +9,7 @@ from main_bot.states.user import AddChannel
 from main_bot.handlers.user.menu import start_posting
 
 from main_bot.database.db import db
+from main_bot.utils.schedulers import schedule_channel_job, update_channel_stats, scheduler_instance
 from main_bot.utils.functions import create_emoji, background_join_channel
 from main_bot.utils.lang.language import text
 from main_bot.utils.error_handler import safe_handler
@@ -97,6 +98,12 @@ async def set_channel(call: types.ChatMemberUpdated):
 
         # Запуск фоновой задачи для добавления клиента в канал
         asyncio.create_task(background_join_channel(chat_id, user_id=call.from_user.id))
+        
+        # Schedule stats job
+        channel_obj = await db.get_channel_by_chat_id(chat_id)
+        if channel_obj and scheduler_instance:
+             schedule_channel_job(scheduler_instance, channel_obj)
+             asyncio.create_task(update_channel_stats(chat_id))
 
         message_text = text('success_add_channel').format(
             chat_title
@@ -261,6 +268,12 @@ async def manual_add_channel(message: types.Message, state: FSMContext):
     
     # Запуск фоновой задачи для добавления клиента в канал
     asyncio.create_task(background_join_channel(chat_id, user_id=message.from_user.id))
+
+    # Schedule stats job
+    channel_obj = await db.get_channel_by_chat_id(chat_id)
+    if channel_obj and scheduler_instance:
+         schedule_channel_job(scheduler_instance, channel_obj)
+         asyncio.create_task(update_channel_stats(chat_id))
         
     msg = text('success_add_channel').format(chat_title)
     await message.answer(msg)

@@ -189,41 +189,36 @@ class NovaStatService:
             except Exception as e:
                 logger.info(f"Could not determine if channel {channel_identifier} is ours: {e}")
             
-            # Шаг 2: Если канал "свой", проверить наличие internal клиента для статистики
+            # Шаг 2: Если канал "свой", использовать данные из БД (обновляемые ежечасно)
             if our_channel and channel_id:
-                logger.info(f"Channel {channel_identifier} is our channel (id={channel_id})")
+                logger.info(f"Channel {channel_identifier} is our channel (id={channel_id}), using DB stats")
                 
-                # Проверить, есть ли internal клиент с preferred_for_stats
-                mt_client_channel = await db.get_preferred_for_stats(channel_id)
+                # Формируем статистику из БД
+                views_res = {
+                    24: our_channel.novastat_24h,
+                    48: our_channel.novastat_48h,
+                    72: our_channel.novastat_72h
+                }
                 
-                if mt_client_channel:
-                    logger.info(f"Using internal client {mt_client_channel.client_id} for stats of channel {channel_id}")
-                    
-                    # Получить internal клиента
-                    client_obj = await db.get_mt_client(mt_client_channel.client_id)
-                    if client_obj and client_obj.is_active and client_obj.status == 'ACTIVE':
-                        session_path = Path(client_obj.session_path)
-                        if session_path.exists():
-                            manager = SessionManager(session_path)
-                            await manager.init_client()
-                            
-                            if manager.client:
-                                try:
-                                    # Собрать статистику через internal клиента
-                                    stats = await self._collect_stats_impl(manager.client, channel_identifier, days_limit)
-                                    
-                                    if stats:
-                                        await db.set_cache(channel_identifier, horizon, stats, error_message=None)
-                                    else:
-                                        await db.set_cache(
-                                            channel_identifier,
-                                            horizon,
-                                            {},
-                                            error_message="Не удалось собрать статистику"
-                                        )
-                                    return
-                                finally:
-                                    await manager.close()
+                er_res = {}
+                subs = our_channel.subscribers_count
+                for h in [24, 48, 72]:
+                    if subs > 0:
+                        er_res[h] = round((views_res[h] / subs) * 100, 2)
+                    else:
+                        er_res[h] = 0.0
+
+                stats = {
+                    'title': our_channel.title,
+                    'username': getattr(our_channel, 'username', username),
+                    'link': f"https://t.me/{getattr(our_channel, 'username', username)}" if getattr(our_channel, 'username', None) else None,
+                    'subscribers': subs,
+                    'views': views_res,
+                    'er': er_res
+                }
+
+                await db.set_cache(channel_identifier, horizon, stats, error_message=None)
+                return
             
             # Шаг 3: Канал не "свой" или нет internal клиента - использовать external клиента
             logger.info(f"Using external client for channel {channel_identifier}")
