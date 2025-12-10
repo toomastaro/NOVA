@@ -119,28 +119,70 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
                 backup_message_id=backup_message_id
             )
 
-    # Формируем сообщение об успехе
-    if send_time:
-        weekday, day, month, year, _time = date_values
-        message_text = text("manage:post:success:date").format(
-            f"{day} {month} {year} {_time} ({weekday})",
-            "\n".join(
-                text("resource_title").format(obj.title) for obj in objects
-                if obj.chat_id in chosen[:10]
-            )
-        )
-    else:
-        message_text = text("manage:post:success:public").format(
-            "\n".join(
-                text("resource_title").format(obj.title) for obj in objects
-                if obj.chat_id in chosen[:10]
-            )
-        )
+    # --- OTLOG IMPLEMENTATION ---
+    from datetime import datetime
+    import html
 
-    # Очищаем состояние и показываем успех
+    # 1. Preview (Copy from Backup)
+    backup_chat_id = post.backup_chat_id or (kwargs.get("backup_chat_id") if 'kwargs' in locals() else None)
+    backup_message_id = post.backup_message_id or (kwargs.get("backup_message_id") if 'kwargs' in locals() else None)
+
+    if not backup_chat_id and 'backup_chat_id' in locals():
+         backup_chat_id = locals()['backup_chat_id']
+    if not backup_message_id and 'backup_message_id' in locals():
+         backup_message_id = locals()['backup_message_id']
+         
+    if backup_chat_id and backup_message_id:
+        try:
+            await call.bot.copy_message(
+                chat_id=call.from_user.id,
+                from_chat_id=backup_chat_id,
+                message_id=backup_message_id
+            )
+        except Exception as e:
+            logger.error(f"Failed to copy preview from backup: {e}")
+
+    # 2. OTLOG Text Construction
+    
+    # Status & Date
+    if send_time and send_time > time.time():
+        status = "🟡 <b>Запланировано</b>"
+        dt = datetime.fromtimestamp(send_time)
+        date_str = dt.strftime('%d.%m.%Y %H:%M')
+    else:
+        status = "🟢 <b>Опубликовано</b>"
+        dt = datetime.fromtimestamp(time.time())
+        date_str = dt.strftime('%d.%m.%Y %H:%M')
+
+    # Delete Time
+    delete_str = ""
+    if post.delete_time:
+        delete_str = f"🗑 <b>Удаление через:</b> {int(post.delete_time / 3600)} ч."
+
+    # Channels List
+    channels_block = "\n".join(
+        f"&gt; {html.escape(obj.title)}" for obj in objects
+        if obj.chat_id in chosen
+    )
+
+    otlog_text = (
+        f"📊 <b>Отчет о публикации</b>\n\n"
+        f"Статус: {status}\n"
+        f"📅 <b>Дата:</b> {date_str}\n" 
+    )
+    if delete_str:
+        otlog_text += f"{delete_str}\n"
+    
+    otlog_text += (
+        f"\n📢 <b>Каналы:</b>\n"
+        f"{channels_block}"
+    )
+
+    # 3. Send OTLOG and Menu
     await state.clear()
     await call.message.delete()
     await call.message.answer(
-        message_text,
-        reply_markup=keyboards.create_finish()
+        otlog_text,
+        reply_markup=keyboards.create_finish(),
+        parse_mode="HTML"
     )

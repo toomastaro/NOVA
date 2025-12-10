@@ -78,7 +78,11 @@ async def process_creative_content(message: Message, state: FSMContext):
                     add_slot(btn.url, "button", {"button_row": r, "button_col": c})
 
     if not slots:
-        await message.answer("В сообщении не найдено ссылок. Креатив не может быть создан без ссылок. Попробуйте другое сообщение.")
+        await message.answer(
+            "В сообщении не найдено ссылок. Креатив не может быть создан без ссылок. Попробуйте другое сообщение.\n\n"
+            "Перешлите пост или подборку постов, из которых нужно сделать креатив.",
+            reply_markup=InlineAdCreative.create_creative_cancel()
+        )
         return
 
     # Create Creative
