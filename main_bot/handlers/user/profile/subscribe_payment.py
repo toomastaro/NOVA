@@ -7,7 +7,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import LabeledPrice
 
 from main_bot.database.db import db
-from main_bot.database.types import PaymentMethod
+from main_bot.database.types import PaymentMethod, Service
 from main_bot.database.user.model import User
 from main_bot.handlers.user.menu import subscription
 from main_bot.handlers.user.profile.subscribe import get_pay_info_text
@@ -269,11 +269,21 @@ async def choice(call: types.CallbackQuery, state: FSMContext, user: User):
         await give_subscribes(state, user)
 
         # Записываем покупку для корректного расчета реферальных в будущем
+        # Determine correct service enum
+        service_data = data.get('service', 'POSTING')
+        if service_data == 'subscribe':
+            if data.get('object_type') == 'bots':
+                service_enum = Service.BOTS
+            else:
+                service_enum = Service.POSTING
+        else:
+            service_enum = service_data
+
         await db.add_purchase(
             user_id=user.id,
             amount=total_price,
             method=PaymentMethod.BALANCE,
-            service=data.get('service', 'POSTING') # Default to POSTING if not set? Or get from data
+            service=service_enum
         )
         
         await safe_delete(call.message)
