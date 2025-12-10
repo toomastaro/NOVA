@@ -30,11 +30,11 @@ class User(Base):
     default_exchange_rate_id: Mapped[int] = mapped_column(default=0, comment='Валюта по умолчанию (ID курса)')
 
     # Подписи к отчетам
-    cpm_signature_active: Mapped[bool] = mapped_column(default=False, comment='Включена ли подпись CPM')
+    cpm_signature_active: Mapped[bool] = mapped_column(default=True, comment='Включена ли подпись CPM')
     cpm_signature_text: Mapped[Optional[str]] = mapped_column(default=None, comment='Текст подписи CPM')
     
-    exchange_signature_active: Mapped[bool] = mapped_column(default=False, comment='Включена ли подпись курса')
+    exchange_signature_active: Mapped[bool] = mapped_column(default=True, comment='Включена ли подпись курса')
     exchange_signature_text: Mapped[Optional[str]] = mapped_column(default=None, comment='Текст подписи курса')
     
-    referral_signature_active: Mapped[bool] = mapped_column(default=False, comment='Включена ли реф. подпись')
+    referral_signature_active: Mapped[bool] = mapped_column(default=True, comment='Включена ли реф. подпись')
     referral_signature_text: Mapped[Optional[str]] = mapped_column(default=None, comment='Текст реф. подписи')

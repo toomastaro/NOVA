@@ -332,7 +332,11 @@ async def check_cpm_reports():
             channels_text = text("resource_title").format(html.escape(channel.title)) + f" - 👀 {views}"
             channels_text = f"<blockquote expandable>{channels_text}</blockquote>"
             
-            full_report = text("cpm:report:header").format(post.post_id, period) + "\n"
+            opts = post.message_options or {}
+            raw_text = opts.get('text') or opts.get('caption') or "Без текста"
+            preview_text = raw_text[:15] + "..." if len(raw_text) > 15 else raw_text
+
+            full_report = text("cpm:report:header").format(preview_text, period) + "\n"
             full_report += text("cpm:report:stats").format(
                 period,
                 views,
@@ -429,9 +433,13 @@ async def delete_posts():
             views_24 = representative_post.views_24h
             views_48 = representative_post.views_48h
             
+            opts = representative_post.message_options or {}
+            raw_text = opts.get('text') or opts.get('caption') or "Без текста"
+            preview_text = raw_text[:15] + "..." if len(raw_text) > 15 else raw_text
+
             def format_report(title_suffix, current_views, v24=None, v48=None):
                 lines = []
-                lines.append(text("cpm:report:header").format(post_id, title_suffix))
+                lines.append(text("cpm:report:header").format(preview_text, title_suffix))
                 lines.append(text("cpm:report:stats").format(
                     "Финальный" if "Final" in title_suffix else title_suffix,
                     current_views,
@@ -453,7 +461,7 @@ async def delete_posts():
             
             if delete_duration < 24 * 3600:
                  report_text = text("cpm:report").format(
-                    post_id,
+                    preview_text,
                     channels_text,
                     cpm_price,
                     total_views,
@@ -469,7 +477,7 @@ async def delete_posts():
             
             if not report_text:
                  report_text = text("cpm:report").format(
-                    post_id,
+                    preview_text,
                     channels_text,
                     cpm_price,
                     total_views,

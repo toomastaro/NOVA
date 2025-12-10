@@ -73,7 +73,7 @@ async def generate_post_info_text(post_obj, is_published: bool = False) -> str:
         # PublishedPost.post_id хранит ID родительского поста (или уникальный ID группы)
         published_posts = await db.get_published_posts_by_post_id(post_obj.post_id)
         
-        channels_text = "<blockquote>Пост скопирован в:\n"
+        channels_text = "<blockquote>Пост опубликован в:\n"
         for p in published_posts:
             channel = await db.get_channel_by_chat_id(p.chat_id)
             if channel:
@@ -561,9 +561,14 @@ async def manage_published_post(call: types.CallbackQuery, state: FSMContext):
         channels_text_inner = "\n".join(text("resource_title").format(c) for c in channels_info)
         channels_text = f"<blockquote expandable>{channels_text_inner}</blockquote>"
         
+        # Extract Text Preview
+        opts = post.message_options or {}
+        raw_text = opts.get('text') or opts.get('caption') or "Без текста"
+        preview_text = raw_text[:15] + "..." if len(raw_text) > 15 else raw_text
+        
         # Using basic cpm:report format
         report_text = text("cpm:report").format(
-            post.post_id,
+            preview_text,
             channels_text,
             cpm_price,
             total_views,
