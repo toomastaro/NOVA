@@ -525,7 +525,7 @@ class InlinePosting(InlineKeyboardBuilder):
             # Если пост удален - показываем только кнопку отчета (если был включен) и назад
             if post.report or post.cpm_price:
                  kb.button(
-                    text=text("report:cpm:button").format(""), # Format usually takes an icon or empty
+                    text=text("cpm:report:view_button"),
                     callback_data="ManagePublishedPost|cpm_report"
                 )
             

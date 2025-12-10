@@ -110,7 +110,6 @@ async def generate_post_info_text(post_obj, is_published: bool = False) -> str:
                 f"<b>Статус: 🗑 Удален</b>\n"
                 f"📅 Создан: {created_str}\n"
                 f"🗑 Удален: {del_time}\n"
-                f"Автор: {author_name}\n\n"
                 f"{channels_text}"
              )
         else:
@@ -585,7 +584,7 @@ async def manage_published_post(call: types.CallbackQuery, state: FSMContext):
             callback_data=f"ContentPublishedPost|{post.id}"
         )
         
-        await call.message.edit_text(report_text, reply_markup=kb.as_markup())
+        await call.message.edit_text(report_text, reply_markup=kb.as_markup(), link_preview_options=types.LinkPreviewOptions(is_disabled=True))
         return
 
     if temp[1] == "cancel":
