@@ -322,9 +322,9 @@ def _format_stats_body(stats):
     return text
 
 async def run_analysis_logic(message: types.Message, channels: list, depth: int, state: FSMContext, status_msg: types.Message = None):
-    # Initial status
-    if status_msg:
-         await status_msg.edit_text(f"⏳ Начинаю анализ {len(channels)} каналов (глубина {depth} дн.)...", link_preview_options=types.LinkPreviewOptions(is_disabled=True))
+    # Initial status - removed redundant edit
+    # if status_msg:
+    #      await status_msg.edit_text(...)
     
     total_views = {24: 0, 48: 0, 72: 0}
     total_er = {24: 0.0, 48: 0.0, 72: 0.0}
