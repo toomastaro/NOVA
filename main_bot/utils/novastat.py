@@ -527,7 +527,7 @@ class NovaStatService:
         link = None
         if username:
             link = f"https://t.me/{username}"
-        elif "t.me" in channel_identifier:
+        elif isinstance(channel_identifier, str) and "t.me" in channel_identifier:
             link = channel_identifier
 
         if not raw_points:
