@@ -380,4 +380,4 @@ async def other_update(request: Request, token: str):
 
 if __name__ == '__main__':
 
-    uvicorn.run(app, host="0.0.0.0", port=8099, log_level="warning", access_log=False)
+    uvicorn.run(app, host="0.0.0.0", port=8099, log_level="debug", access_log=True)

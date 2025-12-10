@@ -7,7 +7,7 @@ def setup_logging():
     """
     # Configure root logger
     logging.basicConfig(
-        level=logging.INFO,
+        level=logging.DEBUG,
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
         handlers=[
             logging.StreamHandler(sys.stdout)
@@ -15,11 +15,11 @@ def setup_logging():
     )
 
     # Set specific levels for third-party libraries to reduce noise
-    logging.getLogger("aiogram").setLevel(logging.WARNING)
-    logging.getLogger("sqlalchemy").setLevel(logging.WARNING)
-    logging.getLogger("httpx").setLevel(logging.WARNING)
-    logging.getLogger("apscheduler").setLevel(logging.WARNING)
-    logging.getLogger("main_bot.database.published_post.crud").setLevel(logging.WARNING)
+    # logging.getLogger("aiogram").setLevel(logging.WARNING)
+    # logging.getLogger("sqlalchemy").setLevel(logging.WARNING)
+    # logging.getLogger("httpx").setLevel(logging.WARNING)
+    # logging.getLogger("apscheduler").setLevel(logging.WARNING)
+    # logging.getLogger("main_bot.database.published_post.crud").setLevel(logging.WARNING)
 
     logger = logging.getLogger(__name__)
     logger.info("Logging configuration setup complete.")
