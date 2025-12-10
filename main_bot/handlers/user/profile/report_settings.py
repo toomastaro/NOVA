@@ -96,7 +96,9 @@ async def start_edit_text(call: types.CallbackQuery, state: FSMContext):
     
     await call.message.edit_text(
         text('report:input_text'),
-        reply_markup=None # Можно добавить кнопку отмены
+        reply_markup=InlineProfile.back(
+            data=f'ReportSetting|cancel_edit|{setting_type}'
+        )
     )
     await state.set_state(ReportSettingsStates.input_text)
 
@@ -212,6 +214,10 @@ async def router_choice(call: types.CallbackQuery, state: FSMContext):
         await process_toggle(call)
     elif action == 'edit':
         await start_edit_text(call, state) 
+    elif action == 'cancel_edit':
+        setting_type = call.data.split('|')[2]
+        await state.clear()
+        await show_specific_setting(call, setting_type) 
 
 
 def hand_add():

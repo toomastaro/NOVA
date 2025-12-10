@@ -529,12 +529,24 @@ async def align_subscribe(call: types.CallbackQuery, state: FSMContext, user: Us
         pass
 
 
-async def cancel(call: types.CallbackQuery, state: FSMContext):
-    data = await state.get_data()
-    await state.clear()
-    await state.update_data(data)
-
-    await call.message.delete()
+async def cancel(call: types.CallbackQuery, state: FSMContext, user: User):
+    # data = await state.get_data()
+    # await state.clear()
+    # await state.update_data(data)
+    # Don't clear state, just go back to payment choice
+    
+    pay_info_text = await get_pay_info_text(state, user)
+    
+    await safe_delete(call.message)
+    
+    # Send payment info again
+    await call.message.answer(
+        pay_info_text,
+        reply_markup=keyboards.choice_payment_method(
+            data='ChoicePaymentMethodSubscribe',
+            is_subscribe=True
+        )
+    )
 
 
 async def back_to_method(call: types.CallbackQuery, state: FSMContext):
