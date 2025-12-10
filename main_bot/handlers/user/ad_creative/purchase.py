@@ -596,11 +596,24 @@ async def generate_post(call: CallbackQuery):
         if not entities:
             return
         for entity in entities:
+            # Handle text_link (formatted links)
             if entity.get('type') == 'text_link':
                 url = entity.get('url')
                 if url in url_map:
                     entity['url'] = url_map[url]
-                    
+            
+            # Handle url (raw links)
+            # Convert them to text_link so the text remains same but points to new URL
+            elif entity.get('type') == 'url':
+                # Extract URL from text content using offset/length
+                offset = entity.get('offset')
+                length = entity.get('length')
+                url = text_content[offset:offset+length]
+                
+                if url in url_map:
+                    entity['type'] = 'text_link'
+                    entity['url'] = url_map[url]
+
     # Replace in caption/text entities
     if 'entities' in message_data:
         replace_links_in_entities(message_data.get('text', ''), message_data['entities'])
@@ -684,6 +697,10 @@ async def generate_post(call: CallbackQuery):
         if replaced_count > 0:
             success_msg += f"\n📎 Заменено ссылок: {replaced_count}"
         await call.message.answer(success_msg)
+        
+        # Redirect to Purchase List
+        from main_bot.handlers.user.ad_creative.purchase_menu import show_purchase_list
+        await show_purchase_list(call)
         
     except Exception as e:
         # Catch specific errors
