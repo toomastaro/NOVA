@@ -1,4 +1,5 @@
 import time
+from typing import List, Optional
 
 from sqlalchemy import BigInteger, JSON
 from sqlalchemy.dialects.postgresql import ARRAY
@@ -8,34 +9,37 @@ from main_bot.database import Base
 
 
 class Post(Base):
+    """
+    Модель поста (черновик или запланированный).
+    """
     __tablename__ = 'posts'
 
-    # Data
+    # Основные данные
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    chat_ids: Mapped[list[int]] = mapped_column(ARRAY(BigInteger), index=True)
-    admin_id: Mapped[int] = mapped_column(BigInteger, index=True)
+    chat_ids: Mapped[List[int]] = mapped_column(ARRAY(BigInteger), index=True, comment='Список ID чатов/каналов')
+    admin_id: Mapped[int] = mapped_column(BigInteger, index=True, comment='ID админа, создавшего пост')
 
-    message_options: Mapped[dict] = mapped_column(JSON, nullable=False)
-    buttons: Mapped[str | None] = mapped_column()
-    send_time: Mapped[int | None] = mapped_column(index=True, default=None)
+    message_options: Mapped[dict] = mapped_column(JSON, nullable=False, comment='Контент сообщения (текст, медиа и т.д.)')
+    buttons: Mapped[Optional[str]] = mapped_column(comment='JSON-строка с кнопками')
+    send_time: Mapped[Optional[int]] = mapped_column(index=True, default=None, comment='Время запланированной отправки (timestamp)')
 
-    reaction: Mapped[dict | None] = mapped_column(JSON, default=None)
-    hide: Mapped[list[dict] | None] = mapped_column(ARRAY(JSON), default=None)
+    reaction: Mapped[Optional[dict]] = mapped_column(JSON, default=None, comment='Настройки реакций')
+    hide: Mapped[Optional[List[dict]]] = mapped_column(ARRAY(JSON), default=None, comment='Скрытый контент (спойлеры и т.д.)')
 
-    pin_time: Mapped[int | None] = mapped_column(default=None)
-    delete_time: Mapped[int | None] = mapped_column(default=None)
-    report: Mapped[bool] = mapped_column(default=False)
-    cpm_price: Mapped[int | None] = mapped_column(default=None)
+    pin_time: Mapped[Optional[int]] = mapped_column(default=None, comment='Время закрепа')
+    delete_time: Mapped[Optional[int]] = mapped_column(default=None, comment='Время автоудаления')
+    report: Mapped[bool] = mapped_column(default=False, comment='Включен ли отчет')
+    cpm_price: Mapped[Optional[int]] = mapped_column(default=None, comment='Цена за CPM (если реклама)')
 
-    backup_chat_id: Mapped[int | None] = mapped_column(BigInteger, default=None)
-    backup_message_id: Mapped[int | None] = mapped_column(BigInteger, default=None)
+    backup_chat_id: Mapped[Optional[int]] = mapped_column(BigInteger, default=None, comment='ID чата для бэкапа')
+    backup_message_id: Mapped[Optional[int]] = mapped_column(BigInteger, default=None, comment='ID сообщения в бэкапе')
 
-    # CPM Reporting Data
-    views_24h: Mapped[int | None] = mapped_column(default=None)
-    views_48h: Mapped[int | None] = mapped_column(default=None)
-    views_72h: Mapped[int | None] = mapped_column(default=None)
+    # Данные отчетов CPM (Views Reporting)
+    views_24h: Mapped[Optional[int]] = mapped_column(default=None)
+    views_48h: Mapped[Optional[int]] = mapped_column(default=None)
+    views_72h: Mapped[Optional[int]] = mapped_column(default=None)
     report_24h_sent: Mapped[bool] = mapped_column(default=False)
     report_48h_sent: Mapped[bool] = mapped_column(default=False)
     report_72h_sent: Mapped[bool] = mapped_column(default=False)
 
-    created_timestamp: Mapped[int] = mapped_column(default=time.time)
+    created_timestamp: Mapped[int] = mapped_column(default=lambda: int(time.time()), comment='Время создания')

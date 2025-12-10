@@ -1,7 +1,7 @@
 import logging
 import time
 from datetime import datetime
-from typing import List
+from typing import List, Optional
 
 from sqlalchemy import insert, select, update, delete, func, or_
 
@@ -15,6 +15,12 @@ logger = logging.getLogger(__name__)
 
 class PostCrud(DatabaseMixin):
     async def add_post(self, return_obj: bool = False, **kwargs) -> Post | None:
+        """
+        Добавляет новый пост в базу данных (черновик или запланированный).
+        :param return_obj: Если True, возвращает созданный объект Post.
+        :param kwargs: Поля модели Post.
+        :return: Объект Post или None.
+        """
         stmt = insert(Post).values(**kwargs)
 
         if return_obj:
@@ -25,12 +31,24 @@ class PostCrud(DatabaseMixin):
 
         return await operation(stmt, **{'commit': return_obj} if return_obj else {})
 
-    async def get_post(self, post_id: int) -> Post:
+    async def get_post(self, post_id: int) -> Post | None:
+        """
+        Получает пост по ID.
+        :param post_id: ID поста.
+        :return: Объект Post.
+        """
         return await self.fetchrow(
             select(Post).where(Post.id == post_id)
         )
 
     async def update_post(self, post_id: int, return_obj: bool = False, **kwargs) -> Post | None:
+        """
+        Обновляет существующий пост.
+        :param post_id: ID поста.
+        :param return_obj: Возвращать ли обновленный объект.
+        :param kwargs: Поля для обновления.
+        :return: Обновленный Post или None.
+        """
         stmt = update(Post).where(Post.id == post_id).values(**kwargs)
 
         if return_obj:
@@ -41,18 +59,29 @@ class PostCrud(DatabaseMixin):
 
         return await operation(stmt, **{'commit': return_obj} if return_obj else {})
 
-    async def delete_post(self, post_id: int):
+    async def delete_post(self, post_id: int) -> None:
+        """
+        Удаляет пост по ID.
+        :param post_id: ID поста.
+        """
         logger.info(f"Deleting post {post_id}")
         return await self.execute(
             delete(Post).where(Post.id == post_id)
         )
 
-    async def get_posts(self, chat_id: int, current_day: datetime = None, only_scheduled: bool = False):
-        # Scheduled posts
+    async def get_posts(self, chat_id: int, current_day: datetime = None, only_scheduled: bool = False) -> List[Post | PublishedPost]:
+        """
+        Получает список постов (запланированных и опубликованных) для конкретного чата.
+        :param chat_id: ID канала/чата.
+        :param current_day: День для фильтрации (по умолчанию None - все).
+        :param only_scheduled: Если True, возвращает только запланированные (Post).
+        :return: Список постов, отсортированный по времени отправки.
+        """
+        # Запланированные посты (Post)
         stmt_posts = select(Post).where(
             Post.chat_ids.contains([chat_id]),
             Post.send_time.isnot(None)
-        )
+        ).order_by(Post.send_time)
 
         if current_day:
             start_day = int(time.mktime(current_day.replace(hour=0, minute=0, second=0, microsecond=0).timetuple()))
@@ -67,10 +96,10 @@ class PostCrud(DatabaseMixin):
         
         published = []
         if not only_scheduled:
-            # Published posts
+            # Опубликованные посты (PublishedPost)
             stmt_published = select(PublishedPost).where(
                 PublishedPost.chat_id == chat_id
-            )
+            ).order_by(PublishedPost.created_timestamp)
             
             if current_day:
                 start_day = int(time.mktime(current_day.replace(hour=0, minute=0, second=0, microsecond=0).timetuple()))
@@ -82,25 +111,25 @@ class PostCrud(DatabaseMixin):
                 )
             published = await self.fetch(stmt_published)
 
-        # Combine and sort
+        # Объединение и сортировка
         all_posts = []
         for p in posts:
-            p.status = "scheduled"
+            p.status = "scheduled"  # Временное поле для UI
             all_posts.append(p)
         
         for p in published:
-            # p.status = "published"  <-- Removed to preserve DB status ('active'/'deleted')
-            # Map created_timestamp to send_time for consistent sorting/display if needed
-            # But PublishedPost doesn't have send_time in the same way, it has created_timestamp
-            # We will use a property or just handle it in the sort key
+            # Маппинг created_timestamp в send_time для единой сортировки
             p.send_time = p.created_timestamp 
             all_posts.append(p)
 
-        all_posts.sort(key=lambda x: x.send_time)
+        all_posts.sort(key=lambda x: x.send_time if x.send_time else 0)
         
         return all_posts
 
-    async def clear_empty_posts(self):
+    async def clear_empty_posts(self) -> None:
+        """
+        Очищает посты без чатов старше 2 недель.
+        """
         week_ago = int(time.time()) - 7 * 24 * 60 * 60
 
         await self.execute(
@@ -110,7 +139,11 @@ class PostCrud(DatabaseMixin):
             )
         )
 
-    async def get_post_for_send(self):
+    async def get_post_for_send(self) -> List[Post]:
+        """
+        Получает посты, готовые к отправке (время отправки наступило).
+        :return: Список постов для отправки.
+        """
         current_time = int(time.time())
 
         return await self.fetch(
@@ -121,7 +154,11 @@ class PostCrud(DatabaseMixin):
             )
         )
 
-    async def clear_posts(self, post_ids: List[int]):
+    async def clear_posts(self, post_ids: List[int]) -> None:
+        """
+        Удаляет список постов по их ID.
+        :param post_ids: Список ID постов.
+        """
         logger.info(f"Clearing posts: {post_ids}")
         await self.execute(
             delete(Post).where(
