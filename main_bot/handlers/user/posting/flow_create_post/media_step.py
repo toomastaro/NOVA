@@ -58,17 +58,33 @@ async def manage_post(call: types.CallbackQuery, state: FSMContext):
                 show_more=False
             )
             await call.message.delete()
-            return await call.message.answer(
-                text("post:content").format(
-                    *data.get("send_date_values"),
-                    data.get("channel").emoji_id,
-                    data.get("channel").title
-                ),
-                reply_markup=keyboards.manage_remain_post(
-                    post=post,
-                    is_published=data.get("is_published")
+            # Back logic
+            await state.update_data(show_more=False)
+            
+            if data.get("is_published"):
+                # Return to Published Post View
+                from main_bot.handlers.user.posting.content import generate_post_info_text
+                info_text = await generate_post_info_text(post, is_published=True)
+                
+                return await call.message.edit_text(
+                    info_text,
+                    reply_markup=keyboards.manage_published_post(
+                        post=post
+                    )
                 )
-            )
+            else:
+                # Return to Draft/Scheduled View
+                return await call.message.answer(
+                    text("post:content").format(
+                        *data.get("send_date_values"),
+                        data.get("channel").emoji_id,
+                        data.get("channel").title
+                    ),
+                    reply_markup=keyboards.manage_remain_post(
+                        post=post,
+                        is_published=False
+                    )
+                )
 
         if post:
             await db.delete_post(post.id)
@@ -151,15 +167,17 @@ async def manage_post(call: types.CallbackQuery, state: FSMContext):
                 message_options.show_caption_above_media = not message_options.show_caption_above_media
         
         if temp[1] == 'pin_time':
-            # Переключаем закреп: если был включен - выключаем, если выключен - включаем (True)
-            new_pin_value = not post.pin_time if post.pin_time else True
+            # Переключаем закреп
+            # Handle PublishedPost (unpin_time) vs Post (pin_time)
+            current_val = getattr(post, 'pin_time', getattr(post, 'unpin_time', None))
+            new_pin_value = not current_val if current_val else True
 
         # Обновление в БД
         if data.get("is_published"):
             # Update all published posts with same post_id
             update_kwargs = {}
             if temp[1] == 'pin_time':
-                update_kwargs['pin_time'] = new_pin_value
+                update_kwargs['unpin_time'] = new_pin_value
             else:
                 update_kwargs['message_options'] = message_options.model_dump()
             

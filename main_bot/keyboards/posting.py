@@ -138,7 +138,7 @@ class InlinePosting(InlineKeyboardBuilder):
             kb.row(
                 InlineKeyboardButton(
                     text=text("manage:post:pin:button").format(
-                        "✅" if post.pin_time else "❌"
+                        "✅" if getattr(post, 'pin_time', getattr(post, 'unpin_time', None)) else "❌"
                     ),
                     callback_data=f'ManagePost|pin_time|{post.id}'
                 ),

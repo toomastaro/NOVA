@@ -301,9 +301,13 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
         logger.info(f"User {call.from_user.id} viewing published post {post_id}")
         post = await db.get_published_post_by_id(post_id)
         
+        # Prepare date values matching the expected format
+        dt = datetime.fromtimestamp(post.created_timestamp)
+        send_date_values = (dt.day, text("month").get(str(dt.month)), dt.year,)
+        
         await state.update_data(
             post=post,
-            send_date_values=datetime.fromtimestamp(post.created_timestamp).timetuple(), # Mock/Simplification
+            send_date_values=send_date_values,
             is_edit=True, 
             is_published=True 
         )
