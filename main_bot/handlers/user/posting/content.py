@@ -88,7 +88,7 @@ async def generate_post_info_text(post_obj, is_published: bool = False) -> str:
                 url = ""
                 title_link = f"<a href='{url}'>{channel.title}</a>" if url else channel.title
                 
-                channels_text += f"📢 {title_link} (<code>{p.chat_id}</code>)\n"
+                channels_text += f"📺 {title_link}\n"
         channels_text += "</blockquote>"
         
         # Основной блок Published
@@ -139,7 +139,7 @@ async def generate_post_info_text(post_obj, is_published: bool = False) -> str:
             for chat_id in post_obj.chat_ids:
                 channel = await db.get_channel_by_chat_id(chat_id)
                 if channel:
-                    channels_text += f"📢 {channel.title}\n"
+                    channels_text += f"📺 {channel.title}\n"
             channels_text += "</blockquote>"
             
             return (
@@ -162,8 +162,7 @@ async def generate_post_info_text(post_obj, is_published: bool = False) -> str:
                     url = "" # Нет username
                     title_link = f"<a href='{url}'>{channel.title}</a>" if url else channel.title
                     
-                    subs = "???" 
-                    channels_text += f"📢 {title_link} ({subs} 👥)\n"
+                    channels_text += f"📺 {title_link}\n"
             channels_text += "</blockquote>"
             
             return (
