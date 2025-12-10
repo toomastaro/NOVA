@@ -738,6 +738,25 @@ async def generate_post(call: CallbackQuery):
         chat_id = call.from_user.id
         reply_markup = message_data.get('reply_markup')
         
+        # Debug logging
+        import logging
+        logger = logging.getLogger(__name__)
+        # Format entities for logging
+        ents_debug = message_data.get('entities')
+        caps_debug = message_data.get('caption_entities')
+        logger.error(f"DEBUG: Generating post. Purchase {purchase_id}. Entities: {ents_debug}, CaptionEntities: {caps_debug}")
+
+        # Helper to safely create entities
+        def safe_entities(ent_list):
+            if not ent_list: 
+                return None
+            try:
+                # Filter out nulls if any
+                return [types.MessageEntity(**e) for e in ent_list if e]
+            except Exception as e:
+                logger.error(f"Error creating MessageEntity list: {e}")
+                return None
+        
         # Prioritize media types over text (media messages can have 'text' field but it's actually caption)
         if 'photo' in message_data:
             photo_id = message_data['photo'][-1]['file_id']
@@ -750,7 +769,7 @@ async def generate_post(call: CallbackQuery):
                 chat_id=chat_id,
                 photo=photo_id,
                 caption=caption if caption else None,
-                caption_entities=[types.MessageEntity(**e) for e in message_data.get('caption_entities', [])] if message_data.get('caption_entities') else None,
+                caption_entities=safe_entities(message_data.get('caption_entities')),
                 reply_markup=reply_markup
             )
         elif 'video' in message_data:
@@ -763,7 +782,7 @@ async def generate_post(call: CallbackQuery):
                 chat_id=chat_id,
                 video=video_id,
                 caption=caption if caption else None,
-                caption_entities=[types.MessageEntity(**e) for e in message_data.get('caption_entities', [])] if message_data.get('caption_entities') else None,
+                caption_entities=safe_entities(message_data.get('caption_entities')),
                 reply_markup=reply_markup
             )
         elif 'animation' in message_data:
@@ -776,7 +795,7 @@ async def generate_post(call: CallbackQuery):
                 chat_id=chat_id,
                 animation=animation_id,
                 caption=caption if caption else None,
-                caption_entities=[types.MessageEntity(**e) for e in message_data.get('caption_entities', [])] if message_data.get('caption_entities') else None,
+                caption_entities=safe_entities(message_data.get('caption_entities')),
                 reply_markup=reply_markup
             )
         elif 'text' in message_data:
@@ -788,7 +807,7 @@ async def generate_post(call: CallbackQuery):
             await call.bot.send_message(
                 chat_id=chat_id,
                 text=text,
-                entities=[types.MessageEntity(**e) for e in message_data.get('entities', [])] if message_data.get('entities') else None,
+                entities=safe_entities(message_data.get('entities')),
                 reply_markup=reply_markup,
                 disable_web_page_preview=True
             )
