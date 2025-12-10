@@ -7,7 +7,7 @@ load_dotenv()
 
 
 class Config:
-    VERSION = "1.0.403"
+    VERSION = "1.0.404"
 
     # Bot
     BOT_TOKEN = os.getenv('BOT_TOKEN')
