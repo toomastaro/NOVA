@@ -333,7 +333,7 @@ async def run_analysis_logic(message: types.Message, channels: list, depth: int,
     
     for i, ch in enumerate(channels, 1):
         # Collect
-        stats = await novastat_service.collect_stats(ch, depth, horizon=24)
+        stats = await novastat_service.collect_stats(ch, depth, horizon=24, bot=message.bot)
         
         if stats:
             valid_count += 1

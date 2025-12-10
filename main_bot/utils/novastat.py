@@ -8,6 +8,7 @@ from statistics import median
 from typing import List, Tuple, Dict, Optional
 from pathlib import Path
 
+from aiogram import Bot
 from telethon import TelegramClient
 from telethon.tl import functions, types
 from telethon.errors import RPCError
@@ -105,7 +106,7 @@ class NovaStatService:
         
         return normalized
 
-    async def collect_stats(self, channel_identifier: str, days_limit: int = 7, horizon: int = 24) -> Optional[Dict]:
+    async def collect_stats(self, channel_identifier: str, days_limit: int = 7, horizon: int = 24, bot: Bot = None) -> Optional[Dict]:
         """
         Собрать статистику для канала с кэшированием.
         
@@ -113,6 +114,7 @@ class NovaStatService:
             channel_identifier: username или ссылка на канал
             days_limit: глубина анализа в днях
             horizon: горизонт для кэша (24, 48, 72)
+            bot: AIogram Bot instance (для получения подписчиков через API)
         
         Returns:
             Dict со статистикой или None при ошибке
@@ -138,7 +140,7 @@ class NovaStatService:
         
         # 3. Если кэша нет или он устарел - обновить синхронно (ждать результата)
         logger.info(f"Cache miss for {channel_identifier}, fetching fresh data...")
-        await self.async_refresh_stats(channel_identifier, days_limit, horizon)
+        await self.async_refresh_stats(channel_identifier, days_limit, horizon, bot=bot)
         
         # 4. Получить обновленные данные из кэша
         cache = await db.get_cache(channel_identifier, horizon)
@@ -163,7 +165,7 @@ class NovaStatService:
              return "Канал приватный и недоступен."
         return f"{err_str}"
 
-    async def async_refresh_stats(self, channel_identifier: str, days_limit: int, horizon: int):
+    async def async_refresh_stats(self, channel_identifier: str, days_limit: int, horizon: int, bot: Bot = None):
         """Асинхронное обновление статистики в кэше"""
         try:
             # Установить флаг обновления
@@ -205,32 +207,50 @@ class NovaStatService:
                 if subs <= 0:
                     try:
                         logger.info(f"Subscribers count is 0 for {channel_id}, trying to fetch...")
-                        # Используем external клиент
-                        client_data = await self.get_external_client()
-                        if client_data:
-                            client, manager = client_data
+                        
+                        updated_via_bot = False
+                        
+                        # 1. Попытка через Bot API (если передан бот)
+                        if bot:
                             try:
-                                # Получаем entity
-                                # Для int ID может потребоваться PeerChannel или просто int
-                                entity = await manager.client.get_entity(channel_id)
-                                
-                                # get_entity часто возвращает Chat/Channel с participants_count
-                                if hasattr(entity, 'participants_count') and entity.participants_count:
-                                    subs = entity.participants_count
-                                else:
-                                    # Fallback to get_full_channel if simple entity doesn't have count
-                                    full = await manager.client(functions.channels.GetFullChannelRequest(entity))
-                                    subs = full.full_chat.participants_count
-                                
-                                if subs > 0:
-                                    await db.update_channel_by_chat_id(our_channel.chat_id, subscribers_count=subs)
-                                    # Обновляем объект в памяти для этого запуска
-                                    our_channel.subscribers_count = subs
-                                    logger.info(f"Updated initial subscribers count for {our_channel.chat_id}: {subs}")
+                                count = await bot.get_chat_member_count(channel_id)
+                                if count > 0:
+                                    await db.update_channel_by_chat_id(our_channel.chat_id, subscribers_count=count)
+                                    our_channel.subscribers_count = count
+                                    subs = count
+                                    updated_via_bot = True
+                                    logger.info(f"Updated initial subscribers count for {our_channel.chat_id} via Bot API: {subs}")
+                            except Exception as e_bot:
+                                logger.info(f"Bot API subs fetch failed for {channel_id}: {e_bot}")
+                        
+                        # 2. Если Bot API не сработал - пробуем External Client
+                        if not updated_via_bot:
+                            # Используем external клиент
+                            client_data = await self.get_external_client()
+                            if client_data:
+                                client, manager = client_data
+                                try:
+                                    # Получаем entity
+                                    # Для int ID может потребоваться PeerChannel или просто int
+                                    entity = await manager.client.get_entity(channel_id)
                                     
-                            finally:
-                                # Обязательно закрываем сессию
-                                await manager.close()
+                                    # get_entity часто возвращает Chat/Channel с participants_count
+                                    if hasattr(entity, 'participants_count') and entity.participants_count:
+                                        subs = entity.participants_count
+                                    else:
+                                        # Fallback to get_full_channel if simple entity doesn't have count
+                                        full = await manager.client(functions.channels.GetFullChannelRequest(entity))
+                                        subs = full.full_chat.participants_count
+                                    
+                                    if subs > 0:
+                                        await db.update_channel_by_chat_id(our_channel.chat_id, subscribers_count=subs)
+                                        # Обновляем объект в памяти для этого запуска
+                                        our_channel.subscribers_count = subs
+                                        logger.info(f"Updated initial subscribers count for {our_channel.chat_id}: {subs}")
+                                        
+                                finally:
+                                    # Обязательно закрываем сессию
+                                    await manager.close()
                     except Exception as e:
                         logger.warning(f"Failed to fetch initial subs count for {channel_id}: {e}")
                 
