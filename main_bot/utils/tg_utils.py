@@ -329,230 +329,20 @@ async def set_channel_session(chat_id: int):
             logger.error(f"❌ Failed to add client {client.id} to channel {chat_id}")
             return {"error": "Failed to Add Client"}
         
-        # Клиент успешно добавлен, теперь проверяем права бота и промоутим если возможно
-        bot_rights_result = {
-            "has_admin": False,
-            "can_promote": False,
-            "reason": None
-        }
-        
-        # Проверяем, является ли бот администратором
-        try:
-            bot_member = await main_bot_obj.get_chat_member(chat_id, (await main_bot_obj.get_me()).id)
-            logger.info(f"Bot member status in {chat_id}: {bot_member.status}")
-        except Exception as e:
-            logger.error(f"Failed to get bot member info: {e}")
-            bot_rights_result["reason"] = f"Failed to check bot status: {e}"
-            
-            # Добавляем клиента в БД как обычного участника
-            await db.get_or_create_mt_client_channel(client.id, chat_id)
-            await db.set_membership(
-                client_id=client.id,
-                channel_id=chat_id,
-                is_member=True,
-                is_admin=False,
-                can_post_stories=False,
-                last_joined_at=int(time.time())
-            )
-            
-            await db.update_channel_by_chat_id(
-                chat_id=chat_id,
-                session_path=str(session_path)
-            )
-            
-            # Update last_client_id for round-robin
-            await db.update_last_client(channel.id, client.id)
-            logger.info(f"✅ Updated last_client_id for channel {channel.id} to {client.id}")
-            
-            return {"success": True, "bot_rights": bot_rights_result, "session_path": str(session_path)}
-        
-        if bot_member.status not in [ChatMemberStatus.ADMINISTRATOR, ChatMemberStatus.CREATOR]:
-            bot_rights_result["reason"] = "Bot is not an administrator"
-            logger.error(f"❌ {bot_rights_result['reason']} in {chat_id}")
-            logger.warning(f"Skipping promotion for client {client.id}, adding as regular member")
-            
-            # Добавляем клиента в БД как обычного участника
-            await db.get_or_create_mt_client_channel(client.id, chat_id)
-            await db.set_membership(
-                client_id=client.id,
-                channel_id=chat_id,
-                is_member=True,
-                is_admin=False,
-                can_post_stories=False,
-                last_joined_at=int(time.time())
-            )
-            
-            await db.update_channel_by_chat_id(
-                chat_id=chat_id,
-                session_path=str(session_path)
-            )
-            
-            # Update last_client_id for round-robin
-            await db.update_last_client(channel.id, client.id)
-            logger.info(f"✅ Updated last_client_id for channel {channel.id} to {client.id}")
-            
-            return {"success": True, "bot_rights": bot_rights_result, "session_path": str(session_path)}
-        
-        bot_rights_result["has_admin"] = True
-        
-        # Проверяем права бота на промоут
-        if not bot_member.can_promote_members:
-            bot_rights_result["reason"] = "Bot lacks can_promote_members permission"
-            logger.error(f"❌ {bot_rights_result['reason']} in {chat_id}")
-            logger.warning(f"Skipping promotion for client {client.id}, adding as regular member")
-            
-            # Добавляем клиента в БД как обычного участника
-            await db.get_or_create_mt_client_channel(client.id, chat_id)
-            await db.set_membership(
-                client_id=client.id,
-                channel_id=chat_id,
-                is_member=True,
-                is_admin=False,
-                can_post_stories=False,
-                last_joined_at=int(time.time())
-            )
-            
-            await db.update_channel_by_chat_id(
-                chat_id=chat_id,
-                session_path=str(session_path)
-            )
-            
-            # Update last_client_id for round-robin
-            await db.update_last_client(channel.id, client.id)
-            logger.info(f"✅ Updated last_client_id for channel {channel.id} to {client.id}")
-            
-            return {"success": True, "bot_rights": bot_rights_result, "session_path": str(session_path)}
-        
-        bot_rights_result["can_promote"] = True
-        logger.info(f"✅ Bot has admin rights with can_promote_members in {chat_id}")
-        
-        # Проверяем какие права на stories есть у самого бота
-        bot_can_post_stories = getattr(bot_member, 'can_post_stories', False)
-        bot_can_edit_stories = getattr(bot_member, 'can_edit_stories', False)
-        bot_can_delete_stories = getattr(bot_member, 'can_delete_stories', False)
-        
-        logger.info(f"📊 Bot story rights: post={bot_can_post_stories}, edit={bot_can_edit_stories}, delete={bot_can_delete_stories}")
-        
-        # Бот имеет права, промоутим клиента
-        # ВАЖНО: можем выдать только те права, которые есть у самого бота
-        
-        # Ждем пару секунд чтобы Telegram осознал что пользователь вступил
-        await asyncio.sleep(2)
-        
-        try:
-            promote = await main_bot_obj.promote_chat_member(
-                chat_id=chat_id,
-                user_id=me.id,
-                # Stories rights
-                can_edit_stories=bot_can_edit_stories,
-                can_post_stories=bot_can_post_stories,
-                can_delete_stories=bot_can_delete_stories,
-                # Channel management
-                can_manage_chat=True,
-                can_change_info=True,
-                # Messages
-                can_post_messages=True,
-                can_edit_messages=True,
-                can_delete_messages=True,
-                # Users
-                can_invite_users=True,
-                can_restrict_members=True,
-                # Other
-                can_pin_messages=True,
-                can_manage_video_chats=True,
-                can_promote_members=True,
-                can_manage_topics=True,
-                is_anonymous=False
-            )
-            logger.info(f"✅ Successfully promoted client {client.id} (user_id={me.id}) in {chat_id}")
-            bot_rights_result["promoted"] = True
-            
-        except Exception as e:
-            if "USER_NOT_MUTUAL_CONTACT" in str(e):
-                logger.warning(f"Got USER_NOT_MUTUAL_CONTACT for {chat_id}, waiting 5s and retrying...")
-                await asyncio.sleep(5)
-                try:
-                    promote = await main_bot_obj.promote_chat_member(
-                        chat_id=chat_id,
-                        user_id=me.id,
-                        # Stories rights
-                        can_edit_stories=bot_can_edit_stories,
-                        can_post_stories=bot_can_post_stories,
-                        can_delete_stories=bot_can_delete_stories,
-                        # Channel management
-                        can_manage_chat=True,
-                        can_change_info=True,
-                        # Messages
-                        can_post_messages=True,
-                        can_edit_messages=True,
-                        can_delete_messages=True,
-                        # Users
-                        can_invite_users=True,
-                        can_restrict_members=True,
-                        # Other
-                        can_pin_messages=True,
-                        can_manage_video_chats=True,
-                        can_promote_members=True,
-                        can_manage_topics=True,
-                        is_anonymous=False
-                    )
-                    logger.info(f"✅ Successfully promoted client {client.id} on retry")
-                    bot_rights_result["promoted"] = True
-                except Exception as retry_e:
-                    bot_rights_result["reason"] = f"Failed to promote on retry: {retry_e}"
-                    logger.error(f"❌ {bot_rights_result['reason']}")
-            else:
-                bot_rights_result["reason"] = f"Failed to promote: {e}"
-                logger.error(f"❌ {bot_rights_result['reason']}")
-            
-            # Финальная проверка: убедимся что клиент действительно получил права
-            try:
-                client_member = await main_bot_obj.get_chat_member(chat_id, me.id)
-                actual_can_post_stories = getattr(client_member, 'can_post_stories', False)
-                logger.info(f"📊 Final check - Client {client.id} can_post_stories: {actual_can_post_stories}")
-            except Exception as check_error:
-                logger.warning(f"Could not verify client rights: {check_error}")
-                actual_can_post_stories = bot_can_post_stories  # Предполагаем что права выданы
-            
-        except Exception as e:
-            logger.error(f"❌ Failed to promote client {client.id}: {e}")
-            
-            # Даже если промоут не удался, клиент уже в канале как обычный участник
-            await db.get_or_create_mt_client_channel(client.id, chat_id)
-            await db.set_membership(
-                client_id=client.id,
-                channel_id=chat_id,
-                is_member=True,
-                is_admin=False,
-                can_post_stories=False,
-                last_joined_at=int(time.time())
-            )
-            
-            await db.update_channel_by_chat_id(
-                chat_id=chat_id,
-                session_path=str(session_path)
-            )
-            
-            # Update last_client_id for round-robin
-            await db.update_last_client(channel.id, client.id)
-            logger.info(f"✅ Updated last_client_id for channel {channel.id} to {client.id}")
-            
-            return {"success": True, "bot_rights": bot_rights_result, "session_path": str(session_path)}
-        
-        # Create/Update MtClientChannel
+        # Клиент успешно добавлен
+        logger.info(f"✅ Client {client.id} joined channel {chat_id}, skipping promotion (manual only)")
+
+        # Добавляем клиента в БД как обычного участника
         await db.get_or_create_mt_client_channel(client.id, chat_id)
         await db.set_membership(
             client_id=client.id,
             channel_id=chat_id,
             is_member=True,
-            is_admin=True,
-            can_post_stories=True,  # Подтверждено финальной проверкой
+            is_admin=False,
+            can_post_stories=False,
             last_joined_at=int(time.time())
         )
         
-        # Update legacy channel field for backward compatibility if needed, 
-        # but we are moving away from it. 
-        # However, existing code might still rely on it until fully refactored.
         await db.update_channel_by_chat_id(
             chat_id=chat_id,
             session_path=str(session_path)
@@ -562,10 +352,7 @@ async def set_channel_session(chat_id: int):
         await db.update_last_client(channel.id, client.id)
         logger.info(f"✅ Updated last_client_id for channel {channel.id} to {client.id}")
         
-        # Mark as successfully promoted
-        bot_rights_result["promoted"] = True
-        
-        return {"success": True, "bot_rights": bot_rights_result, "session_path": str(session_path)}
+        return {"success": True, "bot_rights": {}, "session_path": str(session_path)}
 
 
 async def background_join_channel(chat_id: int, user_id: int = None):
