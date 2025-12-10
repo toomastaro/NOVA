@@ -522,12 +522,11 @@ class InlinePosting(InlineKeyboardBuilder):
         is_deleted = getattr(post, 'status', 'active') == 'deleted'
         
         if is_deleted:
-            # Если пост удален - показываем только кнопку отчета (если был включен) и назад
-            if post.report or post.cpm_price:
-                 kb.button(
-                    text=text("cpm:report:view_button"),
-                    callback_data="ManagePublishedPost|cpm_report"
-                )
+            # Если пост удален - показываем только кнопку отчета и назад
+            kb.button(
+                text=text("cpm:report:view_button"),
+                callback_data="ManagePublishedPost|cpm_report"
+            )
             
             kb.button(
                 text=text("back:button"),
@@ -536,24 +535,29 @@ class InlinePosting(InlineKeyboardBuilder):
             kb.adjust(1)
             return kb.as_markup()
 
-        # 1. Изменить пост
-        # Используем тот же callback что и для scheduled, обработаем в хендлере
+        # 1. Изменить + Таймер
         kb.button(
             text=text("manage:post:change:button"),
             callback_data="ManagePublishedPost|change"
         )
         
-        # 2. Таймер удаления / CPM
-        # Для опубликованных тоже можно менять таймер?
-        # User request: "настроить/перенастроить таймер удаления и СПМ настройку"
+        # Логика отображения таймера
+        dt = post.delete_time
+        if not dt:
+             timer_text = text("manage:post:del_time:not")
+        elif dt % 3600 == 0:
+             timer_text = f"{int(dt / 3600)} ч."
+        elif dt > 3600:
+             timer_text = f"{int(dt // 3600)} ч. {int((dt % 3600) / 60)} мин."
+        else:
+             timer_text = f"{int(dt / 60)} мин."
+
         kb.button(
-            text=text("manage:post:del_time:button").format(
-                 (f"{int(post.delete_time / 60)} мин." if post.delete_time < 3600 else f"{int(post.delete_time / 3600)} ч.")
-                 if post.delete_time else text("manage:post:del_time:not")
-            ),
-            callback_data="ManagePublishedPost|timer" # Custom callback to handle logic
+            text=text("manage:post:del_time:button").format(timer_text),
+            callback_data="ManagePublishedPost|timer"
         )
         
+        # 2. CPM + Удалить
         kb.button(
              text=text("manage:post:add:cpm:button").format(
                     f"{post.cpm_price}₽" if post.cpm_price else "❌"
@@ -566,10 +570,16 @@ class InlinePosting(InlineKeyboardBuilder):
             callback_data="ManagePublishedPost|delete"
         )
         
+        # 3. Назад + Отчет
         kb.button(
             text=text("back:button"),
             callback_data="ManagePublishedPost|cancel"
         )
+        
+        kb.button(
+            text=text("cpm:report:view_button"),
+            callback_data="ManagePublishedPost|cpm_report"
+        )
 
-        kb.adjust(1, 2, 2)
+        kb.adjust(2, 2, 2)
         return kb.as_markup()
