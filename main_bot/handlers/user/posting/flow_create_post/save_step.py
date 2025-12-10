@@ -140,7 +140,13 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
                 message_id=backup_message_id
             )
         except Exception as e:
-            logger.error(f"Failed to copy preview from backup: {e}")
+            logging.error(f"Failed to copy preview from backup: {e}")
+            from main_bot.utils.message_utils import answer_post
+            await answer_post(call.message, state, from_edit=True)
+    else:
+        from main_bot.utils.message_utils import answer_post
+        await answer_post(call.message, state, from_edit=True)
+
 
     # 2. OTLOG Text Construction
     
@@ -202,5 +208,6 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
     await call.message.answer(
         otlog_text,
         reply_markup=keyboards.posting_menu(),
-        parse_mode="HTML"
+        parse_mode="HTML",
+        link_preview_options=types.LinkPreviewOptions(is_disabled=True)
     )

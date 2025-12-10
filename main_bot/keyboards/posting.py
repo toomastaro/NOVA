@@ -453,10 +453,16 @@ class InlinePosting(InlineKeyboardBuilder):
             )
             
             # 2. Настроить таймер удаления
+            del_time_text = text("manage:post:del_time:not")
+            if post.delete_time:
+                if post.delete_time < 3600:
+                    del_time_text = f"{int(post.delete_time / 60)} мин."
+                else:
+                    del_time_text = f"{int(post.delete_time / 3600)} ч."
+                    
             kb.button(
                 text=text("manage:post:del_time:button").format(
-                    f"{int(post.delete_time / 3600)} ч."  # type: ignore
-                    if post.delete_time else text("manage:post:del_time:not")
+                    del_time_text
                 ),
                 callback_data="FinishPostParams|delete_time"
             )

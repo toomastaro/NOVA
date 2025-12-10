@@ -594,5 +594,6 @@ async def get_send_time(message: types.Message, state: FSMContext):
             delete_str
         ),
         reply_markup=keyboards.accept_date(),
-        parse_mode="HTML"
+        parse_mode="HTML",
+        link_preview_options=types.LinkPreviewOptions(is_disabled=True)
     )

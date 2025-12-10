@@ -13,7 +13,7 @@ import os
 import time
 from pathlib import Path
 
-from aiogram import Bot
+from aiogram import Bot, types
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from config import Config
@@ -239,7 +239,8 @@ async def send(post: Post):
         await bot.send_message(
             chat_id=post.admin_id,
             text=message_text,
-            reply_markup=keyboards.posting_menu()
+            reply_markup=keyboards.posting_menu(),
+            link_preview_options=types.LinkPreviewOptions(is_disabled=True)
         )
     except Exception as e:
         logger.error(f"Error sending report to admin {post.admin_id}: {e}", exc_info=True)
@@ -345,7 +346,8 @@ async def check_cpm_reports():
             
             await bot.send_message(
                 chat_id=post.admin_id,
-                text=full_report
+                text=full_report,
+                link_preview_options=types.LinkPreviewOptions(is_disabled=True)
             )
             
         except Exception as e:
@@ -388,7 +390,8 @@ async def delete_posts():
                         post.message_id,
                         channel.emoji_id,
                         channel.title
-                    )
+                    ),
+                    link_preview_options=types.LinkPreviewOptions(is_disabled=True)
                 )
             except Exception as e:
                 logger.error(f"Error sending delete error report to admin {post.admin_id}: {e}", exc_info=True)
@@ -481,7 +484,8 @@ async def delete_posts():
             
             await bot.send_message(
                 chat_id=admin_id,
-                text=report_text
+                text=report_text,
+                link_preview_options=types.LinkPreviewOptions(is_disabled=True)
             )
         except Exception as e:
             logger.error(f"Error sending CPM report to admin {admin_id}: {e}", exc_info=True)
