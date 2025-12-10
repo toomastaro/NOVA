@@ -1,4 +1,6 @@
 import logging
+import re
+import html
 from datetime import datetime, timedelta
 
 from aiogram import types, F, Router
@@ -564,7 +566,10 @@ async def manage_published_post(call: types.CallbackQuery, state: FSMContext):
         # Extract Text Preview
         opts = post.message_options or {}
         raw_text = opts.get('text') or opts.get('caption') or "Без текста"
-        preview_text = raw_text[:15] + "..." if len(raw_text) > 15 else raw_text
+        # Strip HTML tags to prevent broken tags in preview
+        clean_text = re.sub(r'<[^>]+>', '', raw_text)
+        preview_text_raw = clean_text[:15] + "..." if len(clean_text) > 15 else clean_text
+        preview_text = html.escape(preview_text_raw)
         
         # Using basic cpm:report format
         report_text = text("cpm:report").format(
