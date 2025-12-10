@@ -198,7 +198,7 @@ async def back_to_main_settings(call: types.CallbackQuery):
     )
 
 
-async def router_choice(call: types.CallbackQuery):
+async def router_choice(call: types.CallbackQuery, state: FSMContext):
     action = call.data.split('|')[1]
     if action == 'cpm':
         await show_specific_setting(call, 'cpm')
@@ -211,8 +211,7 @@ async def router_choice(call: types.CallbackQuery):
     elif action == 'toggle':
         await process_toggle(call)
     elif action == 'edit':
-        # Need state
-        pass 
+        await start_edit_text(call, state) 
 
 
 def hand_add():
@@ -220,28 +219,11 @@ def hand_add():
     
     # Handlers
     
-    # Navigate to specific setting
+    # Valid ReportSetting actions
     router.callback_query.register(
-        lambda c: show_specific_setting(c, 'cpm'), 
-        F.data == "ReportSetting|cpm"
+        router_choice,
+        F.data.startswith("ReportSetting|")
     )
-    router.callback_query.register(
-        lambda c: show_specific_setting(c, 'exchange'), 
-        F.data == "ReportSetting|exchange"
-    )
-    router.callback_query.register(
-        lambda c: show_specific_setting(c, 'referral'), 
-        F.data == "ReportSetting|referral"
-    )
-    
-    # Toggle
-    router.callback_query.register(process_toggle, F.data.startswith("ReportSetting|toggle|"))
-    
-    # Edit Text Start
-    router.callback_query.register(start_edit_text, F.data.startswith("ReportSetting|edit|"))
-    
-    # Back to Report Menu (from Item)
-    router.callback_query.register(show_report_settings_menu, F.data == "ReportSetting|back")
     
     # Back to Main Settings (from Report Menu)
     router.callback_query.register(back_to_main_settings, F.data == "Setting|reports_back")
