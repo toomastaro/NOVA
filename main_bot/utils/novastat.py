@@ -196,6 +196,41 @@ class NovaStatService:
             
             # Шаг 2: Если канал "свой", использовать данные из БД (обновляемые ежечасно)
             if our_channel and channel_id:
+                subs = our_channel.subscribers_count
+                
+                # Если подписчиков нет, пробуем получить их прямо сейчас
+                if subs <= 0:
+                    try:
+                        logger.info(f"Subscribers count is 0 for {channel_id}, trying to fetch...")
+                        # Используем external клиент
+                        client_data = await self.get_external_client()
+                        if client_data:
+                            client, manager = client_data
+                            try:
+                                # Получаем entity
+                                # Для int ID может потребоваться PeerChannel или просто int
+                                entity = await manager.client.get_entity(channel_id)
+                                
+                                # get_entity часто возвращает Chat/Channel с participants_count
+                                if hasattr(entity, 'participants_count') and entity.participants_count:
+                                    subs = entity.participants_count
+                                else:
+                                    # Fallback to get_full_channel if simple entity doesn't have count
+                                    full = await manager.client(functions.channels.GetFullChannelRequest(entity))
+                                    subs = full.full_chat.participants_count
+                                
+                                if subs > 0:
+                                    await db.update_channel_by_chat_id(our_channel.chat_id, subscribers_count=subs)
+                                    # Обновляем объект в памяти для этого запуска
+                                    our_channel.subscribers_count = subs
+                                    logger.info(f"Updated initial subscribers count for {our_channel.chat_id}: {subs}")
+                                    
+                            finally:
+                                # Обязательно закрываем сессию
+                                await manager.close()
+                    except Exception as e:
+                        logger.warning(f"Failed to fetch initial subs count for {channel_id}: {e}")
+                
                 logger.info(f"Channel {channel_identifier} is our channel (id={channel_id}), using DB stats")
                 
                 # Формируем статистику из БД
