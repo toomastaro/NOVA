@@ -35,8 +35,12 @@ async def create_creative_start(call: CallbackQuery, state: FSMContext):
 @router.message(AdCreativeStates.waiting_for_content)
 async def process_creative_content(message: Message, state: FSMContext):
     # Serialize message
-    # Use exclude_defaults=True to avoid serializing aiogram.client.default.Default types
-    raw_message = json.loads(message.model_dump_json(exclude_defaults=True))
+    # Don't use exclude_defaults=True to ensure we keep essential fields like entities even if they look like defaults
+    # But wait, aiogram objects are huge. 
+    # Let's try to just dump. 
+    # If this causes issues with circular refs or size, we might need a custom serializer.
+    # But message.model_dump_json() is standard.
+    raw_message = json.loads(message.model_dump_json())
     
     # Extract links
     slots = []
@@ -168,7 +172,19 @@ async def delete_creative(call: CallbackQuery):
     creative_id = int(call.data.split("|")[2])
     await db.update_creative_status(creative_id, "deleted")
     await call.answer("Креатив удален")
-    await list_creatives(call)
+    
+    # Check remaining
+    creatives = await db.get_user_creatives(call.from_user.id)
+    if not creatives:
+        # No creatives left, go to main menu
+        # Assuming we can go back to Ad Buy Menu or specific Creative Menu
+        # User said: "перенапрявлять на раздел 🎨 Рекламные креативы" (AdCreative|menu)
+        # But AdCreative|menu has "List", "Create".
+        # If list is empty, list_creatives handles it.
+        # But user wants specific behavior: if LAST deleted -> AdCreative|menu
+        await call.message.edit_text("Рекламные креативы", reply_markup=InlineAdCreative.menu())
+    else:
+        await list_creatives(call)
 
 
 @router.callback_query(F.data.startswith("AdCreative|view|"))

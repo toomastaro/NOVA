@@ -306,12 +306,7 @@ async def view_purchase(call: CallbackQuery, purchase_id: int):
         )
 
 
-@router.callback_query(F.data.startswith("AdPurchase|archive|"))
-async def archive_purchase(call: CallbackQuery):
-    purchase_id = int(call.data.split("|")[2])
-    await db.update_purchase_status(purchase_id, "archived")
-    await call.answer("Закуп архивирован")
-    await view_purchase(call, purchase_id)
+
 
 
 @router.callback_query(F.data.startswith("AdPurchase|delete|"))
@@ -319,9 +314,20 @@ async def delete_purchase(call: CallbackQuery):
     purchase_id = int(call.data.split("|")[2])
     await db.update_purchase_status(purchase_id, "deleted")
     await call.answer("Закуп удален")
-    # Go back to list instead of staying on deleted item
-    from main_bot.handlers.user.ad_creative.purchase_menu import show_purchase_list
-    await show_purchase_list(call)
+    
+    # Check remaining
+    purchases = await db.get_user_purchases(call.from_user.id)
+    # Filter out deleted if get_user_purchases returns deleted ones? 
+    # CRUD get_user_purchases filters status != 'deleted'.
+    
+    if not purchases:
+        # No purchases left, go to main Purchases menu
+        # AdPurchase|menu handler edits text to "Purchases menu"
+        # We can simulate it or send message
+        await call.message.edit_text("💰 Рекламные закупы", reply_markup=InlineAdPurchase.main_menu())
+    else:
+        from main_bot.handlers.user.ad_creative.purchase_menu import show_purchase_list
+        await show_purchase_list(call)
 
 
 @router.callback_query(F.data.startswith("AdPurchase|stats|"))
