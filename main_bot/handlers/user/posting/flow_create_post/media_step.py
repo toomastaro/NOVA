@@ -111,12 +111,14 @@ async def manage_post(call: types.CallbackQuery, state: FSMContext):
         else:
             channels_list = ""
         
-        return await call.message.edit_text(
+        await call.message.delete()
+        return await call.message.answer(
             text("manage:post:finish_params").format(
                 len(chosen),
                 channels_list
             ),
-            reply_markup=keyboards.finish_params(obj=post)
+            reply_markup=keyboards.finish_params(obj=post),
+            parse_mode="HTML"
         )
 
     # Показать/скрыть дополнительные параметры
