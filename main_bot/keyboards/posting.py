@@ -157,16 +157,28 @@ class InlinePosting(InlineKeyboardBuilder):
                 )
             )
 
-        kb.row(
-            InlineKeyboardButton(
-                text=text('back:button'),
-                callback_data=f'ManagePost|cancel|{post.id}'
-            ),
-            InlineKeyboardButton(
-                text=text("{}:button".format("save" if is_edit else "next")),
-                callback_data=f'ManagePost|next|{post.id}'
+        # Для уже опубликованных постов кнопка Сохранить избыточна
+        from main_bot.database.published_post.model import PublishedPost
+        is_published = isinstance(post, PublishedPost)
+
+        if is_published:
+             kb.row(
+                InlineKeyboardButton(
+                    text=text('back:button'),
+                    callback_data=f'ManagePost|cancel|{post.id}'
+                )
             )
-        )
+        else:
+            kb.row(
+                InlineKeyboardButton(
+                    text=text('back:button'),
+                    callback_data=f'ManagePost|cancel|{post.id}'
+                ),
+                InlineKeyboardButton(
+                    text=text("{}:button".format("save" if is_edit else "next")),
+                    callback_data=f'ManagePost|next|{post.id}'
+                )
+            )
 
         return kb.as_markup()
 
