@@ -269,7 +269,7 @@ class NovaStatService:
                                 stats = await self._collect_stats_impl(manager.client, entity, days_limit=4)
                                 if stats and 'views' in stats:
                                     v = stats['views']
-                                    await db.update_channel(
+                                    await db.update_channel_by_id(
                                         our_channel.id,
                                         novastat_24h=v.get(24, 0),
                                         novastat_48h=v.get(48, 0),
