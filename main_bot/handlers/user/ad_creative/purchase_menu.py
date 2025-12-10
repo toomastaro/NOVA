@@ -45,6 +45,9 @@ async def show_purchase_list(call: CallbackQuery):
         creative = await db.get_creative(p.creative_id)
         p.creative_name = creative.name if creative else "Unknown"
         enriched_purchases.append(p)
+    
+    # Sort by ID or created_timestamp desc (Assuming ID is auto-increment, higher ID = newer)
+    enriched_purchases.sort(key=lambda x: x.id, reverse=True)
         
     await call.message.edit_text(
         "Ваши закупы:", 

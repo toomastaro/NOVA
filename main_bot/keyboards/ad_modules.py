@@ -59,7 +59,7 @@ class InlineAdPurchase(InlineKeyboardBuilder):
         kb.button(text="Создать закуп", callback_data="AdPurchase|create_menu")
         kb.button(text="Мои закупы", callback_data="AdPurchase|list")
         kb.button(text="🌍 Моя статистика", callback_data="AdPurchase|global_stats")
-        kb.button(text="Назад", callback_data="delete") # Or close
+        kb.button(text="Назад", callback_data="AdBuyMenu|menu")
         kb.adjust(1)
         return kb.as_markup()
 
@@ -75,9 +75,9 @@ class InlineAdPurchase(InlineKeyboardBuilder):
     @classmethod
     def pricing_type_menu(cls):
         kb = cls()
-        kb.button(text="По заявке (CPL)", callback_data="AdPurchase|pricing|CPL")
-        kb.button(text="По подписке (CPS)", callback_data="AdPurchase|pricing|CPS")
-        kb.button(text="Фикс (FIXED)", callback_data="AdPurchase|pricing|FIXED")
+        kb.button(text="По заявке)", callback_data="AdPurchase|pricing|CPL")
+        kb.button(text="По подписке)", callback_data="AdPurchase|pricing|CPS")
+        kb.button(text="Фикс)", callback_data="AdPurchase|pricing|FIXED")
         kb.button(text="Назад", callback_data="AdPurchase|cancel")
         kb.adjust(1)
         return kb.as_markup()
@@ -143,18 +143,20 @@ class InlineAdPurchase(InlineKeyboardBuilder):
     @classmethod
     def purchase_list_menu(cls, purchases: list):
         kb = cls()
+        from datetime import datetime
+        
         for p in purchases:
             # p is AdPurchase object, needs creative_name attached or fetched
-            # Assuming p has creative_name attribute or we pass a dict/object with it
             name = getattr(p, 'creative_name', f"Creative #{p.creative_id}")
-            text_str = f"#{p.id} {name} ({p.pricing_type}/{p.price_value})"
-            kb.button(text=text_str, callback_data="noop")
-            kb.button(text="Открыть", callback_data=f"AdPurchase|view|{p.id}")
+            # Format: DD.MM Name
+            date_str = datetime.fromtimestamp(p.created_timestamp).strftime("%d.%m")
+            text_str = f"{date_str} {name}"
+            
+            kb.button(text=text_str, callback_data=f"AdPurchase|view|{p.id}")
         
-        kb.button(text="Назад", callback_data="AdPurchase|menu")
-        # 2 columns per purchase row (Info | Open), 1 for Back
-        sizes = [2] * len(purchases) + [1]
-        kb.adjust(*sizes)
+        kb.button(text="Назад", callback_data="AdBuyMenu|menu")
+        # 1 column per row
+        kb.adjust(1)
         return kb.as_markup()
 
     @classmethod
