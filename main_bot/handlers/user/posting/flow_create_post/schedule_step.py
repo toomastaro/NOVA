@@ -250,6 +250,9 @@ async def finish_params(call: types.CallbackQuery, state: FSMContext):
         return await call.message.delete()
 
     post: Post = data.get("post")
+    if not post:
+        await call.answer(text("error_post_not_found"))
+        return await call.message.delete()
     chosen: list = data.get("chosen", post.chat_ids)
     objects = await db.get_user_channels(
         user_id=call.from_user.id,

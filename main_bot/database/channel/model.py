@@ -1,7 +1,7 @@
 import time
 from typing import Optional
 
-from sqlalchemy import BigInteger, String
+from sqlalchemy import BigInteger, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from main_bot.database import Base
@@ -12,6 +12,9 @@ class Channel(Base):
     Модель Telegram-канала.
     """
     __tablename__ = 'channels'
+    __table_args__ = (
+        UniqueConstraint('chat_id', 'admin_id', name='uix_channel_admin'),
+    )
 
     # Основные данные
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True, comment='Внутренний ID канала')

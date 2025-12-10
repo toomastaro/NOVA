@@ -103,9 +103,14 @@ class ChannelCrud(DatabaseMixin):
         """
         Добавляет новый канал.
         """
-        await self.execute(
-            insert(Channel).values(**kwargs)
+        from sqlalchemy.dialects.postgresql import insert as pg_insert
+        
+        stmt = pg_insert(Channel).values(**kwargs)
+        stmt = stmt.on_conflict_do_update(
+            index_elements=['chat_id', 'admin_id'],
+            set_=kwargs
         )
+        await self.execute(stmt)
 
     async def delete_channel(self, chat_id: int, user_id: int = None) -> None:
         """

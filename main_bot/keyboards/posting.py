@@ -279,9 +279,18 @@ class InlinePosting(InlineKeyboardBuilder):
 
         if isinstance(obj, Post):
             delete_time = obj.delete_time
-        else:
+        elif isinstance(obj, Story):
             options = StoryOptions(**obj.story_options)
             delete_time = options.period
+        else:
+            # Fallback or error if obj is None/Unknown
+            delete_time = 0 # Default safe value
+            # Optionally log error? But for keyboard generation we better not crash.
+            # But the logic below relies on obj.report etc.
+            # If obj is None, next lines like obj.report will crash anyway.
+            # So better to return valid definition or empty if None.
+            if obj is None:
+                return cls().as_markup() # Return empty keyboard
 
         kb.button(
             text=text("manage:post:report:button").format(
