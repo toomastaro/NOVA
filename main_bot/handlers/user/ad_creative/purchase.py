@@ -438,80 +438,151 @@ async def show_global_stats_menu(call: CallbackQuery):
     # Show user's global statistics
     
     await call.message.edit_text(
-        "Выберите период для глобальной статистики:",
+        "Выберите период создания закупов для получения Excel-отчета по всем закупам.",
         reply_markup=InlineAdPurchase.global_stats_period_menu()
     )
 
 
 @router.callback_query(F.data.startswith("AdPurchase|global_stats_period|"))
 async def show_global_stats(call: CallbackQuery):
-    # Show user's global statistics
+    # Export Excel report
     
     period = call.data.split("|")[2]
     
-    # Calculate time range
+    # Calculate time range for CREATION DATE
     import time
+    from datetime import datetime
     now = int(time.time())
     
     if period == "24h":
         from_ts = now - (24 * 3600)
-        period_name = "24 часа"
+        period_name = "24_hours"
     elif period == "7d":
         from_ts = now - (7 * 24 * 3600)
-        period_name = "7 дней"
+        period_name = "7_days"
     elif period == "30d":
         from_ts = now - (30 * 24 * 3600)
-        period_name = "30 дней"
+        period_name = "30_days"
     else:  # all
-        from_ts = None
-        period_name = "всё время"
+        from_ts = 0
+        period_name = "all_time"
     
     to_ts = now
     
-    # Get user's statistics
     user_id = call.from_user.id
-    global_stats = await db.get_user_global_stats(user_id, from_ts, to_ts)
-    top_purchases = await db.get_user_top_purchases(user_id, from_ts, to_ts, 5)
-    top_creatives = await db.get_user_top_creatives(user_id, from_ts, to_ts, 5)
-    top_channels = await db.get_user_top_channels(user_id, from_ts, to_ts, 5)
     
-    # Format message
-    stats_text = (
-        f"🌍 <b>Моя статистика</b>\n"
-        f"Период: {period_name}\n\n"
-        f"📊 <b>Общая статистика:</b>\n"
-        f"• Активных закупов: {global_stats['active_purchases']}\n"
-        f"• Всего лидов: {global_stats['total_leads']}\n"
-        f"• Всего подписок: {global_stats['total_subscriptions']}\n"
+    # 1. Fetch purchases created in this range
+    # Ensure db method supports filtering by created_timestamp. 
+    # get_user_purchases doesn't have args in current crud, but get_user_global_stats uses filter logic.
+    # We need a new query or use existing one filtered.
+    # I'll fetch all and filter in python for now to avoid modifying CRUD if not strictly needed, 
+    # but `get_user_purchases` is by owner_id.
+    all_purchases = await db.get_user_purchases(user_id)
+    purchases = [p for p in all_purchases if p.created_timestamp >= from_ts and p.created_timestamp <= to_ts]
+    
+    if not purchases:
+        await call.answer("За этот период закупов не найдено.", show_alert=True)
+        return
+    
+    await call.answer("Генерация отчета...")
+    
+    # 2. Build Excel
+    import openpyxl
+    from openpyxl import Workbook
+    from io import BytesIO
+    
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Statistics"
+    
+    # Headers
+    # дата:название_креатива:комментарий:фикс_цена:цена заявки:зена подпищика:заявок подано:подписок:цена за подпищика:цена за заявку
+    headers = [
+        "Дата", "Наствие креатива", "Комментарий", 
+        "Фикс цена", "Цена заявки (CPL)", "Цена подписчика (CPS)", 
+        "Заявок подано", "Подписок", 
+        "Цена за подписчика (CPA)", "Цена за заявку (Cost/Lead)"
+    ]
+    ws.append(headers)
+    
+    for p in purchases:
+        # Fetch details
+        creative = await db.get_creative(p.creative_id)
+        creative_name = creative.name if creative else f"Unknown #{p.creative_id}"
+        
+        # Stats (Lifetime for this purchase)
+        leads_count = await db.get_leads_count(p.id)
+        # Assuming get_subscriptions_count without time args returns total, or pass None/0
+        subs_count = await db.get_subscriptions_count(p.id, None, None) 
+        
+        # Prices
+        fix_price = p.price_value if p.pricing_type.value == "FIXED" else 0
+        cpl_price = p.price_value if p.pricing_type.value == "CPL" else 0
+        cps_price = p.price_value if p.pricing_type.value == "CPS" else 0
+        
+        # Calculations of actual metrics based on spend
+        # Total Spend estimation
+        total_spend = 0
+        if p.pricing_type.value == "FIXED":
+            total_spend = p.price_value
+        elif p.pricing_type.value == "CPL":
+            total_spend = p.price_value * leads_count
+        elif p.pricing_type.value == "CPS":
+            total_spend = p.price_value * subs_count
+            
+        # Cost per Subscriber (CPA)
+        cost_per_sub = (total_spend / subs_count) if subs_count > 0 else 0
+        
+        # Cost per Lead
+        cost_per_lead = (total_spend / leads_count) if leads_count > 0 else 0
+        
+        # Format Date
+        date_str = datetime.fromtimestamp(p.created_timestamp).strftime("%d.%m.%Y %H:%M")
+        
+        row = [
+            date_str,
+            creative_name,
+            p.comment or "",
+            fix_price,
+            cpl_price,
+            cps_price,
+            leads_count,
+            subs_count,
+            round(cost_per_sub, 2),
+            round(cost_per_lead, 2)
+        ]
+        ws.append(row)
+        
+    # Auto-width
+    for column in ws.columns:
+        max_length = 0
+        column = [cell for cell in column]
+        for cell in column:
+            try:
+                if len(str(cell.value)) > max_length:
+                    max_length = len(str(cell.value))
+            except:
+                pass
+        adjusted_width = (max_length + 2)
+        ws.column_dimensions[column[0].column_letter].width = adjusted_width
+
+    # Save to memory
+    file_stream = BytesIO()
+    wb.save(file_stream)
+    file_stream.seek(0)
+    
+    # Send file
+    from aiogram.types import BufferedInputFile
+    input_file = BufferedInputFile(file_stream.getvalue(), filename=f"stats_{period_name}.xlsx")
+    
+    await call.message.answer_document(
+        document=input_file,
+        caption=f"📊 Статистика закупов за период: {period}"
     )
-    
-    # Add top purchases
-    if top_purchases:
-        stats_text += "\n🏆 <b>ТОП-5 закупов по подпискам:</b>\n"
-        for i, p in enumerate(top_purchases, 1):
-            comment = p.comment[:30] + "..." if p.comment and len(p.comment) > 30 else (p.comment or "N/A")
-            stats_text += f"{i}. Закуп #{p.id} ({comment}): {p.subs_count} подписок\n"
-    
-    # Add top creatives
-    if top_creatives:
-        stats_text += "\n🎨 <b>ТОП-5 креативов:</b>\n"
-        for i, c in enumerate(top_creatives, 1):
-            stats_text += f"{i}. {c.name}: {c.subs_count} подписок\n"
-    
-    # Add top channels
-    if top_channels:
-        stats_text += "\n📺 <b>ТОП-5 каналов:</b>\n"
-        for i, ch in enumerate(top_channels, 1):
-            channel = await db.get_channel_by_chat_id(ch.channel_id)
-            channel_name = channel.title if channel else f"ID: {ch.channel_id}"
-            stats_text += f"{i}. {channel_name}: {ch.subs_count} подписок\n"
-    
-    await call.message.edit_text(
-        stats_text,
-        reply_markup=InlineAdPurchase.global_stats_period_menu(),
-        parse_mode="HTML",
-        disable_web_page_preview=True
-    )
+    # Don't delete or edit previous message, just send doc? 
+    # User might want to stay in menu.
+    # But usually improved flow is to stay or updated text.
+    # The previous message is "Выберите период...". Sending doc as new message is correct.
 
 
 @router.callback_query(F.data.startswith("AdPurchase|gen_post|"))
