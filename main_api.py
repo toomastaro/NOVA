@@ -13,6 +13,7 @@ from instance_bot import bot
 from main_bot.database.db import db
 from main_bot.database.user_bot.model import UserBot
 from main_bot.handlers import set_main_routers, set_scheduler, dp
+from main_bot.utils.schedulers import update_exchange_rates_in_db
 from hello_bot.handlers import set_routers
 from main_bot.utils.logger import setup_logging
 
@@ -47,6 +48,12 @@ async def lifespan(_app: FastAPI):
         logger.warning("BACKUP_CHAT_ID is not set or is 0!")
 
     await db.create_tables()
+    
+    # Обновляем курс валют при старте
+    try:
+        await update_exchange_rates_in_db()
+    except Exception as e:
+        logger.error(f"Error updating exchange rates on startup: {e}")
 
     # Bot Setting
     await bot.delete_webhook(

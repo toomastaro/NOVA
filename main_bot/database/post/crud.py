@@ -122,7 +122,8 @@ class PostCrud(DatabaseMixin):
             p.send_time = p.created_timestamp 
             all_posts.append(p)
 
-        all_posts.sort(key=lambda x: x.send_time if x.send_time else 0)
+        # Сортировка: Новые (будущие) сверху, старые снизу (DESC)
+        all_posts.sort(key=lambda x: x.send_time if x.send_time else 0, reverse=True)
         
         return all_posts
 

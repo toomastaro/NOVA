@@ -102,7 +102,12 @@ async def generate_post_info_text(post_obj, is_published: bool = False) -> str:
 
         date_str = datetime.fromtimestamp(post_obj.created_timestamp).strftime("%d %B %Y г. в %H:%M")
         
-        status_line = "<b>Статус: 👀 Опубликован</b>"
+        if getattr(post_obj, 'status', 'active') == 'deleted':
+             deleted_at = getattr(post_obj, 'deleted_at', None)
+             del_time = datetime.fromtimestamp(deleted_at).strftime("%d %B %Y г. в %H:%M") if deleted_at else "Неизвестно"
+             status_line = f"<b>Статус: 🗑 Удален ({del_time})</b>"
+        else:
+             status_line = "<b>Статус: 👀 Опубликован</b>"
         
         return (
             f"{status_line}\n"

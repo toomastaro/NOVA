@@ -64,7 +64,8 @@ async def show_create_post(message: types.Message, state: FSMContext):
     
     if not channels_with_sub:
         return await message.answer(
-            text('error_no_subscription_posting')
+            text('error_no_subscription_posting'),
+            reply_markup=keyboards.posting_menu()
         )
     
     # Получаем папки
