@@ -117,6 +117,9 @@ class NovaStatService:
         Returns:
             Dict со статистикой или None при ошибке
         """
+        # Ensure identifier is string for DB cache operations
+        channel_identifier = str(channel_identifier)
+
         # 1. Проверить кэш
         is_fresh = await db.is_cache_fresh(channel_identifier, horizon, CACHE_TTL_SECONDS)
         

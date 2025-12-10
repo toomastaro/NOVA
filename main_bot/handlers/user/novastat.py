@@ -35,6 +35,7 @@ async def novastat_main(message: types.Message, state: FSMContext):
     await message.answer(
         "<b>Быстрая аналитика канала!</b>\n"
         "Просто пришлите ссылку на свой телеграм-канал.\n"
+        "Можно отправить до 12 ссылок одновременно (каждая с новой строки).\n\n"
         "Если канал приватный, то отправьте ссылку с автоприёмом, чтобы бот смог её открыть.",
         reply_markup=InlineNovaStat.main_menu(),
         parse_mode="HTML"
@@ -56,6 +57,7 @@ async def novastat_main_cb(call: types.CallbackQuery, state: FSMContext):
     await call.message.edit_text(
         "<b>Быстрая аналитика канала!</b>\n"
         "Просто пришлите ссылку на свой телеграм-канал.\n"
+        "Можно отправить до 12 ссылок одновременно (каждая с новой строки).\n\n"
         "Если канал приватный, то отправьте ссылку с автоприёмом, чтобы бот смог её открыть.",
         reply_markup=InlineNovaStat.main_menu(),
         parse_mode="HTML"
@@ -208,7 +210,7 @@ async def novastat_rename_col_finish(message: types.Message, state: FSMContext):
 async def novastat_add_channel_start(call: types.CallbackQuery, state: FSMContext):
     col_id = int(call.data.split("|")[2])
     await state.update_data(col_id=col_id)
-    await call.message.answer("Пришлите ссылку на канал или @username (можно списком, каждый с новой строки):")
+    await call.message.answer("Пришлите ссылку на канал или @username (можно списком, каждый с новой строки).\nМаксимум 100 каналов в коллекции.")
     await state.set_state(NovaStatStates.waiting_for_channel_to_add)
     await call.answer()
 
@@ -222,6 +224,12 @@ async def novastat_add_channel_finish(message: types.Message, state: FSMContext)
     
     if not channels_to_add:
         await message.answer("Не удалось распознать каналы. Попробуйте еще раз.")
+        return
+
+    # Check limit
+    existing = await db.get_collection_channels(col_id)
+    if len(existing) + len(channels_to_add) > 100:
+        await message.answer(f"⚠️ Лимит превышен! В коллекции максимум 100 каналов.\nСейчас: {len(existing)}. Попытка добавить: {len(channels_to_add)}.\nДоступно мест: {100 - len(existing)}.")
         return
 
     added_count = 0
@@ -425,6 +433,10 @@ async def novastat_analyze_text(message: types.Message, state: FSMContext):
         await message.answer("Не удалось распознать каналы. Попробуйте еще раз.")
         return
         
+    if len(channels) > 12:
+        await message.answer("⚠️ Можно проверить не более 12 каналов за раз.\nДля большего количества используйте Коллекции или отправляйте частями.")
+        return
+
     await process_analysis(message, channels, state)
 
 @router.callback_query(F.data.startswith("NovaStat|col_analyze|"))
