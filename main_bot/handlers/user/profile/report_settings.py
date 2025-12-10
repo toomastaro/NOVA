@@ -17,7 +17,7 @@ async def show_report_settings_menu(call: types.CallbackQuery):
     """
     user = await db.get_user(call.from_user.id)
     
-    await call.message.edit_text(
+    await call.message.answer(
         text('report_settings_text'),
         reply_markup=InlineProfile.report_settings_menu(
             cpm_active=user.cpm_signature_active,
