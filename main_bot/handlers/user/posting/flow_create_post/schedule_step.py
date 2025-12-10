@@ -8,6 +8,7 @@
 """
 import time
 import logging
+import html
 from datetime import datetime
 
 from aiogram import types
@@ -327,19 +328,36 @@ async def finish_params(call: types.CallbackQuery, state: FSMContext):
     # Немедленная публикация
     if temp[1] == "public":
         if post.cpm_price and not post.delete_time:
-            return await call.answer(text("error_cpm_without_timer"), show_alert=True)
+            await call.answer(text("error_cpm_without_timer"), show_alert=True)
+            return
 
-        return await call.message.edit_text(
-            text("manage:post:accept:public").format(
-                "\n".join(
-                    text("resource_title").format(obj.title) for obj in objects
-                    if obj.chat_id in chosen[:10]
-                ),
-                f"{int(post.delete_time / 3600)} ч."  # type: ignore
-                if post.delete_time else text("manage:post:del_time:not")
-            ),
-            reply_markup=keyboards.accept_public()
+        display_objects = await db.get_user_channels(
+            user_id=call.from_user.id,
+            from_array=chosen[:10]
         )
+
+        channels_str = "\n".join(
+            text("resource_title").format(html.escape(obj.title)) for obj in display_objects
+        )
+        channels_block = f"<blockquote expandable>{channels_str}</blockquote>"
+
+        delete_str = text("manage:post:del_time:not")
+        if post.delete_time:
+            if post.delete_time < 3600:
+                delete_str = f"{int(post.delete_time / 60)} мин."
+            else:
+                delete_str = f"{int(post.delete_time / 3600)} ч."
+
+        await call.message.edit_text(
+            text("manage:post:accept:public").format(
+                channels_block,
+                delete_str
+            ),
+            reply_markup=keyboards.accept_public(),
+            parse_mode="HTML",
+            link_preview_options=types.LinkPreviewOptions(is_disabled=True)
+        )
+        return
 
 
 @safe_handler("Posting Choice Delete Time")
