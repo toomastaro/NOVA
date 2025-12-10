@@ -24,8 +24,23 @@ async def update_exchange_rates_in_db():
     last_update = datetime.now(timezone(timedelta(hours=3)))
     last_update = last_update.replace(tzinfo=None)
     
-    # Получение новых курсов валют
-    new_update = await get_update_of_exchange_rates()
+    import asyncio
+    
+    # Получение новых курсов валют (Retry logic)
+    new_update = {}
+    for attempt in range(3):
+        try:
+            new_update = await get_update_of_exchange_rates()
+            # Check if we got any valid rate (assuming sum > 0 implies some success)
+            if any(val > 0 for val in new_update.values()):
+                break
+        except Exception as e:
+            logger.error(f"Attempt {attempt+1} failed to fetch rates: {e}")
+        
+        logger.warning(f"Attempt {attempt+1}: All rates zero or failed. Retrying in 5s...")
+        await asyncio.sleep(5)
+    
+    logger.info(f"Exchange Rates fetched: {new_update}")
 
     # Проверка наличия курсов в БД
     all_exchange_rate = await db.get_all_exchange_rate()
