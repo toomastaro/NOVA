@@ -738,18 +738,6 @@ async def generate_post(call: CallbackQuery):
         chat_id = call.from_user.id
         reply_markup = message_data.get('reply_markup')
         
-        # Debug logging
-        import logging
-        logger = logging.getLogger(__name__)
-        # Format entities for logging
-        ents_debug = message_data.get('entities')
-        caps_debug = message_data.get('caption_entities')
-        text_debug = message_data.get('text', '')
-        caption_debug = message_data.get('caption', '')
-        
-        logger.error(f"DEBUG: Generating post. Purchase {purchase_id}. EntitiesRaw: {ents_debug}, CaptionEntitiesRaw: {caps_debug}")
-        logger.error(f"DEBUG: Text len: {len(text_debug)}, Caption len: {len(caption_debug)}")
-
         # Helper to safely create entities
         def safe_entities(ent_list):
             if not ent_list: 
@@ -757,18 +745,12 @@ async def generate_post(call: CallbackQuery):
             try:
                 # Filter out nulls if any
                 return [types.MessageEntity(**e) for e in ent_list if e]
-            except Exception as e:
-                logger.error(f"Error creating MessageEntity list: {e}")
+            except Exception:
                 return None
         
         final_entities = safe_entities(message_data.get('entities'))
         final_caption_entities = safe_entities(message_data.get('caption_entities'))
         
-        if final_entities:
-            logger.error(f"DEBUG: Final Entities Objects: {final_entities}")
-        if final_caption_entities:
-            logger.error(f"DEBUG: Final Caption Entities Objects: {final_caption_entities}")
-
         # Prioritize media types over text (media messages can have 'text' field but it's actually caption)
         if 'photo' in message_data:
             photo_id = message_data['photo'][-1]['file_id']
@@ -832,7 +814,8 @@ async def generate_post(call: CallbackQuery):
             return
 
 
-        success_msg = "✅ Готово! Перешлите это админу для размещения."
+
+        success_msg = "☝️☝️☝️ ваш пост для закупа ☝️☝️☝️\n\n✅ Готово! Перешлите это админу для размещения."
         if replaced_count > 0:
             success_msg += f"\n📎 Заменено ссылок: {replaced_count}"
         await call.message.answer(success_msg)

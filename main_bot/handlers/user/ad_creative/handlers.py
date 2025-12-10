@@ -38,14 +38,6 @@ async def process_creative_content(message: Message, state: FSMContext):
     # Use model_dump to get dict directly
     raw_message = message.model_dump(mode='json')
     
-    # Debug log
-    import logging
-    logger = logging.getLogger(__name__)
-    logger.error(f"DEBUG: Processing creative content. Entities: {raw_message.get('entities')}, CaptionEntities: {raw_message.get('caption_entities')}")
-    
-    if not raw_message.get('entities') and not raw_message.get('caption_entities'):
-        logger.error("DEBUG: No entities found in message!")
-    
     # Extract links
     slots = []
     slot_index = 1
