@@ -5,6 +5,7 @@ from main_bot.database.db import db
 from main_bot.database.user.model import User
 from main_bot.keyboards import keyboards
 from main_bot.utils.lang.language import text
+from main_bot.handlers.user.profile.report_settings import show_report_settings_menu
 
 
 async def choice(call: types.CallbackQuery, user: User, state: FSMContext):
@@ -19,6 +20,10 @@ async def choice(call: types.CallbackQuery, user: User, state: FSMContext):
         'folders': {
             'cor': show_folders,
             'args': (call.message,)
+        },
+        'report_settings': {
+            'cor': show_report_settings_menu,
+            'args': (call,)
         },
         'support': {
             'cor': show_support,
