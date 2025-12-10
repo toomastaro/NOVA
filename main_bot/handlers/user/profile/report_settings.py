@@ -185,6 +185,7 @@ async def back_to_main_settings(call: types.CallbackQuery):
     """
     Возврат в главное меню настроек (из отчетов).
     """
+    await call.answer()
     from main_bot.handlers.user.profile.settings import choice
     # Мы не можем вызвать choice напрямую так как ему нужен split array.
     # Лучше просто вызвать отображение меню настроек.
@@ -202,6 +203,7 @@ async def back_to_main_settings(call: types.CallbackQuery):
 
 
 async def router_choice(call: types.CallbackQuery, state: FSMContext):
+    await call.answer()
     action = call.data.split('|')[1]
     if action == 'cpm':
         await show_specific_setting(call, 'cpm')

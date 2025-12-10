@@ -157,7 +157,11 @@ async def get_promo(message: types.Message, state: FSMContext, user: User):
             promo.amount
         )
     )
-    await show_balance(message, user)
+    await message.answer(
+        text("balance_text").format(user.balance),
+        reply_markup=keyboards.subscription_menu(),
+        parse_mode="HTML"
+    )
 
 
 async def get_amount(message: types.Message, state: FSMContext):
