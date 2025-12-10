@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 TIMEZONE = "Europe/Moscow"
 HORIZONS = [24, 48, 72]
 ANOMALY_FACTOR = 10
-CACHE_TTL_SECONDS = 10800  # 3 часа (было 60 минут)
+CACHE_TTL_SECONDS = 10800  
 
 class NovaStatService:
     def __init__(self):
@@ -253,6 +253,37 @@ class NovaStatService:
                                     await manager.close()
                     except Exception as e:
                         logger.warning(f"Failed to fetch initial subs count for {channel_id}: {e}")
+                
+                # Если статистики нет (0 просмотров) и есть сессия - обновить через свой клиент
+                if our_channel.novastat_24h == 0 and our_channel.session_path:
+                    try:
+                        logger.info(f"Views 0 for 'our' channel {channel_id}, trying internal client...")
+                        # SessionManager imports from utils (locally imported or available?)
+                        # SessionManager is imported at top of file (Step 1661)
+                        manager = SessionManager(our_channel.session_path)
+                        await manager.init_client()
+                        if manager.client:
+                            try:
+                                entity = await manager.client.get_entity(channel_id)
+                                # _collect_stats_impl is available in this class
+                                stats = await self._collect_stats_impl(manager.client, entity, days_limit=4)
+                                if stats and 'views' in stats:
+                                    v = stats['views']
+                                    await db.update_channel(
+                                        our_channel.id,
+                                        novastat_24h=v.get(24, 0),
+                                        novastat_48h=v.get(48, 0),
+                                        novastat_72h=v.get(72, 0)
+                                    )
+                                    # Update memory object
+                                    our_channel.novastat_24h = v.get(24, 0)
+                                    our_channel.novastat_48h = v.get(48, 0)
+                                    our_channel.novastat_72h = v.get(72, 0)
+                                    logger.info(f"Updated views via internal client: {v}")
+                            finally:
+                                await manager.close()
+                    except Exception as e:
+                        logger.warning(f"Failed to fetch views via internal client: {e}")
                 
                 logger.info(f"Channel {channel_identifier} is our channel (id={channel_id}), using DB stats")
                 
