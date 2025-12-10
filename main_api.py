@@ -39,7 +39,6 @@ async def lifespan(_app: FastAPI):
     time.tzset()
 
     set_main_routers()
-    await set_scheduler()
 
     import logging
     logger = logging.getLogger(__name__)
@@ -48,6 +47,7 @@ async def lifespan(_app: FastAPI):
         logger.warning("BACKUP_CHAT_ID is not set or is 0!")
 
     await db.create_tables()
+    await set_scheduler()
     
     # Обновляем курс валют при старте
     try:
