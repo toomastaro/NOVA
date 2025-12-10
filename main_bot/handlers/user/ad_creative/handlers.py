@@ -35,12 +35,16 @@ async def create_creative_start(call: CallbackQuery, state: FSMContext):
 @router.message(AdCreativeStates.waiting_for_content)
 async def process_creative_content(message: Message, state: FSMContext):
     # Serialize message
-    # Don't use exclude_defaults=True to ensure we keep essential fields like entities even if they look like defaults
-    # But wait, aiogram objects are huge. 
-    # Let's try to just dump. 
-    # If this causes issues with circular refs or size, we might need a custom serializer.
-    # But message.model_dump_json() is standard.
-    raw_message = json.loads(message.model_dump_json())
+    # Use model_dump to get dict directly
+    raw_message = message.model_dump(mode='json')
+    
+    # Debug log
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.error(f"DEBUG: Processing creative content. Entities: {raw_message.get('entities')}, CaptionEntities: {raw_message.get('caption_entities')}")
+    
+    if not raw_message.get('entities') and not raw_message.get('caption_entities'):
+        logger.error("DEBUG: No entities found in message!")
     
     # Extract links
     slots = []
