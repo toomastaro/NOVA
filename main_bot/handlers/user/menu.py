@@ -101,6 +101,13 @@ async def subscription(message: types.Message):
     from main_bot.database.db import db
     
     user = await db.get_user(user_id=message.chat.id)
+    if not user:
+        await db.add_user(
+            id=message.from_user.id,
+            username=message.from_user.username,
+            full_name=message.from_user.full_name
+        )
+        user = await db.get_user(user_id=message.chat.id)
     await message.answer(
         text("balance_text").format(user.balance),
         reply_markup=keyboards.subscription_menu(),
