@@ -21,6 +21,10 @@ async def choice(call: types.CallbackQuery, state: FSMContext, user: User):
     if temp[1] == 'folders':
         await show_folders(call.message)
 
+    if temp[1] == 'report_settings':
+        from main_bot.handlers.user.profile.report_settings import show_report_settings_menu
+        await show_report_settings_menu(call)
+
     if temp[1] == 'timezone':
         delta = timedelta(hours=abs(user.timezone))
 

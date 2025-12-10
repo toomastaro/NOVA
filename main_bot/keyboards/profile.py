@@ -97,6 +97,10 @@ class InlineProfile(InlineKeyboardBuilder):
             callback_data='Setting|folders'
         )
         kb.button(
+            text=text('setting:reports'),
+            callback_data='Setting|report_settings'
+        )
+        kb.button(
             text=text('back:button'),
             callback_data='Setting|back'
         )
@@ -686,5 +690,49 @@ class InlineProfile(InlineKeyboardBuilder):
             )
         )
         
+        return kb.as_markup()
+
+    @classmethod
+    def report_settings_menu(cls, cpm_active: bool, exchange_active: bool, referral_active: bool):
+        kb = cls()
+
+        kb.button(
+             text=text('report:cpm:button').format(text('report:toggle:on') if cpm_active else text('report:toggle:off')),
+             callback_data='ReportSetting|cpm'
+        )
+        kb.button(
+             text=text('report:exchange:button').format(text('report:toggle:on') if exchange_active else text('report:toggle:off')),
+             callback_data='ReportSetting|exchange'
+        )
+        kb.button(
+             text=text('report:referral:button').format(text('report:toggle:on') if referral_active else text('report:toggle:off')),
+             callback_data='ReportSetting|referral'
+        )
+        kb.button(
+            text=text('back:button'),
+            callback_data='Setting|reports_back'
+        )
+
+        kb.adjust(1)
+        return kb.as_markup()
+
+    @classmethod
+    def report_setting_item(cls, setting_type: str, is_active: bool):
+        kb = cls()
+
+        kb.button(
+            text=text('report:toggle:off' if is_active else 'report:toggle:on'),
+            callback_data=f'ReportSetting|toggle|{setting_type}'
+        )
+        kb.button(
+            text=text('report:edit:text'),
+            callback_data=f'ReportSetting|edit|{setting_type}'
+        )
+        kb.button(
+             text=text('back:button'),
+             callback_data='ReportSetting|back'
+        )
+
+        kb.adjust(1)
         return kb.as_markup()
 

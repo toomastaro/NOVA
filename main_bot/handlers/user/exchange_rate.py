@@ -9,6 +9,7 @@ from main_bot.states.user import ExchangeRate
 from main_bot.utils.exchange_rates import get_exchange_rates_from_json, format_exchange_rate_from_db
 from main_bot.utils.lang.language import text
 from main_bot.utils.schedulers import update_exchange_rates_in_db
+from main_bot.utils.report_signature import get_report_signatures
 
 
 async def _get_and_format_exchange_rate(user_id: int, state: FSMContext) -> tuple[dict | None, str | None]:
@@ -133,7 +134,17 @@ async def get_exchange_rate_of_custom_amount(message: types.Message, state: FSMC
             float(exchange_rate) * float(amount),
             data['exchange_rate'].last_update.strftime("%H:%M %d.%m.%Y")
         )
-        await message.answer(msg_text, reply_markup=keyboards.menu())
+        
+        # Adding signatures
+        user_id = message.from_user.id
+        user = await db.get_user(user_id) # Need to fetch user or use from db logic?
+        # data object might not have full user, let's fetch fresh simple way or maybe we have it?
+        # get_exchange_rate_of_custom_amount doesn't fetch user.
+        # But we need user object for signatures.
+        
+        msg_text += await get_report_signatures(user, 'exchange', message.bot)
+        
+        await message.answer(msg_text, reply_markup=keyboards.menu(), parse_mode="HTML", link_preview_options=types.LinkPreviewOptions(is_disabled=True))
 
 
 async def back_to_main_menu(call: types.CallbackQuery):

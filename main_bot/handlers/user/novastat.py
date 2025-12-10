@@ -12,6 +12,7 @@ from main_bot.keyboards import keyboards, InlineNovaStat
 from main_bot.utils.novastat import novastat_service
 from main_bot.utils.lang.language import text
 from main_bot.states.user import NovaStatStates
+from main_bot.utils.report_signature import get_report_signatures
 
 logger = logging.getLogger(__name__)
 
@@ -492,6 +493,9 @@ async def calculate_and_show_price(message: types.Message, cpm: int, state: FSMC
     report += f"└ 72 часа: {views[72]}\n\n"
     
     report += f"Дата расчёта: {date_str}"
+    
+    # Добавляем подписи
+    report += await get_report_signatures(user, 'cpm', message.bot)
     
     if is_edit:
         await message.edit_text(report, reply_markup=InlineNovaStat.cpm_result(), parse_mode="HTML", link_preview_options=types.LinkPreviewOptions(is_disabled=True))

@@ -1,5 +1,5 @@
 from aiogram import Router
-from . import profile, balance, payment, subscribe, subscribe_payment, referral, settings, timezone, folders, transfer_subscription, info
+from . import profile, balance, payment, subscribe, subscribe_payment, referral, settings, timezone, folders, transfer_subscription, info, report_settings
 
 
 def get_router():
@@ -15,6 +15,7 @@ def get_router():
         settings.hand_add(),
         timezone.hand_add(),
         folders.hand_add(),
+        report_settings.hand_add(),
     ]
 
     router = Router(name='Profile')
