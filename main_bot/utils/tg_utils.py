@@ -243,43 +243,7 @@ async def set_channel_session(chat_id: int):
         
         # Шаг 1: Попытка добавить клиента напрямую через InviteToChannelRequest
         # Это более надежный способ чем invite ссылки
-        try:
-            # Сначала получаем информацию о канале через основного бота
-            # Это необходимо, чтобы MTProto клиент мог получить entity
-            try:
-                bot_chat = await main_bot_obj.get_chat(chat_id)
-                # Если у канала есть username, используем его
-                if hasattr(bot_chat, 'username') and bot_chat.username:
-                    channel_identifier = bot_chat.username
-                    logger.debug(f"Using channel username: @{channel_identifier}")
-                else:
-                    # Иначе используем chat_id
-                    channel_identifier = chat_id
-                    logger.debug(f"Using channel ID: {channel_identifier}")
-            except Exception as bot_error:
-                logger.warning(f"Could not get channel info via bot: {bot_error}, using chat_id")
-                channel_identifier = chat_id
-            
-            # Получить entity канала через MTProto клиента
-            channel_entity = await manager.client.get_entity(channel_identifier)
-            
-            # Добавить пользователя в канал
-            from telethon.tl.functions.channels import InviteToChannelRequest
-            await manager.client(InviteToChannelRequest(
-                channel=channel_entity,
-                users=[me]
-            ))
-            logger.info(f"✅ Client {client.id} (user_id={me.id}) added to channel {chat_id} via InviteToChannelRequest")
-            client_added = True
-            
-        except Exception as e:
-            error_str = str(e)
-            logger.error(f"❌ InviteToChannelRequest failed for client {client.id}: {e}")
-            
-            # Проверяем, не является ли это ошибкой "entity not found"
-            if "Could not find the input entity" in error_str or "No user has" in error_str:
-                logger.warning(f"⚠️ Client {client.id} doesn't know about channel {chat_id}, will use invite link fallback")
-                # Продолжаем с fallback методом
+
             
         # Если клиент не был добавлен через InviteToChannelRequest, пробуем через invite ссылку
         if not client_added:

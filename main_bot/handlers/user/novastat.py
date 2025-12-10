@@ -1,6 +1,7 @@
 import asyncio
 import logging
 from datetime import datetime
+import html
 
 from aiogram import Router, F, types
 from aiogram.filters import StateFilter
@@ -515,3 +516,177 @@ async def novastat_cpm_text(message: types.Message, state: FSMContext):
         await calculate_and_show_price(message, cpm, state, message.from_user.id)
     except ValueError:
         await message.answer("Пожалуйста, введите число.")
+
+
+# --- My Channels Selection ---
+@router.callback_query(F.data == "NovaStat|my_channels")
+async def novastat_my_channels(call: types.CallbackQuery, state: FSMContext):
+    folders = await db.get_folders(
+        user_id=call.from_user.id
+    )
+    channels = await db.get_user_channels_without_folders(
+        user_id=call.from_user.id
+    )
+    
+    await state.update_data(
+        chosen=[],
+        chosen_folders=[],
+        current_folder_id=None
+    )
+    
+    await call.message.edit_text(
+        text("choice_channels:post").format(0, ""),
+        reply_markup=keyboards.choice_objects(
+            resources=channels,
+            chosen=[],
+            folders=folders,
+            data="ChoiceNovaStatChannels"
+        )
+    )
+    await state.set_state(NovaStatStates.choosing_my_channels)
+
+
+@router.callback_query(F.data.startswith("ChoiceNovaStatChannels"))
+async def novastat_choice_channels(call: types.CallbackQuery, state: FSMContext):
+    temp = call.data.split('|')
+    data = await state.get_data()
+    if not data:
+        await call.answer("Ошибка: данные состояния потеряны")
+        return await call.message.delete()
+
+    chosen: list = data.get("chosen", [])
+    current_folder_id = data.get("current_folder_id")
+
+    # Determine objects
+    if current_folder_id:
+        folder = await db.get_folder_by_id(current_folder_id)
+        objects = []
+        if folder and folder.content:
+            for chat_id in folder.content:
+                channel = await db.get_channel_by_chat_id(int(chat_id))
+                if channel:
+                    objects.append(channel)
+        folders = []
+    else:
+        objects = await db.get_user_channels_without_folders(
+            user_id=call.from_user.id
+        )
+        folders = await db.get_folders(
+            user_id=call.from_user.id
+        )
+
+    # NEXT STEP (Analyze)
+    if temp[1] == "next_step":
+        if not chosen:
+            return await call.answer("Выберите хотя бы один канал", show_alert=True)
+            
+        real_chosen = []
+        for cid in chosen:
+             ch = await db.get_channel_by_chat_id(cid)
+             if ch:
+                 real_chosen.append(ch.chat_id)
+        
+        await process_analysis(call.message, real_chosen, state)
+        return
+
+    # CANCEL
+    if temp[1] == "cancel":
+        if current_folder_id:
+            await state.update_data(current_folder_id=None)
+            objects = await db.get_user_channels_without_folders(
+                user_id=call.from_user.id
+            )
+            folders = await db.get_folders(
+                user_id=call.from_user.id
+            )
+            # Reset pagination
+            temp = list(temp)
+            if len(temp) > 2:
+                temp[2] = '0'
+            else:
+                temp.append('0')
+        else:
+            return await novastat_main_cb(call, state)
+
+    # PAGINATION
+    if temp[1] in ['next', 'back']:
+        return await call.message.edit_reply_markup(
+            reply_markup=keyboards.choice_objects(
+                resources=objects,
+                chosen=chosen,
+                folders=folders,
+                remover=int(temp[2]),
+                data="ChoiceNovaStatChannels"
+            )
+        )
+
+    # CHOICE ALL
+    if temp[1] == "choice_all":
+        current_ids = [i.chat_id for i in objects]
+        all_selected = all(cid in chosen for cid in current_ids)
+        
+        if all_selected:
+            for cid in current_ids:
+                if cid in chosen:
+                    chosen.remove(cid)
+        else:
+            for cid in current_ids:
+                if cid not in chosen:
+                    chosen.append(cid)
+
+    # SELECT ITEM/FOLDER
+    if temp[1].replace("-", "").isdigit():
+        resource_id = int(temp[1])
+        resource_type = temp[3] if len(temp) > 3 else None
+
+        if resource_type == 'folder':
+            await state.update_data(current_folder_id=resource_id)
+            folder = await db.get_folder_by_id(resource_id)
+            objects = []
+            if folder and folder.content:
+                for chat_id in folder.content:
+                    channel = await db.get_channel_by_chat_id(int(chat_id))
+                    if channel:
+                        objects.append(channel)
+            folders = []
+            temp = list(temp)
+            if len(temp) > 2:
+                temp[2] = '0'
+            else:
+                temp.append('0')
+        else:
+            if resource_id in chosen:
+                chosen.remove(resource_id)
+            else:
+                chosen.append(resource_id)
+
+    await state.update_data(chosen=chosen)
+    
+    # Display logic for formatted list of chosen channels
+    display_objects = await db.get_user_channels(
+        user_id=call.from_user.id,
+        from_array=chosen[:10]
+    )
+
+    if chosen:
+        channels_list = "<blockquote expandable>" + "\n".join(
+            text("resource_title").format(obj.title) for obj in display_objects
+        ) + "</blockquote>"
+    else:
+        channels_list = ""
+    
+    remover_val = int(temp[2]) if temp[1] in ['choice_all', 'next', 'back'] or temp[1].replace("-", "").isdigit() else 0
+    
+    await call.message.edit_text(
+        text("choice_channels:post").format(
+            len(chosen),
+            channels_list
+        ),
+        reply_markup=keyboards.choice_objects(
+            resources=objects,
+            chosen=chosen,
+            folders=folders,
+            remover=remover_val,
+            data="ChoiceNovaStatChannels"
+        )
+    )

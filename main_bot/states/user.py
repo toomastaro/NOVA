@@ -91,6 +91,7 @@ class NovaStatStates(StatesGroup):
     waiting_for_rename_collection = State()
     waiting_for_channel_to_add = State()
     waiting_for_cpm = State()
+    choosing_my_channels = State()
 
 
 class AddChannel(StatesGroup):

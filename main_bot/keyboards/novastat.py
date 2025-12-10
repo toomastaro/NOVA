@@ -16,7 +16,7 @@ class InlineNovaStat(InlineKeyboardBuilder):
         kb = cls()
         kb.button(text="Настройки", callback_data="NovaStat|settings")
         kb.button(text="Сохранённые каналы", callback_data="NovaStat|collections")
-        kb.button(text="Мои каналы (в разработке)", callback_data="NovaStat|my_channels")
+        kb.button(text="Мои каналы", callback_data="NovaStat|my_channels")
         kb.button(text="⬅️ Назад", callback_data="NovaStat|exit")
         kb.adjust(1)
         return kb.as_markup()

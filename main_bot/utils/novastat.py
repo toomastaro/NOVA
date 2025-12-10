@@ -172,20 +172,25 @@ class NovaStatService:
             
             # Попытаться найти канал по username или ссылке
             try:
-                if "t.me/" in channel_identifier:
-                    username = channel_identifier.split('/')[-1].replace('@', '')
-                elif channel_identifier.startswith('@'):
-                    username = channel_identifier[1:]
+                if isinstance(channel_identifier, int) or (isinstance(channel_identifier, str) and channel_identifier.lstrip('-').replace(' ', '').isdigit()):
+                     channel_id = int(channel_identifier)
+                     our_channel = await db.get_channel_by_chat_id(channel_id)
+                     username = our_channel.title if our_channel else str(channel_id)
                 else:
-                    username = channel_identifier.replace('@', '')
-                
-                # Поиск канала в базе
-                channels = await db.get_channels()
-                for ch in channels:
-                    if ch.title == username or (hasattr(ch, 'username') and ch.username == username):
-                        our_channel = ch
-                        channel_id = ch.chat_id
-                        break
+                    if "t.me/" in channel_identifier:
+                        username = channel_identifier.split('/')[-1].replace('@', '')
+                    elif channel_identifier.startswith('@'):
+                        username = channel_identifier[1:]
+                    else:
+                        username = channel_identifier.replace('@', '')
+                    
+                    # Поиск канала в базе
+                    channels = await db.get_channels()
+                    for ch in channels:
+                        if ch.title == username or (hasattr(ch, 'username') and ch.username == username):
+                            our_channel = ch
+                            channel_id = ch.chat_id
+                            break
             except Exception as e:
                 logger.info(f"Could not determine if channel {channel_identifier} is ours: {e}")
             
