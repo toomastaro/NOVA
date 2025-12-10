@@ -194,30 +194,32 @@ async def send(post: Post):
     if not post.report:
         return
 
+    import html
     objects = await db.get_user_channels(
         user_id=post.admin_id,
         from_array=post.chat_ids
     )
-    success_str = "\\n".join(
+    
+    # Format Success List
+    success_str_inner = "\n".join(
         text("resource_title").format(
             obj.emoji_id,
-            obj.title
+            html.escape(obj.title)
         ) for obj in objects
         if obj.chat_id in [i.get("chat_id") for i in success_send[:10]]
     )
-    error_str = "\\n".join(
-        text("resource_title").format(
+    success_str = f"<blockquote expandable>{success_str_inner}</blockquote>" if success_str_inner else ""
+
+    # Format Error List
+    error_str_inner = "\n".join(
+         text("resource_title").format(
             obj.emoji_id,
-            obj.title
-        ) + " \\n{}".format(
-            "".join(
-                row.get("error")
-                for row in error_send[:10]
-                if row.get("chat_id") == obj.chat_id
-            )
-        ) for obj in objects
+            html.escape(obj.title)
+        ) + f" \n{''.join(row.get('error') for row in error_send[:10] if row.get('chat_id') == obj.chat_id)}"
+        for obj in objects
         if obj.chat_id in [i.get("chat_id") for i in error_send[:10]]
     )
+    error_str = f"<blockquote expandable>{error_str_inner}</blockquote>" if error_str_inner else ""
 
     if success_send and error_send:
         message_text = text("success_error:post:public").format(
@@ -238,7 +240,8 @@ async def send(post: Post):
     try:
         await bot.send_message(
             chat_id=post.admin_id,
-            text=message_text
+            text=message_text,
+            reply_markup=keyboards.posting_menu()
         )
     except Exception as e:
         logger.error(f"Error sending report to admin {post.admin_id}: {e}", exc_info=True)

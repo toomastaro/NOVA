@@ -157,7 +157,16 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
     # Delete Time
     delete_str = ""
     if post.delete_time:
-        delete_str = f"🗑 <b>Удаление через:</b> {int(post.delete_time / 3600)} ч."
+        if post.delete_time < 3600:
+             time_display = f"{int(post.delete_time / 60)} мин."
+        else:
+             time_display = f"{int(post.delete_time / 3600)} ч."
+        delete_str = f"🗑 <b>Удаление через:</b> {time_display}"
+    
+    # CPM Price
+    cpm_str = ""
+    if post.cpm_price:
+        cpm_str = f"\n💸 <b>CPM:</b> {int(post.cpm_price)} ком."
 
     # Channels List
     # Ensure quotes and HTML safety
@@ -176,6 +185,8 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
     )
     if delete_str:
         otlog_text += f"{delete_str}\n"
+    if cpm_str:
+        otlog_text += f"{cpm_str}\n"
     
     if channels_block:
         otlog_text += (

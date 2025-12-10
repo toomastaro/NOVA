@@ -566,21 +566,33 @@ async def get_send_time(message: types.Message, state: FSMContext):
 
     chosen: list = data.get('chosen')
 
-    objects = await db.get_user_channels(
+    display_objects = await db.get_user_channels(
         user_id=message.from_user.id,
-        sort_by="posting"
+        from_array=chosen[:10]
     )
+
+    channels_str = "\n".join(
+        text("resource_title").format(html.escape(obj.title)) for obj in display_objects
+    )
+    channels_block = f"<blockquote expandable>{channels_str}</blockquote>"
+
+    delete_str = text("manage:post:del_time:not")
+    if post.delete_time:
+        if post.delete_time < 3600:
+            delete_str = f"{int(post.delete_time / 60)} мин."
+        else:
+            delete_str = f"{int(post.delete_time / 3600)} ч."
 
     await message.answer(
         text("manage:post:accept:date").format(
-            f"{day} {month} {year} {_time}",
+            _time,
             weekday,
-            "\n".join(
-                text("resource_title").format(obj.title) for obj in objects
-                if obj.chat_id in chosen[:10]
-            ),
-            f"{int(post.delete_time / 3600)} ч."  # type: ignore
-            if post.delete_time else text("manage:post:del_time:not")
+            day,
+            month,
+            year,
+            channels_block,
+            delete_str
         ),
-        reply_markup=keyboards.accept_date()
+        reply_markup=keyboards.accept_date(),
+        parse_mode="HTML"
     )
