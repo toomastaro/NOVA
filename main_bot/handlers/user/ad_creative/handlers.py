@@ -198,15 +198,13 @@ async def view_creative(call: CallbackQuery):
 
 @router.callback_query(F.data == "AdCreative|back")
 async def back_to_menu(call: CallbackQuery):
-    await call.message.delete()
-    # Assuming main menu is reply keyboard, so we just delete the inline message?
-    # Or if this was a sub-menu.
-    # The user said "При выборе этого пункта показывать клавиатуру".
-    # If it was an inline message sent on reply button click, then back should probably delete it or go to main inline menu if exists.
-    # But "Рекламные креативы" is a Reply button.
-    # Usually reply buttons trigger a new message.
-    # So "Back" should probably just delete the message.
-    pass
+    # Navigate back to Ad Buy Menu
+    kb = types.InlineKeyboardMarkup(inline_keyboard=[
+        [types.InlineKeyboardButton(text="🎨 Рекламные креативы", callback_data="AdBuyMenu|creatives")],
+        [types.InlineKeyboardButton(text="💰 Рекламные закупы", callback_data="AdBuyMenu|purchases")],
+        [types.InlineKeyboardButton(text="⬅️ Назад", callback_data="AdBuyMenu|back")]
+    ])
+    await call.message.edit_text("🛒 <b>Закуп</b>\n\nВыберите раздел:", reply_markup=kb)
 
 @router.callback_query(F.data == "AdCreative|menu")
 async def back_to_ad_menu(call: CallbackQuery):
