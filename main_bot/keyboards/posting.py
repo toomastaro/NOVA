@@ -517,6 +517,24 @@ class InlinePosting(InlineKeyboardBuilder):
     @classmethod
     def manage_published_post(cls, post: PublishedPost):
         kb = cls()
+        
+        # Check for deleted status
+        is_deleted = getattr(post, 'status', 'active') == 'deleted'
+        
+        if is_deleted:
+            # Если пост удален - показываем только кнопку отчета (если был включен) и назад
+            if post.report or post.cpm_price:
+                 kb.button(
+                    text=text("report:cpm:button").format(""), # Format usually takes an icon or empty
+                    callback_data="ManagePublishedPost|cpm_report"
+                )
+            
+            kb.button(
+                text=text("back:button"),
+                callback_data="ManagePublishedPost|cancel"
+            )
+            kb.adjust(1)
+            return kb.as_markup()
 
         # 1. Изменить пост
         # Используем тот же callback что и для scheduled, обработаем в хендлере

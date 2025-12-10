@@ -101,21 +101,29 @@ async def generate_post_info_text(post_obj, is_published: bool = False) -> str:
         #      post_link = f"https://t.me/{ch.username}/{post_obj.message_id}"
 
         date_str = datetime.fromtimestamp(post_obj.created_timestamp).strftime("%d %B %Y г. в %H:%M")
-        
         if getattr(post_obj, 'status', 'active') == 'deleted':
              deleted_at = getattr(post_obj, 'deleted_at', None)
              del_time = datetime.fromtimestamp(deleted_at).strftime("%d %B %Y г. в %H:%M") if deleted_at else "Неизвестно"
-             status_line = f"<b>Статус: 🗑 Удален ({del_time})</b>"
+             created_str = datetime.fromtimestamp(post_obj.created_timestamp).strftime("%d %B %Y г. в %H:%M")
+             
+             return (
+                f"<b>Статус: 🗑 Удален</b>\n"
+                f"📅 Создан: {created_str}\n"
+                f"🗑 Удален: {del_time}\n"
+                f"Автор: {author_name}\n\n"
+                f"{channels_text}"
+             )
         else:
              status_line = "<b>Статус: 👀 Опубликован</b>"
+             link_line = f"Ссылка: {post_link}\n"
         
-        return (
-            f"{status_line}\n"
-            f"Ссылка: {post_link}\n"
-            f"Дата: {date_str}\n"
-            f"Автор: {author_name}\n\n"
-            f"{channels_text}"
-        )
+             return (
+                f"{status_line}\n"
+                f"{link_line}"
+                f"Дата: {date_str}\n"
+                f"Автор: {author_name}\n\n"
+                f"{channels_text}"
+             )
 
     else:
         # Post (Scheduled or Deleted)
@@ -509,6 +517,71 @@ async def manage_published_post(call: types.CallbackQuery, state: FSMContext):
         return await call.message.delete()
 
     post = data.get('post')
+
+    if temp[1] == "cpm_report":
+        import html
+        from main_bot.utils.report_signature import get_report_signatures
+        
+        # Fetch related posts
+        related_posts = await db.get_published_posts_by_post_id(post.post_id)
+        if not related_posts:
+            related_posts = [post]
+
+        total_views = 0
+        channels_info = []
+
+        # Calculate views from history (since post is deleted)
+        for p in related_posts:
+            v_hist = max(p.views_24h or 0, p.views_48h or 0, p.views_72h or 0)
+            views = v_hist
+            
+            total_views += views
+            channel = await db.get_channel_by_chat_id(p.chat_id)
+            channels_info.append(f"{html.escape(channel.title)} - 👀 {views}")
+
+        # Calculate Price
+        cpm_price = post.cpm_price or 0
+        rub_price = round(float(cpm_price * float(total_views / 1000)), 2)
+        
+        # Get Rate
+        user = await db.get_user(post.admin_id)
+        usd_rate = 1.0
+        exch_update = "N/A"
+        if user and user.default_exchange_rate_id:
+            exchange_rate = await db.get_exchange_rate(user.default_exchange_rate_id)
+            if exchange_rate and exchange_rate.rate > 0:
+                usd_rate = exchange_rate.rate
+                exch_update = exchange_rate.last_update.strftime("%H:%M %d.%m.%Y") if exchange_rate.last_update else "N/A"
+
+        # Format Text
+        channels_text_inner = "\n".join(text("resource_title").format(c) for c in channels_info)
+        channels_text = f"<blockquote expandable>{channels_text_inner}</blockquote>"
+        
+        # Using basic cpm:report format
+        report_text = text("cpm:report").format(
+            post.post_id,
+            channels_text,
+            cpm_price,
+            total_views,
+            rub_price,
+            round(rub_price / usd_rate, 2),
+            round(usd_rate, 2),
+            exch_update
+        )
+        
+        # Signature
+        report_text += await get_report_signatures(user, 'cpm', call.bot)
+        
+        # Keyboard with Back button to Post Details
+        from aiogram.utils.keyboard import InlineKeyboardBuilder
+        kb = InlineKeyboardBuilder()
+        kb.button(
+            text=text("back:button"),
+            callback_data=f"ContentPublishedPost|{post.id}"
+        )
+        
+        await call.message.edit_text(report_text, reply_markup=kb.as_markup())
+        return
 
     if temp[1] == "cancel":
         day = data.get('day')
