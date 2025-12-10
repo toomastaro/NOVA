@@ -35,8 +35,8 @@ async def create_creative_start(call: CallbackQuery, state: FSMContext):
 @router.message(AdCreativeStates.waiting_for_content)
 async def process_creative_content(message: Message, state: FSMContext):
     # Serialize message
-    # Use model_dump_json() then json.loads() to handle Pydantic types correctly and avoid Default type issues
-    raw_message = json.loads(message.model_dump_json())
+    # Use exclude_defaults=True to avoid serializing aiogram.client.default.Default types
+    raw_message = json.loads(message.model_dump_json(exclude_defaults=True))
     
     # Extract links
     slots = []
