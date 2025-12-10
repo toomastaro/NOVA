@@ -85,5 +85,5 @@ class InlineNovaStat(InlineKeyboardBuilder):
     @classmethod
     def cpm_result(cls):
         kb = cls()
-        kb.button(text="⬅️ Назад", callback_data="NovaStat|calc_cpm_start")
+        kb.button(text="⬅️ Назад", callback_data="NovaStat|main")
         return kb.as_markup()
