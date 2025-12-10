@@ -547,11 +547,16 @@ async def manage_published_post(call: types.CallbackQuery, state: FSMContext):
         user = await db.get_user(post.admin_id)
         usd_rate = 1.0
         exch_update = "N/A"
-        if user and user.default_exchange_rate_id:
-            exchange_rate = await db.get_exchange_rate(user.default_exchange_rate_id)
-            if exchange_rate and exchange_rate.rate > 0:
-                usd_rate = exchange_rate.rate
-                exch_update = exchange_rate.last_update.strftime("%H:%M %d.%m.%Y") if exchange_rate.last_update else "N/A"
+        
+        # Determine Rate ID (Use User's preference or Default to 0=CryptoBot)
+        rate_id = 0
+        if user and user.default_exchange_rate_id is not None:
+             rate_id = user.default_exchange_rate_id
+             
+        exchange_rate = await db.get_exchange_rate(rate_id)
+        if exchange_rate and exchange_rate.rate > 0:
+            usd_rate = exchange_rate.rate
+            exch_update = exchange_rate.last_update.strftime("%H:%M %d.%m.%Y") if exchange_rate.last_update else "N/A"
 
         # Format Text
         channels_text_inner = "\n".join(text("resource_title").format(c) for c in channels_info)
