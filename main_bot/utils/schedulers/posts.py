@@ -203,7 +203,6 @@ async def send(post: Post):
     # Format Success List
     success_str_inner = "\n".join(
         text("resource_title").format(
-            obj.emoji_id,
             html.escape(obj.title)
         ) for obj in objects
         if obj.chat_id in [i.get("chat_id") for i in success_send[:10]]
@@ -213,7 +212,6 @@ async def send(post: Post):
     # Format Error List
     error_str_inner = "\n".join(
          text("resource_title").format(
-            obj.emoji_id,
             html.escape(obj.title)
         ) + f" \n{''.join(row.get('error') for row in error_send[:10] if row.get('chat_id') == obj.chat_id)}"
         for obj in objects

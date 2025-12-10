@@ -166,7 +166,7 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
     # CPM Price
     cpm_str = ""
     if post.cpm_price:
-        cpm_str = f"\n💸 <b>CPM:</b> {int(post.cpm_price)} ком."
+        cpm_str = f"\n💸 <b>CPM:</b> {int(post.cpm_price)}"
 
     # Channels List
     # Ensure quotes and HTML safety
