@@ -128,7 +128,13 @@ class NovaStatService:
         if is_fresh:
             cache = await db.get_cache(channel_identifier, horizon)
             if cache and not cache.error_message:
-                return self.normalize_cache_keys(cache.value_json)
+                data = self.normalize_cache_keys(cache.value_json)
+                # Если в кэше 0 просмотров, принудительно обновляем (по запросу пользователя)
+                views = data.get('views', {})
+                if views.get(24, 0) > 0:
+                    return data
+                
+                logger.info(f"Cached views are 0 for {channel_identifier}, forcing refresh.")
         
         # 2. Проверить, идет ли обновление
         cache = await db.get_cache(channel_identifier, horizon)
