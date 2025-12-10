@@ -274,12 +274,12 @@ async def view_purchase(call: CallbackQuery, purchase_id: int):
     creative_name = creative.name if creative else "Unknown"
     
     text = (
-        f"🛒 <b>Закуп #{purchase.id}</b>\n"
-        f"Креатив: {creative_name}\n"
-        f"Тип: {purchase.pricing_type}\n"
-        f"Ставка: {purchase.price_value} руб.\n"
-        f"Комментарий: {purchase.comment or 'Нет'}\n"
-        f"Статус: {purchase.status}"
+        f"💳 <b>Закуп #{purchase.id}</b>\n"
+        f"🎨 Креатив: {creative_name}\n"
+        f"📊 Тип: {purchase.pricing_type.value}\n"
+        f"💸 Ставка: {purchase.price_value} руб.\n"
+        f"📝 Комментарий: {purchase.comment or 'Нет'}\n"
+        f"📌 Статус: {purchase.status}"
     )
     
     # If message is not modified, edit_text might fail, so we try/except or just ignore
@@ -405,7 +405,7 @@ async def show_stats(call: CallbackQuery):
     stats_text = (
         f"📊 <b>Статистика закупа #{purchase_id}</b>\n"
         f"Период: {period_name}\n\n"
-        f"📎 Лиды: {leads_count}\n"
+        f"📎 Заявки: {leads_count}\n"
         f"👥 Подписки: {subs_count}\n"
         f"📈 Конверсия: {conversion:.1f}%\n\n"
         f"💰 Доход: {revenue_text}\n"
@@ -423,7 +423,7 @@ async def show_stats(call: CallbackQuery):
     if slots_stats:
         stats_text += "\n<b>🔗 По слотам:</b>\n"
         for slot in slots_stats:
-            stats_text += f"• {slot['url']}\n  Лиды: {slot['leads']} | Подписки: {slot['subs']}\n"
+            stats_text += f"• {slot['url']}\n  Заявки: {slot['leads']} | Подписки: {slot['subs']}\n"
     
     await call.message.edit_text(
         stats_text,
@@ -498,10 +498,10 @@ async def show_global_stats(call: CallbackQuery):
     # Headers
     # дата:название_креатива:комментарий:фикс_цена:цена заявки:зена подпищика:заявок подано:подписок:цена за подпищика:цена за заявку
     headers = [
-        "Дата", "Наствие креатива", "Комментарий", 
-        "Фикс цена", "Цена заявки (CPL)", "Цена подписчика (CPS)", 
+        "Дата", "Название креатива", "Комментарий", 
+        "Фикс цена", "Цена заявки", "Цена подписчика", 
         "Заявок подано", "Подписок", 
-        "Цена за подписчика (CPA)", "Цена за заявку (Cost/Lead)"
+        "Цена за подписчика", "Цена за заявку"
     ]
     ws.append(headers)
     
