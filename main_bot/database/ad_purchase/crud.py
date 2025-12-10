@@ -66,7 +66,7 @@ class AdPurchaseCrud(DatabaseMixin):
                     invite = await bot.create_chat_invite_link(
                         chat_id=m.target_channel_id,
                         name=f"AdPurchase #{ad_purchase_id} Slot {m.slot_id}",
-                        creates_join_request=False
+                        creates_join_request=True
                         # БЕЗ member_limit - ссылка постоянная для долгосрочного отслеживания
                     )
                     
