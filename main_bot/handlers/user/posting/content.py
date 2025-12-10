@@ -568,8 +568,8 @@ async def manage_published_post(call: types.CallbackQuery, state: FSMContext):
         raw_text = opts.get('text') or opts.get('caption') or "Без текста"
         # Strip HTML tags to prevent broken tags in preview
         clean_text = re.sub(r'<[^>]+>', '', raw_text)
-        preview_text_raw = clean_text[:15] + "..." if len(clean_text) > 15 else clean_text
-        preview_text = html.escape(preview_text_raw)
+        preview_text_raw = clean_text[:50] + "..." if len(clean_text) > 50 else clean_text
+        preview_text = f"«{html.escape(preview_text_raw)}»"
         
         # Using basic cpm:report format
         report_text = text("cpm:report").format(

@@ -301,8 +301,8 @@ class InlinePosting(InlineKeyboardBuilder):
 
         kb.button(
             text=text("manage:post:del_time:button").format(
-                f"{int(delete_time / 3600)} ч."  # type: ignore
-                if delete_time else text("manage:post:del_time:not")
+                 (f"{int(delete_time / 60)} мин." if delete_time < 3600 else f"{int(delete_time / 3600)} ч.")
+                 if delete_time else text("manage:post:del_time:not")
             ),
             callback_data=f"{data}|delete_time"
         )
@@ -548,7 +548,7 @@ class InlinePosting(InlineKeyboardBuilder):
         # User request: "настроить/перенастроить таймер удаления и СПМ настройку"
         kb.button(
             text=text("manage:post:del_time:button").format(
-                f"{int(post.delete_time / 3600)} ч."  # type: ignore
+                 (f"{int(post.delete_time / 60)} мин." if post.delete_time < 3600 else f"{int(post.delete_time / 3600)} ч.")
                  if post.delete_time else text("manage:post:del_time:not")
             ),
             callback_data="ManagePublishedPost|timer" # Custom callback to handle logic
