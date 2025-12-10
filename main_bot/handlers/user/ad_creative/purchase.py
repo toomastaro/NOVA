@@ -273,13 +273,22 @@ async def view_purchase(call: CallbackQuery, purchase_id: int):
     creative = await db.get_creative(purchase.creative_id)
     creative_name = creative.name if creative else "Unknown"
     
+    # Localize status
+    status_map = {
+        "active": "🟢 Активен",
+        "paused": "⏸ На паузе",
+        "deleted": "🗑 Удален",
+        "completed": "🏁 Завершен"
+    }
+    status_text = status_map.get(purchase.status, purchase.status)
+    
     text = (
         f"💳 <b>Закуп #{purchase.id}</b>\n"
         f"🎨 Креатив: {creative_name}\n"
         f"📊 Тип: {purchase.pricing_type.value}\n"
         f"💸 Ставка: {purchase.price_value} руб.\n"
         f"📝 Комментарий: {purchase.comment or 'Нет'}\n"
-        f"📌 Статус: {purchase.status}"
+        f"📌 Статус: {status_text}"
     )
     
     # If message is not modified, edit_text might fail, so we try/except or just ignore
@@ -648,9 +657,12 @@ async def generate_post(call: CallbackQuery):
     url_map = {}
     replaced_count = 0
     for m in mappings:
+        # Normalize original URL for matching (strip trailing slash)
+        original_key = m.original_url.rstrip("/")
+        
         # Priority 1: invite_link (for channels)
         if m.invite_link:
-            url_map[m.original_url] = m.invite_link
+            url_map[original_key] = m.invite_link
             replaced_count += 1
         # Priority 2: ref-link (for bots)
         elif m.ref_param and m.target_type == AdTargetType.BOT:
@@ -659,6 +671,8 @@ async def generate_post(call: CallbackQuery):
             if bot_username_match:
                 bot_username = bot_username_match.group(1)
                 ref_link = f"https://t.me/{bot_username}?start={m.ref_param}"
+                url_map[original_key] = ref_link
+                # Also map the un-normalized version just in case
                 url_map[m.original_url] = ref_link
                 replaced_count += 1
             
@@ -670,8 +684,13 @@ async def generate_post(call: CallbackQuery):
             # Handle text_link (formatted links)
             if entity.get('type') == 'text_link':
                 url = entity.get('url')
-                if url in url_map:
-                    entity['url'] = url_map[url]
+                if url:
+                    # Try exact match first, then normalized
+                    normalized_url = url.rstrip("/")
+                    if url in url_map:
+                        entity['url'] = url_map[url]
+                    elif normalized_url in url_map:
+                        entity['url'] = url_map[normalized_url]
             
             # Handle url (raw links)
             # Convert them to text_link so the text remains same but points to new URL
@@ -681,9 +700,17 @@ async def generate_post(call: CallbackQuery):
                 length = entity.get('length')
                 url = text_content[offset:offset+length]
                 
-                if url in url_map:
-                    entity['type'] = 'text_link'
-                    entity['url'] = url_map[url]
+                if url:
+                    normalized_url = url.rstrip("/")
+                    target_url = None
+                    if url in url_map:
+                        target_url = url_map[url]
+                    elif normalized_url in url_map:
+                        target_url = url_map[normalized_url]
+                    
+                    if target_url:
+                        entity['type'] = 'text_link'
+                        entity['url'] = target_url
 
     # Replace in caption/text entities
     if 'entities' in message_data:
