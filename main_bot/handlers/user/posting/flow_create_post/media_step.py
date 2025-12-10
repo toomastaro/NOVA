@@ -66,7 +66,7 @@ async def manage_post(call: types.CallbackQuery, state: FSMContext):
                 from main_bot.handlers.user.posting.content import generate_post_info_text
                 info_text = await generate_post_info_text(post, is_published=True)
                 
-                return await call.message.edit_text(
+                return await call.message.answer(
                     info_text,
                     reply_markup=keyboards.manage_published_post(
                         post=post
