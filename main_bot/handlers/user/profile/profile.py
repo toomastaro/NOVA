@@ -25,6 +25,14 @@ async def choice(call: types.CallbackQuery, user: User, state: FSMContext):
             'cor': show_report_settings_menu,
             'args': (call,)
         },
+        'channels': {
+            'cor': show_channels,
+            'args': (call.message,)
+        },
+        'bots': {
+            'cor': show_bots,
+            'args': (call.message,)
+        },
         'support': {
             'cor': show_support,
             'args': (call.message, state,)
@@ -45,6 +53,34 @@ async def show_balance(message: types.Message, user: User):
             user.balance
         ),
         reply_markup=keyboards.profile_balance()
+    )
+
+
+async def show_channels(message: types.Message):
+    """Показать список каналов пользователя (перенесено из Posting)"""
+    channels = await db.get_user_channels(
+        user_id=message.chat.id,
+        sort_by="posting"
+    )
+    await message.answer(
+        text('channels_text'),
+        reply_markup=keyboards.channels(
+            channels=channels
+        )
+    )
+
+
+async def show_bots(message: types.Message):
+    """Показать список ботов пользователя (перенесено из Bots/Mailing)"""
+    bots = await db.get_user_bots(
+        user_id=message.chat.id,
+        sort_by=True
+    )
+    await message.answer(
+        text('bots_text'),
+        reply_markup=keyboards.choice_bots(
+            bots=bots,
+        )
     )
 
 

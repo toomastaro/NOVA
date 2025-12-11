@@ -26,10 +26,6 @@ class InlinePosting(InlineKeyboardBuilder):
             callback_data='MenuPosting|create_post'
         )
         kb.button(
-            text=text('posting:channels'),
-            callback_data='MenuPosting|channels'
-        )
-        kb.button(
             text=text('posting:content_plan'),
             callback_data='MenuPosting|content_plan'
         )
@@ -38,7 +34,7 @@ class InlinePosting(InlineKeyboardBuilder):
             callback_data='MenuPosting|back'
         )
 
-        kb.adjust(1, 1, 1, 1)
+        kb.adjust(1, 1, 1)
         return kb.as_markup()
 
     @classmethod

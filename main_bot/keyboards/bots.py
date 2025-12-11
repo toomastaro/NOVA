@@ -26,10 +26,6 @@ class InlineBots(InlineKeyboardBuilder):
             callback_data='MenuBots|create_post'
         )
         kb.button(
-            text=text('bots:bots'),
-            callback_data='MenuBots|bots'
-        )
-        kb.button(
             text=text('bots:content_plan'),
             callback_data='MenuBots|content_plan'
         )
@@ -38,7 +34,7 @@ class InlineBots(InlineKeyboardBuilder):
             callback_data='MenuBots|back'
         )
 
-        kb.adjust(1, 1, 1, 1)
+        kb.adjust(1, 1, 1)
         return kb.as_markup()
 
     @classmethod

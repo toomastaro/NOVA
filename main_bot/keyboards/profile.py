@@ -34,6 +34,14 @@ class InlineProfile(InlineKeyboardBuilder):
             callback_data='MenuProfile|report_settings'
         )
         kb.button(
+            text=text('posting:channels'),
+            callback_data='MenuProfile|channels'
+        )
+        kb.button(
+            text=text('bots:bots'),
+            callback_data='MenuProfile|bots'
+        )
+        kb.button(
             text=text('reply_menu:support'),
             callback_data='MenuProfile|support'
         )
