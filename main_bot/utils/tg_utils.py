@@ -271,6 +271,9 @@ async def set_channel_session(chat_id: int):
                 )
                 logger.info(f"✅ Создана постоянная запасная инвайт-ссылка для {chat_id}: {chat_invite_link.invite_link}")
                 
+                # Ждем пару секунд для репликации ссылки по DC
+                await asyncio.sleep(2)
+                
                 success_join = await manager.join(chat_invite_link.invite_link)
                 if not success_join:
                     logger.warning(f"❌ Клиент {client.id} не смог вступить через инвайт-ссылку")
@@ -351,7 +354,6 @@ async def background_join_channel(chat_id: int, user_id: int = None):
     """
     Попытка добавить клиента в канал в фоне с ретраями.
     Делает 3 попытки с экспоненциальной задержкой.
-    Отправляет уведомление пользователю о результате выдачи прав администратора.
     """
     import asyncio
     
@@ -365,57 +367,12 @@ async def background_join_channel(chat_id: int, user_id: int = None):
                 # Проверка на ошибку "Бот не в канале"
                 if res.get("error") == "Bot Not Admin":
                     logger.error(f"❌ {res.get('error')}: {res.get('message')}")
-                    
-                    # Отправить сообщение пользователю
-                    if user_id:
-                        try:
-                            await main_bot_obj.send_message(
-                                chat_id=user_id,
-                                text=f"❌ <b>Ошибка добавления Нова помощника</b>\n\n{res.get('message')}",
-                                parse_mode="HTML"
-                            )
-                        except Exception as e:
-                            logger.error(f"Не удалось отправить уведомление пользователю {user_id}: {e}")
-                    
                     return  # Прекращаем попытки
                 
                 # Проверка на успех
                 if res.get("success"):
-                    logger.info(f"Успешно добавлен клиент в канал {chat_id} на попытке {attempt+1}")
-                
-                # Отправить уведомление пользователю только при ошибках или успешном добавлении
-                if user_id:
-                    bot_rights = res.get("bot_rights", {})
-                    client_info = res.get("client_info", {})
-                    client_name = client_info.get("first_name", "Unknown")
-                    if client_info.get("username"):
-                        client_name += f" (@{client_info.get('username')})"
-                    
-                    if bot_rights.get("promoted"):
-                        # Auto-promoted (should not happen now)
-                        message = f"✅ <b>Нова помощник настроен!</b>\n\nКлиент был успешно добавлен и получил права администратора."
-                    else:
-                        # Manual promotion required
-                        message = (
-                            f"✅ <b>Нова помощник подключен</b>\n\n"
-                            f"В канал успешно вступил технический аккаунт: <b>{client_name}</b>\n\n"
-                            f"Для работы статистики закупов (подсчета вступлений и отписок), необходимо вручную назначить его администратором со следующими правами:\n\n"
-                            f"<blockquote>Публикация сообщений\n"
-                            f"Редактирование чужих публикаций\n"
-                            f"Удаление чужих публикаций</blockquote>"
-                        )
-                    
-                    try:
-                        if message:  # Отправляем только если message не None
-                            await main_bot_obj.send_message(
-                                chat_id=user_id,
-                                text=message,
-                                parse_mode="HTML"
-                            )
-                    except Exception as e:
-                        logger.error(f"Не удалось отправить уведомление пользователю {user_id}: {e}")
-                
-                return
+                    logger.info(f"Успешно добавлен Нова помощник в канал {chat_id} на попытке {attempt+1}")
+                    return
             
             # Если вернулась ошибка
             logger.warning(f"Попытка {attempt+1} добавления клиента в канал {chat_id} неудачна: {res}")
@@ -427,6 +384,6 @@ async def background_join_channel(chat_id: int, user_id: int = None):
         if attempt < 2:  # Не ждем после последней попытки
             await asyncio.sleep(5 * (attempt + 1))
     
-    # Если все попытки исчерпаны - алерт уже будет отправлен внутри set_channel_session
+    # Если все попытки исчерпаны
     logger.error(f"Все попытки добавления клиента в канал {chat_id} исчерпаны")
 
