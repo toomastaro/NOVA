@@ -433,7 +433,7 @@ async def show_stats(call: CallbackQuery):
         f"📎 Всего заявок: {leads_count}\n"
         f"👥 Активных подписок: {subs_count}\n"
         f"📈 Конверсия: {conversion:.1f}%\n\n"
-        f"💰 Доход: {revenue_text}\n"
+        f"💰 Цена: {revenue_text}\n"
         f"💵 Тип оплаты: {purchase.pricing_type.value}\n"
         f"💸 Ставка: {purchase.price_value} руб."
     )
