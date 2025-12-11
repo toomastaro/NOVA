@@ -20,8 +20,8 @@ class Reply:
         kb.button(text=text('reply_menu:story'))
         kb.button(text=text('reply_menu:bots'))
         
-        # Второй ряд: Курс USDT - NovaStat - Закуп
-        kb.button(text=text('reply_menu:exchange_rate'))
+        # Второй ряд: Приветка - NovaStat - Закуп
+        kb.button(text=text('reply_menu:privetka'))
         kb.button(text=text('reply_menu:novastat'))
         
         if Config.ENABLE_AD_BUY_MODULE:
@@ -30,10 +30,10 @@ class Reply:
             # Если модуль рекламы выключен, добавляем пустую кнопку для симметрии
             kb.button(text=text('reply_menu:profile'))
         
-        # Третий ряд: Настройки - Подписка - Мои каналы
+        # Третий ряд: Настройки - Подписка - Курс USDT
         kb.button(text=text('reply_menu:profile'))  # Теперь это "Настройки"
         kb.button(text=text('reply_menu:subscription'))
-        kb.button(text=text('reply_menu:channels'))
+        kb.button(text=text('reply_menu:exchange_rate'))
 
         kb.adjust(3, 3, 3)  # 3 кнопки в каждом ряду
             
