@@ -208,4 +208,5 @@ def hand_add():
         )
     )
     router.callback_query.register(privetka_choice_channel, F.data.startswith("PrivetkaChannel"))
+    # Registration fixed
     return router
