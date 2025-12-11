@@ -1,5 +1,5 @@
-from sqlalchemy import BigInteger, Boolean, String, UniqueConstraint, Index
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy import BigInteger, Boolean, String, UniqueConstraint, Index, ForeignKey
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from main_bot.database import Base
 
@@ -8,8 +8,10 @@ class MtClientChannel(Base):
     __tablename__ = 'mt_client_channels'
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    client_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    client_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("mt_clients.id"), nullable=False)
     channel_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    
+    client = relationship("MtClient", lazy="joined")
     
     is_member: Mapped[bool] = mapped_column(Boolean, default=False)
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False)

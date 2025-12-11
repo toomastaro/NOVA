@@ -23,6 +23,13 @@ class MtClientChannelCrud(DatabaseMixin):
             
         return obj
 
+    async def get_my_membership(self, channel_id: int):
+        stmt = select(MtClientChannel).where(
+            MtClientChannel.channel_id == channel_id
+        )
+        # Using fetch to return a list of items, as expected by handlers
+        return await self.fetch(stmt)
+
     async def set_membership(self, client_id: int, channel_id: int, **kwargs):
         # Filter allowed keys to avoid errors
         allowed_keys = {
