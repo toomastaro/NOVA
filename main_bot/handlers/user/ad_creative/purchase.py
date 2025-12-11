@@ -331,20 +331,21 @@ async def delete_purchase(call: CallbackQuery):
 
 
 @router.callback_query(F.data.startswith("AdPurchase|stats|"))
-async def show_stats_menu(call: CallbackQuery):
+async def show_stats_default(call: CallbackQuery):
+    # Default to 24h view
     purchase_id = int(call.data.split("|")[2])
-    await call.message.edit_text(
-        "Выберите период для статистики:",
-        reply_markup=InlineAdPurchase.stats_period_menu(purchase_id)
-    )
+    await render_purchase_stats(call, purchase_id, "24h")
 
 
 @router.callback_query(F.data.startswith("AdPurchase|stats_period|"))
-async def show_stats(call: CallbackQuery):
+async def show_stats_period(call: CallbackQuery):
     parts = call.data.split("|")
     purchase_id = int(parts[2])
     period = parts[3]
-    
+    await render_purchase_stats(call, purchase_id, period)
+
+
+async def render_purchase_stats(call: CallbackQuery, purchase_id: int, period: str):
     # Calculate time range
     import time
     now = int(time.time())
@@ -396,11 +397,6 @@ async def show_stats(call: CallbackQuery):
     
     for m in mappings:
         if m.target_channel_id:
-            # Stats for this channel (via this slot/mapping)
-            # Note: A channel might be mapped multiple times (different slots), 
-            # so we should aggregate by channel_id or show by slot if user wants channel stats?
-            # User wants "By Channel". If multiple slots point to same channel, we aggregate.
-            
             # Setup calc
             if m.target_channel_id not in channels_stats:
                 channel = await db.get_channel_by_chat_id(m.target_channel_id)
@@ -416,12 +412,11 @@ async def show_stats(call: CallbackQuery):
             channels_stats[m.target_channel_id]["leads"] += len(slot_leads)
             
             # Subs (linked to slot/channel)
-            # Fetch all subs for this slot
             slot_subs_all = await db.get_subscriptions_by_slot(purchase_id, m.slot_id, from_ts, to_ts)
             
-            # Filter by status manually (since get_subscriptions_by_slot returns objects)
+            # Filter
             active_subs = [s for s in slot_subs_all if s.status == 'active']
-            left_subs = [s for s in slot_subs_all if s.status != 'active'] # 'left', 'kicked', etc
+            left_subs = [s for s in slot_subs_all if s.status != 'active']
             
             channels_stats[m.target_channel_id]["subs"] += len(active_subs)
             channels_stats[m.target_channel_id]["unsubs"] += len(left_subs)
@@ -447,14 +442,16 @@ async def show_stats(call: CallbackQuery):
                 f"{ch_data['leads']} заявок | {ch_data['subs']} подписок | {ch_data['unsubs']} отписок\n"
             )
             
-    # Remove per-slot breakdown as requested
-    
-    await call.message.edit_text(
-        stats_text,
-        reply_markup=InlineAdPurchase.stats_period_menu(purchase_id),
-        parse_mode="HTML",
-        disable_web_page_preview=True
-    )
+    # Try/except for edit_text to avoid "message not modified" error if user clicks same period
+    try:
+        await call.message.edit_text(
+            stats_text,
+            reply_markup=InlineAdPurchase.stats_period_menu(purchase_id),
+            parse_mode="HTML",
+            disable_web_page_preview=True
+        )
+    except Exception:
+        await call.answer()
 
 
 @router.callback_query(F.data == "AdPurchase|global_stats")
