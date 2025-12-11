@@ -181,7 +181,7 @@ async def privetka_choice_channel(call: types.CallbackQuery, state: FSMContext):
     await state.update_data(chat_id=chat_id)
     if bot_id:
         await state.update_data(bot_id=bot_id)
-        user_bot = await db.get_user_bot(bot_id)
+        user_bot = await db.get_bot_by_id(bot_id)
         if user_bot:
              await state.update_data(user_bot=user_bot)
 
