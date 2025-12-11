@@ -2,6 +2,7 @@ from aiogram import Router, F, types
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery
 
+import logging
 from main_bot.database.db import db
 from main_bot.keyboards import InlineAdPurchase
 
@@ -61,9 +62,12 @@ async def show_ad_purchase_menu_internal(message: types.Message, edit: bool = Fa
         else:
             status_text = "❌ Клиент не найден в каналах."
     
+    logger = logging.getLogger(__name__)
+    logger.info(f"Rendering Ad Purchase Menu for user {message.chat.id}, channel count: {len(user_channels)}")
+    
     # Determine text
     main_text = (
-        "<b>💰 Рекламные закупы</b>\n\n"
+        "<b>💰 Рекламные закупы (v2)</b>\n\n"
         "Для сбора статистики в канал должен быть дбавлен наш технический аккаунт "
         "с правами администратора (Публикация, Редактирование, Удаление).\n\n"
         f"{status_text}"
