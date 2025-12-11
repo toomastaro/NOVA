@@ -419,5 +419,6 @@
   "report:text_updated": "✅ Текст подписи обновлён!",
   "default:cpm_signature": "<b>Реквизиты для оплаты:</b>\nСБП: хххх\nБанк. Карта: ххх\nИмя: ххх\n\n<b>Крипта:</b>\nBEP20: xxxx\nTRC: xxxx\nBYBIT UID: xxxx",
   "default:exchange_signature": "<b>Реквизиты для оплаты криптой:</b>\nBEP20: xxxx\nTRC: xxxx\nBYBIT UID: xxxx",
-  "default:referral_signature": "💫 Nova — сервис, который умеет всё ⭐️"
+  "default:referral_signature": "💫 Nova — сервис, который умеет всё ⭐️",
+  "channel:check_permissions:button": "🔄 Проверить права помощника"
 }
