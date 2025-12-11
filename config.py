@@ -24,6 +24,9 @@ class Config:
 
     API_ID = int(os.getenv("API_ID"))
     API_HASH = os.getenv("API_HASH")
+    
+    # Scheduler
+    zakup_timer = int(os.getenv("zakup_timer", 600))
 
     # Payments
     CRYPTO_BOT_TOKEN = os.getenv('CRYPTO_BOT_TOKEN')
