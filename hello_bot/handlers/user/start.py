@@ -14,6 +14,7 @@ from main_bot.utils.functions import answer_message_bot
 from main_bot.utils.schemas import MessageOptionsCaptcha, MessageOptionsHello, ByeAnswer
 from main_bot.database.user_bot.model import UserBot
 from main_bot.database.db import db as main_db
+from main_bot.keyboards import keyboards
 from utils.functions import create_emoji
 
 
@@ -238,10 +239,8 @@ async def set_channel(call: types.ChatMemberUpdated, db_bot: UserBot):
                 admin_id=db_bot.admin_id,
             )
 
-        message_text = text('success_add_channel').format(
-            db_bot.emoji_id,
-            db_bot.title,
-            emoji_id,
+        message_text = text('success_connect_bot_channel').format(
+            db_bot.username,
             call.chat.title
         )
     else:
@@ -251,9 +250,6 @@ async def set_channel(call: types.ChatMemberUpdated, db_bot: UserBot):
         )
 
         message_text = text('success_delete_channel').format(
-            db_bot.emoji_id,
-            db_bot.title,
-            channel.emoji_id,
             channel.title
         )
 
@@ -262,6 +258,40 @@ async def set_channel(call: types.ChatMemberUpdated, db_bot: UserBot):
             chat_id=call.from_user.id,
             text=message_text
         )
+
+        bot_database = Database()
+        bot_database.schema = db_bot.schema
+        count_users = await bot_database.get_count_users()
+
+        channel_ids_in_bot = await main_db.get_all_channels_in_bot_id(
+            bot_id=db_bot.id
+        )
+        channels = [
+            await main_db.get_channel_by_chat_id(chat.id)
+            for chat in channel_ids_in_bot
+        ]
+
+        status = True
+
+        await main_bot_obj.send_message(
+            chat_id=call.from_user.id,
+            text=text("bot:info").format(
+                db_bot.title,
+                "\n".join(
+                    text("resource_title").format(
+                        channel.title
+                    ) for channel in channels
+                ) if channels else "❌",
+                "✅" if status else "❌",
+                count_users.get("active"),
+                count_users.get("total"),
+            ),
+            reply_markup=keyboards.manage_bot(
+                user_bot=db_bot,
+                status=status
+            )
+        )
+
     except Exception as e:
         print(e)
 
