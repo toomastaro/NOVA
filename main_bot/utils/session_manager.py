@@ -198,14 +198,17 @@ class SessionManager:
             if isinstance(participant.participant, types.ChannelParticipantAdmin):
                 can_post = participant.participant.admin_rights.post_stories
                 logger.info(f"Пользователь админ в {chat_id}, post_stories={can_post}")
-                return can_post
+                if not can_post:
+                    logger.warning("⚠️ Прав на публикацию сторис формально нет, но пытаемся отправить (Checks Disabled)")
+                return True # Always try
             
             logger.warning(f"Пользователь не админ в {chat_id}, тип участника: {type(participant.participant).__name__}")
-            return False
+            return True # Always try
 
         except Exception as e:
             logger.error(f"Ошибка проверки историй для {chat_id}: {e}", exc_info=True)
-            return False
+            # Even if check failed, try to send
+            return True
 
     async def send_story(self, chat_id: int, file_path: str, options: StoryOptions) -> bool:
         try:
