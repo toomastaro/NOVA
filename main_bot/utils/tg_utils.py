@@ -198,6 +198,18 @@ async def set_channel_session(chat_id: int):
             "message": "Бот не является администратором канала. Пожалуйста, добавьте бота в канал с правами администратора и повторите попытку."
         }
     
+    # NEW: Create invite link for the assistant
+    try:
+        invite = await main_bot_obj.create_chat_invite_link(
+            chat_id=chat_id,
+            name="Nova Assistant Auto",
+            creates_join_request=False
+        )
+        logger.info(f"Создана инвайт-ссылка для канала {chat_id}")
+    except Exception as e:
+        logger.error(f"Ошибка создания ссылки приглашения: {e}")
+        return {"error": "Invite Creation Failed", "message": str(e)}
+
     # 1. Получить информацию о канале для round-robin
     channel = await db.get_channel_by_chat_id(chat_id)
     if not channel:
@@ -229,27 +241,36 @@ async def set_channel_session(chat_id: int):
             logger.error(f"Не удалось получить информацию о пользователе для клиента {client.id}")
             return {"error": "Failed to Get User Info"}
         
-        logger.info(f"Клиент {client.id} (user_id={me.id}) НАЗНАЧЕН для канала {chat_id}, требуется ручное добавление")
+        # NEW: Try to join automatically
+        logger.info(f"Клиент {client.id} пробует вступить в канал {chat_id}...")
+        join_success = False
+        try:
+            join_success = await manager.join(invite.invite_link, max_attempts=5)
+            if join_success:
+                 logger.info(f"✅ Клиент {client.id} успешно вступил в канал {chat_id}")
+            else:
+                 logger.warning(f"⚠️ Клиент {client.id} не смог вступить в канал {chat_id} (5 попыток)")
+        except Exception as e:
+             logger.error(f"Ошибка при вступлении клиента {client.id}: {e}")
 
         if me.username:
              await db.update_mt_client(client.id, alias=me.username)
 
-        # Добавляем клиента в БД как обычного участника (но пока без прав)
-        # Это нужно, чтобы он закрепился за каналом
+        # Добавляем клиента в БД
         await db.get_or_create_mt_client_channel(client.id, chat_id)
         
-        # Проверяем, есть ли другие помощники, если нет - ставим preferred
+        # Проверяем, есть ли другие помощники
         preferred_stats = await db.get_preferred_for_stats(chat_id)
         is_preferred = False
         if not preferred_stats:
             is_preferred = True
             
-        # Устанавливаем членство с флагами False (права пока не проверены)
+        # Устанавливаем членство
         await db.set_membership(
             client_id=client.id,
             channel_id=chat_id,
-            is_member=False, # Будет True только после join/проверки
-            is_admin=False,
+            is_member=join_success, # True if joined
+            is_admin=False, # Rights checked later manually or via check button
             can_post_stories=False,
             last_joined_at=int(time.time()),
             preferred_for_stats=is_preferred
@@ -268,6 +289,7 @@ async def set_channel_session(chat_id: int):
             "success": True, 
             "bot_rights": {}, 
             "session_path": str(session_path),
+            "joined": join_success,
             "client_info": {
                 "id": me.id,
                 "first_name": me.first_name,
