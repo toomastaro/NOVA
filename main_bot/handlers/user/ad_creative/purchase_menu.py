@@ -31,10 +31,13 @@ async def show_creative_selection(call: CallbackQuery):
 
 
 @router.callback_query(F.data == "AdPurchase|list")
-async def show_purchase_list(call: CallbackQuery):
+async def show_purchase_list(call: CallbackQuery, send_new: bool = False):
     purchases = await db.get_user_purchases(call.from_user.id)
     if not purchases:
-        await call.answer("У вас пока нет закупов.", show_alert=True)
+        if send_new:
+            await call.message.answer("У вас пока нет закупов.", show_alert=True)
+        else:
+            await call.answer("У вас пока нет закупов.", show_alert=True)
         return
     
     # Enrich purchases with creative names
@@ -49,8 +52,11 @@ async def show_purchase_list(call: CallbackQuery):
     # Sort by ID or created_timestamp desc (Assuming ID is auto-increment, higher ID = newer)
     enriched_purchases.sort(key=lambda x: x.id, reverse=True)
         
-    await call.message.edit_text(
-        "Ваши закупы:", 
-        reply_markup=InlineAdPurchase.purchase_list_menu(enriched_purchases)
-    )
+    text = "Ваши закупы:"
+    kb = InlineAdPurchase.purchase_list_menu(enriched_purchases)
+
+    if send_new:
+        await call.message.answer(text, reply_markup=kb)
+    else:
+        await call.message.edit_text(text, reply_markup=kb)
 

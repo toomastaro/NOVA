@@ -393,35 +393,45 @@ async def show_stats(call: CallbackQuery):
     # Get per-channel statistics
     mappings = await db.get_link_mappings(purchase_id)
     channels_stats = {}
+    
     for m in mappings:
         if m.target_channel_id:
-            subs = await db.get_subscriptions_by_channel(purchase_id, m.target_channel_id, from_ts, to_ts)
+            # Stats for this channel (via this slot/mapping)
+            # Note: A channel might be mapped multiple times (different slots), 
+            # so we should aggregate by channel_id or show by slot if user wants channel stats?
+            # User wants "By Channel". If multiple slots point to same channel, we aggregate.
+            
+            # Setup calc
             if m.target_channel_id not in channels_stats:
                 channel = await db.get_channel_by_chat_id(m.target_channel_id)
-                channel_name = channel.title if channel else f"ID: {m.target_channel_id}"
-                channels_stats[m.target_channel_id] = {"name": channel_name, "count": 0}
-            channels_stats[m.target_channel_id]["count"] += len(subs)
-    
-    # Get per-slot statistics
-    slots_stats = []
-    creative = await db.get_creative(purchase.creative_id)
-    if creative:
-        creative_slots = await db.get_slots(creative.id)
-        for slot in creative_slots:
-            slot_leads = await db.get_leads_by_slot(purchase_id, slot.id)
-            slot_subs = await db.get_subscriptions_by_slot(purchase_id, slot.id, from_ts, to_ts)
-            slots_stats.append({
-                "url": slot.original_url[:30] + "..." if len(slot.original_url) > 30 else slot.original_url,
-                "leads": len(slot_leads),
-                "subs": len(slot_subs)
-            })
-    
+                channels_stats[m.target_channel_id] = {
+                    "name": channel.title if channel else f"ID: {m.target_channel_id}",
+                    "leads": 0,
+                    "subs": 0,
+                    "unsubs": 0
+                }
+            
+            # Leads (linked to slot)
+            slot_leads = await db.get_leads_by_slot(purchase_id, m.slot_id)
+            channels_stats[m.target_channel_id]["leads"] += len(slot_leads)
+            
+            # Subs (linked to slot/channel)
+            # Fetch all subs for this slot
+            slot_subs_all = await db.get_subscriptions_by_slot(purchase_id, m.slot_id, from_ts, to_ts)
+            
+            # Filter by status manually (since get_subscriptions_by_slot returns objects)
+            active_subs = [s for s in slot_subs_all if s.status == 'active']
+            left_subs = [s for s in slot_subs_all if s.status != 'active'] # 'left', 'kicked', etc
+            
+            channels_stats[m.target_channel_id]["subs"] += len(active_subs)
+            channels_stats[m.target_channel_id]["unsubs"] += len(left_subs)
+
     # Format message
     stats_text = (
         f"📊 <b>Статистика закупа #{purchase_id}</b>\n"
         f"Период: {period_name}\n\n"
-        f"📎 Заявки: {leads_count}\n"
-        f"👥 Подписки: {subs_count}\n"
+        f"📎 Всего заявок: {leads_count}\n"
+        f"👥 Активных подписок: {subs_count}\n"
         f"📈 Конверсия: {conversion:.1f}%\n\n"
         f"💰 Доход: {revenue_text}\n"
         f"💵 Тип оплаты: {purchase.pricing_type.value}\n"
@@ -432,13 +442,12 @@ async def show_stats(call: CallbackQuery):
     if channels_stats:
         stats_text += "\n\n<b>📺 По каналам:</b>\n"
         for ch_id, ch_data in channels_stats.items():
-            stats_text += f"• {ch_data['name']}: {ch_data['count']} подписок\n"
-    
-    # Add per-slot breakdown
-    if slots_stats:
-        stats_text += "\n<b>🔗 По слотам:</b>\n"
-        for slot in slots_stats:
-            stats_text += f"• {slot['url']}\n  Заявки: {slot['leads']} | Подписки: {slot['subs']}\n"
+            stats_text += (
+                f"• {ch_data['name']}:\n"
+                f"{ch_data['leads']} заявок | {ch_data['subs']} подписок | {ch_data['unsubs']} отписок\n"
+            )
+            
+    # Remove per-slot breakdown as requested
     
     await call.message.edit_text(
         stats_text,
@@ -822,7 +831,7 @@ async def generate_post(call: CallbackQuery):
         
         # Redirect to Purchase List
         from main_bot.handlers.user.ad_creative.purchase_menu import show_purchase_list
-        await show_purchase_list(call)
+        await show_purchase_list(call, send_new=True)
         
     except Exception as e:
         # Catch specific errors
