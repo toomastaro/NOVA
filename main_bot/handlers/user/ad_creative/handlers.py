@@ -34,11 +34,16 @@ async def create_creative_start(call: CallbackQuery, state: FSMContext):
 
 @router.message(AdCreativeStates.waiting_for_content)
 async def process_creative_content(message: Message, state: FSMContext):
-    # Serialize message
-    # Use model_dump to get dict directly
-    raw_message = message.model_dump(mode='json')
+    # Serialize message safely
+    # 1. Use exclude_defaults=True to avoid 'Default' type serialization error (aiogram 3.x)
+    raw_message = json.loads(message.model_dump_json(exclude_defaults=True))
     
-    # Extract links
+    # 2. Manually restore entities if they were stripped or if we want to ensure they are present
+    # (Previously exclude_defaults seemed to strip them or cause issues)
+    if message.entities:
+        raw_message['entities'] = [e.model_dump(mode='json') for e in message.entities]
+    if message.caption_entities:
+        raw_message['caption_entities'] = [e.model_dump(mode='json') for e in message.caption_entities]
     slots = []
     slot_index = 1
     
