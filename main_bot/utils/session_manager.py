@@ -91,72 +91,70 @@ class SessionManager:
 
     async def join(self, invite_link_or_username: str) -> bool:
         """
-        Joins a channel/group with robust retry logic.
-        Attempts 10 times with progressive delays to handle current Telegram server load/lags.
-        Returns True if successful.
-        Raises specific exceptions for handling.
+        Вступает в канал/группу с надежной логикой повторных попыток.
+        Делает 10 попыток с прогрессивной задержкой для обработки лагов серверов Telegram.
+        Возвращает True в случае успеха.
+        Вызывает исключения для обработки на уровнях выше.
         """
         max_attempts = 10
         
         for attempt in range(max_attempts):
             try:
-                logger.info(f"Join attempt {attempt + 1}/{max_attempts} for {invite_link_or_username[:20]}...")
+                logger.info(f"Попытка вступления {attempt + 1}/{max_attempts} в {invite_link_or_username[:20]}...")
                 
                 if "t.me/+" in invite_link_or_username or "joinchat" in invite_link_or_username:
-                    # Private invite link
-                    # Handle "t.me/+HASH"
+                    # Приватная ссылка
+                    # Обработка "t.me/+HASH"
                     if "t.me/+" in invite_link_or_username:
                         part = invite_link_or_username.split('/')[-1]
                         if part.startswith('+'):
                             hash_arg = part[1:]
                         else:
                             hash_arg = part
-                    # Handle "joinchat/HASH" logic
+                    # Обработка "joinchat/HASH"
                     elif "joinchat" in invite_link_or_username:
                          hash_arg = invite_link_or_username.split('joinchat/')[-1]
                     else:
                          hash_arg = invite_link_or_username.split('/')[-1]
 
-                    # Strip any potential query params (?)
+                    # Очистка от query параметров (?)
                     hash_arg = hash_arg.split('?')[0].strip()
 
                     await self.client(functions.messages.ImportChatInviteRequest(hash=hash_arg))
                 else:
-                    # Public username
+                    # Публичный юзернейм
                     username = invite_link_or_username.split('/')[-1]
                     await self.client(functions.channels.JoinChannelRequest(channel=username))
                 
-                logger.info(f"✅ Successfully joined {invite_link_or_username[:20]} on attempt {attempt + 1}")
+                logger.info(f"✅ Успешное вступление в {invite_link_or_username[:20]} с попытки {attempt + 1}")
                 return True
 
             except UserAlreadyParticipantError:
-                # Already joined, consider success
-                logger.info("ℹ️ Already participant")
+                # Уже участник - считаем успехом
+                logger.info("ℹ️ Уже является участником")
                 return True
             except FloodWaitError as e:
-                # FloodWait MUST be respected, but we can't retry immediately.
-                # If wait is short (< 60s), maybe wait? 
-                # For now, simpler to raise and let upper logic decide, OR wait if small.
+                # FloodWait нужно соблюдать
                 logger.warning(f"⚠️ FloodWaitError: {e}")
                 if e.seconds < 30:
-                     logger.info(f"⏳ Waiting {e.seconds}s for FloodWait...")
+                     logger.info(f"⏳ Ожидание {e.seconds}с из-за FloodWait...")
                      await asyncio.sleep(e.seconds)
-                     continue # Retry immediately after wait
+                     continue # Повторяем сразу после ожидания
                 raise e
             except rpcerrorlist.InviteHashExpiredError as e:
-                logger.error("❌ Invite link expired")
+                logger.error("❌ Срок действия инвайт-ссылки истек")
                 raise e
             except Exception as e:
-                # Catch generic network errors, timeouts, internal server errors (500)
+                # Ловим сетевые ошибки, таймауты
                 is_last_attempt = attempt == max_attempts - 1
                 
                 if not is_last_attempt:
-                    # Progressive delay: 2, 4, 6...
+                    # Прогрессивная задержка: 2, 4, 6...
                     delay = (attempt + 1) * 2
-                    logger.warning(f"⚠️ Join attempt {attempt + 1} failed: {e}. Retrying in {delay}s...")
+                    logger.warning(f"⚠️ Попытка вступления {attempt + 1} провалилась: {e}. Повтор через {delay}с...")
                     await asyncio.sleep(delay)
                 else:
-                    logger.error(f"❌ Join failed after {max_attempts} attempts: {e}")
+                    logger.error(f"❌ Не удалось вступить после {max_attempts} попыток: {e}")
                     raise e
         
         return False
@@ -254,7 +252,7 @@ class SessionManager:
         except FloodWaitError as e:
             raise e
         except Exception as e:
-            print(f"Send story error: {e}")
+            logger.error(f"Ошибка отправки истории: {e}")
             raise e
 
     async def get_views(self, chat_id: int, messages_ids: List[int]) -> Optional[types.messages.MessageViews]:
@@ -266,7 +264,7 @@ class SessionManager:
                 increment=False
             ))
         except Exception as e:
-            print(f"Get views error: {e}")
+            logger.error(f"Ошибка получения просмотров: {e}")
             return None
 
     async def leave_channel(self, chat_id: int) -> bool:
@@ -275,43 +273,5 @@ class SessionManager:
             await self.client(functions.channels.LeaveChannelRequest(channel=peer))
             return True
         except Exception as e:
-            print(f"Leave channel error: {e}")
+            logger.error(f"Ошибка выхода из канала: {e}")
             return False
-
-
-async def main():
-    # Example usage
-    session_path = Path("sessions/test.session")
-    
-    # Ensure directory exists for testing
-    session_path.parent.mkdir(parents=True, exist_ok=True)
-
-    print(f"Testing session: {session_path}")
-    
-    async with SessionManager(session_path) as manager:
-        if not manager.client or not await manager.client.is_user_authorized():
-            print("Session not authorized or not found.")
-            # Here you would normally trigger login flow
-            return
-
-        # 1. Health Check
-        print("Running Health Check...")
-        health = await manager.health_check()
-        print(f"Health Check Result: {health}")
-
-        if not health["ok"]:
-            print("Session is not healthy, aborting.")
-            return
-
-        # 2. Get Me
-        me = await manager.me()
-        print(f"Logged in as: {me.first_name} (ID: {me.id})")
-
-        # 3. Check Stories Capability (example channel ID)
-        test_channel_id = -1001234567890 # Replace with real ID
-        # can_post = await manager.can_send_stories(test_channel_id)
-        # print(f"Can post stories to {test_channel_id}: {can_post}")
-
-
-if __name__ == '__main__':
-    asyncio.run(main())
