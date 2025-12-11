@@ -88,31 +88,36 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
     # Получаем статус помощника
     try:
         # Находим привязанного клиента
-        client_row = await db.get_my_membership(channel.chat_id) # Using this to check DB record
+        client_row = await db.get_my_membership(channel.chat_id)
         
         can_post = False
         can_stories = False
+        mt_client = None
         
         if client_row:
              if client_row[0].is_admin:
-                 # It seems row is list of (MtClientChannel, MtClient) or similar
-                 # Checking crud logic: get_my_membership returns rows with MtClientChannel
                  pass
              
-             # Fetch more direct status
-             # Assuming db.get_channel_admin_row was used or similar logic
-             # Let's trust logic: we need to show status.
-             # If we don't have accurate DB flag for stories, we used is_admin mostly.
              can_post = client_row[0].is_admin
              can_stories = client_row[0].can_post_stories
+             mt_client = client_row[0].client
         
         status_post = "✅" if can_post else "❌"
         status_story = "✅" if can_stories else "❌"
         # Mailing depends on posting
         status_mail = "✅" if can_post else "❌"
-        # Welcome depends on BOT admin rights mostly, let's check bot rights or assume OK if channel is here
-        # Actually checking bot rights every time is slow, let's assume OK for now or use what we have
-        status_welcome = "✅" # Bot is admin usually if added
+        
+        # Check welcome messages
+        hello_msgs = await db.get_hello_messages(channel.chat_id, active=True)
+        status_welcome = "✅" if hello_msgs else "❌"
+        
+        if mt_client:
+            import html
+            assistant_name = f"<a href='tg://user?id={mt_client.id}'>{html.escape(mt_client.alias)}</a>"
+            assistant_desc = "<i>Назначенный помощник для этого канала</i>"
+            assistant_header = f"🤖 <b>Статус помощника:</b> {assistant_name}\n{assistant_desc}\n"
+        else:
+            assistant_header = "🤖 <b>Статус помощника:</b> Не назначен\n"
         
     except Exception as e:
         logger.error(f"Ошибка получения статуса помощника: {e}")
@@ -120,7 +125,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
         status_story = "❓"
         status_mail = "❓"
         status_welcome = "❓"
-
+        assistant_header = "🤖 <b>Статус помощника:</b> Ошибка\n"
 
     info_text = (
         f"📺 <b>Информация о канале</b>\n\n"
@@ -130,7 +135,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
         f"<b>Добавлен:</b> {created_str}\n"
         f"<b>Подписка:</b> {subscribe_str}\n\n"
         f"👥 <b>Редакторы:</b>\n{editors_str}\n\n"
-        f"🤖 <b>Статус помощника:</b>\n"
+        f"{assistant_header}"
         f"Постинг: {status_post}\n"
         f"Истории: {status_story}\n"
         f"Рассылка: {status_mail}\n"
