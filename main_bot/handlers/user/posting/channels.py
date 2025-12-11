@@ -249,7 +249,7 @@ async def manage_channel(call: types.CallbackQuery, state: FSMContext):
                     f"   ✅ Удаление историй\n\n"
                     f"После выдачи прав нажмите кнопку <b>«Проверить права помощника»</b>."
                 )
-                await call.message.edit_text(text=msg, parse_mode="HTML", reply_markup=keyboards.manage_channel(data))
+                await call.message.edit_text(text=msg, parse_mode="HTML", reply_markup=keyboards.manage_channel("ManageChannelPost"))
                 
             else:
                 await call.answer("⚠️ Не удалось добавить помощника (5 попыток). Попробуйте позже.", show_alert=True)
