@@ -231,6 +231,9 @@ async def set_channel_session(chat_id: int):
         
         logger.info(f"Клиент {client.id} (user_id={me.id}) НАЗНАЧЕН для канала {chat_id}, требуется ручное добавление")
 
+        if me.username:
+             await db.update_mt_client(client.id, alias=me.username)
+
         # Добавляем клиента в БД как обычного участника (но пока без прав)
         # Это нужно, чтобы он закрепился за каналом
         await db.get_or_create_mt_client_channel(client.id, chat_id)
