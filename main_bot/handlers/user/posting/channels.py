@@ -240,6 +240,11 @@ async def manage_channel(call: types.CallbackQuery, state: FSMContext):
         is_admin = perms.get("is_admin", False)
         can_stories = perms.get("can_post_stories", False)
         
+        # Update client alias if username is available
+        me = perms.get("me")
+        if me and me.username:
+             await db.update_mt_client(mt_client.id, alias=me.username)
+        
         await db.set_membership(
             client_id=mt_client.id,
             channel_id=channel.chat_id,

@@ -285,10 +285,14 @@ class SessionManager:
             "can_post_messages": False,
             "can_post_stories": False,
             "can_invite_users": False,
-            "error": None
+            "error": None,
+            "me": None
         }
         
         try:
+            me = await self.client.get_me()
+            result["me"] = me
+            
             peer = await self.client.get_input_entity(chat_id)
             participant = await self.client(functions.channels.GetParticipantRequest(
                 channel=peer,
