@@ -166,13 +166,11 @@ class SessionManager:
             peer = await self.client.get_input_entity(chat_id)
             chat_full = await self.client(functions.channels.GetFullChannelRequest(channel=peer))
             
-            # Проверка глобальной доступности историй
-            chat_full_dict = chat_full.to_dict()
-            
-            # Проверка уровня бустов
-            full_chat = chat_full_dict.get('full_chat', {})
-            boosts_applied = full_chat.get('boosts_applied', 0)
-            boosts_for_stories = full_chat.get('boosts_for_next_level_min', 0)
+            # Access attributes directly to avoid to_dict() issues
+            full_chat = chat_full.full_chat
+            boosts_applied = getattr(full_chat, 'boosts_applied', 0) or 0
+            # boosts_unrestrict is often the field for "boosts needed to unrestrict"
+            boosts_for_stories = getattr(full_chat, 'boosts_unrestrict', 0) or 0
             
             logger.info(f"Бусты канала {chat_id}: {boosts_applied}, необходимо для историй: {boosts_for_stories}")
             
@@ -181,7 +179,7 @@ class SessionManager:
                 logger.warning(f"Недостаточно бустов для {chat_id}: {boosts_applied}/{boosts_for_stories}")
                 return False
             
-            if chat_full_dict.get('chats', [{}])[0].get('stories_unavailable', False):
+            if chat_full.chats and getattr(chat_full.chats[0], 'stories_unavailable', False):
                 logger.warning(f"Истории недоступны для {chat_id}")
                 return False
 
