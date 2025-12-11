@@ -138,17 +138,55 @@ async def show_channels(message: types.Message):
 
 @safe_handler("Start Privetka")
 async def start_privetka(message: types.Message):
+    channels_raw = await db.get_bot_channels(message.chat.id)
+    channels = await db.get_user_channels(message.chat.id, from_array=[i.id for i in channels_raw])
+
     await message.answer(
-        "👋 Приветка",
-        reply_markup=keyboards.cancel(
-            data="BackPrivetka"
+        text('privetka_text'),
+        reply_markup=keyboards.choice_channel_for_setting(
+            channels=channels,
+            data="PrivetkaChannel"
         )
     )
 
 
-@safe_handler("Back Privetka")
-async def back_privetka(call: types.CallbackQuery):
+@safe_handler("Privetka Choice Channel")
+async def privetka_choice_channel(call: types.CallbackQuery, state: FSMContext):
+    temp = call.data.split("|")
+
+    if temp[1] == "cancel":
+        await call.message.delete()
+        from main_bot.keyboards.common import Reply
+        await call.message.answer("Главное меню", reply_markup=Reply.menu())
+        return
+
+    if temp[1] in ["next", "back"]:
+        channels_raw = await db.get_bot_channels(call.from_user.id)
+        channels = await db.get_user_channels(call.from_user.id, from_array=[i.id for i in channels_raw])
+
+        return await call.message.edit_reply_markup(
+            reply_markup=keyboards.choice_channel_for_setting(
+                channels=channels,
+                data="PrivetkaChannel",
+                remover=int(temp[2])
+            )
+        )
+
+    chat_id = int(temp[1])
+    channel_setting = await db.get_channel_bot_setting(chat_id=chat_id)
+
+    bot_id = channel_setting.bot_id if channel_setting else None
+
+    await state.update_data(chat_id=chat_id)
+    if bot_id:
+        await state.update_data(bot_id=bot_id)
+        user_bot = await db.get_user_bot(bot_id)
+        if user_bot:
+             await state.update_data(user_bot=user_bot)
+
+    db_obj = Database()
     await call.message.delete()
+    await show_channel_setting(call.message, db_obj, state)
 
 
 def hand_add():
