@@ -81,4 +81,3 @@ win32_setctime==1.2.0
 yarl==1.22.0
 requests~=2.32.5
 pyrogram==2.0.106
-tgcrypto==1.2.5
