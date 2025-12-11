@@ -7,6 +7,8 @@ from main_bot.utils.lang.language import text
 from main_bot.utils.logger import logging
 from main_bot.utils.error_handler import safe_handler
 from main_bot.database.db import db
+from hello_bot.database.db import Database
+from main_bot.handlers.user.bots.bot_settings.menu import show_channel_setting
 
 logger = logging.getLogger(__name__)
 
