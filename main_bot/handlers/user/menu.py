@@ -8,7 +8,6 @@ from main_bot.utils.logger import logging
 from main_bot.utils.error_handler import safe_handler
 from main_bot.database.db import db
 from hello_bot.database.db import Database
-from main_bot.handlers.user.bots.bot_settings.menu import show_channel_setting
 
 logger = logging.getLogger(__name__)
 
@@ -192,6 +191,7 @@ async def privetka_choice_channel(call: types.CallbackQuery, state: FSMContext):
         db_obj.schema = user_bot.schema
 
     await call.message.delete()
+    from main_bot.handlers.user.bots.bot_settings.menu import show_channel_setting
     await show_channel_setting(call.message, db_obj, state)
 
 
