@@ -1,5 +1,5 @@
 # 🐍 Официальный образ Python 3.11
-FROM python:3.11slim
+FROM python:3.11-slim
 
 # 🧩 Системные зависимости
 RUN apt-get update && apt-get install -y \
