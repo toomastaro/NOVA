@@ -102,30 +102,36 @@ async def check_client_status(call: CallbackQuery):
         await call.answer("Клиент не назначен каналу.", show_alert=True)
         return
 
-    from main_bot.utils.client_manager import client_manager
-    session = await client_manager.get_client(client_model.id)
-    if not session:
-        await call.answer("Не удалось загрузить сессию клиента.", show_alert=True)
-        return
+    from pathlib import Path
+    from main_bot.utils.session_manager import SessionManager
+    
+    session_path = Path(client_model.session_path)
+    if not session_path.exists():
+         await call.answer("Файл сессии не найден.", show_alert=True)
+         return
+
+    async with SessionManager(session_path) as manager:
+        if not manager.client or not await manager.client.is_user_authorized():
+             await call.answer("Не удалось загрузить сессию клиента.", show_alert=True)
+             return
         
-    try:
-        # Try to get admin log
-        from pyrogram.enums import ChatEventAction
-        # Just fetch 1 event to test permission
-        async for event in session.get_admin_log(channel.chat_id, limit=1):
-            pass
-            
-        await call.message.edit_text(
-            call.message.html_text + "\n\n✅ Права подтверждены! Клиент видит Admin Log.",
-            reply_markup=InlineAdPurchase.main_menu(),
-            parse_mode="HTML"
-        )
-    except Exception as e:
-        await call.message.edit_text(
-            call.message.html_text + f"\n\n❌ Ошибка: Клиент не имеет доступа к Admin Log.\n{str(e)}",
-            reply_markup=InlineAdPurchase.main_menu(),
-            parse_mode="HTML"
-        )
+        try:
+            # Check admin log access
+            # Telethon iter_admin_log
+            async for event in manager.client.iter_admin_log(channel.chat_id, limit=1):
+                pass
+                
+            await call.message.edit_text(
+                call.message.html_text + "\n\n✅ Права подтверждены! Клиент видит Admin Log.",
+                reply_markup=InlineAdPurchase.main_menu(),
+                parse_mode="HTML"
+            )
+        except Exception as e:
+            await call.message.edit_text(
+                call.message.html_text + f"\n\n❌ Ошибка: Клиент не имеет доступа к Admin Log.\n{str(e)}",
+                reply_markup=InlineAdPurchase.main_menu(),
+                parse_mode="HTML"
+            )
 
 
 @router.callback_query(F.data == "AdPurchase|create_menu")
