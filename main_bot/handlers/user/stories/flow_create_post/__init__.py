@@ -31,20 +31,20 @@ def hand_add():
     router.callback_query.register(manage_post, F.data.split("|")[0] == "ManageStory")
     
     # Редактирование параметров
-    router.callback_query.register(cancel_value, F.data.split("|")[0] == "ParamCancel")
+    router.callback_query.register(cancel_value, F.data.split("|")[0] == "ParamCancelStories")
     router.message.register(get_value, Stories.input_value, F.photo | F.video)
     
     # Выбор каналов
     router.callback_query.register(choice_channels, F.data.split("|")[0] == "ChoiceStoriesChannels")
     
     # Финальные параметры и расписание
-    router.callback_query.register(finish_params, F.data.split("|")[0] == "FinishStoryParams")
-    router.callback_query.register(choice_delete_time, F.data.split("|")[0] == "GetDeleteTimeStory")
-    router.callback_query.register(cancel_send_time, F.data.split("|")[0] == "BackSendTimeStory")
+    router.callback_query.register(finish_params, F.data.split("|")[0] == "FinishStoriesParams")
+    router.callback_query.register(choice_delete_time, F.data.split("|")[0] == "GetDeleteTimeStories")
+    router.callback_query.register(cancel_send_time, F.data.split("|")[0] == "BackSendTimeStories")
     router.message.register(get_send_time, Stories.input_send_time, F.text)
     
     # Подтверждение и сохранение
-    router.callback_query.register(accept, F.data.split("|")[0] == "AcceptStory")
+    router.callback_query.register(accept, F.data.split("|")[0] == "AcceptStories")
     
     return router
 
