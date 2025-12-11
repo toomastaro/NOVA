@@ -207,5 +207,5 @@ def hand_add():
             }
         )
     )
-    router.callback_query.register(back_privetka, F.data == "BackPrivetka")
+    router.callback_query.register(privetka_choice_channel, F.data.startswith("PrivetkaChannel"))
     return router
