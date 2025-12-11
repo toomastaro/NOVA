@@ -113,7 +113,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
         
         if mt_client:
             import html
-            assistant_name = f"👤 <code>{html.escape(mt_client.alias)}</code>"
+            assistant_name = f"@{html.escape(mt_client.alias)}"
             assistant_desc = "<i>Назначенный помощник для этого канала</i>"
             assistant_header = f"🤖 <b>Статус помощника:</b> {assistant_name}\n{assistant_desc}\n"
         else:
