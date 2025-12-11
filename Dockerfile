@@ -1,10 +1,10 @@
-# 🐍 Официальный образ Python 3.12
-FROM python:3.12-slim
+# 🐍 Официальный образ Python 3.11
+FROM python:3.11slim
 
 # 🧩 Системные зависимости
 RUN apt-get update && apt-get install -y \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
+  curl \
+  && rm -rf /var/lib/apt/lists/*
 
 # 📁 Рабочая директория внутри контейнера
 WORKDIR /app
@@ -44,17 +44,17 @@ DIRS=(
 )
 
 for d in "${DIRS[@]}"; do
-  mkdir -p "$d"
-  chown -R "${APP_UID}:${APP_GID}" "$d"
-  chmod -R g+rwX "$d"
+mkdir -p "$d"
+chown -R "${APP_UID}:${APP_GID}" "$d"
+chmod -R g+rwX "$d"
 done
 
 # --- Ожидание базы данных ---
 echo "⏳ Waiting for database..."
 python3 /app/wait-for-db.py
 if [ $? -ne 0 ]; then
-    echo "❌ Database connection failed"
-    exit 1
+echo "❌ Database connection failed"
+exit 1
 fi
 echo "✅ Database is ready"
 
