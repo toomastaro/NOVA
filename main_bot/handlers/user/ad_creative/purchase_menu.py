@@ -47,8 +47,8 @@ async def show_ad_purchase_menu_internal(message: types.Message, edit: bool = Fa
         # Get client
         client_model = await db.get_preferred_for_stats(first_ch.chat_id) or await db.get_any_client_for_channel(first_ch.chat_id)
         
-        if client_model:
-            client_name = client_model.alias or f"Client #{client_model.id}"
+        if client_model and client_model.client:
+            client_name = client_model.client.alias or f"Client #{client_model.client.id}"
             # Check rights? We can't check efficiently in real-time on every render without delay.
             # We should store status or just assume Active until verified.
             # User asked for "Check Status" button.
@@ -109,7 +109,7 @@ async def check_client_status(call: CallbackQuery):
     from pathlib import Path
     from main_bot.utils.session_manager import SessionManager
     
-    session_path = Path(client_model.session_path)
+    session_path = Path(client_model.client.session_path)
     if not session_path.exists():
          await call.answer("Файл сессии не найден.", show_alert=True)
          return
