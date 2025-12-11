@@ -309,7 +309,7 @@ class InlineBots(InlineKeyboardBuilder):
 
         kb.button(
             text=text("manage:bot:manage"),
-            callback_data="ManageBot|settings"
+            callback_data=f"ManageBot|settings|{user_bot.id}"
         )
 
         kb.button(
