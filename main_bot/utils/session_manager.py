@@ -177,11 +177,11 @@ class SessionManager:
             # Если требуется следующий уровень для историй и бустов недостаточно
             if boosts_for_stories > 0 and boosts_applied < boosts_for_stories:
                 logger.warning(f"Недостаточно бустов для {chat_id}: {boosts_applied}/{boosts_for_stories}")
-                return False
-            
+                # return False # Disabled by request
+
             if chat_full.chats and getattr(chat_full.chats[0], 'stories_unavailable', False):
                 logger.warning(f"Истории недоступны для {chat_id}")
-                return False
+                # return False # Disabled by request
 
             # Проверка прав администратора
             participant = await self.client(functions.channels.GetParticipantRequest(
