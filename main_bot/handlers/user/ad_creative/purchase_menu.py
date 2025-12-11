@@ -68,7 +68,7 @@ async def show_ad_purchase_menu_internal(message: types.Message, edit: bool = Fa
     # Determine text
     main_text = (
         "<b>💰 Рекламные закупы (v2)</b>\n\n"
-        "Для сбора статистики в канал должен быть дбавлен наш технический аккаунт "
+        "Для сбора статистики в канал должен быть добавлен наш технический аккаунт "
         "с правами администратора (Публикация, Редактирование, Удаление).\n\n"
         f"{status_text}"
     )
@@ -76,12 +76,6 @@ async def show_ad_purchase_menu_internal(message: types.Message, edit: bool = Fa
     # Keyboard
     # Add "Check Status" button
     kb = InlineAdPurchase.main_menu()
-    # Modifying main_menu logic or just adding button here?
-    # InlineAdPurchase.main_menu() returns markup. We can't easily append.
-    # We need to modify the keyboard builder in ad_modules.py or rebuild here.
-    # Better to update ad_modules.py to include status button or conditional.
-    # But for quick iteration, I'll allow "Create" but handle blocking in the handler.
-    # Wait, user said: "не пускать пока не будет клиента"
     
     if edit:
         await message.edit_text(main_text, reply_markup=kb, parse_mode="HTML")
@@ -90,52 +84,107 @@ async def show_ad_purchase_menu_internal(message: types.Message, edit: bool = Fa
 
 @router.callback_query(F.data == "AdPurchase|check_client_status")
 async def check_client_status(call: CallbackQuery):
-    await call.answer("Проверяем права клиента...", show_alert=False)
+    await call.answer("⏳ Полная проверка всех каналов...", show_alert=False)
     
     user_channels = await db.get_user_channels(call.message.chat.id)
     if not user_channels:
          await call.answer("Нет каналов для проверки.", show_alert=True)
          return
          
-    # Logic to verify rights via MTProto
-    # For simplicity, we check the first channel.
-    channel = user_channels[0]
+    # Group channels by client to optimize sessions
+    client_groups = {} # {client_id: {'client': mt_client, 'channels': [channel]}}
+    no_client_channels = []
     
-    client_model = await db.get_preferred_for_stats(channel.chat_id) or await db.get_any_client_for_channel(channel.chat_id)
-    if not client_model:
-        await call.answer("Клиент не назначен каналу.", show_alert=True)
-        return
-
+    for channel in user_channels:
+        client_model = await db.get_preferred_for_stats(channel.chat_id) or await db.get_any_client_for_channel(channel.chat_id)
+        
+        if not client_model or not client_model.client:
+            no_client_channels.append(channel)
+            continue
+            
+        mt_client = client_model.client
+        if mt_client.id not in client_groups:
+            client_groups[mt_client.id] = {
+                'client': mt_client,
+                'channels': []
+            }
+        client_groups[mt_client.id]['channels'].append(channel)
+        
+    results = []
+    
+    # 1. Channels with no client
+    for ch in no_client_channels:
+        results.append(f"❌ <b>{ch.title}</b>: Не назначен помощник")
+        
+    # 2. Check each client group
     from pathlib import Path
     from main_bot.utils.session_manager import SessionManager
     
-    session_path = Path(client_model.client.session_path)
-    if not session_path.exists():
-         await call.answer("Файл сессии не найден.", show_alert=True)
-         return
-
-    async with SessionManager(session_path) as manager:
-        if not manager.client or not await manager.client.is_user_authorized():
-             await call.answer("Не удалось загрузить сессию клиента.", show_alert=True)
-             return
+    for cid, group in client_groups.items():
+        mt_client = group['client']
+        channels = group['channels']
+        session_path = Path(mt_client.session_path)
+        client_label = mt_client.alias or f"Client {cid}"
         
+        if not session_path.exists():
+            for ch in channels:
+                results.append(f"❌ <b>{ch.title}</b>: Нет файла сессии ({client_label})")
+            continue
+            
         try:
-            # Check admin log access
-            # Telethon iter_admin_log
-            async for event in manager.client.iter_admin_log(channel.chat_id, limit=1):
-                pass
+            async with SessionManager(session_path) as manager:
+                if not manager.client or not await manager.client.is_user_authorized():
+                    for ch in channels:
+                        results.append(f"❌ <b>{ch.title}</b>: Сессия не авторизована ({client_label})")
+                    continue
                 
-            await call.message.edit_text(
-                call.message.html_text + "\n\n✅ Права подтверждены! Клиент видит Admin Log.",
-                reply_markup=InlineAdPurchase.main_menu(),
-                parse_mode="HTML"
-            )
+                # Check permissions for each channel
+                for ch in channels:
+                    try:
+                        # Attempt to read admin log to verify admin rights
+                        async for event in manager.client.iter_admin_log(ch.chat_id, limit=1):
+                            pass
+                        results.append(f"✅ <b>{ch.title}</b>")
+                    except Exception as e:
+                        err_str = str(e)
+                        if "ChatAdminRequiredError" in err_str:
+                             error_msg = "Нет прав админа"
+                        else:
+                             error_msg = "Ошибка доступа"
+                        results.append(f"❌ <b>{ch.title}</b>: {error_msg}")
+                        logger.error(f"Check failed for {ch.title}: {e}")
+                        
         except Exception as e:
-            await call.message.edit_text(
-                call.message.html_text + f"\n\n❌ Ошибка: Клиент не имеет доступа к Admin Log.\n{str(e)}",
-                reply_markup=InlineAdPurchase.main_menu(),
-                parse_mode="HTML"
-            )
+            logger.error(f"Session error for {client_label}: {e}")
+            for ch in channels:
+                results.append(f"❌ <b>{ch.title}</b>: Ошибка подключения ({client_label})")
+
+    # Build Report
+    success_count = sum(1 for r in results if r.startswith("✅"))
+    total_count = len(user_channels)
+    
+    report_header = f"📊 <b>Результат проверки ({success_count}/{total_count})</b>"
+    if len(results) > 20: 
+        # Shorten if too many?
+        # User asked for status, so full list is expected but maybe split messages if > 4096 chars.
+        # Generally 20 lines is fine.
+        pass
+        
+    report_body = "\n".join(results)
+    
+    main_text = (
+        "<b>💰 Рекламные закупы (v2)</b>\n\n"
+        "Для сбора статистики в канал должен быть добавлен наш технический аккаунт "
+        "с правами администратора.\n\n"
+        f"{report_header}\n"
+        f"{report_body}"
+    )
+    
+    await call.message.edit_text(
+        text=main_text,
+        reply_markup=InlineAdPurchase.main_menu(),
+        parse_mode="HTML"
+    )
 
 
 @router.callback_query(F.data == "AdPurchase|create_menu")

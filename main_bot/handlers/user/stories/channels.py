@@ -119,11 +119,18 @@ async def render_channel_info(call: types.CallbackQuery, state: FSMContext, chan
         f"└ 👋 Приветствие: {status_welcome}"
     )
 
-    await call.message.edit_text(
-        text=info_text,
-        reply_markup=keyboards.manage_channel("ManageChannelStories"),
-        parse_mode="HTML"
-    )
+    from aiogram.exceptions import TelegramBadRequest
+    try:
+        await call.message.edit_text(
+            text=info_text,
+            reply_markup=keyboards.manage_channel("ManageChannelStories"),
+            parse_mode="HTML"
+        )
+    except TelegramBadRequest as e:
+        if "message is not modified" in str(e):
+            await call.answer()
+        else:
+            raise e
 
 
 @safe_handler("Stories Channel Choice")

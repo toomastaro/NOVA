@@ -35,7 +35,7 @@ def hand_add():
     router.message.register(get_value, Stories.input_value, F.photo | F.video)
     
     # Выбор каналов
-    router.callback_query.register(choice_channels, F.data.split("|")[0] == "ChoiceStoryChannels")
+    router.callback_query.register(choice_channels, F.data.split("|")[0] == "ChoiceStoriesChannels")
     
     # Финальные параметры и расписание
     router.callback_query.register(finish_params, F.data.split("|")[0] == "FinishStoryParams")

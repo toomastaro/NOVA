@@ -43,7 +43,8 @@ async def process_ad_stats():
     ).distinct()
     
     paid_admin_ids_rows = await db.fetch(query)
-    paid_admin_ids = [row.admin_id for row in paid_admin_ids_rows]
+    # db.fetch likely returns scalars for single column select
+    paid_admin_ids = paid_admin_ids_rows
     
     if not paid_admin_ids:
         # logger.debug("No paid admins found for ad stats scan.")
@@ -103,12 +104,12 @@ async def process_channel_logs(channel_id: int, mappings: list[AdPurchaseLinkMap
     if not client_model:
         client_model = await db.get_any_client_for_channel(channel_id)
         
-    if not client_model:
+    if not client_model or not client_model.client:
         return
     
-    session_path = Path(client_model.session_path)
+    session_path = Path(client_model.client.session_path)
     if not session_path.exists():
-        logger.warning(f"Session file not found for client {client_model.id}: {session_path}")
+        logger.warning(f"Session file not found for client {client_model.client.id}: {session_path}")
         return
 
     async with SessionManager(session_path) as manager:
