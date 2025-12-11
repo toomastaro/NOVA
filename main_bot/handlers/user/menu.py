@@ -47,7 +47,7 @@ async def choice(message: types.Message, state: FSMContext):
         },
         text('reply_menu:privetka'): {
             'cor': start_privetka,
-            'args': (message,)
+            'args': (message, state,)
         },
     }
 
@@ -139,7 +139,8 @@ async def show_channels(message: types.Message):
 
 
 @safe_handler("Start Privetka")
-async def start_privetka(message: types.Message):
+async def start_privetka(message: types.Message, state: FSMContext):
+    await state.update_data(from_privetka=True)
     channels_raw = await db.get_bot_channels(message.chat.id)
     channels = await db.get_user_channels(message.chat.id, from_array=[i.id for i in channels_raw])
 
