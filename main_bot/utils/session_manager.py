@@ -100,7 +100,25 @@ class SessionManager:
             try:
                 if "t.me/+" in invite_link_or_username or "joinchat" in invite_link_or_username:
                     # Private invite link
-                    hash_arg = invite_link_or_username.split('/')[-1].replace('+', '')
+                    # Handle "t.me/+HASH"
+                    if "t.me/+" in invite_link_or_username:
+                        # Split by "t.me/+" but also handle potential http/https prefix
+                        # Easiest is split by '+' and take the last part IF strict format
+                        # Safer: split by "/" and take last, then remove leading +
+                        part = invite_link_or_username.split('/')[-1]
+                        if part.startswith('+'):
+                            hash_arg = part[1:]
+                        else:
+                            hash_arg = part # Should not happen if t.me/+ check passed, but safe fallback
+                    # Handle "joinchat/HASH" logic
+                    elif "joinchat" in invite_link_or_username:
+                         hash_arg = invite_link_or_username.split('joinchat/')[-1]
+                    else:
+                         hash_arg = invite_link_or_username.split('/')[-1]
+
+                    # Strip any potential query params (?)
+                    hash_arg = hash_arg.split('?')[0].strip()
+
                     await self.client(functions.messages.ImportChatInviteRequest(hash=hash_arg))
                 else:
                     # Public username
