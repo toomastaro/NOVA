@@ -136,9 +136,12 @@ class AdPurchaseCrud(DatabaseMixin):
 
     async def add_subscription(self, user_id: int, channel_id: int, ad_purchase_id: int, slot_id: int, invite_link: str) -> bool:
         """
-        Add a subscription for an ad purchase. Returns True if subscription was created, False if already exists.
+        Add a subscription for an ad purchase. 
+        If user exists but status is 'left', reactivate (set active).
+        Returns True if subscription was created or activated, False if already active.
         """
         from main_bot.database.ad_purchase.model import AdSubscription
+        import time
         
         # Check if subscription already exists
         query = select(AdSubscription).where(
@@ -149,6 +152,13 @@ class AdPurchaseCrud(DatabaseMixin):
         existing = await self.fetchrow(query)
         
         if existing:
+            if existing.status != 'active':
+                # Reactivate
+                query = update(AdSubscription).where(
+                    AdSubscription.id == existing.id
+                ).values(status='active', left_timestamp=None)
+                await self.execute(query)
+                return True
             return False
         
         # Create new subscription
@@ -157,10 +167,26 @@ class AdPurchaseCrud(DatabaseMixin):
             channel_id=channel_id,
             ad_purchase_id=ad_purchase_id,
             slot_id=slot_id,
-            invite_link=invite_link
+            invite_link=invite_link,
+            status='active'
         )
         await self.execute(query)
         return True
+
+    async def update_subscription_status(self, user_id: int, channel_id: int, status: str) -> None:
+        """Update subscription status (e.g. to 'left')."""
+        from main_bot.database.ad_purchase.model import AdSubscription
+        import time
+        
+        values = {'status': status}
+        if status == 'left':
+            values['left_timestamp'] = int(time.time())
+            
+        query = update(AdSubscription).where(
+            AdSubscription.user_id == user_id,
+            AdSubscription.channel_id == channel_id
+        ).values(**values)
+        await self.execute(query)
 
     async def get_subscriptions_count(self, ad_purchase_id: int, from_ts: int = None, to_ts: int = None) -> int:
         """Get total number of subscriptions for an ad purchase within a time range."""

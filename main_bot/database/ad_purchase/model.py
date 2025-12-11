@@ -49,6 +49,8 @@ class AdSubscription(Base):
     ad_purchase_id: Mapped[int] = mapped_column(index=True)
     slot_id: Mapped[int] = mapped_column()
     invite_link: Mapped[str] = mapped_column()
+    status: Mapped[str] = mapped_column(default="active")  # 'active', 'left', 'kicked'
+    left_timestamp: Mapped[int | None] = mapped_column(default=None)
     created_timestamp: Mapped[int] = mapped_column(default=time.time)
 
 
