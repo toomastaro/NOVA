@@ -176,110 +176,111 @@ async def set_channel_session(chat_id: int):
             
             if bot_member.status in [ChatMemberStatus.ADMINISTRATOR, ChatMemberStatus.CREATOR]:
                 bot_is_admin = True
-                logger.info(f"✅ Bot is admin in channel {chat_id} (attempt {attempt + 1})")
+                logger.info(f"✅ Бот является администратором в канале {chat_id} (попытка {attempt + 1})")
                 break
             else:
-                logger.warning(f"⚠️ Bot is not admin in {chat_id}, status: {bot_member.status} (attempt {attempt + 1}/3)")
+                logger.warning(f"⚠️ Бот не является администратором в {chat_id}, статус: {bot_member.status} (попытка {attempt + 1}/3)")
                 
         except Exception as e:
-            logger.warning(f"⚠️ Cannot check bot status in {chat_id}: {e} (attempt {attempt + 1}/3)")
+            logger.warning(f"⚠️ Невозможно проверить статус бота в {chat_id}: {e} (попытка {attempt + 1}/3)")
         
         # Ждем перед следующей попыткой (кроме последней)
         if attempt < 2:
-            logger.info(f"Waiting 1 second before retry...")
+            logger.info(f"Ожидание 1 секунду перед повторной попыткой...")
             await asyncio.sleep(1.0)
     
     # Если после всех попыток бот не админ - возвращаем ошибку
     if not bot_is_admin:
-        error_msg = "Bot is not an administrator of the channel after 3 attempts"
-        logger.error(f"❌ {error_msg} in {chat_id}")
+        error_msg = "Бот не является администратором канала после 3 попыток"
+        logger.error(f"❌ {error_msg} в {chat_id}")
         return {
             "error": "Bot Not Admin",
             "message": "Бот не является администратором канала. Пожалуйста, добавьте бота в канал с правами администратора и повторите попытку."
         }
     
-    # 1. Get channel info to use round-robin
+    # 1. Получить информацию о канале для round-robin
     channel = await db.get_channel_by_chat_id(chat_id)
     if not channel:
-        logger.error(f"Channel {chat_id} not found in database")
+        logger.error(f"Канал {chat_id} не найден в базе данных")
         return {"error": "Channel Not Found"}
     
-    # 2. Get next internal client using round-robin
+    # 2. Получить следующего внутреннего клиента используя round-robin
     client = await db.get_next_internal_client(channel.id)
     
     if not client:
-        logger.error("No active internal clients found")
+        logger.error("Нет активных внутренних клиентов")
         return {"error": "No Active Clients"}
     
-    logger.info(f"🔄 Selected client {client.id} ({client.alias}) for channel {chat_id} using round-robin")
+    logger.info(f"🔄 Выбран клиент {client.id} ({client.alias}) для канала {chat_id} используя round-robin")
     
     session_path = Path(client.session_path)
     if not session_path.exists():
-        logger.error(f"Session file not found for client {client.id}: {session_path}")
+        logger.error(f"Файл сессии не найден для клиента {client.id}: {session_path}")
         return {"error": "Session File Not Found"}
     async with SessionManager(session_path) as manager:
         if not manager:
-            logger.error(f"Failed to create SessionManager for client {client.id}")
+            logger.error(f"Не удалось создать SessionManager для клиента {client.id}")
             return {"error": "Session Manager Failed"}
         
         # Получить user_id клиента
         me = await manager.me()
         if not me:
-            logger.error(f"Failed to get user info for client {client.id}")
+            logger.error(f"Не удалось получить информацию о пользователе для клиента {client.id}")
             return {"error": "Failed to Get User Info"}
         
-        logger.info(f"Client {client.id} (user_id={me.id}) ready for join")
+        logger.info(f"Клиент {client.id} (user_id={me.id}) готов к вступлению")
         # Шаг 0: Превентивно снимаем бан если есть (один раз в начале)
         # Если клиент не забанен, это ничего не сделает благодаря only_if_banned=True
         try:
             await main_bot_obj.unban_chat_member(chat_id, me.id, only_if_banned=True)
-            logger.debug(f"Preventive unban check completed for client {client.id}")
+            logger.debug(f"Превентивная проверка разбана завершена для клиента {client.id}")
             await asyncio.sleep(0.5)
         except Exception as unban_error:
             # Это нормально - клиент может быть не забанен
-            logger.debug(f"Preventive unban result for client {client.id}: {unban_error}")
+            logger.debug(f"Результат превентивного разбана для клиента {client.id}: {unban_error}")
         # Флаг успешного добавления
         client_added = False
         
-        # Шаг 1: Попытка добавить клиента напрямую через InviteToChannelRequest
-        # Это более надежный способ чем invite ссылки
+        # Шаг 1: Если канал публичный - вступаем по username (надежнее и быстрее)
+        # Если приватный - переходим к fallback методу с инвайт-ссылкой
         try:
  
              chat = await main_bot_obj.get_chat(chat_id)
              if chat.username:
-                 logger.info(f"Channel {chat_id} is public (@{chat.username}), attempting direct join")
+                 logger.info(f"Канал {chat_id} публичный (@{chat.username}), попытка прямого вступления")
                  if await manager.join(f"@{chat.username}"):
                      client_added = True
-                     logger.info(f"✅ Client {client.id} joined via username @{chat.username}")
+                     logger.info(f"✅ Клиент {client.id} вступил через юзернейм @{chat.username}")
 
         except Exception as e:
-            logger.warning(f"Direct join by username failed: {e}")
+            logger.warning(f"Прямое вступление по юзернейму не удалось: {e}")
 
             
         # Если клиент не был добавлен через InviteToChannelRequest, пробуем через invite ссылку
         if not client_added:
-            logger.info(f"Attempting fallback method (invite link) for client {client.id}")
+            logger.info(f"Попытка запасного метода (инвайт-ссылка) для клиента {client.id}")
             
             try:
                 # Создаем ПОСТОЯННУЮ ссылку для клиента
+                from datetime import datetime
                 chat_invite_link = await main_bot_obj.create_chat_invite_link(
                     chat_id=chat_id,
-                    name=f"MTProto Client {client.id}",
+                    name=f"Nova Stats {datetime.now().strftime('%d.%m.%Y')}",
                     creates_join_request=False
                     # БЕЗ member_limit - ссылка постоянная и многоразовая
                 )
-                logger.info(f"✅ Created permanent fallback invite link for {chat_id}: {chat_invite_link.invite_link}")
+                logger.info(f"✅ Создана постоянная запасная инвайт-ссылка для {chat_id}: {chat_invite_link.invite_link}")
                 
                 success_join = await manager.join(chat_invite_link.invite_link)
                 if not success_join:
-                    logger.warning(f"❌ Client {client.id} failed to join via invite link")
+                    logger.warning(f"❌ Клиент {client.id} не смог вступить через инвайт-ссылку")
                     return {"error": "Failed to Join via Invite Link"}
                 
-                logger.info(f"✅ Client {client.id} successfully joined via invite link")
+                logger.info(f"✅ Клиент {client.id} успешно вступил через инвайт-ссылку")
                 client_added = True
                     
             except Exception as link_error:
-                logger.error(f"❌ Fallback invite link also failed for client {client.id}: {link_error}")
+                logger.error(f"❌ Запасная инвайт-ссылка также не сработала для клиента {client.id}: {link_error}")
                 
                 # Send alert for access loss
                 error_str = str(link_error)
@@ -301,11 +302,11 @@ async def set_channel_session(chat_id: int):
                 return {"error": "Failed to Add Client"}
         
         if not client_added:
-            logger.error(f"❌ Failed to add client {client.id} to channel {chat_id}")
+            logger.error(f"❌ Не удалось добавить клиента {client.id} в канал {chat_id}")
             return {"error": "Failed to Add Client"}
         
         # Клиент успешно добавлен
-        logger.info(f"✅ Client {client.id} joined channel {chat_id}, skipping promotion (manual only)")
+        logger.info(f"✅ Клиент {client.id} вступил в канал {chat_id}, пропуск повышения (только вручную)")
 
         # Добавляем клиента в БД как обычного участника
         await db.get_or_create_mt_client_channel(client.id, chat_id)
@@ -332,7 +333,7 @@ async def set_channel_session(chat_id: int):
         
         # Update last_client_id for round-robin
         await db.update_last_client(channel.id, client.id)
-        logger.info(f"✅ Updated last_client_id for channel {channel.id} to {client.id}")
+        logger.info(f"✅ Обновлен last_client_id для канала {channel.id} на {client.id}")
         
         return {"success": True, "bot_rights": {}, "session_path": str(session_path)}
 
@@ -365,7 +366,7 @@ async def background_join_channel(chat_id: int, user_id: int = None):
                                 parse_mode="HTML"
                             )
                         except Exception as e:
-                            logger.error(f"Failed to send notification to user {user_id}: {e}")
+                            logger.error(f"Не удалось отправить уведомление пользователю {user_id}: {e}")
                     
                     return  # Прекращаем попытки
                 
@@ -377,29 +378,17 @@ async def background_join_channel(chat_id: int, user_id: int = None):
                 if user_id:
                     bot_rights = res.get("bot_rights", {})
                     
-                    # Не отправляем сообщение при успешном промоуте
                     if bot_rights.get("promoted"):
-                        message = None
-                    elif bot_rights.get("has_admin") and not bot_rights.get("can_promote"):
-                        # Отправляем техническую информацию в бекап канал
-                        if Config.BACKUP_CHAT_ID:
-                            try:
-                                await main_bot_obj.send_message(
-                                    Config.BACKUP_CHAT_ID,
-                                    f"⚠️ <b>Права администратора частично выданы</b>\n\n"
-                                    f"<b>Канал:</b> {chat_id}\n"
-                                    f"<b>Пользователь:</b> {user_id}\n"
-                                    f"<b>Причина:</b> {bot_rights.get('reason', 'Неизвестно')}\n\n"
-                                    "MTProto-клиент добавлен как обычный участник.",
-                                    parse_mode="HTML"
-                                )
-                            except:
-                                pass
-                        # Не отправляем сообщение пользователю
-                        message = None
+                        # Auto-promoted (should not happen now)
+                        message = f"✅ <b>MTProto-клиент настроен!</b>\n\nКлиент был успешно добавлен и получил права администратора."
                     else:
-                        # Не отправляем сообщение пользователю при ошибке выдачи прав
-                        message = None
+                        # Manual promotion required
+                        message = (
+                            f"✅ <b>MTProto-клиент добавлен!</b>\n\n"
+                            f"Клиент успешно вступил в канал {chat_id}.\n"
+                            f"👉 <b>ОБЯЗАТЕЛЬНО:</b> Зайдите в настройки канала и назначьте этого пользователя администратором вручную.\n"
+                            f"Необходимые права: Публикация, Редактирование, Удаление."
+                        )
                     
                     try:
                         if message:  # Отправляем только если message не None
@@ -409,7 +398,7 @@ async def background_join_channel(chat_id: int, user_id: int = None):
                                 parse_mode="HTML"
                             )
                     except Exception as e:
-                        logger.error(f"Failed to send notification to user {user_id}: {e}")
+                        logger.error(f"Не удалось отправить уведомление пользователю {user_id}: {e}")
                 
                 return
             

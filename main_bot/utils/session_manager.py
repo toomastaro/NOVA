@@ -91,25 +91,26 @@ class SessionManager:
 
     async def join(self, invite_link_or_username: str) -> bool:
         """
-        Joins a channel/group with retry logic.
-        Attempts 3 times with progressive delays (0s, 1s, 2s).
+        Joins a channel/group with robust retry logic.
+        Attempts 10 times with progressive delays to handle current Telegram server load/lags.
         Returns True if successful.
         Raises specific exceptions for handling.
         """
-        for attempt in range(3):
+        max_attempts = 10
+        
+        for attempt in range(max_attempts):
             try:
+                logger.info(f"Join attempt {attempt + 1}/{max_attempts} for {invite_link_or_username[:20]}...")
+                
                 if "t.me/+" in invite_link_or_username or "joinchat" in invite_link_or_username:
                     # Private invite link
                     # Handle "t.me/+HASH"
                     if "t.me/+" in invite_link_or_username:
-                        # Split by "t.me/+" but also handle potential http/https prefix
-                        # Easiest is split by '+' and take the last part IF strict format
-                        # Safer: split by "/" and take last, then remove leading +
                         part = invite_link_or_username.split('/')[-1]
                         if part.startswith('+'):
                             hash_arg = part[1:]
                         else:
-                            hash_arg = part # Should not happen if t.me/+ check passed, but safe fallback
+                            hash_arg = part
                     # Handle "joinchat/HASH" logic
                     elif "joinchat" in invite_link_or_username:
                          hash_arg = invite_link_or_username.split('joinchat/')[-1]
@@ -124,25 +125,38 @@ class SessionManager:
                     # Public username
                     username = invite_link_or_username.split('/')[-1]
                     await self.client(functions.channels.JoinChannelRequest(channel=username))
+                
+                logger.info(f"✅ Successfully joined {invite_link_or_username[:20]} on attempt {attempt + 1}")
                 return True
 
             except UserAlreadyParticipantError:
                 # Already joined, consider success
+                logger.info("ℹ️ Already participant")
                 return True
             except FloodWaitError as e:
-                # Don't retry on flood wait
+                # FloodWait MUST be respected, but we can't retry immediately.
+                # If wait is short (< 60s), maybe wait? 
+                # For now, simpler to raise and let upper logic decide, OR wait if small.
+                logger.warning(f"⚠️ FloodWaitError: {e}")
+                if e.seconds < 30:
+                     logger.info(f"⏳ Waiting {e.seconds}s for FloodWait...")
+                     await asyncio.sleep(e.seconds)
+                     continue # Retry immediately after wait
                 raise e
             except rpcerrorlist.InviteHashExpiredError as e:
-                # Link expired, no point retrying
+                logger.error("❌ Invite link expired")
                 raise e
             except Exception as e:
-                if attempt < 2:  # Not the last attempt
-                    delay = attempt + 1  # 1s on first retry, 2s on second retry
-                    print(f"Join attempt {attempt + 1} failed: {e}. Retrying in {delay}s...")
+                # Catch generic network errors, timeouts, internal server errors (500)
+                is_last_attempt = attempt == max_attempts - 1
+                
+                if not is_last_attempt:
+                    # Progressive delay: 2, 4, 6...
+                    delay = (attempt + 1) * 2
+                    logger.warning(f"⚠️ Join attempt {attempt + 1} failed: {e}. Retrying in {delay}s...")
                     await asyncio.sleep(delay)
                 else:
-                    # Last attempt failed
-                    print(f"Join failed after 3 attempts: {e}")
+                    logger.error(f"❌ Join failed after {max_attempts} attempts: {e}")
                     raise e
         
         return False
