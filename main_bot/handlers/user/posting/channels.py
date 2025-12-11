@@ -78,7 +78,8 @@ async def render_channel_info(call: types.CallbackQuery, state: FSMContext, chan
         
         status_post = "✅" if can_post else "❌"
         status_story = "✅" if can_stories else "❌"
-        status_mail = "✅" if can_post else "❌"
+        # Mailing depends on posting logic TBD
+        status_mail = "❌"
         
         # Check welcome messages
         hello_msgs = await db.get_hello_messages(channel.chat_id, active=True)
