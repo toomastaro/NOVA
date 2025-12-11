@@ -362,11 +362,7 @@ async def manage_channel(call: types.CallbackQuery, state: FSMContext):
         )
         
         # 4. Refresh view
-        # We need to reconstruct call.data to call choice again? 
-        # Or just manually call choice logic.
-        # Construct fake data to call choice with correct ID
-        call.data = f"ChoicePostChannel|{channel.chat_id}|0"
-        await choice(call, state)
+        await render_channel_info(call, state, channel.chat_id)
         
         if is_admin and (can_stories or not perms.get("can_post_stories")): 
             # Notify success
