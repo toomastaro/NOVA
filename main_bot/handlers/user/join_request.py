@@ -16,8 +16,7 @@ async def on_join_request(request: types.ChatJoinRequest):
     if not request.invite_link:
         return
 
-    invite_link = request.invite_link.invite_link
-    user_id = request.from_user.id
+    logger.info(f"Received join request from {user_id} with link {invite_link}")
     
     # Check if this invite link belongs to an Ad Purchase
     # Use direct query to CRUD mixin or create specific method? CRUD mixin is better.
@@ -52,13 +51,19 @@ async def on_join_request(request: types.ChatJoinRequest):
         
         if mapping:
             # It's an ad link! Track lead.
-            await db.add_lead(
+            logger.info(f"Mapping found for link {invite_link}: Purchase {mapping.ad_purchase_id}, Slot {mapping.slot_id}")
+            result = await db.add_lead(
                 user_id=user_id,
                 ad_purchase_id=mapping.ad_purchase_id,
                 slot_id=mapping.slot_id,
                 ref_param=f"req_{mapping.ad_purchase_id}_{mapping.slot_id}" # Synthetic ref param
             )
-            # logger.info(f"Lead tracked for user {user_id} on purchase {mapping.ad_purchase_id}")
+            if result:
+                 logger.info(f"Lead ADDED for user {user_id}")
+            else:
+                 logger.info(f"Lead SKIPPED (Duplicate) for user {user_id}")
+        else:
+            logger.info(f"No mapping found for link {invite_link}")
             
     except Exception as e:
         logger.error(f"Error processing join request for lead tracking: {e}")

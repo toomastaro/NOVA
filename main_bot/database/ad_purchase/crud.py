@@ -102,6 +102,7 @@ class AdPurchaseCrud(DatabaseMixin):
         existing = await self.fetchrow(query)
         
         if existing:
+            # logging.warning(f"Lead duplicate for user {user_id} on purchase {ad_purchase_id}")
             return False
         
         # Create new lead
