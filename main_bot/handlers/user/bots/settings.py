@@ -43,14 +43,14 @@ async def show_bot_manage(message: types.Message, user_bot: UserBot):
     await message.answer(
         text("bot:info").format(
             user_bot.title,
-            count_users.get("active"),
-            count_users.get("total"),
             "\n".join(
                 text("resource_title").format(
                     channel.title
                 ) for channel in channels
             ) if channels else "❌",
             "✅" if status else "❌",
+            count_users.get("active"),
+            count_users.get("total"),
         ),
         reply_markup=keyboards.manage_bot(
             user_bot=user_bot,
