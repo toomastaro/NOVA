@@ -104,6 +104,10 @@ class InlineContent(InlineKeyboardBuilder):
         kb = cls()
 
         kb.button(
+            text=text('channel:check_permissions:button') if text('channel:check_permissions:button') != 'channel:check_permissions:button' else '🔄 Проверить права помощника',
+            callback_data=f"{data}|check_permissions"
+        )
+        kb.button(
             text=text('channel:delete:button'),
             callback_data=f"{data}|delete"
         )

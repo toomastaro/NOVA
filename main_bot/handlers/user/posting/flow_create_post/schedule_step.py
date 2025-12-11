@@ -285,6 +285,36 @@ async def finish_params(call: types.CallbackQuery, state: FSMContext):
 
     # Установка CPM цены
     if temp[1] == "cpm_price":
+        # Проверка прав у выбранных каналов для CPM (требуется помощник)
+        invalid_channels = []
+        # chosen может быть не в data, если это редактирование, берем из post.chat_ids
+        target_channels = data.get("chosen") or post.chat_ids
+        
+        for chat_id in target_channels:
+            channel = await db.get_channel_by_chat_id(int(chat_id))
+            if not channel:
+                continue
+                
+            client_row = await db.get_my_membership(channel.chat_id)
+            has_perms = False
+            if client_row and client_row[0].is_admin:
+                 has_perms = True
+            
+            if not has_perms:
+                invalid_channels.append(channel.title)
+        
+        if invalid_channels:
+            channels_text = "\n".join(f"• {title}" for title in invalid_channels[:5])
+            if len(invalid_channels) > 5:
+                channels_text += f"\n... и ещё {len(invalid_channels) - 5}"
+                
+            return await call.answer(
+                f"⛔ Функция недоступна!\n\n"
+                f"Для настройки CPM требуется активный помощник с правами администратора в следующих каналах:\n{channels_text}\n\n"
+                f"Пожалуйста, проверьте «Права помощника» в настройках канала.",
+                show_alert=True
+            )
+
         if not post.delete_time:
             return await call.answer(text("error_cpm_without_timer"), show_alert=True)
 

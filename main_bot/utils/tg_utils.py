@@ -217,6 +217,7 @@ async def set_channel_session(chat_id: int):
     if not session_path.exists():
         logger.error(f"Файл сессии не найден для клиента {client.id}: {session_path}")
         return {"error": "Session File Not Found"}
+        
     async with SessionManager(session_path) as manager:
         if not manager:
             logger.error(f"Не удалось создать SessionManager для клиента {client.id}")
@@ -228,101 +229,23 @@ async def set_channel_session(chat_id: int):
             logger.error(f"Не удалось получить информацию о пользователе для клиента {client.id}")
             return {"error": "Failed to Get User Info"}
         
-        logger.info(f"Клиент {client.id} (user_id={me.id}) готов к вступлению")
-        # Шаг 0: Превентивно снимаем бан если есть (один раз в начале)
-        # Если клиент не забанен, это ничего не сделает благодаря only_if_banned=True
-        try:
-            await main_bot_obj.unban_chat_member(chat_id, me.id, only_if_banned=True)
-            logger.debug(f"Превентивная проверка разбана завершена для клиента {client.id}")
-            await asyncio.sleep(0.5)
-        except Exception as unban_error:
-            # Это нормально - клиент может быть не забанен
-            logger.debug(f"Результат превентивного разбана для клиента {client.id}: {unban_error}")
-        # Флаг успешного добавления
-        client_added = False
-        
-        # Шаг 1: Если канал публичный - вступаем по username (надежнее и быстрее)
-        # Если приватный - переходим к fallback методу с инвайт-ссылкой
-        try:
- 
-             chat = await main_bot_obj.get_chat(chat_id)
-             if chat.username:
-                 logger.info(f"Канал {chat_id} публичный (@{chat.username}), попытка прямого вступления")
-                 if await manager.join(f"@{chat.username}"):
-                     client_added = True
-                     logger.info(f"✅ Клиент {client.id} вступил через юзернейм @{chat.username}")
+        logger.info(f"Клиент {client.id} (user_id={me.id}) НАЗНАЧЕН для канала {chat_id}, требуется ручное добавление")
 
-        except Exception as e:
-            logger.warning(f"Прямое вступление по юзернейму не удалось: {e}")
-
-            
-        # Если клиент не был добавлен через InviteToChannelRequest, пробуем через invite ссылку
-        if not client_added:
-            logger.info(f"Попытка запасного метода (инвайт-ссылка) для клиента {client.id}")
-            
-            try:
-                # Создаем ПОСТОЯННУЮ ссылку для клиента
-                from datetime import datetime
-                chat_invite_link = await main_bot_obj.create_chat_invite_link(
-                    chat_id=chat_id,
-                    name=f"Nova Stats {datetime.now().strftime('%d.%m.%Y')}",
-                    creates_join_request=False
-                    # БЕЗ member_limit - ссылка постоянная и многоразовая
-                )
-                logger.info(f"✅ Создана постоянная запасная инвайт-ссылка для {chat_id}: {chat_invite_link.invite_link}")
-                
-                # Ждем пару секунд для репликации ссылки по DC
-                await asyncio.sleep(2)
-                
-                success_join = await manager.join(chat_invite_link.invite_link)
-                if not success_join:
-                    logger.warning(f"❌ Клиент {client.id} не смог вступить через инвайт-ссылку")
-                    return {"error": "Failed to Join via Invite Link"}
-                
-                logger.info(f"✅ Клиент {client.id} успешно вступил через инвайт-ссылку")
-                client_added = True
-                    
-            except Exception as link_error:
-                logger.error(f"❌ Запасная инвайт-ссылка также не сработала для клиента {client.id}: {link_error}")
-                
-                # Send alert for access loss
-                error_str = str(link_error)
-                if "USER_NOT_PARTICIPANT" in error_str or "CHANNEL_PRIVATE" in error_str or "CHAT_ADMIN_REQUIRED" in error_str:
-                    from main_bot.utils.support_log import send_support_alert, SupportAlert
-                    channel_obj = await db.get_channel_by_chat_id(chat_id)
-                    
-                    await send_support_alert(main_bot_obj, SupportAlert(
-                        event_type='INTERNAL_ACCESS_LOST',
-                        client_id=client.id,
-                        client_alias=client.alias,
-                        pool_type=client.pool_type,
-                        channel_id=chat_id,
-                        is_our_channel=True,
-                        error_code=error_str.split('(')[0].strip() if '(' in error_str else error_str[:50],
-                        error_text=f"Не удалось добавить клиента в канал: {error_str[:100]}"
-                    ))
-                
-                return {"error": "Failed to Add Client"}
-        
-        if not client_added:
-            logger.error(f"❌ Не удалось добавить клиента {client.id} в канал {chat_id}")
-            return {"error": "Failed to Add Client"}
-        
-        # Клиент успешно добавлен
-        logger.info(f"✅ Клиент {client.id} вступил в канал {chat_id}, пропуск повышения (только вручную)")
-
-        # Добавляем клиента в БД как обычного участника
+        # Добавляем клиента в БД как обычного участника (но пока без прав)
+        # Это нужно, чтобы он закрепился за каналом
         await db.get_or_create_mt_client_channel(client.id, chat_id)
-        # Check if we need to set preferred stats (if none exists)
+        
+        # Проверяем, есть ли другие помощники, если нет - ставим preferred
         preferred_stats = await db.get_preferred_for_stats(chat_id)
         is_preferred = False
         if not preferred_stats:
             is_preferred = True
             
+        # Устанавливаем членство с флагами False (права пока не проверены)
         await db.set_membership(
             client_id=client.id,
             channel_id=chat_id,
-            is_member=True,
+            is_member=False, # Будет True только после join/проверки
             is_admin=False,
             can_post_stories=False,
             last_joined_at=int(time.time()),

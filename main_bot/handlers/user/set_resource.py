@@ -10,7 +10,7 @@ from main_bot.handlers.user.menu import start_posting
 
 from main_bot.database.db import db
 from main_bot.utils.schedulers import schedule_channel_job, update_channel_stats, scheduler_instance
-from main_bot.utils.functions import create_emoji, background_join_channel
+from main_bot.utils.functions import create_emoji, set_channel_session
 from main_bot.utils.lang.language import text
 from main_bot.utils.error_handler import safe_handler
 
@@ -96,8 +96,8 @@ async def set_channel(call: types.ChatMemberUpdated):
         emoji_id = await create_emoji(call.from_user.id, photo_bytes)
         await set_admins(call.bot, chat_id, chat_title, emoji_id, user_id=call.from_user.id)
 
-        # Запуск фоновой задачи для добавления клиента в канал
-        asyncio.create_task(background_join_channel(chat_id, user_id=call.from_user.id))
+        # Назначаем клиента и получаем инструкцию
+        res = await set_channel_session(chat_id)
         
         # Schedule stats job
         channel_obj = await db.get_channel_by_chat_id(chat_id)
@@ -105,9 +105,31 @@ async def set_channel(call: types.ChatMemberUpdated):
              schedule_channel_job(scheduler_instance, channel_obj)
              asyncio.create_task(update_channel_stats(chat_id))
 
-        message_text = text('success_add_channel').format(
-            chat_title
-        )
+        if res.get("success"):
+            client_info = res.get("client_info", {})
+            first_name = client_info.get("first_name", "Assistant")
+            username = client_info.get("username", "username")
+            
+            message_text = (
+                f"✅ <b>Канал «{chat_title}» успешно добавлен!</b>\n\n"
+                f"⚠️ <b>ВАЖНО: Требуется настройка помощника</b>\n\n"
+                f"Для работы функций постинга и историй, вам необходимо вручную добавить нашего помощника в администраторы канала.\n\n"
+                f"👤 <b>Помощник:</b> {first_name} (@{username})\n\n"
+                f"📋 <b>Инструкция:</b>\n"
+                f"1. Зайдите в настройки канала -> Администраторы -> Добавить администратора.\n"
+                f"2. В поиске введите: @{username}\n"
+                f"3. Выберите этого пользователя и выдайте следующие права:\n"
+                f"   ✅ Публикация сообщений\n"
+                f"   ✅ Редактирование сообщений\n"
+                f"   ✅ Удаление сообщений\n"
+                f"   ✅ Публикация историй\n"
+                f"   ✅ Редактирование историй\n"
+                f"   ✅ Удаление историй\n\n"
+                f"После добавления и выдачи прав, перейдите в меню информации о канале и нажмите <b>«Проверить права помощника»</b>."
+            )
+        else:
+            message_text = text('success_add_channel').format(chat_title) + "\n\n⚠️ Не удалось назначить помощника. Обратитесь в поддержку."
+
     else:
         if not channel:
             return
@@ -126,7 +148,8 @@ async def set_channel(call: types.ChatMemberUpdated):
 
     await call.bot.send_message(
         chat_id=call.from_user.id,
-        text=message_text
+        text=message_text,
+        parse_mode="HTML"
     )
 
 
@@ -279,8 +302,8 @@ async def manual_add_channel(message: types.Message, state: FSMContext):
     
     await set_admins(message.bot, chat_id, chat_title, emoji_id, user_id=message.from_user.id)
     
-    # Запуск фоновой задачи для добавления клиента в канал
-    asyncio.create_task(background_join_channel(chat_id, user_id=message.from_user.id))
+    # Назначаем клиента и получаем инструкцию
+    res = await set_channel_session(chat_id)
 
     # Schedule stats job
     channel_obj = await db.get_channel_by_chat_id(chat_id)
@@ -288,8 +311,32 @@ async def manual_add_channel(message: types.Message, state: FSMContext):
          schedule_channel_job(scheduler_instance, channel_obj)
          asyncio.create_task(update_channel_stats(chat_id))
         
-    msg = text('success_add_channel').format(chat_title)
-    await message.answer(msg)
+    if res.get("success"):
+        client_info = res.get("client_info", {})
+        first_name = client_info.get("first_name", "Assistant")
+        username = client_info.get("username", "username")
+        
+        msg = (
+            f"✅ <b>Канал «{chat_title}» успешно добавлен!</b>\n\n"
+            f"⚠️ <b>ВАЖНО: Требуется настройка помощника</b>\n\n"
+            f"Для работы функций постинга и историй, вам необходимо вручную добавить нашего помощника в администраторы канала.\n\n"
+            f"👤 <b>Помощник:</b> {first_name} (@{username})\n\n"
+            f"📋 <b>Инструкция:</b>\n"
+            f"1. Зайдите в настройки канала -> Администраторы -> Добавить администратора.\n"
+            f"2. В поиске введите: @{username}\n"
+            f"3. Выберите этого пользователя и выдайте следующие права:\n"
+            f"   ✅ Публикация сообщений\n"
+            f"   ✅ Редактирование сообщений\n"
+            f"   ✅ Удаление сообщений\n"
+            f"   ✅ Публикация историй\n"
+            f"   ✅ Редактирование историй\n"
+            f"   ✅ Удаление историй\n\n"
+            f"После добавления и выдачи прав, перейдите в меню информации о канале и нажмите <b>«Проверить права помощника»</b>."
+        )
+    else:
+        msg = text('success_add_channel').format(chat_title) + "\n\n⚠️ Не удалось назначить помощника. Обратитесь в поддержку."
+
+    await message.answer(msg, parse_mode="HTML")
     await state.clear()
     await start_posting(message)
 

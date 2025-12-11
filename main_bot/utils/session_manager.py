@@ -274,3 +274,50 @@ class SessionManager:
         except Exception as e:
             logger.error(f"Ошибка выхода из канала: {e}")
             return False
+
+    async def check_permissions(self, chat_id: int) -> dict:
+        """
+        Полная проверка прав клиента в канале.
+        Возвращает словарь с правами.
+        """
+        result = {
+            "is_member": False,
+            "is_admin": False,
+            "can_post_messages": False,
+            "can_post_stories": False,
+            "can_invite_users": False,
+            "error": None
+        }
+        
+        try:
+            peer = await self.client.get_input_entity(chat_id)
+            participant = await self.client(functions.channels.GetParticipantRequest(
+                channel=peer,
+                participant=types.InputUserSelf()
+            ))
+            
+            result["is_member"] = True
+            
+            if isinstance(participant.participant, types.ChannelParticipantCreator):
+                result["is_admin"] = True
+                result["can_post_messages"] = True
+                result["can_post_stories"] = True
+                result["can_invite_users"] = True
+                return result
+            
+            if isinstance(participant.participant, types.ChannelParticipantAdmin):
+                result["is_admin"] = True
+                admin_rights = participant.participant.admin_rights
+                result["can_post_messages"] = admin_rights.post_messages
+                result["can_post_stories"] = admin_rights.post_stories
+                result["can_invite_users"] = admin_rights.invite_users
+            
+            return result
+
+        except UserNotParticipantError:
+            result["error"] = "USER_NOT_PARTICIPANT"
+            return result
+        except Exception as e:
+            logger.error(f"Ошибка проверки прав в {chat_id}: {e}")
+            result["error"] = str(e)
+            return result

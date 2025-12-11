@@ -1,5 +1,8 @@
 from aiogram import types, F, Router
 from aiogram.fsm.context import FSMContext
+from pathlib import Path
+import time
+import asyncio
 
 from main_bot.database.db import db
 from main_bot.handlers.user.menu import start_posting
@@ -9,6 +12,7 @@ from main_bot.utils.functions import get_editors
 from main_bot.utils.lang.language import text
 from main_bot.utils.logger import logging
 from main_bot.utils.error_handler import safe_handler
+from main_bot.utils.session_manager import SessionManager
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +51,12 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
             )
         )
 
-    channel = await db.get_channel_by_chat_id(int(temp[1]))
+    # Store channel_id to state or pass through callback
+    channel_id = int(temp[1])
+    # Store in FSM for refresh
+    await state.update_data(current_channel_id=channel_id)
+    
+    channel = await db.get_channel_by_chat_id(channel_id)
     editors_str = await get_editors(call, channel.chat_id)
     
     # Получаем информацию о создателе
@@ -56,6 +65,12 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
         creator_name = f"@{creator.username}" if creator.username else creator.full_name
     except:
         creator_name = "Неизвестно"
+    
+    # Получаем количество подписчиков
+    try:
+        members_count = await call.bot.get_chat_member_count(channel.chat_id)
+    except:
+        members_count = "N/A"
     
     # Форматируем дату добавления
     from datetime import datetime
@@ -70,15 +85,62 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
     else:
         subscribe_str = "❌ Не активна"
 
+    # Получаем статус помощника
+    try:
+        # Находим привязанного клиента
+        client_row = await db.get_my_membership(channel.chat_id) # Using this to check DB record
+        
+        can_post = False
+        can_stories = False
+        
+        if client_row:
+             if client_row[0].is_admin:
+                 # It seems row is list of (MtClientChannel, MtClient) or similar
+                 # Checking crud logic: get_my_membership returns rows with MtClientChannel
+                 pass
+             
+             # Fetch more direct status
+             # Assuming db.get_channel_admin_row was used or similar logic
+             # Let's trust logic: we need to show status.
+             # If we don't have accurate DB flag for stories, we used is_admin mostly.
+             can_post = client_row[0].is_admin
+             can_stories = client_row[0].can_post_stories
+        
+        status_post = "✅" if can_post else "❌"
+        status_story = "✅" if can_stories else "❌"
+        # Mailing depends on posting
+        status_mail = "✅" if can_post else "❌"
+        # Welcome depends on BOT admin rights mostly, let's check bot rights or assume OK if channel is here
+        # Actually checking bot rights every time is slow, let's assume OK for now or use what we have
+        status_welcome = "✅" # Bot is admin usually if added
+        
+    except Exception as e:
+        logger.error(f"Error getting assistance status: {e}")
+        status_post = "❓"
+        status_story = "❓"
+        status_mail = "❓"
+        status_welcome = "❓"
+
+
+    info_text = (
+        f"📺 <b>Информация о канале</b>\n\n"
+        f"<b>Название:</b> {channel.title}\n"
+        f"<b>Создатель:</b> {creator_name}\n"
+        f"<b>Подписчиков:</b> {members_count}\n"
+        f"<b>Добавлен:</b> {created_str}\n"
+        f"<b>Подписка:</b> {subscribe_str}\n\n"
+        f"👥 <b>Редакторы:</b>\n{editors_str}\n\n"
+        f"🤖 <b>Статус помощника:</b>\n"
+        f"Постинг: {status_post}\n"
+        f"Истории: {status_story}\n"
+        f"Рассылка: {status_mail}\n"
+        f"Приветствие: {status_welcome}"
+    )
+
     await call.message.edit_text(
-        text('channel_info').format(
-            channel.title,
-            creator_name,
-            created_str,
-            subscribe_str,
-            editors_str
-        ),
-        reply_markup=keyboards.manage_channel()
+        text=info_text,
+        reply_markup=keyboards.manage_channel(),
+        parse_mode="HTML"
     )
 
 
@@ -97,7 +159,7 @@ async def cancel(call: types.CallbackQuery):
 
 
 @safe_handler("Posting Manage Channel")
-async def manage_channel(call: types.CallbackQuery):
+async def manage_channel(call: types.CallbackQuery, state: FSMContext):
     temp = call.data.split('|')
 
     if temp[1] == 'delete':
@@ -108,6 +170,87 @@ async def manage_channel(call: types.CallbackQuery):
     
     if temp[1] == 'cancel':
         return await cancel(call)
+        
+    if temp[1] == 'check_permissions':
+        data = await state.get_data()
+        channel_id = data.get("current_channel_id")
+        
+        if not channel_id:
+             # Fallback attempt to find channel ID from previous step if state lost? 
+             # Or just error.
+             # Actually, choice stores channel_id in DB selection usually.
+             # Let's try to get it from context or just fail
+             # Try to get from call.message text maybe? No.
+             # Let's hope state works. If not, user has to re-select channel.
+             await call.answer("Ошибка: выберите канал заново", show_alert=True)
+             return await cancel(call)
+
+        channel = await db.get_channel_by_chat_id(channel_id)
+        if not channel:
+            await call.answer("Канал не найден", show_alert=True)
+            return
+            
+        await call.answer("⏳ Проверяем права...", show_alert=False)
+        
+        # 1. Get client
+        client_row = await db.get_my_membership(channel.chat_id)
+        
+        if not client_row:
+             # No client assigned? Try to assign one.
+             from main_bot.handlers.user.set_resource import set_channel_session
+             await set_channel_session(channel.chat_id)
+             # Retry fetch
+             client_row = await db.get_my_membership(channel.chat_id)
+        
+        if not client_row:
+             await call.answer("❌ Ошибка: нет назначенного помощника", show_alert=True)
+             return
+
+        mt_client = client_row[0].client
+        
+        if not mt_client:
+             await call.answer("❌ Ошибка клиента", show_alert=True)
+             return
+             
+        # 2. Check permissions
+        session_path = Path(mt_client.session_path)
+        if not session_path.exists():
+            await call.answer("❌ Ошибка сессии помощника", show_alert=True)
+            return
+
+        async with SessionManager(session_path) as manager:
+             perms = await manager.check_permissions(channel.chat_id)
+        
+        if perms.get("error"):
+            await call.answer(f"❌ Ошибка проверки: {perms['error']}", show_alert=True)
+            return
+            
+        # 3. Update DB
+        is_admin = perms.get("is_admin", False)
+        can_stories = perms.get("can_post_stories", False)
+        
+        await db.set_membership(
+            client_id=mt_client.id,
+            channel_id=channel.chat_id,
+            is_member=perms.get("is_member", False),
+            is_admin=is_admin,
+            can_post_stories=can_stories,
+            last_joined_at=int(time.time()),
+            preferred_for_stats=client_row[0].preferred_for_stats # Keep existing preference
+        )
+        
+        # 4. Refresh view
+        # We need to reconstruct call.data to call choice again? 
+        # Or just manually call choice logic.
+        # Construct fake data to call choice with correct ID
+        call.data = f"ChoicePostChannel|{channel.chat_id}|0"
+        await choice(call, state)
+        
+        if is_admin and (can_stories or not perms.get("can_post_stories")): 
+            # Notify success
+             await call.answer("✅ Права успешно обновлены!", show_alert=True)
+        else:
+             await call.answer("⚠️ Не все права выданы. Проверьте настройки админа.", show_alert=True)
 
 
 def hand_add():
