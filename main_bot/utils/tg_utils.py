@@ -335,7 +335,16 @@ async def set_channel_session(chat_id: int):
         await db.update_last_client(channel.id, client.id)
         logger.info(f"✅ Обновлен last_client_id для канала {channel.id} на {client.id}")
         
-        return {"success": True, "bot_rights": {}, "session_path": str(session_path)}
+        return {
+            "success": True, 
+            "bot_rights": {}, 
+            "session_path": str(session_path),
+            "client_info": {
+                "id": me.id,
+                "first_name": me.first_name,
+                "username": me.username
+            }
+        }
 
 
 async def background_join_channel(chat_id: int, user_id: int = None):
@@ -362,7 +371,7 @@ async def background_join_channel(chat_id: int, user_id: int = None):
                         try:
                             await main_bot_obj.send_message(
                                 chat_id=user_id,
-                                text=f"❌ <b>Ошибка добавления MTProto-клиента</b>\n\n{res.get('message')}",
+                                text=f"❌ <b>Ошибка добавления Нова помощника</b>\n\n{res.get('message')}",
                                 parse_mode="HTML"
                             )
                         except Exception as e:
@@ -374,20 +383,26 @@ async def background_join_channel(chat_id: int, user_id: int = None):
                 if res.get("success"):
                     logger.info(f"Успешно добавлен клиент в канал {chat_id} на попытке {attempt+1}")
                 
-                # Отправить уведомление пользователю только при ошибках
+                # Отправить уведомление пользователю только при ошибках или успешном добавлении
                 if user_id:
                     bot_rights = res.get("bot_rights", {})
+                    client_info = res.get("client_info", {})
+                    client_name = client_info.get("first_name", "Unknown")
+                    if client_info.get("username"):
+                        client_name += f" (@{client_info.get('username')})"
                     
                     if bot_rights.get("promoted"):
                         # Auto-promoted (should not happen now)
-                        message = f"✅ <b>MTProto-клиент настроен!</b>\n\nКлиент был успешно добавлен и получил права администратора."
+                        message = f"✅ <b>Нова помощник настроен!</b>\n\nКлиент был успешно добавлен и получил права администратора."
                     else:
                         # Manual promotion required
                         message = (
-                            f"✅ <b>MTProto-клиент добавлен!</b>\n\n"
-                            f"Клиент успешно вступил в канал {chat_id}.\n"
-                            f"👉 <b>ОБЯЗАТЕЛЬНО:</b> Зайдите в настройки канала и назначьте этого пользователя администратором вручную.\n"
-                            f"Необходимые права: Публикация, Редактирование, Удаление."
+                            f"✅ <b>Нова помощник подключен</b>\n\n"
+                            f"В канал успешно вступил технический аккаунт: <b>{client_name}</b>\n\n"
+                            f"Для работы статистики закупов (подсчета вступлений и отписок), необходимо вручную назначить его администратором со следующими правами:\n\n"
+                            f"<blockquote>Публикация сообщений\n"
+                            f"Редактирование чужих публикаций\n"
+                            f"Удаление чужих публикаций</blockquote>"
                         )
                     
                     try:

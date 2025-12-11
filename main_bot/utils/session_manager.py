@@ -161,56 +161,55 @@ class SessionManager:
 
     async def can_send_stories(self, chat_id: int) -> bool:
         """
-        Checks if the user can post stories to the chat.
-        Includes boost level check.
+        Проверяет, может ли пользователь публиковать истории в чат.
+        Включает проверку уровня бустов.
         """
         try:
-            logger.info(f"Checking if can send stories to {chat_id}")
+            logger.info(f"Проверка возможности публикации историй в {chat_id}")
             peer = await self.client.get_input_entity(chat_id)
             chat_full = await self.client(functions.channels.GetFullChannelRequest(channel=peer))
             
-            # Check if stories are globally unavailable for this chat
-            # Note: Telethon structure might vary, checking dict representation is safer for some fields
+            # Проверка глобальной доступности историй
             chat_full_dict = chat_full.to_dict()
             
-            # Check boost level requirement
+            # Проверка уровня бустов
             full_chat = chat_full_dict.get('full_chat', {})
             boosts_applied = full_chat.get('boosts_applied', 0)
             boosts_for_stories = full_chat.get('boosts_for_next_level_min', 0)
             
-            logger.info(f"Channel {chat_id} boosts: {boosts_applied}, required for stories: {boosts_for_stories}")
+            logger.info(f"Бусты канала {chat_id}: {boosts_applied}, необходимо для историй: {boosts_for_stories}")
             
-            # If boosts_for_next_level_min is set and we don't have enough boosts
+            # Если требуется следующий уровень для историй и бустов недостаточно
             if boosts_for_stories > 0 and boosts_applied < boosts_for_stories:
-                logger.warning(f"Not enough boosts for {chat_id}: {boosts_applied}/{boosts_for_stories}")
+                logger.warning(f"Недостаточно бустов для {chat_id}: {boosts_applied}/{boosts_for_stories}")
                 return False
             
             if chat_full_dict.get('chats', [{}])[0].get('stories_unavailable', False):
-                logger.warning(f"Stories are unavailable for {chat_id}")
+                logger.warning(f"Истории недоступны для {chat_id}")
                 return False
 
-            # Check admin rights
+            # Проверка прав администратора
             participant = await self.client(functions.channels.GetParticipantRequest(
                 channel=peer,
                 participant=types.InputUserSelf()
             ))
             
-            logger.info(f"Participant type for {chat_id}: {type(participant.participant).__name__}")
+            logger.info(f"Тип участника для {chat_id}: {type(participant.participant).__name__}")
             
             if isinstance(participant.participant, types.ChannelParticipantCreator):
-                logger.info(f"User is creator of {chat_id}, can post stories")
+                logger.info(f"Пользователь создатель {chat_id}, может публиковать истории")
                 return True
             
             if isinstance(participant.participant, types.ChannelParticipantAdmin):
                 can_post = participant.participant.admin_rights.post_stories
-                logger.info(f"User is admin of {chat_id}, post_stories={can_post}")
+                logger.info(f"Пользователь админ в {chat_id}, post_stories={can_post}")
                 return can_post
             
-            logger.warning(f"User is not admin of {chat_id}, participant type: {type(participant.participant).__name__}")
+            logger.warning(f"Пользователь не админ в {chat_id}, тип участника: {type(participant.participant).__name__}")
             return False
 
         except Exception as e:
-            logger.error(f"Check stories error for {chat_id}: {e}", exc_info=True)
+            logger.error(f"Ошибка проверки историй для {chat_id}: {e}", exc_info=True)
             return False
 
     async def send_story(self, chat_id: int, file_path: str, options: StoryOptions) -> bool:
