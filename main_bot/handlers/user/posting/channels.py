@@ -121,10 +121,9 @@ async def render_channel_info(call: types.CallbackQuery, state: FSMContext, chan
     )
 
     from aiogram.exceptions import TelegramBadRequest
-    try:
         await call.message.edit_text(
             text=info_text,
-            reply_markup=keyboards.manage_channel(f"ChoicePostChannel|{channel.chat_id}|0"),
+            reply_markup=keyboards.manage_channel("ManageChannelPost"),
             parse_mode="HTML"
         )
     except TelegramBadRequest as e:
