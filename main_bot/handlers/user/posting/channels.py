@@ -113,7 +113,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
         
         if mt_client:
             import html
-            assistant_name = f"<a href='tg://user?id={mt_client.id}'>{html.escape(mt_client.alias)}</a>"
+            assistant_name = f"👤 <code>{html.escape(mt_client.alias)}</code>"
             assistant_desc = "<i>Назначенный помощник для этого канала</i>"
             assistant_header = f"🤖 <b>Статус помощника:</b> {assistant_name}\n{assistant_desc}\n"
         else:
@@ -129,17 +129,17 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
 
     info_text = (
         f"📺 <b>Информация о канале</b>\n\n"
-        f"<b>Название:</b> {channel.title}\n"
-        f"<b>Создатель:</b> {creator_name}\n"
-        f"<b>Подписчиков:</b> {members_count}\n"
-        f"<b>Добавлен:</b> {created_str}\n"
-        f"<b>Подписка:</b> {subscribe_str}\n\n"
-        f"👥 <b>Редакторы:</b>\n{editors_str}\n\n"
+        f"🏷 <b>Название:</b> {channel.title}\n"
+        f"👑 <b>Владелец:</b> {creator_name}\n"
+        f"👥 <b>Подписчиков:</b> {members_count}\n"
+        f"📅 <b>Добавлен:</b> {created_str}\n"
+        f"💎 <b>Подписка:</b> {subscribe_str}\n\n"
+        f"🛠 <b>Редакторы:</b>\n{editors_str}\n\n"
         f"{assistant_header}"
-        f"Постинг: {status_post}\n"
-        f"Истории: {status_story}\n"
-        f"Рассылка: {status_mail}\n"
-        f"Приветствие: {status_welcome}"
+        f"├ 📝 Постинг: {status_post}\n"
+        f"├ 📸 Истории: {status_story}\n"
+        f"├ 📨 Рассылка: {status_mail}\n"
+        f"└ 👋 Приветствие: {status_welcome}"
     )
 
     await call.message.edit_text(
