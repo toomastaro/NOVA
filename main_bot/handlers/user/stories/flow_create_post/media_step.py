@@ -130,29 +130,24 @@ async def manage_post(call: types.CallbackQuery, state: FSMContext):
                 )
             )
 
+        # Fix: Proceed to Finish Params instead of going back to Channel Selection
+        from main_bot.handlers.user.stories.flow_create_post.schedule_step import get_story_report_text
+        
+        chosen = data.get('chosen', post.chat_ids)
         objects = await db.get_user_channels(
             user_id=call.from_user.id,
             sort_by="stories"
         )
-        folders = await db.get_folders(
-            user_id=call.from_user.id
-        )
-        await state.update_data(
-            chosen=[],
-            chosen_folders=[]
-        )
 
         await call.message.delete()
         return await call.message.answer(
-            text("choice_channels:story").format(
-                0, ""
+            text("manage:story:finish_params").format(
+                len(chosen),
+                await get_story_report_text(chosen, objects)
             ),
-            reply_markup=keyboards.choice_objects(
-                resources=objects,
-                chosen=[],
-                folders=folders,
-                chosen_folders=[],
-                data="ChoiceStoriesChannels"
+            reply_markup=keyboards.finish_params(
+                obj=post,
+                data="FinishStoriesParams"
             )
         )
 
