@@ -8,7 +8,7 @@ from main_bot.database.db import db
 from main_bot.database.channel.model import Channel
 from main_bot.database.ad_purchase.model import AdPurchase, AdPurchaseLinkMapping
 from main_bot.database.types import AdTargetType
-from main_bot.config import config
+from config import config
 from main_bot.database.mt_client_channel.crud import MtClientChannelCrud
 from main_bot.utils.client_manager import client_manager
 

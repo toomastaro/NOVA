@@ -178,7 +178,7 @@ def init_scheduler(scheduler: AsyncIOScheduler):
     # APScheduler is perfect for this. I will use 'process_ad_stats' directly with IntervalTrigger.
     
     from .ad_stats import process_ad_stats
-    from main_bot.config import config
+    from config import config
     
     ad_timer = int(config.zakup_timer or 600)
     
