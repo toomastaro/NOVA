@@ -43,6 +43,10 @@ async def choice(message: types.Message, state: FSMContext):
             'cor': show_channels,
             'args': (message,)
         },
+        text('reply_menu:privetka'): {
+            'cor': start_privetka,
+            'args': (message,)
+        },
     }
 
     if message.text in menu:
@@ -132,6 +136,21 @@ async def show_channels(message: types.Message):
     )
 
 
+@safe_handler("Start Privetka")
+async def start_privetka(message: types.Message):
+    await message.answer(
+        "👋 Приветка",
+        reply_markup=keyboards.cancel(
+            data="BackPrivetka"
+        )
+    )
+
+
+@safe_handler("Back Privetka")
+async def back_privetka(call: types.CallbackQuery):
+    await call.message.delete()
+
+
 def hand_add():
     router = Router()
     router.message.register(
@@ -146,7 +165,9 @@ def hand_add():
                 text('reply_menu:profile'),
                 text('reply_menu:subscription'),
                 text('reply_menu:channels'),
+                text('reply_menu:privetka'),
             }
         )
     )
+    router.callback_query.register(back_privetka, F.data == "BackPrivetka")
     return router

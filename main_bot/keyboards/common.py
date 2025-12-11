@@ -30,10 +30,10 @@ class Reply:
             # Если модуль рекламы выключен, добавляем пустую кнопку для симметрии
             kb.button(text=text('reply_menu:profile'))
         
-        # Третий ряд: Настройки - Подписка - Курс USDT
-        kb.button(text=text('reply_menu:profile'))  # Теперь это "Настройки"
-        kb.button(text=text('reply_menu:subscription'))
+        # Третий ряд: Курс USDT - Подписка - Настройки
         kb.button(text=text('reply_menu:exchange_rate'))
+        kb.button(text=text('reply_menu:subscription'))
+        kb.button(text=text('reply_menu:profile'))
 
         kb.adjust(3, 3, 3)  # 3 кнопки в каждом ряду
             
