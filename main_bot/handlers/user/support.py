@@ -16,9 +16,11 @@ async def support_back(call: types.CallbackQuery, state: FSMContext):
     await state.clear()
 
     await call.message.delete()
+
+    from main_bot.keyboards.common import Reply
     await call.message.answer(
-        text=text("start_text"),
-        reply_markup=keyboards.menu()
+        "Главное меню",
+        reply_markup=Reply.menu()
     )
 
 
