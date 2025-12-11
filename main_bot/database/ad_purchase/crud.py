@@ -248,6 +248,15 @@ class AdPurchaseCrud(DatabaseMixin):
         if not mapping:
             return False
         
+        # Ensure Lead exists (for cases where ChatJoinRequest didn't fire or was missed)
+        # We record a lead because a join implies intent (and success).
+        await self.add_lead(
+            user_id=user_id,
+            ad_purchase_id=mapping.ad_purchase_id,
+            slot_id=mapping.slot_id,
+            ref_param=f"auto_{mapping.ad_purchase_id}_{mapping.slot_id}" # Synthetic ref param for direct joins
+        )
+
         # Add subscription
         return await self.add_subscription(
             user_id=user_id,
