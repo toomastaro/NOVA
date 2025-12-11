@@ -551,12 +551,12 @@ async def get_send_time(message: types.Message, state: FSMContext):
             date = datetime.strptime(f"{today} {parts[0]}", "%d.%m.%Y %H:%M")
         
         else:
-            raise ValueError("Invalid format")
+            raise ValueError("Неверный формат")
 
         send_time = time.mktime(date.timetuple())
 
     except Exception as e:
-        logger.error(f"Error parsing send time: {e}")
+        logger.error(f"Ошибка парсинга времени отправки: {e}")
         return await message.answer(
             text("error_value")
         )

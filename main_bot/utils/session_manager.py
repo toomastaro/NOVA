@@ -45,14 +45,13 @@ class SessionManager:
             )
             await self.client.connect()
             
-            # Quick check if authorized
+            # Быстрая проверка авторизации
             if not await self.client.is_user_authorized():
-                # If not authorized, we might need to handle it, but for now just let it be.
-                # The health_check will catch it.
+                # Если не авторизован, health_check это обнаружит позже.
                 pass
                 
         except Exception as e:
-            print(f"Init client error: {e}")
+            print(f"Ошибка инициализации клиента: {e}")
 
     async def close(self):
         if self.client:
@@ -65,14 +64,14 @@ class SessionManager:
 
     async def health_check(self) -> dict:
         """
-        Checks if the session is alive and working.
-        Returns: {"ok": True} or {"ok": False, "error_code": "..."}
+        Проверяет, жива ли сессия и работает ли она.
+        Возвращает: {"ok": True} или {"ok": False, "error_code": "..."}
         """
         if not self.client or not self.client.is_connected():
             return {"ok": False, "error_code": "CLIENT_NOT_CONNECTED"}
 
         try:
-            # Simple RPC call to check connection and auth
+            # Простой RPC вызов для проверки соединения и авторизации
             await self.client(functions.help.GetConfigRequest())
             me = await self.client.get_me()
             if not me:

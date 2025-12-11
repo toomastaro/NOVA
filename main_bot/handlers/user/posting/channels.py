@@ -115,7 +115,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
         status_welcome = "✅" # Bot is admin usually if added
         
     except Exception as e:
-        logger.error(f"Error getting assistance status: {e}")
+        logger.error(f"Ошибка получения статуса помощника: {e}")
         status_post = "❓"
         status_story = "❓"
         status_mail = "❓"
@@ -222,7 +222,13 @@ async def manage_channel(call: types.CallbackQuery, state: FSMContext):
              perms = await manager.check_permissions(channel.chat_id)
         
         if perms.get("error"):
-            await call.answer(f"❌ Ошибка проверки: {perms['error']}", show_alert=True)
+            error_code = perms['error']
+            if error_code == "USER_NOT_PARTICIPANT":
+                error_msg = "Помощник не найден в участниках канала"
+            else:
+                error_msg = f"Ошибка: {error_code}"
+            
+            await call.answer(f"❌ {error_msg}", show_alert=True)
             return
             
         # 3. Update DB
