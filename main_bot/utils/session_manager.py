@@ -88,14 +88,12 @@ class SessionManager:
         except Exception as e:
             return {"ok": False, "error_code": f"UNKNOWN_ERROR_{str(e)}"}
 
-    async def join(self, invite_link_or_username: str) -> bool:
+    async def join(self, invite_link_or_username: str, max_attempts: int = 10) -> bool:
         """
         Вступает в канал/группу с надежной логикой повторных попыток.
-        Делает 10 попыток с прогрессивной задержкой для обработки лагов серверов Telegram.
+        Делает заданное кол-во попыток (default 10) с прогрессивной задержкой.
         Возвращает True в случае успеха.
-        Вызывает исключения для обработки на уровнях выше.
         """
-        max_attempts = 10
         
         for attempt in range(max_attempts):
             try:

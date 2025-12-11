@@ -108,6 +108,10 @@ class InlineContent(InlineKeyboardBuilder):
             callback_data=f"{data}|check_permissions"
         )
         kb.button(
+            text="➕ Пригласить помощника",
+            callback_data=f"{data}|invite_assistant"
+        )
+        kb.button(
             text=text('channel:delete:button'),
             callback_data=f"{data}|delete"
         )

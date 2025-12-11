@@ -180,6 +180,85 @@ async def manage_channel(call: types.CallbackQuery, state: FSMContext):
     if temp[1] == 'cancel':
         return await cancel(call)
         
+    if temp[1] == 'invite_assistant':
+        data = await state.get_data()
+        channel_id = data.get("current_channel_id")
+        
+        if not channel_id:
+             await call.answer("Ошибка: выберите канал заново", show_alert=True)
+             return await cancel(call)
+
+        channel = await db.get_channel_by_chat_id(channel_id)
+        if not channel:
+            await call.answer("Канал не найден", show_alert=True)
+            return
+            
+        # Get client
+        client_row = await db.get_my_membership(channel.chat_id)
+        if not client_row or not client_row[0].client:
+             await call.answer("❌ Нет назначенного помощника", show_alert=True)
+             return
+             
+        mt_client = client_row[0].client
+        session_path = Path(mt_client.session_path)
+        
+        if not session_path.exists():
+            await call.answer("❌ Файл сессии не найден", show_alert=True)
+            return
+
+        await call.answer("⏳ Создаю ссылку и добавляю помощника...", show_alert=False)
+        
+        try:
+            # 1. Create Invite Link
+            invite = await call.bot.create_chat_invite_link(
+                chat_id=channel.chat_id,
+                name="Nova Assistant",
+                creates_join_request=False
+            )
+            
+            # 2. Join process
+            success = False
+            async with SessionManager(session_path) as manager:
+                try:
+                    success = await manager.join(invite.invite_link, max_attempts=5)
+                    # Update username if possible
+                    me = await manager.me()
+                    if me and me.username:
+                         await db.update_mt_client(mt_client.id, alias=me.username)
+                         mt_client.alias = me.username # Update local obj for display
+                except Exception as e:
+                    logger.error(f"Join error: {e}")
+            
+            # 3. Handle Result
+            if success:
+                import html
+                username = mt_client.alias.replace("@", "") # Clean just in case
+                
+                msg = (
+                    f"✅ <b>Помощник успешно добавился в канал!</b>\n\n"
+                    f"Теперь вам нужно выдать ему права администратора.\n\n"
+                    f"📋 <b>Инструкция:</b>\n"
+                    f"1. Зайдите в настройки канала -> Администраторы -> Добавить администратора.\n"
+                    f"2. В поиске введите: @{html.escape(username)}\n"
+                    f"3. Выберите этого пользователя и выдайте следующие права:\n"
+                    f"   ✅ Публикация сообщений\n"
+                    f"   ✅ Редактирование сообщений\n"
+                    f"   ✅ Удаление сообщений\n"
+                    f"   ✅ Публикация историй\n"
+                    f"   ✅ Редактирование историй\n"
+                    f"   ✅ Удаление историй\n\n"
+                    f"После выдачи прав нажмите кнопку <b>«Проверить права помощника»</b>."
+                )
+                await call.message.edit_text(text=msg, parse_mode="HTML", reply_markup=keyboards.manage_channel(data))
+                
+            else:
+                await call.answer("⚠️ Не удалось добавить помощника (5 попыток). Попробуйте позже.", show_alert=True)
+                
+        except Exception as e:
+            logger.error(f"Invite assistant error: {e}")
+            await call.answer(f"❌ Ошибка: удостоверьтесь, что бот - админ ({e})", show_alert=True)
+        return
+            
     if temp[1] == 'check_permissions':
         data = await state.get_data()
         channel_id = data.get("current_channel_id")
