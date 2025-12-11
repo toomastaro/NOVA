@@ -161,7 +161,12 @@ class InlineAdPurchase(InlineKeyboardBuilder):
         
         for p in purchases:
             # p is AdPurchase object
-            name = getattr(p, 'creative_name', f"Creative #{p.creative_id}")
+            # Use comment as name if available, else creative name, else ID
+            raw_name = p.comment if p.comment else getattr(p, 'creative_name', f"Purchase #{p.id}")
+            # Truncate to keep button clean
+            if len(raw_name) > 20:
+                raw_name = raw_name[:20] + "..."
+            name = raw_name
             # Format: 🛒 DD.MM.YYYY Name (Type)
             date_str = datetime.fromtimestamp(p.created_timestamp).strftime("%d.%m.%Y")
             
