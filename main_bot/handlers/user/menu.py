@@ -6,6 +6,7 @@ from main_bot.states.user import Support
 from main_bot.utils.lang.language import text
 from main_bot.utils.logger import logging
 from main_bot.utils.error_handler import safe_handler
+from main_bot.database.db import db
 
 logger = logging.getLogger(__name__)
 
@@ -185,6 +186,9 @@ async def privetka_choice_channel(call: types.CallbackQuery, state: FSMContext):
              await state.update_data(user_bot=user_bot)
 
     db_obj = Database()
+    if user_bot:
+        db_obj.schema = user_bot.schema
+
     await call.message.delete()
     await show_channel_setting(call.message, db_obj, state)
 
