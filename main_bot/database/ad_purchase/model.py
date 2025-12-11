@@ -28,6 +28,7 @@ class AdPurchaseLinkMapping(Base):
     invite_link: Mapped[str | None] = mapped_column(default=None)
     ref_param: Mapped[str | None] = mapped_column(default=None)
     track_enabled: Mapped[bool] = mapped_column(default=True)
+    last_scanned_id: Mapped[int] = mapped_column(BigInteger, default=0)
     created_timestamp: Mapped[int] = mapped_column(default=time.time)
 
 

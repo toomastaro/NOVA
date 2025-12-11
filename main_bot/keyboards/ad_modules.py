@@ -66,6 +66,7 @@ class InlineAdPurchase(InlineKeyboardBuilder):
         kb.button(text="➕ Создать закуп", callback_data="AdPurchase|create_menu")
         kb.button(text="📋 Мои закупы", callback_data="AdPurchase|list")
         kb.button(text="🌍 Моя статистика", callback_data="AdPurchase|global_stats")
+        kb.button(text="🔄 Проверить статус", callback_data="AdPurchase|check_client_status")
         kb.button(text="⬅️ Назад", callback_data="AdBuyMenu|menu")
         kb.adjust(1)
         return kb.as_markup()
