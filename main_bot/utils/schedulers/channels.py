@@ -39,6 +39,13 @@ async def update_channel_stats(channel_id: int):
     # В utils/novastat мы искали get_preferred_for_stats.
     
     mt_client_channel = await db.get_preferred_for_stats(channel.chat_id)
+    
+    if not mt_client_channel:
+        # Fallback: get any attached client
+        mt_client_channel = await db.get_any_client_for_channel(channel.chat_id)
+        if mt_client_channel:
+            logger.info(f"Using fallback client {mt_client_channel.client_id} for channel {channel.title}")
+            
     client_obj = None
     
     if mt_client_channel:

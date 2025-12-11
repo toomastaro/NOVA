@@ -298,13 +298,20 @@ async def set_channel_session(chat_id: int):
 
         # Добавляем клиента в БД как обычного участника
         await db.get_or_create_mt_client_channel(client.id, chat_id)
+        # Check if we need to set preferred stats (if none exists)
+        preferred_stats = await db.get_preferred_for_stats(chat_id)
+        is_preferred = False
+        if not preferred_stats:
+            is_preferred = True
+            
         await db.set_membership(
             client_id=client.id,
             channel_id=chat_id,
             is_member=True,
             is_admin=False,
             can_post_stories=False,
-            last_joined_at=int(time.time())
+            last_joined_at=int(time.time()),
+            preferred_for_stats=is_preferred
         )
         
         await db.update_channel_by_chat_id(

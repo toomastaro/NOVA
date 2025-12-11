@@ -53,6 +53,17 @@ class MtClientChannelCrud(DatabaseMixin):
             ).limit(1)
         )
 
+    async def get_any_client_for_channel(self, channel_id: int) -> Optional[MtClientChannel]:
+        """
+        Get any client associated with the channel.
+        Useful as fallback if no preferred client is set.
+        """
+        return await self.fetchrow(
+            select(MtClientChannel).where(
+                MtClientChannel.channel_id == channel_id
+            ).limit(1)
+        )
+
     async def get_preferred_for_stories(self, channel_id: int) -> Optional[MtClientChannel]:
         return await self.fetchrow(
             select(MtClientChannel).where(
