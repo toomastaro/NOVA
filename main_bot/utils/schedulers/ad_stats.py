@@ -142,13 +142,20 @@ async def process_channel_logs(channel_id: int, mappings: list[AdPurchaseLinkMap
                     # Telethon invite.link might be full URL or just hash? Usually full URL.
                     
                     if invite_link:
+                        def normalize_link(link: str) -> str:
+                            if not link: return ""
+                            return link.replace("https://", "").replace("http://", "").replace("t.me/", "").replace("telegram.me/", "").replace("+", "").strip()
+
+                        norm_event_link = normalize_link(invite_link)
+                        
                         # Check if this link belongs to any mapping
                         for m in mappings:
-                            if m.invite_link == invite_link:
+                            # Robust comparison
+                            if normalize_link(m.invite_link) == norm_event_link:
                                 await db.process_join_event(
                                     channel_id=channel_id,
                                     user_id=user_id,
-                                    invite_link=invite_link
+                                    invite_link=m.invite_link # Use DB link for consistency
                                 )
                                 logger.info(f"Processed JOIN via AdminLog: User {user_id} -> Purchase {m.ad_purchase_id}")
                 
