@@ -243,6 +243,17 @@ async def set_channel_session(chat_id: int):
         
         # Шаг 1: Попытка добавить клиента напрямую через InviteToChannelRequest
         # Это более надежный способ чем invite ссылки
+        try:
+ 
+             chat = await main_bot_obj.get_chat(chat_id)
+             if chat.username:
+                 logger.info(f"Channel {chat_id} is public (@{chat.username}), attempting direct join")
+                 if await manager.join(f"@{chat.username}"):
+                     client_added = True
+                     logger.info(f"✅ Client {client.id} joined via username @{chat.username}")
+
+        except Exception as e:
+            logger.warning(f"Direct join by username failed: {e}")
 
             
         # Если клиент не был добавлен через InviteToChannelRequest, пробуем через invite ссылку
