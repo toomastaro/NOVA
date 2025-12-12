@@ -332,9 +332,9 @@ async def delete_purchase(call: CallbackQuery):
 
 @router.callback_query(F.data.startswith("AdPurchase|stats|"))
 async def show_stats_default(call: CallbackQuery):
-    # Default to 24h view
+    # Default to all time view
     purchase_id = int(call.data.split("|")[2])
-    await render_purchase_stats(call, purchase_id, "24h")
+    await render_purchase_stats(call, purchase_id, "all")
 
 
 @router.callback_query(F.data.startswith("AdPurchase|stats_period|"))
