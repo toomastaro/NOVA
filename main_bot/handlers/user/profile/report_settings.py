@@ -186,19 +186,9 @@ async def back_to_main_settings(call: types.CallbackQuery):
     Возврат в главное меню настроек (из отчетов).
     """
     await call.answer()
-    from main_bot.handlers.user.profile.settings import choice
-    # Мы не можем вызвать choice напрямую так как ему нужен split array.
-    # Лучше просто вызвать отображение меню настроек.
-    # В settings.py нет функции show_settings_menu, там просто router, 
-    # а отображение идет через InlineProfile.profile_setting() обычно в profile.py
-    
-    # Посмотрим profile.py
-    # Там profile_setting() возвращает клаву.
-    # Сообщение текста 'setting_text'.
-    
     await call.message.edit_text(
-        text('setting_text'),
-        reply_markup=InlineProfile.profile_setting()
+        text('start_profile_text'),
+        reply_markup=InlineProfile.profile_menu()
     )
 
 
