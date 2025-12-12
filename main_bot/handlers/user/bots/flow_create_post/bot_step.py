@@ -170,8 +170,38 @@ async def choice_bots(call: types.CallbackQuery, state: FSMContext):
             other_db = Database()
             other_db.schema = user_bot.schema
 
-            users = await other_db.get_users(cs.id)
+            users = await other_db.get_users(cs.id) # Gets ACTIVE users from CHANNEL
+            # But for unique bots we need ALL users from BOT later in scheduler.
+            # Here we are iterating CHANNELS.
+            # Wait, the UI shows CHANNELS.
+            # Users can overlap if they are in multiple channels of same bot?
+            # Yes.
+            # But we want stats for the "Mailing". Mailing goes to Unique Bots.
+            # So we should calculate stats based on UNIQUE BOTS derived from selected channels.
             available += len(users)
+
+    # Recalculate stats based on Unique Bots for accuracy
+    # Convert chosen channels to unique bots
+    all_settings = await db.get_bot_channels(call.from_user.id)
+    selected_settings = [s for s in all_settings if s.id in chosen]
+    unique_bot_ids = list(set(s.bot_id for s in selected_settings if s.bot_id))
+    
+    total_users = 0
+    active_users = 0
+    
+    for bot_id in unique_bot_ids:
+        user_bot = await db.get_bot_by_id(bot_id)
+        if not user_bot: continue
+        
+        other_db = Database()
+        other_db.schema = user_bot.schema
+        # Get total and active counts
+        stats = await other_db.get_count_users() # Assuming this method exists and returns dict
+        total_users += stats.get('total', 0)
+        active_users += stats.get('active', 0)
+
+    unavailable = total_users - active_users
+    available = active_users
 
     await state.update_data(
         chosen=chosen,
@@ -181,14 +211,8 @@ async def choice_bots(call: types.CallbackQuery, state: FSMContext):
 
     await call.message.edit_text(
         text("choice_bots:post").format(
-            len(chosen),
-            "\n".join(
-                text("resource_title").format(
-                    obj.title
-                ) for obj in objects
-                if obj.chat_id in chosen[:10]
-            ),
-            available
+            available,
+            unavailable
         ),
         reply_markup=keyboards.choice_objects(
             resources=objects,
