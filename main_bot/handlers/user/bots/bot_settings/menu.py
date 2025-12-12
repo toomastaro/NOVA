@@ -81,11 +81,13 @@ async def choice(call: types.CallbackQuery, state: FSMContext, db_obj: Database)
         if data.get("from_privetka"):
             channels_raw = await db.get_bot_channels(call.from_user.id)
             channels = await db.get_user_channels(call.from_user.id, from_array=[i.id for i in channels_raw])
-            return await call.message.edit_reply_markup(
+            return await call.message.edit_text(
+                text('privetka_text'),
                 reply_markup=keyboards.choice_channel_for_setting(
                     channels=channels,
                     data="PrivetkaChannel"
-                )
+                ),
+                parse_mode="HTML"
             )
 
         channel_ids_in_bot = await db.get_all_channels_in_bot_id(
