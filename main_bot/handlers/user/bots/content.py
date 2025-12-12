@@ -164,8 +164,7 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
         is_edit=True
     )
 
-        is_edit=True
-    )
+
 
     # Если нет бэкапа - создаем
     if not post.backup_message_id:
