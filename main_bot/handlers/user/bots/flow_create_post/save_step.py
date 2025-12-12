@@ -38,6 +38,11 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
         return await call.message.delete()
 
     post: BotPost = data.get("post")
+
+    if not post:
+        await call.answer(text('keys_data_error'))
+        return await call.message.delete()
+
     chosen: list = data.get("chosen", post.chat_ids)
     send_time: int = data.get("send_time")
     is_edit: bool = data.get("is_edit")
