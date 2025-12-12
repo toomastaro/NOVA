@@ -24,7 +24,12 @@ async def send_to_backup(post: Post | Story | BotPost) -> tuple[int | None, int 
         message_options = MessageOptions(**post.message_options)
         reply_markup = keyboards.post_kb(post=post)
     elif isinstance(post, Story):
-        message_options = MessageOptions(**post.story_options)
+        # Filter fields to match MessageOptions
+        story_dump = post.story_options.copy() if hasattr(post.story_options, 'copy') else dict(post.story_options)
+        valid_fields = MessageOptions.model_fields.keys()
+        filtered_story_options = {k: v for k, v in story_dump.items() if k in valid_fields}
+        
+        message_options = MessageOptions(**filtered_story_options)
         reply_markup = keyboards.manage_story(post=post)
     elif isinstance(post, BotPost):
         from main_bot.utils.schemas import MessageOptionsHello
@@ -37,13 +42,17 @@ async def send_to_backup(post: Post | Story | BotPost) -> tuple[int | None, int 
         cor = bot.send_message
     elif message_options.photo:
         cor = bot.send_photo
-        message_options.photo = message_options.photo.file_id
+        # Handle both Media object and string (file_id)
+        if hasattr(message_options.photo, 'file_id'):
+            message_options.photo = message_options.photo.file_id
     elif message_options.video:
         cor = bot.send_video
-        message_options.video = message_options.video.file_id
+        if hasattr(message_options.video, 'file_id'):
+            message_options.video = message_options.video.file_id
     else:
         cor = bot.send_animation
-        message_options.animation = message_options.animation.file_id
+        if hasattr(message_options.animation, 'file_id'):
+            message_options.animation = message_options.animation.file_id
 
     options = message_options.model_dump()
     # Clean up options for send method
@@ -95,7 +104,12 @@ async def edit_backup_message(post: Post | PublishedPost | Story | BotPost, mess
             message_options = MessageOptions(**post.message_options)
             reply_markup = keyboards.post_kb(post=post)
         elif isinstance(post, Story):
-            message_options = MessageOptions(**post.story_options)
+            # Filter fields
+            story_dump = post.story_options.copy() if hasattr(post.story_options, 'copy') else dict(post.story_options)
+            valid_fields = MessageOptions.model_fields.keys()
+            filtered = {k: v for k, v in story_dump.items() if k in valid_fields}
+            
+            message_options = MessageOptions(**filtered)
             reply_markup = keyboards.manage_story(post=post)
         elif isinstance(post, BotPost):
             from main_bot.utils.schemas import MessageOptionsHello
