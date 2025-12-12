@@ -5,6 +5,7 @@ from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import Mapped, mapped_column
 
 from main_bot.database import Base
+from main_bot.database.types import Status
 
 
 class Story(Base):
@@ -20,3 +21,9 @@ class Story(Base):
 
     report: Mapped[bool] = mapped_column(default=False)
     created_timestamp: Mapped[int] = mapped_column(default=time.time)
+
+    # Backup & Status
+    backup_chat_id: Mapped[int | None] = mapped_column(BigInteger, default=None)
+    backup_message_id: Mapped[int | None] = mapped_column(BigInteger, default=None)
+    status: Mapped[Status] = mapped_column(default=Status.PENDING)
+    delete_time: Mapped[int | None] = mapped_column(default=None)

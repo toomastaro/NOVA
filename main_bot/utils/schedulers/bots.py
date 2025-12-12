@@ -261,6 +261,21 @@ async def send_bot_post(bot_post: BotPost):
         for i in result:
             if not isinstance(i, dict):
                 continue
+            # Собираем статистику отправленных сообщений
+            for bot_id, res in i.items():
+                 success_count += res["success"]
+                 if bot_id not in message_ids:
+                     message_ids[bot_id] = {}
+                 message_ids[bot_id]["message_ids"] = res["message_ids"]
+
+    # Удаление временного файла
+    if file_id and filepath:
+        try:
+            os.remove(filepath)
+        except Exception as e:
+            logger.error(f"Ошибка при удалении файла {filepath}: {e}", exc_info=True)
+
+    # Обновление статуса поста - здесь мы используем backup_message_id только как ссылку в БД
 
     # Удаление временного файла
     if file_id and filepath:

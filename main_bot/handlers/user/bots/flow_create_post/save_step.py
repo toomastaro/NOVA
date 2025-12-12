@@ -4,6 +4,13 @@
 Содержит логику:
 - Подтверждение публикации поста
 - Сохранение поста в БД с выбранными ботами и временем
+```python
+"""
+Module for post confirmation and saving for bots.
+
+Contains logic for:
+- Confirming post publication
+- Saving the post to the database with selected bots and time
 """
 import logging
 from aiogram import types
@@ -18,17 +25,18 @@ from main_bot.states.user import Bots
 
 logger = logging.getLogger(__name__)
 from main_bot.utils.error_handler import safe_handler
+from main_bot.utils.backup_utils import send_to_backup, edit_backup_message
 
 
 @safe_handler("Bots Accept")
 async def accept(call: types.CallbackQuery, state: FSMContext):
     """
-    Подтверждение и сохранение поста для ботов.
+    Confirms and saves the post for bots.
     
-    Действия:
-    - cancel: возврат к предыдущему шагу
-    - send_time: сохранение с отложенной публикацией
-    - public: немедленная публикация
+    Actions:
+    - cancel: returns to the previous step
+    - send_time: saves with delayed publication
+    - public: immediate publication
     """
     temp = call.data.split("|")
     data = await state.get_data()
@@ -90,30 +98,59 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
     if temp[1] == "public":
         kwargs["status"] = Status.READY
 
+    # Update bot post in DB
     await db.update_bot_post(
         post_id=post.id,
         **kwargs
     )
 
+    # Отправляем в backup если еще не отправлено
+    if not post.backup_message_id:
+        backup_chat_id, backup_message_id = await send_to_backup(post)
+        if backup_chat_id and backup_message_id:
+            await db.update_bot_post(
+                post_id=post.id,
+                backup_chat_id=backup_chat_id,
+                backup_message_id=backup_message_id
+            )
+            # Обновляем локальный объект
+            post.backup_chat_id = backup_chat_id
+            post.backup_message_id = backup_message_id
+    else:
+        # Если бэкап уже есть, обновляем его (для редактирования запланированных рассылок)
+        await edit_backup_message(post)
+
+    # --- PREVIEW (Copy from Backup) ---
+    backup_chat_id = post.backup_chat_id
+    backup_message_id = post.backup_message_id
+
+    if backup_chat_id and backup_message_id:
+        try:
+            # Copy message to user as preview
+            await call.bot.copy_message(
+                chat_id=call.from_user.id,
+                from_chat_id=backup_chat_id,
+                message_id=backup_message_id
+            )
+        except Exception as e:
+            logger.error(f"Failed to copy preview from backup for mailing: {e}")
+    else:
+        logger.warning(f"No backup data for mailing {post.id}, preview not shown.")
+
     if send_time:
         weekday, day, month, year, _time = date_values
-        message_text = text("manage:post_bot:success:date").format(
-            f"{day} {month} {year} {_time}",
-            weekday,
+        message_text = text("manage:bot:success:date").format(
+            f"{day} {month} {year} {_time} ({weekday})",
             "\n".join(
-                text("resource_title").format(
-                    obj.title
-                ) for obj in objects
-                if obj.chat_id in chosen[:10]
+                f"{obj.title} (@{obj.username})" for obj in objects
+                if obj.id in chosen[:10]
             )
         )
     else:
-        message_text = text("manage:post_bot:success:public").format(
+        message_text = text("manage:bot:success:public").format(
             "\n".join(
-                text("resource_title").format(
-                    obj.title
-                ) for obj in objects
-                if obj.chat_id in chosen[:10]
+                f"{obj.title} (@{obj.username})" for obj in objects
+                if obj.id in chosen[:10]
             )
         )
 

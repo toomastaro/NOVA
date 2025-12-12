@@ -11,6 +11,7 @@ from main_bot.keyboards import keyboards
 from main_bot.utils.functions import answer_story
 from main_bot.utils.lang.language import text
 from main_bot.utils.error_handler import safe_handler
+from main_bot.utils.backup_utils import send_to_backup
 
 
 async def get_days_with_stories(channel_chat_id: int, year: int, month: int) -> set:
@@ -167,9 +168,40 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
         is_edit=True
     )
 
-    post_message = await answer_story(call.message, state, from_edit=True)
+    # Если нет бэкапа - создаем
+    if not post.backup_message_id:
+        backup_chat_id, backup_message_id = await send_to_backup(post)
+        if backup_chat_id and backup_message_id:
+            await db.update_story(
+                post_id=post.id,
+                backup_chat_id=backup_chat_id,
+                backup_message_id=backup_message_id
+            )
+            post.backup_chat_id = backup_chat_id
+            post.backup_message_id = backup_message_id
+
+    # Показываем превью (через CopyMessage из бэкапа)
+    post_message = None
+    if post.backup_chat_id and post.backup_message_id:
+        try:
+            post_message = await call.bot.copy_message(
+                chat_id=call.from_user.id,
+                from_chat_id=post.backup_chat_id,
+                message_id=post.backup_message_id,
+                reply_markup=keyboards.manage_story(
+                    post=post,
+                    is_edit=True
+                )
+            )
+        except Exception as e:
+             # Fallback если копирование не удалось
+             post_message = await answer_story(call.message, state, from_edit=True)
+    else:
+         post_message = await answer_story(call.message, state, from_edit=True)
+
     await state.update_data(
         post_message=post_message,
+        post=post # Обновляем объект в стейте с новыми ID
     )
 
     await call.message.delete()

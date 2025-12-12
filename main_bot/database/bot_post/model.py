@@ -26,6 +26,10 @@ class BotPost(Base):
 
     created_timestamp: Mapped[int] = mapped_column(default=time.time)
 
+    # Backup
+    backup_chat_id: Mapped[int | None] = mapped_column(BigInteger, default=None)
+    backup_message_id: Mapped[int | None] = mapped_column(BigInteger, default=None)
+
     # Report Data
     status: Mapped[Status] = mapped_column(default=Status.PENDING)
     start_timestamp: Mapped[int | None] = mapped_column(default=None)

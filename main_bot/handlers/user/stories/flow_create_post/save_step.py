@@ -16,6 +16,7 @@ from main_bot.keyboards import keyboards
 from main_bot.states.user import Stories
 from main_bot.utils.error_handler import safe_handler
 from .schedule_step import get_story_report_text
+from main_bot.utils.backup_utils import send_to_backup, edit_backup_message
 
 logger = logging.getLogger(__name__)
 
@@ -87,10 +88,47 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
     if temp[1] == "public":
         kwargs["send_time"] = None
 
+    # Обновляем историю в БД
     await db.update_story(
         post_id=post.id,
         **kwargs
     )
+
+    # Отправляем в backup если еще не отправлено
+    if not post.backup_message_id:
+        backup_chat_id, backup_message_id = await send_to_backup(post)
+        if backup_chat_id and backup_message_id:
+            await db.update_story(
+                post_id=post.id,
+                backup_chat_id=backup_chat_id,
+                backup_message_id=backup_message_id
+            )
+            # Обновляем локальный объект
+            post.backup_chat_id = backup_chat_id
+            post.backup_message_id = backup_message_id
+    else:
+        # Если бэкап уже есть, обновляем его содержимое (для редактирования)
+        await edit_backup_message(post)
+
+    # --- ПРЕВЬЮ (Копия из Backup) ---
+    # Логика аналогична постингу: показываем превью из бэкапа
+    backup_chat_id = post.backup_chat_id
+    backup_message_id = post.backup_message_id
+
+    if backup_chat_id and backup_message_id:
+        try:
+            # Копируем сообщение пользователю как превью
+            await call.bot.copy_message(
+                chat_id=call.from_user.id,
+                from_chat_id=backup_chat_id,
+                message_id=backup_message_id
+            )
+        except Exception as e:
+            logger.error(f"Не удалось скопировать превью из бэкапа: {e}")
+            # Fallback (если не вышло скопировать) - можно отправить старым способом, но пока просто логгируем
+    else:
+        # Если бэкапа нет, просто ничего не делаем или логируем
+        logger.warning(f"Нет данных бэкапа для истории {post.id}, превью не показано.")
 
     if send_time:
         weekday, day, month, year, _time = date_values

@@ -17,6 +17,7 @@ from main_bot.utils.functions import set_channel_session, get_path, get_path_vid
 from main_bot.utils.lang.language import text
 from main_bot.utils.schemas import StoryOptions
 from main_bot.utils.session_manager import SessionManager
+from main_bot.database.types import Status
 
 logger = logging.getLogger(__name__)
 
@@ -202,9 +203,12 @@ async def send_story(story: Story):
 
     logger.info(f"🏁 Завершение обработки сторис {story.id}. Успешно: {len(success_send)}, Ошибок: {len(error_send)}")
 
-    # Удаление сторис из очереди
-    await db.clear_story(
-        post_ids=[story.id]
+    logger.info(f"🏁 Завершение обработки сторис {story.id}. Успешно: {len(success_send)}, Ошибок: {len(error_send)}")
+
+    # Обновление статуса сторис (вместо удаления)
+    await db.update_story(
+        post_id=story.id,
+        status=Status.FINISH
     )
 
     # Отправка отчета пользователю (если включено)

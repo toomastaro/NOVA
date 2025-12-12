@@ -3,6 +3,8 @@ from aiogram import Bot, types
 from main_bot.database.db import db
 from main_bot.database.post.model import Post
 from main_bot.database.published_post.model import PublishedPost
+from main_bot.database.story.model import Story
+from main_bot.database.bot_post.model import BotPost
 from main_bot.keyboards import keyboards
 from main_bot.utils.schemas import MessageOptions, Media
 from config import Config
@@ -10,7 +12,7 @@ from instance_bot import bot
 
 logger = logging.getLogger(__name__)
 
-async def send_to_backup(post: Post) -> tuple[int | None, int | None]:
+async def send_to_backup(post: Post | Story | BotPost) -> tuple[int | None, int | None]:
     """
     Sends the post to the backup channel.
     Returns (backup_chat_id, backup_message_id).
@@ -18,7 +20,18 @@ async def send_to_backup(post: Post) -> tuple[int | None, int | None]:
     if not Config.BACKUP_CHAT_ID:
         return None, None
 
-    message_options = MessageOptions(**post.message_options)
+    if isinstance(post, Post):
+        message_options = MessageOptions(**post.message_options)
+        reply_markup = keyboards.post_kb(post=post)
+    elif isinstance(post, Story):
+        message_options = MessageOptions(**post.story_options)
+        reply_markup = keyboards.manage_story(post=post)
+    elif isinstance(post, BotPost):
+        from main_bot.utils.schemas import MessageOptionsHello
+        message_options = MessageOptionsHello(**post.message)
+        reply_markup = keyboards.manage_bot_post(post=post)
+    else:
+        return None, None
     
     if message_options.text:
         cor = bot.send_message
@@ -63,14 +76,14 @@ async def send_to_backup(post: Post) -> tuple[int | None, int | None]:
     try:
         backup_msg = await cor(
             **options,
-            reply_markup=keyboards.post_kb(post=post)
+            reply_markup=reply_markup
         )
         return Config.BACKUP_CHAT_ID, backup_msg.message_id
     except Exception as e:
         logger.error(f"Error sending to backup channel: {e}", exc_info=True)
         return None, None
 
-async def edit_backup_message(post: Post | PublishedPost, message_options: MessageOptions = None):
+async def edit_backup_message(post: Post | PublishedPost | Story | BotPost, message_options: MessageOptions = None):
     """
     Updates the message in the backup channel to match the current post state.
     """
@@ -78,11 +91,29 @@ async def edit_backup_message(post: Post | PublishedPost, message_options: Messa
         return
 
     if not message_options:
-        message_options = MessageOptions(**post.message_options)
+        if isinstance(post, (Post, PublishedPost)):
+            message_options = MessageOptions(**post.message_options)
+            reply_markup = keyboards.post_kb(post=post)
+        elif isinstance(post, Story):
+            message_options = MessageOptions(**post.story_options)
+            reply_markup = keyboards.manage_story(post=post)
+        elif isinstance(post, BotPost):
+            from main_bot.utils.schemas import MessageOptionsHello
+            message_options = MessageOptionsHello(**post.message)
+            reply_markup = keyboards.manage_bot_post(post=post)
+    else:
+        # If message_options provided, we still need correct markup
+        if isinstance(post, (Post, PublishedPost)):
+             reply_markup = keyboards.post_kb(post=post)
+        elif isinstance(post, Story):
+             reply_markup = keyboards.manage_story(post=post)
+        elif isinstance(post, BotPost):
+             reply_markup = keyboards.manage_bot_post(post=post)
+        else:
+             reply_markup = None
 
     chat_id = post.backup_chat_id
     message_id = post.backup_message_id
-    reply_markup = keyboards.post_kb(post=post)
 
     try:
         if message_options.text:
@@ -155,16 +186,22 @@ async def edit_backup_message(post: Post | PublishedPost, message_options: Messa
             post_id = post.post_id if isinstance(post, PublishedPost) else post.id
             
             # Update Post
-            await db.update_post(
-                post_id=post_id,
-                backup_message_id=new_backup_message_id
-            )
-            
-            # Update all PublishedPosts
-            await db.update_published_posts_by_post_id(
-                post_id=post_id,
-                backup_message_id=new_backup_message_id
-            )
+            if isinstance(post, Story):
+                 await db.update_story(post.id, backup_message_id=new_backup_message_id)
+            elif isinstance(post, BotPost):
+                 await db.update_bot_post(post.id, backup_message_id=new_backup_message_id)
+            elif isinstance(post, (Post, PublishedPost)):
+                 # Update Post
+                await db.update_post(
+                    post_id=post_id,
+                    backup_message_id=new_backup_message_id
+                )
+                
+                # Update all PublishedPosts
+                await db.update_published_posts_by_post_id(
+                    post_id=post_id,
+                    backup_message_id=new_backup_message_id
+                )
             
             logger.info(f"Backup fallback successful: Replaced {message_id} with {new_backup_message_id} for post {post_id}")
 
