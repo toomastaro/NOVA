@@ -128,6 +128,8 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
             show_more=show_more
         )
 
+        days_with_stories = await get_days_with_stories(channel.chat_id, day.year, day.month)
+
         return await call.message.edit_text(
             text("channel:content").format(
                 *day_values,
