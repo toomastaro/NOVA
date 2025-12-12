@@ -57,7 +57,6 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
                 len(chosen),
                 "\n".join(
                     text("resource_title").format(
-                        obj.emoji_id,
                         obj.title
                     ) for obj in objects
                     if obj.chat_id in chosen[:10]

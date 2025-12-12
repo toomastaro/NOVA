@@ -190,6 +190,12 @@ class InlineBots(InlineKeyboardBuilder):
                 callback_data=f'GetDeleteTimeBotPost|off'
             )
         )
+        kb.row(
+            InlineKeyboardButton(
+                text="1 мин.",
+                callback_data=f'GetDeleteTimeBotPost|60'
+            )
+        )
         groups = [
             [12, 24, 36, 40],
         ]
