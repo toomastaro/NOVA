@@ -137,21 +137,28 @@ async def choice_bots(call: types.CallbackQuery, state: FSMContext):
 
             chosen = list(set(chosen))
 
+    logger.info(f"Коллбэк выбора ботов: {temp}")
+
     if temp[1].replace("-", "").isdigit():
         resource_id = int(temp[1])
+        logger.info(f"Обработка resource_id: {resource_id}")
 
         if temp[3] == 'channel':
             if resource_id in chosen:
                 chosen.remove(resource_id)
+                logger.info(f"Удален канал {resource_id} из выбранных")
             else:
                 user_bot = await db.get_channel_by_chat_id(resource_id)
+                logger.info(f"Проверка подписки для канала {resource_id}: {user_bot.subscribe if user_bot else 'Не найден'}")
                 if not user_bot.subscribe:
+                    logger.warning(f"У канала {resource_id} нет подписки")
                     return await call.answer(
                         text("error_sub_channel:bots").format(user_bot.title),
                         show_alert=True
                     )
 
                 chosen.append(resource_id)
+                logger.info(f"Добавлен канал {resource_id} в выбранные")
         else:
             temp_chosen, temp_chosen_folders = await set_folder_content(
                 resource_id=resource_id,
@@ -171,22 +178,29 @@ async def choice_bots(call: types.CallbackQuery, state: FSMContext):
     selected_settings = [s for s in all_settings if s.id in chosen]
     unique_bot_ids = list(set(s.bot_id for s in selected_settings if s.bot_id))
     
+    logger.info(f"Выбраны уникальные боты: {unique_bot_ids}")
+
     total_users = 0
     active_users = 0
     
     for bot_id in unique_bot_ids:
         user_bot = await db.get_bot_by_id(bot_id)
-        if not user_bot: continue
+        if not user_bot: 
+            logger.warning(f"Бот {bot_id} не найден в БД")
+            continue
         
         other_db = Database()
         other_db.schema = user_bot.schema
         # Get total and active counts
         stats = await other_db.get_count_users() # Assuming this method exists and returns dict
+        logger.info(f"Статистика для бота {bot_id}: {stats}")
         total_users += stats.get('total', 0)
         active_users += stats.get('active', 0)
 
     unavailable = total_users - active_users
     available = active_users
+    
+    logger.info(f"Финальная статистика - Доступно: {available}, Недоступно: {unavailable}")
 
     await state.update_data(
         chosen=chosen,
@@ -194,8 +208,11 @@ async def choice_bots(call: types.CallbackQuery, state: FSMContext):
         available=available
     )
 
+    logger.info("Обновление UI с новой статистикой")
+
     await call.message.edit_text(
         text("choice_bots:post").format(
+            total_users,
             available,
             unavailable
         ),
