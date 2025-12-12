@@ -1,11 +1,14 @@
 from aiogram import types, F, Router
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
+import logging
 
 from main_bot.database.db import db
 from main_bot.keyboards.profile import InlineProfile
 from main_bot.keyboards import keyboards
 from main_bot.utils.lang.language import text
+
+logger = logging.getLogger(__name__)
 
 
 class ReportSettingsStates(StatesGroup):
@@ -172,13 +175,23 @@ async def back_to_main_settings(call: types.CallbackQuery):
     """
     Возврат в главное меню настроек (из отчетов).
     """
+    logger.info(f"back_to_main_settings вызван, user_id={call.from_user.id}")
     await call.answer()
+    logger.info("call.answer() выполнен")
     await call.message.delete()
+    logger.info("call.message.delete() выполнен")
+    
+    profile_text = text('start_profile_text')
+    profile_menu = InlineProfile.profile_menu()
+    logger.info(f"Текст: {profile_text[:50]}...")
+    logger.info(f"Клавиатура: {profile_menu}")
+    
     await call.message.answer(
-        text('start_profile_text'),
-        reply_markup=InlineProfile.profile_menu(),
+        profile_text,
+        reply_markup=profile_menu,
         parse_mode="HTML"
     )
+    logger.info("call.message.answer() выполнен")
 
 
 async def router_choice(call: types.CallbackQuery, state: FSMContext):
