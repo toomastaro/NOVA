@@ -143,12 +143,14 @@ async def choice_delete_time(call: types.CallbackQuery, state: FSMContext):
     is_edit: bool = data.get("is_edit")
     if is_edit:
         return await call.message.edit_text(
-            text("post:content").format(
-                *data.get("send_date_values"),
-                data.get("channel").emoji_id,
-                data.get("channel").title
+            text("bot_post:content").format(
+                "Нет" if not post.delete_time else f"{int(post.delete_time / 3600)} час.",
+                data.get("send_date_values")[0],
+                text("month").get(str(data.get("send_date_values")[1])),
+                data.get("send_date_values")[2],
+                (await call.bot.get_chat(post.admin_id)).username or "Unknown"
             ),
-            reply_markup=keyboards.manage_remain_post(
+            reply_markup=keyboards.manage_remain_bot_post(
                 post=post
             )
         )
