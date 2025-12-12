@@ -228,9 +228,20 @@ async def manage_channel(call: types.CallbackQuery, state: FSMContext):
         if not channel:
             await call.answer("Канал не найден", show_alert=True)
             return
+        
+        # Проверяем, есть ли уже права у помощника
+        client_row = await db.get_my_membership(channel.chat_id)
+        if client_row:
+            can_post = client_row[0].is_admin
+            can_stories = client_row[0].can_post_stories
+            
+            # Если оба права уже есть - помощник уже добавлен
+            if can_post and can_stories:
+                await call.answer("✅ Помощник уже добавлен в канал и имеет все необходимые права!", show_alert=True)
+                # Возвращаемся на экран информации о канале
+                return await render_channel_info(call, state, channel_id)
             
         # Get client
-        client_row = await db.get_my_membership(channel.chat_id)
         if not client_row or not client_row[0].client:
              await call.answer("❌ Нет назначенного помощника", show_alert=True)
              return
