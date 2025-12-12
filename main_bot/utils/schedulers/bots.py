@@ -43,7 +43,9 @@ async def delete_bot_posts(user_bot: UserBot, message_ids: list[dict]):
             try:
                 await bot_manager.bot.delete_message(**message)
             except Exception as e:
-                logger.error(f"Ошибка при удалении сообщения бота: {e}", exc_info=True)
+                # Игнорируем ошибку "сообщение не найдено" - это нормально (пользователь мог удалить вручную)
+                if "message to delete not found" not in str(e).lower():
+                    logger.error(f"Ошибка при удалении сообщения бота: {e}", exc_info=True)
 
 
 async def start_delete_bot_posts():
