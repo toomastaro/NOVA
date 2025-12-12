@@ -21,9 +21,12 @@ logger = logging.getLogger(__name__)
 
 
 class SessionManager:
+    _locks = {}
+
     def __init__(self, session_path: Path):
         self.session_path = session_path
         self.client: TelegramClient | None = None
+        self._session_lock = None
 
     async def __aenter__(self):
         await self.init_client()
@@ -34,6 +37,16 @@ class SessionManager:
         await self.close()
 
     async def init_client(self):
+        # Получаем или создаем блокировку для этого файла сессии
+        path_str = str(self.session_path)
+        if path_str not in self._locks:
+            self._locks[path_str] = asyncio.Lock()
+        
+        self._session_lock = self._locks[path_str]
+        
+        # Ожидаем освобождения сессии
+        await self._session_lock.acquire()
+        
         try:
             self.client = TelegramClient(
                 session=str(self.session_path),
@@ -52,10 +65,18 @@ class SessionManager:
                 
         except Exception as e:
             print(f"Ошибка инициализации клиента: {e}")
+            # Если возникла ошибка, освобождаем блокировку
+            if self._session_lock and self._session_lock.locked():
+                self._session_lock.release()
+                self._session_lock = None
 
     async def close(self):
         if self.client:
             await self.client.disconnect()
+            
+        if self._session_lock and self._session_lock.locked():
+            self._session_lock.release()
+            self._session_lock = None
 
     async def me(self):
         if not self.client:
