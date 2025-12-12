@@ -283,7 +283,7 @@ class InlineBots(InlineKeyboardBuilder):
     def manage_remain_bot_post(cls, post: BotPost):
         kb = cls()
 
-        # Первый ряд: Изменить | Изменить дату/время
+        # Первый ряд: Изменить | Дата/Время
         kb.button(
             text=text("manage:post:change:button"),
             callback_data="ManageRemainBotPost|change"
@@ -293,17 +293,24 @@ class InlineBots(InlineKeyboardBuilder):
             callback_data="FinishBotPostParams|send_time"
         )
         
-        # Второй ряд: Назад | Удалить
+        # Второй ряд: Таймер удаления | Удалить
+        delete_time_text = "Нет" if not post.delete_time else f"{int(post.delete_time / 3600)} ч."
         kb.button(
-            text=text("back:button"),
-            callback_data="ManageRemainBotPost|cancel"
+            text=text("manage:post:del_time:button").format(delete_time_text),
+            callback_data="FinishBotPostParams|delete_time"
         )
         kb.button(
             text=text("manage:post:delete:button"),
             callback_data="ManageRemainBotPost|delete"
         )
+        
+        # Третий ряд: Назад
+        kb.button(
+            text=text("back:button"),
+            callback_data="ManageRemainBotPost|cancel"
+        )
 
-        kb.adjust(2, 2)  # 2 кнопки в каждом ряду
+        kb.adjust(2, 2, 1)  # 2 кнопки в первом ряду, 2 во втором, 1 в третьем
         return kb.as_markup()
 
     @classmethod
