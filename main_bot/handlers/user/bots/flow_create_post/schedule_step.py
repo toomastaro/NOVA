@@ -240,30 +240,44 @@ async def send_time_inline(call: types.CallbackQuery, state: FSMContext):
 
 @safe_handler("Bots Get Send Time")
 async def get_send_time(message: types.Message, state: FSMContext):
-    """Получение времени отправки от пользователя."""
+    """
+    Получение времени отправки от пользователя.
+    
+    Поддерживаемые форматы:
+    - HH:MM (только время, дата = сегодня)
+    - HH:MM DD.MM (день и месяц, год = текущий)
+    - DD.MM.YYYY HH:MM
+    - HH:MM DD.MM.YYYY
+    """
     input_date = message.text.strip()
     parts = input_date.split()
-    data = await state.get_data()
 
     try:
-        if len(parts) == 2 and len(parts[0].split('.')) == 3:
-            date = datetime.strptime(input_date, "%H:%M %d.%m.%Y")
-
-        elif len(parts) == 2 and len(parts[0].split('.')) == 2:
+        # Формат: DD.MM.YYYY HH:MM
+        if len(parts) == 2 and len(parts[0].split('.')) == 3 and ':' in parts[1]:
+            date = datetime.strptime(input_date, "%d.%m.%Y %H:%M")
+        
+        # Формат: HH:MM DD.MM.YYYY
+        elif len(parts) == 2 and ':' in parts[0] and len(parts[1].split('.')) == 3:
+            date = datetime.strptime(f"{parts[1]} {parts[0]}", "%d.%m.%Y %H:%M")
+        
+        # Формат: HH:MM DD.MM (без года)
+        elif len(parts) == 2 and ':' in parts[0] and len(parts[1].split('.')) == 2:
             year = datetime.now().year
-            date = datetime.strptime(f"{parts[1]} {parts[0]}.{year}", "%H:%M %d.%m.%Y")
-
-        elif len(parts) == 1:
-            day = data.get("day", datetime.now())
-            today = day.strftime("%d.%m.%Y")
-            date = datetime.strptime(f"{parts[0]} {today}", "%H:%M %d.%m.%Y")
+            date = datetime.strptime(f"{parts[1]}.{year} {parts[0]}", "%d.%m.%Y %H:%M")
+        
+        # Формат: HH:MM (только время, используем сегодняшнюю дату)
+        elif len(parts) == 1 and ':' in parts[0]:
+            today = datetime.now().strftime("%d.%m.%Y")
+            date = datetime.strptime(f"{today} {parts[0]}", "%d.%m.%Y %H:%M")
+        
         else:
-            raise ValueError("Invalid format")
+            raise ValueError("Неверный формат")
 
         send_time = time.mktime(date.timetuple())
 
     except Exception as e:
-        logger.error(f"Error parsing send time: {e}")
+        logger.error(f"Ошибка парсинга времени отправки: {e}")
         return await message.answer(
             text("error_value")
         )

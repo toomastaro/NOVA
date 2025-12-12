@@ -151,7 +151,9 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
         )
 
     if temp[1] == "show_all":
-        posts = await db.get_bot_posts(channel.chat_id)
+        all_posts = await db.get_bot_posts(channel.chat_id)
+        # Показываем только запланированные рассылки
+        posts = [post for post in all_posts if post.status == Status.PENDING]
         return await call.message.edit_text(
             text("bot:show_all:content").format(
                 channel.title,
@@ -159,7 +161,7 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
             ),
             reply_markup=keyboards.choice_time_objects(
                 objects=posts,
-                data="ChoiceTimeObjectContentBots"
+                data="ContentBotPost"
             )
         )
 
