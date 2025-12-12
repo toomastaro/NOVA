@@ -290,6 +290,7 @@ async def get_send_time(message: types.Message, state: FSMContext):
     data = await state.get_data()
     is_edit: bool = data.get("is_edit")
     post: BotPost = data.get('post')
+    is_changing_time = data.get("send_time") is not None  # Проверяем, меняем ли мы время
 
     if is_edit:
         post = await db.update_bot_post(
@@ -335,6 +336,28 @@ async def get_send_time(message: types.Message, state: FSMContext):
     channels = await db.get_bot_channels(message.from_user.id)
     objects = await db.get_user_channels(message.from_user.id, from_array=[i.id for i in channels])
 
+    # Если меняем время (уже было запланировано), сразу возвращаемся на экран "Готов к рассылке"
+    if is_changing_time:
+        await db.update_bot_post(
+            post_id=post.id,
+            send_time=send_time
+        )
+        
+        return await message.answer(
+            text("manage:post_bot:finish_params").format(
+                len(chosen),
+                "\n".join(
+                    text("resource_title").format(
+                        obj.title
+                    ) for obj in objects
+                    if obj.chat_id in chosen[:10]
+                ),
+                data.get("available")
+            ),
+            reply_markup=keyboards.finish_bot_post_params(obj=post)
+        )
+
+    # Первый раз планируем - показываем экран с кнопкой "Запланировать"
     await message.answer(
         text("manage:post_bot:accept:date").format(
             _time,

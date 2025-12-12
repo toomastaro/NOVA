@@ -84,6 +84,15 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
             message_text,
             reply_markup=reply_markup
         )
+    
+    # Обработка кнопки "Изменить дату/время"
+    if temp[1] == "change_time":
+        await call.message.edit_text(
+            text("manage:post_bot:new:send_time"),
+            reply_markup=None
+        )
+        await state.set_state(Bots.input_send_time)
+        return
 
     date_values: tuple = data.get("date_values")
     kwargs = {}
@@ -115,45 +124,24 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
         # Если бэкап уже есть, обновляем его (для редактирования запланированных рассылок)
         await edit_backup_message(post)
 
-    # --- PREVIEW (Copy from Backup) ---
-    backup_chat_id = post.backup_chat_id
-    backup_message_id = post.backup_message_id
-
-    if backup_chat_id and backup_message_id:
-        try:
-            # Copy message to user as preview
-            await call.bot.copy_message(
-                chat_id=call.from_user.id,
-                from_chat_id=backup_chat_id,
-                message_id=backup_message_id
-            )
-        except Exception as e:
-            logger.error(f"Failed to copy preview from backup for mailing: {e}")
-    else:
-        logger.warning(f"No backup data for mailing {post.id}, preview not shown.")
-
-    if send_time:
-        weekday, day, month, year, _time = date_values
-        message_text = text("manage:post_bot:success:date").format(
-            weekday,
-            day,
-            month,
-            year,
-            _time
-        )
-    else:
-        message_text = text("manage:post_bot:success:public").format(
-            "\n".join(
-                f"{obj.title} (@{obj.username})" for obj in objects
-                if obj.id in chosen[:10]
-            )
-        )
-
+    # После нажатия "Запланировать" возвращаемся на экран "Готов к рассылке"
     await state.clear()
-    await call.message.delete()
-    await call.message.answer(
-        message_text,
-        reply_markup=keyboards.create_finish(
-            data="MenuBots"
-        )
+    await state.update_data(
+        post=post,
+        chosen=chosen,
+        available=data.get("available")
+    )
+    
+    await call.message.edit_text(
+        text("manage:post_bot:finish_params").format(
+            len(chosen),
+            "\n".join(
+                text("resource_title").format(
+                    obj.title
+                ) for obj in objects
+                if obj.chat_id in chosen[:10]
+            ),
+            data.get("available")
+        ),
+        reply_markup=keyboards.finish_bot_post_params(obj=post)
     )
