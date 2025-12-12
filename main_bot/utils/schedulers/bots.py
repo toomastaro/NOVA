@@ -227,7 +227,7 @@ async def send_bot_post(bot_post: BotPost):
     
     # 1. Сначала определяем уникальных ботов из выбранных каналов
     for chat_id in bot_post.chat_ids:
-        # Получаем данные о канале и привязанном боте
+        try:
              # ВАЖНО: chat_ids здесь это именно ID каналов (Telegram ID), как выбрал юзер.
              # Но настройки (ChannelBotSetting) привязаны к ID канала в базе данных (PK), а не к Telegram ID.
              
