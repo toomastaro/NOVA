@@ -173,7 +173,8 @@ async def back_to_main_settings(call: types.CallbackQuery):
     Возврат в главное меню настроек (из отчетов).
     """
     await call.answer()
-    await call.message.edit_text(
+    await call.message.delete()
+    await call.message.answer(
         text('start_profile_text'),
         reply_markup=InlineProfile.profile_menu()
     )
