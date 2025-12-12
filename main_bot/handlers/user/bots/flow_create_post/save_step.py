@@ -132,15 +132,19 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
 
     if send_time:
         weekday, day, month, year, _time = date_values
-        message_text = text("manage:bot:success:date").format(
-            f"{day} {month} {year} {_time} ({weekday})",
+        message_text = text("manage:post_bot:success:date").format(
+            _time,
+            weekday,
+            day,
+            month,
+            year,
             "\n".join(
                 f"{obj.title} (@{obj.username})" for obj in objects
                 if obj.id in chosen[:10]
             )
         )
     else:
-        message_text = text("manage:bot:success:public").format(
+        message_text = text("manage:post_bot:success:public").format(
             "\n".join(
                 f"{obj.title} (@{obj.username})" for obj in objects
                 if obj.id in chosen[:10]

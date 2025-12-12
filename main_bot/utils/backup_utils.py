@@ -81,6 +81,7 @@ async def send_to_backup(post: Post | Story | BotPost) -> tuple[int | None, int 
 
     options['chat_id'] = Config.BACKUP_CHAT_ID
     options['parse_mode'] = 'HTML'
+    options.pop('reply_markup', None)
 
     try:
         backup_msg = await cor(
@@ -175,18 +176,18 @@ async def edit_backup_message(post: Post | PublishedPost | Story | BotPost, mess
             # Helper to send based on options
             if message_options.text:
                 cor = bot.send_message
-                send_options = message_options.model_dump(exclude={"photo", "video", "animation", "show_caption_above_media", "has_spoiler", "caption"})
+                send_options = message_options.model_dump(exclude={"photo", "video", "animation", "show_caption_above_media", "has_spoiler", "caption", "reply_markup"})
             elif message_options.photo:
                 cor = bot.send_photo
-                send_options = message_options.model_dump(exclude={"video", "animation", "text", "disable_web_page_preview"})
+                send_options = message_options.model_dump(exclude={"video", "animation", "text", "disable_web_page_preview", "reply_markup"})
                 send_options["photo"] = message_options.photo.file_id if isinstance(message_options.photo, Media) else message_options.photo
             elif message_options.video:
                 cor = bot.send_video
-                send_options = message_options.model_dump(exclude={"photo", "animation", "text", "disable_web_page_preview"})
+                send_options = message_options.model_dump(exclude={"photo", "animation", "text", "disable_web_page_preview", "reply_markup"})
                 send_options["video"] = message_options.video.file_id if isinstance(message_options.video, Media) else message_options.video
             else:
                 cor = bot.send_animation
-                send_options = message_options.model_dump(exclude={"photo", "video", "text", "disable_web_page_preview"})
+                send_options = message_options.model_dump(exclude={"photo", "video", "text", "disable_web_page_preview", "reply_markup"})
                 send_options["animation"] = message_options.animation.file_id if isinstance(message_options.animation, Media) else message_options.animation
 
             send_options['chat_id'] = chat_id
