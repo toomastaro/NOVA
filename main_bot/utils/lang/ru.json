@@ -345,7 +345,7 @@
   "bot_menu:application": "Авто-приём {}",
   "bot_menu:hello": "👋 Приветствие",
   "bot_menu:captcha": "Капча: {}",
-  "bot_menu:cloner": "Клонировать",
+  "bot_menu:cloner": "📋 Клонировать",
   "bot_menu:bye": "✋ Прощание {}",
   "bot_menu:cleaner": "🧹 Чистка ботов",
   "bot_menu:update": "🔄 Обновить данные",
