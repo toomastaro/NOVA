@@ -20,7 +20,8 @@ async def support_back(call: types.CallbackQuery, state: FSMContext):
     # Возврат в меню настроек (профиль)
     await call.message.answer(
         text('start_profile_text'),
-        reply_markup=keyboards.profile_menu()
+        reply_markup=keyboards.profile_menu(),
+        parse_mode="HTML"
     )
 
 

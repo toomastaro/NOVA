@@ -176,7 +176,8 @@ async def back_to_main_settings(call: types.CallbackQuery):
     await call.message.delete()
     await call.message.answer(
         text('start_profile_text'),
-        reply_markup=InlineProfile.profile_menu()
+        reply_markup=InlineProfile.profile_menu(),
+        parse_mode="HTML"
     )
 
 
