@@ -35,15 +35,15 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
             )
         )
 
-    await call.message.delete()
-
     if temp[1] == 'cancel':
-        # Возврат в меню настроек (профиль)
-        return await call.message.answer(
+        # Возврат в меню настроек (профиль) - используем edit для скорости
+        return await call.message.edit_text(
             text('start_profile_text'),
             reply_markup=keyboards.profile_menu(),
             parse_mode="HTML"
         )
+    
+    await call.message.delete()
 
     if temp[1] == 'create':
         # Direct flow for creating channel collection
