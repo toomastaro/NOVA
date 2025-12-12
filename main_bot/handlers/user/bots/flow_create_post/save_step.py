@@ -4,13 +4,6 @@
 Содержит логику:
 - Подтверждение публикации поста
 - Сохранение поста в БД с выбранными ботами и временем
-```python
-"""
-Module for post confirmation and saving for bots.
-
-Contains logic for:
-- Confirming post publication
-- Saving the post to the database with selected bots and time
 """
 import logging
 from aiogram import types
