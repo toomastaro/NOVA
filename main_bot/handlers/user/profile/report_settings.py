@@ -110,19 +110,10 @@ async def finish_edit_text(message: types.Message, state: FSMContext):
     """
     data = await state.get_data()
     setting_type = data.get('editing_setting_type')
-    new_text = message.text # Или message.html_text если нужна разметка? Лучше html_text, но aiogram 3.x передаёт raw text, надо самому форматировать или брать html
-    # Обычно берут message.html_text если поддерживается или форматируют сами. 
-    # В данном проекте похоже используют простой текст. Но пользователь просил "с эмоджи и хтмл форматированием".
-    # aiogram 3 Message object has `html_text` property if parsing enabled? No, usually helpers.
-    # We will use message.html_text if available, or just message.text if parse_mode is causing issues. 
-    # Let's assume message.html_text is available via property or we fetch raw.
-    # Actually, let's just use message.html_text (user logic usually supports it).
-    
-    # Check if `message.html_text` works?
     try:
         content = message.html_text
     except AttributeError:
-        # Fallback if html_text not available
+        # Если html_text недоступен, используем обычный текст
         content = message.text
 
     if not content:
@@ -143,16 +134,12 @@ async def finish_edit_text(message: types.Message, state: FSMContext):
         
     await message.answer(text('report:text_updated'))
     
-    # Вернуться в меню настройки
-    # Для этого нам нужен call... но у нас message.
-    # Мы можем отправить новое сообщение с меню.
-    
-    # Имитируем вызов show_specific_setting, но у нас нет callbackQuery с message для edit.
-    # Поэтому просто отправляем новое сообщение.
+    # Возвращаемся в меню настройки
+    # Отправляем новое сообщение с меню
     
     user = await db.get_user(user_id)
     
-    # Copy-paste logic from show_specific_setting but for message answer
+    # Логика из show_specific_setting для отправки нового сообщения
     is_active = False
     current_text = ""
     title_key = ""

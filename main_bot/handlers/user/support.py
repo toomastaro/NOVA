@@ -17,10 +17,10 @@ async def support_back(call: types.CallbackQuery, state: FSMContext):
 
     await call.message.delete()
 
-    from main_bot.keyboards.common import Reply
+    # Возврат в меню настроек (профиль)
     await call.message.answer(
-        "Главное меню",
-        reply_markup=Reply.menu()
+        text('start_profile_text'),
+        reply_markup=keyboards.profile_menu()
     )
 
 
@@ -63,7 +63,7 @@ async def get_support_message(message: types.Message):
         user_id = message.reply_to_message.caption.split('ID: ')[1] \
             if message.reply_to_message.caption else message.reply_to_message.text.split('ID: ')[1]
     except Exception as e:
-        logger.error(f"Error parsing user ID from support message: {e}")
+        logger.error(f"Ошибка парсинга ID пользователя из сообщения поддержки: {e}")
         return
 
     if message.photo:
