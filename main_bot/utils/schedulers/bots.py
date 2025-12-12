@@ -66,6 +66,13 @@ async def start_delete_bot_posts():
         for bot_id in list(messages.keys()):
             user_bot = await db.get_bot_by_id(int(bot_id))
             asyncio.create_task(delete_bot_posts(user_bot, messages[bot_id]["message_ids"]))
+        
+        # Обновляем статус, чтобы не пытаться удалять снова и снова
+        await db.update_bot_post(
+            post_id=bot_post.id,
+            delete_time=None,
+            status=Status.DELETED
+        )
 
 
 async def send_bot_messages(other_bot: Bot, bot_post: BotPost, users, filepath):

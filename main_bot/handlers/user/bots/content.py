@@ -36,7 +36,10 @@ async def get_days_with_bot_posts(bot_id: int, year: int, month: int) -> set:
     
     days_with_posts = set()
     for post in all_month_posts:
-        post_date = datetime.fromtimestamp(post.start_timestamp)
+        timestamp = post.start_timestamp or post.send_time
+        if not timestamp:
+            continue
+        post_date = datetime.fromtimestamp(timestamp)
         if month_start <= post_date <= month_end:
             days_with_posts.add(post_date.day)
     
