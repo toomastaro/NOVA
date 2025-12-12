@@ -22,24 +22,24 @@ class InlineProfile(InlineKeyboardBuilder):
         kb = cls()
 
         kb.button(
-            text=text('setting:timezone'),
-            callback_data='MenuProfile|timezone'
-        )
-        kb.button(
-            text=text('setting:folders'),
-            callback_data='MenuProfile|folders'
-        )
-        kb.button(
-            text=text('setting:reports'),
-            callback_data='MenuProfile|report_settings'
-        )
-        kb.button(
             text=text('posting:channels'),
             callback_data='MenuProfile|channels'
         )
         kb.button(
             text=text('bots:bots'),
             callback_data='MenuProfile|bots'
+        )
+        kb.button(
+            text=text('setting:reports'),
+            callback_data='MenuProfile|report_settings'
+        )
+        kb.button(
+            text=text('setting:timezone'),
+            callback_data='MenuProfile|timezone'
+        )
+        kb.button(
+            text=text('setting:folders'),
+            callback_data='MenuProfile|folders'
         )
         kb.button(
             text=text('reply_menu:support'),
@@ -50,7 +50,7 @@ class InlineProfile(InlineKeyboardBuilder):
             callback_data='MenuProfile|back'
         )
 
-        kb.adjust(1)
+        kb.adjust(2, 2, 2, 1)
         return kb.as_markup()
 
     @classmethod
@@ -522,19 +522,19 @@ class InlineProfile(InlineKeyboardBuilder):
             callback_data='MenuSubscription|transfer_sub'
         )
         kb.button(
-            text=text('info:button'),
-            callback_data='MenuSubscription|info'
-        )
-        kb.button(
             text=text('profile:referral'),
             callback_data='MenuSubscription|referral'
+        )
+        kb.button(
+            text=text('info:button'),
+            callback_data='MenuSubscription|info'
         )
         kb.button(
             text=text('back:button'),
             callback_data='MenuSubscription|back'
         )
 
-        kb.adjust(1, 1, 1, 1, 1, 1, 1)
+        kb.adjust(2, 2, 2, 1)
         return kb.as_markup()
 
     @classmethod
