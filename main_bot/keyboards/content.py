@@ -285,7 +285,7 @@ class InlineContent(InlineKeyboardBuilder):
             day: datetime,
             show_more: bool = False,
             data: str = "ContentPost",
-            days_with_posts: set = None  # Множество дней (int), в которые есть посты
+            days_with_posts: dict = None  # Словарь {день: {"has_finished": bool, "has_pending": bool}}
     ):
         kb = cls()
 
@@ -406,11 +406,16 @@ class InlineContent(InlineKeyboardBuilder):
                             )
                         )
                     else:
-                        # Проверяем, есть ли посты в этот день
-                        has_posts = days_with_posts and week_day in days_with_posts
+                        # Проверяем статус постов в этот день
+                        day_info = days_with_posts.get(week_day) if days_with_posts else None
                         day_text = str(week_day) if week_day != day.day else '🔸'
-                        if has_posts and week_day != day.day:
-                            day_text = f'{week_day}🔵'  # Добавляем синий круг для дней с постами
+                        
+                        if day_info and week_day != day.day:
+                            # Приоритет: если есть запланированные - показываем ⏰, иначе ✅
+                            if day_info.get("has_pending"):
+                                day_text = f'{week_day}⏰'
+                            elif day_info.get("has_finished"):
+                                day_text = f'{week_day}✅'
                         
                         days.append(
                             InlineKeyboardButton(

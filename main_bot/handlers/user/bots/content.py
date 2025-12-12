@@ -14,9 +14,9 @@ from main_bot.utils.lang.language import text
 from main_bot.utils.backup_utils import send_to_backup
 
 
-async def get_days_with_bot_posts(bot_id: int, year: int, month: int) -> set:
+async def get_days_with_bot_posts(bot_id: int, year: int, month: int) -> dict:
     """
-    Получает множество дней месяца, в которые есть рассылки.
+    Получает информацию о днях месяца с рассылками и их статусах.
     
     Args:
         bot_id: ID бота
@@ -24,7 +24,7 @@ async def get_days_with_bot_posts(bot_id: int, year: int, month: int) -> set:
         month: Месяц
         
     Returns:
-        set: Множество дней (int) с рассылками
+        dict: Словарь {день: {"has_finished": bool, "has_pending": bool}}
     """
     from calendar import monthrange
     _, last_day = monthrange(year, month)
@@ -34,16 +34,24 @@ async def get_days_with_bot_posts(bot_id: int, year: int, month: int) -> set:
     # Получаем все рассылки
     all_month_posts = await db.get_bot_posts(bot_id)
     
-    days_with_posts = set()
+    days_info = {}
     for post in all_month_posts:
         timestamp = post.start_timestamp or post.send_time
         if not timestamp:
             continue
         post_date = datetime.fromtimestamp(timestamp)
         if month_start <= post_date <= month_end:
-            days_with_posts.add(post_date.day)
+            day = post_date.day
+            if day not in days_info:
+                days_info[day] = {"has_finished": False, "has_pending": False}
+            
+            # Определяем статус
+            if post.status == Status.FINISH:
+                days_info[day]["has_finished"] = True
+            elif post.status == Status.PENDING:
+                days_info[day]["has_pending"] = True
     
-    return days_with_posts
+    return days_info
 
 
 async def choice_channel(call: types.CallbackQuery, state: FSMContext):
