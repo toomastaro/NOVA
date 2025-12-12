@@ -151,6 +151,7 @@ async def send_bot_messages(other_bot: Bot, bot_post: BotPost, users, filepath):
 
         await asyncio.sleep(0.25)
 
+    logger.info(f"✅ Рассылка завершена для бота {other_bot.id}. Успешно: {success}, Всего: {len(message_ids)}")
     return {other_bot.id: {"success": success, "message_ids": message_ids}}
 
 
@@ -197,6 +198,7 @@ async def send_bot_post(bot_post: BotPost):
     Args:
         bot_post: Объект поста для отправки
     """
+    logger.info(f"🚀 Начинаем обработку рассылки BotPost ID: {bot_post.id}")
     users_count = 0
     semaphore = asyncio.Semaphore(5)
 
@@ -234,7 +236,7 @@ async def send_bot_post(bot_post: BotPost):
              # 1. Находим канал по Telegram ID
              channel = await db.get_channel_by_chat_id(int(chat_id))
              if not channel:
-                 logger.warning(f"Channel with Chat ID {chat_id} not found during mailing")
+                 logger.warning(f"⚠️ Канал с ID {chat_id} не найден в базе данных.")
                  continue
 
              # 2. Используем Database ID канала (PK) для поиска настроек
@@ -244,8 +246,11 @@ async def send_bot_post(bot_post: BotPost):
              
              if channel_settings and channel_settings.bot_id:
                  unique_bot_ids.add(channel_settings.bot_id)
+                 logger.info(f"✅ Для канала {channel.title} ({channel.chat_id}) найден бот ID: {channel_settings.bot_id}")
+             else:
+                 logger.warning(f"⚠️ Для канала {channel.title} ({channel.chat_id}) не найдены настройки бота или bot_id.")
         except Exception as e:
-             logger.error(f"Error resolving bot for channel {chat_id}: {e}")
+             logger.error(f"❌ Ошибка при разрешении бота для канала {chat_id}: {e}")
              continue
 
     # 2. Итерируем по уникальным ботам
@@ -261,6 +266,7 @@ async def send_bot_post(bot_post: BotPost):
         raw_users = await other_db.get_all_users()
         # Extract IDs if records are returned
         users = [u.id if hasattr(u, 'id') else u for u in raw_users]
+        logger.info(f"👥 Найдено {len(users)} пользователей для бота {user_bot.title} (ID: {bot_id})")
         
         users_count += len(users)
 
@@ -324,7 +330,11 @@ async def send_bot_posts():
     
     Получает все посты, готовые к отправке, и запускает их обработку.
     """
+    Получает все посты, готовые к отправке, и запускает их обработку.
+    """
     posts = await db.get_bot_post_for_send()
+    if posts:
+        logger.info(f"🔎 Найдено {len(posts)} постов для рассылки.")
     if not posts:
         return
 
