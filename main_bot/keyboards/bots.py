@@ -377,3 +377,19 @@ class InlineBots(InlineKeyboardBuilder):
 
         kb.adjust(1, 2, 1)
         return kb.as_markup()
+
+    @classmethod
+    def accept_bot_public(cls, data: str = "AcceptBotPost"):
+        kb = cls()
+
+        kb.button(
+            text=text("manage:post_bot:public:button"),
+            callback_data=f"{data}|public"
+        )
+        kb.button(
+            text=text("back:button"),
+            callback_data=f"{data}|cancel"
+        )
+
+        kb.adjust(1)
+        return kb.as_markup()

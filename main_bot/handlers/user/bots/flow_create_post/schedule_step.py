@@ -105,7 +105,7 @@ async def finish_params(call: types.CallbackQuery, state: FSMContext):
                     if obj.chat_id in chosen[:10]
                 ),
             ),
-            reply_markup=keyboards.accept_public(
+            reply_markup=keyboards.accept_bot_public(
                 data="AcceptBotPost"
             )
         )
