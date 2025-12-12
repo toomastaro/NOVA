@@ -504,6 +504,7 @@ class InlineBotSetting(InlineKeyboardBuilder):
 
         bye = ByeAnswer(**channel_settings.bye)
 
+        # Ряд 1: Автоприём + Приветствие
         kb.button(
             text=text("bot_menu:application").format(
                 "✅" if channel_settings.auto_approve else "❌"
@@ -514,6 +515,8 @@ class InlineBotSetting(InlineKeyboardBuilder):
             text=text("bot_menu:hello"),
             callback_data="BotSettingMenu|hello"
         )
+        
+        # Ряд 2: Капча + Прощание
         kb.button(
             text=text("bot_menu:captcha").format(
                 "✅" if channel_settings.active_captcha_id else "❌"
@@ -521,29 +524,33 @@ class InlineBotSetting(InlineKeyboardBuilder):
             callback_data="BotSettingMenu|captcha"
         )
         kb.button(
-            text=text("bot_menu:cloner"),
-            callback_data="BotSettingMenu|clone"
-        )
-        kb.button(
             text=text("bot_menu:bye").format(
                 "✅" if bye.active else "❌"
             ),
             callback_data="BotSettingMenu|bye"
         )
+        
+        # Ряд 3: Клонировать + Чистка
+        kb.button(
+            text=text("bot_menu:cloner"),
+            callback_data="BotSettingMenu|clone"
+        )
         kb.button(
             text=text("bot_menu:cleaner"),
             callback_data="BotSettingMenu|cleaner"
+        )
+        
+        # Ряд 4: Назад + Обновить данные
+        kb.button(
+            text=text("back:button"),
+            callback_data="BotSettingMenu|back"
         )
         kb.button(
             text=text("bot_menu:update"),
             callback_data="BotSettingMenu|update"
         )
-        kb.button(
-            text=text("back:button"),
-            callback_data="BotSettingMenu|back"
-        )
 
-        kb.adjust(1, 1, 2)
+        kb.adjust(2, 2, 2, 2)
         return kb.as_markup()
 
     @classmethod
