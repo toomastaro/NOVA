@@ -89,12 +89,8 @@ async def finish_params(call: types.CallbackQuery, state: FSMContext):
         )
 
         await call.message.edit_text(
-            text("manage:post_bot:new:send_time").format(
-                *day_values
-            ),
-            reply_markup=keyboards.choice_send_time_bot_post(
-                day=day,
-            )
+            text("manage:post_bot:new:send_time"),
+            reply_markup=None
         )
         await state.set_state(Bots.input_send_time)
         return
@@ -237,12 +233,8 @@ async def send_time_inline(call: types.CallbackQuery, state: FSMContext):
         )
 
         return await call.message.edit_text(
-            text("manage:post_bot:new:send_time").format(
-                *day_values
-            ),
-            reply_markup=keyboards.choice_send_time_bot_post(
-                day=day,
-            )
+            text("manage:post_bot:new:send_time"),
+            reply_markup=None
         )
 
 
@@ -331,8 +323,11 @@ async def get_send_time(message: types.Message, state: FSMContext):
 
     await message.answer(
         text("manage:post_bot:accept:date").format(
-            f"{day} {month} {year} {_time}",
+            _time,
             weekday,
+            day,
+            month,
+            year,
             "\n".join(
                 text("resource_title").format(
                     obj.title

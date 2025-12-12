@@ -169,7 +169,7 @@ class InlineBots(InlineKeyboardBuilder):
             callback_data=f"{data}|send_time"
         )
         kb.button(
-            text=text("manage:post:public:button"),
+            text=text("manage:post_bot:public:button"),
             callback_data=f"{data}|public"
         )
         kb.button(
@@ -296,7 +296,7 @@ class InlineBots(InlineKeyboardBuilder):
             callback_data="ManageRemainBotPost|cancel"
         )
         kb.button(
-            text=text("manage:post:public:button"),
+            text=text("manage:post_bot:public:button"),
             callback_data="FinishBotPostParams|public"
         )
 
