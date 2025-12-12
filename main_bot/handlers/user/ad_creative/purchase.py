@@ -375,25 +375,10 @@ async def render_purchase_stats(call: CallbackQuery, purchase_id: int, period: s
     leads_count = await db.get_leads_count(purchase_id)
     subs_count = await db.get_subscriptions_count(purchase_id, from_ts, to_ts)
     
-    # Calculate conversion
-    conversion = 0.0
-    if leads_count > 0:
-        conversion = (subs_count / leads_count) * 100
-    
-    # Calculate revenue based on pricing type
-    revenue_text = "N/A"
-    if purchase.pricing_type.value == "CPL":
-        revenue = leads_count * purchase.price_value
-        revenue_text = f"{revenue:,} руб.".replace(",", " ")
-    elif purchase.pricing_type.value == "CPS":
-        revenue = subs_count * purchase.price_value
-        revenue_text = f"{revenue:,} руб.".replace(",", " ")
-    elif purchase.pricing_type.value == "FIXED":
-        revenue_text = f"{purchase.price_value:,} руб.".replace(",", " ")
-    
     # Get per-channel statistics
     mappings = await db.get_link_mappings(purchase_id)
     channels_stats = {}
+    total_unsubs = 0  # Общее количество отписок
     
     for m in mappings:
         if m.target_channel_id:
@@ -420,18 +405,67 @@ async def render_purchase_stats(call: CallbackQuery, purchase_id: int, period: s
             
             channels_stats[m.target_channel_id]["subs"] += len(active_subs)
             channels_stats[m.target_channel_id]["unsubs"] += len(left_subs)
+            total_unsubs += len(left_subs)
 
-    # Format message
-    stats_text = (
-        f"📊 <b>Статистика закупа: «{purchase.comment or 'Нет названия'}»</b>\n"
-        f"Период: {period_name}\n\n"
-        f"📎 Всего заявок: {leads_count}\n"
-        f"👥 Активных подписок: {subs_count}\n"
-        f"📈 Конверсия: {conversion:.1f}%\n\n"
-        f"💰 Цена: {revenue_text}\n"
-        f"💵 Тип оплаты: {purchase.pricing_type.value}\n"
-        f"💸 Ставка: {purchase.price_value} руб."
-    )
+    # Формируем статистику в зависимости от типа оплаты
+    pricing_type = purchase.pricing_type.value
+    
+    if pricing_type == "FIXED":
+        # Фиксированная оплата
+        # Расчет цены за заявку и подписку
+        cost_per_lead = (purchase.price_value / leads_count) if leads_count > 0 else 0
+        cost_per_sub = (purchase.price_value / subs_count) if subs_count > 0 else 0
+        
+        stats_text = (
+            f"📊 <b>Статистика закупа: «{purchase.comment or 'Нет названия'}»</b>\n"
+            f"Период: {period_name}\n\n"
+            f"📎 Заявок: {leads_count}\n"
+            f"👥 Присоединились: {subs_count}\n"
+            f"� Отписалось: {total_unsubs}\n"
+            f"💵 Цена заявки/подписки: {cost_per_lead:.2f}₽ / {cost_per_sub:.2f}₽\n"
+            f"💳 Тип оплаты: Фиксированная\n"
+            f"💰 Цена: {purchase.price_value} руб."
+        )
+        
+    elif pricing_type == "CPL":
+        # Оплата за заявку
+        total_cost = leads_count * purchase.price_value
+        
+        stats_text = (
+            f"📊 <b>Статистика закупа: «{purchase.comment or 'Нет названия'}»</b>\n"
+            f"Период: {period_name}\n\n"
+            f"📎 Заявок: {leads_count}\n"
+            f"👥 Присоединились: {subs_count}\n"
+            f"📉 Отписалось: {total_unsubs}\n"
+            f"💵 Цена заявки: {purchase.price_value}₽\n"
+            f"💳 Тип оплаты: По заявкам\n"
+            f"💰 Цена: {total_cost} руб."
+        )
+        
+    elif pricing_type == "CPS":
+        # Оплата за подписку
+        total_cost = subs_count * purchase.price_value
+        
+        stats_text = (
+            f"📊 <b>Статистика закупа: «{purchase.comment or 'Нет названия'}»</b>\n"
+            f"Период: {period_name}\n\n"
+            f"📎 Заявок: {leads_count}\n"
+            f"👥 Присоединились: {subs_count}\n"
+            f"📉 Отписалось: {total_unsubs}\n"
+            f"💵 Цена подписки: {purchase.price_value}₽\n"
+            f"💳 Тип оплаты: По подпискам\n"
+            f"💰 Цена: {total_cost} руб."
+        )
+    else:
+        # Fallback для неизвестного типа
+        stats_text = (
+            f"📊 <b>Статистика закупа: «{purchase.comment or 'Нет названия'}»</b>\n"
+            f"Период: {period_name}\n\n"
+            f"📎 Заявок: {leads_count}\n"
+            f"👥 Подписок: {subs_count}\n"
+            f"💵 Тип оплаты: {pricing_type}\n"
+            f"💸 Ставка: {purchase.price_value} руб."
+        )
     
     # Add per-channel breakdown
     if channels_stats:
