@@ -25,6 +25,15 @@ async def choice(call: types.CallbackQuery, state: FSMContext, user: User):
     if temp[1] == 'report_settings':
         from main_bot.handlers.user.profile.report_settings import show_report_settings_menu
         await show_report_settings_menu(call)
+    
+    if temp[1] == 'reports_back':
+        # Возврат из настроек отчетов в меню настроек
+        await call.message.answer(
+            text('start_profile_text'),
+            reply_markup=keyboards.profile_menu(),
+            parse_mode="HTML"
+        )
+        return
 
     if temp[1] == 'support':
         from main_bot.handlers.user.profile.profile import show_support
