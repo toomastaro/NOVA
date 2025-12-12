@@ -33,6 +33,7 @@ class Status(str, Enum):
     PENDING = "PENDING"
     FINISH = "FINISH"
     ERROR = "ERROR"
+    DELETED = "DELETED"
 
     def __str__(self):
         return self.value

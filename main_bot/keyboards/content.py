@@ -491,9 +491,9 @@ class InlineContent(InlineKeyboardBuilder):
                 kb.row(
                     InlineKeyboardButton(
                         text="{} | {} | {}".format(
-                            datetime.fromtimestamp(getattr(objects[idx], "send_time")).strftime(
-                                "%H:%M"
-                            ),
+                            datetime.fromtimestamp(
+                                getattr(objects[idx], "send_time") or getattr(objects[idx], "start_timestamp")
+                            ).strftime("%H:%M"),
                             emoji,
                             message_text or "Медиа"
                         ),

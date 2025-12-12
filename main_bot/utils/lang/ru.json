@@ -101,7 +101,7 @@
   "has_content": "{} публикаций на эту дату",
   "expand:content:button": "📅 Развернуть календарь",
   "short:content:button": "📅 Свернуть календарь",
-  "show_all:content:button": "📖 Все отложенные публикации",
+  "show_all:content:button": "📖 Все отложенные рассылки",
   "post:content": "📅 <b>Дата публикации:</b> {} {} {}\n📺 <b>Канал:</b> {}",
   "story:content": "📅 <b>Дата публикации:</b> {} {} {}\n📺 <b>Канал:</b> {}",
   "manage:post:send_time": "⏰ Дата публикации: {}",

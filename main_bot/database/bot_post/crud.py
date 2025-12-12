@@ -46,14 +46,9 @@ class BotPostCrud(DatabaseMixin):
         stmt = select(BotPost).where(
             BotPost.chat_ids.contains([chat_id])
         )
-        condition = or_(
-            and_(
-                BotPost.send_time.isnot(None),
-                BotPost.status == Status.PENDING
-            ),
-            BotPost.status == Status.FINISH
-        )
-        stmt = stmt.where(condition)
+        
+        # Убрали фильтр по статусу - показываем все посты (PENDING, FINISH, DELETED, ERROR)
+        # чтобы видеть полную историю действий
 
         if current_day:
             start_day = int(time.mktime(current_day.replace(hour=0, minute=0, second=0, microsecond=0).timetuple()))
