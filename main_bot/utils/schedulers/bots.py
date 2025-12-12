@@ -263,7 +263,30 @@ async def send_bot_post(bot_post: BotPost):
     # 2. Итерируем по уникальным ботам
     for bot_id in unique_bot_ids:
         user_bot = await db.get_bot_by_id(int(bot_id))
-        if not user_bot or not user_bot.subscribe:
+        
+        if not user_bot:
+            logger.warning(f"⚠️ Бот с ID {bot_id} не найден в базе данных.")
+            continue
+            
+        # Проверка подписки: разрешаем, если ХОТЯ БЫ ОДИН канал, привязанный к боту, имеет активную подписку
+        has_active_subscription = False
+        
+        # Получаем все настройки (связки канал-бот) для этого бота
+        linked_settings = await db.get_all_channels_in_bot_id(bot_id)
+        
+        for setting in linked_settings:
+            # setting.id - это Telegram Chat ID канала (как мы выяснили ранее)
+            linked_channel = await db.get_channel_by_chat_id(setting.id)
+            
+            if linked_channel and linked_channel.subscribe:
+                # Проверяем срок действия подписки
+                if linked_channel.subscribe > int(time.time()):
+                    has_active_subscription = True
+                    logger.info(f"✅ Для бота {bot_id} найдена активная подписка через канал {linked_channel.title}")
+                    break
+        
+        if not has_active_subscription:
+            logger.warning(f"⚠️ Бот {user_bot.title} (ID: {bot_id}) не имеет активных подписок ни на одном канале. Рассылка отменена.")
             continue
 
         other_db = Database()
