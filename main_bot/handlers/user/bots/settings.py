@@ -115,10 +115,11 @@ async def cancel(call: types.CallbackQuery, state: FSMContext):
 
     await state.clear()
     await call.message.edit_text(
-        text('bots_text'),
+        text('start_bots_text'),
         reply_markup=keyboards.choice_bots(
             bots=bots,
-        )
+        ),
+        parse_mode="HTML"
     )
 
 

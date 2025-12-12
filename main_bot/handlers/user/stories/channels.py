@@ -372,7 +372,7 @@ async def manage_channel(call: types.CallbackQuery, state: FSMContext):
             is_admin=is_admin,
             can_post_stories=can_stories,
             last_joined_at=int(time.time()),
-            preferred_for_stats=client_row[0].preferred_for_stats
+             preferred_for_stats=client_row[0].preferred_for_stats
         )
         
         # 4. Refresh view
@@ -382,6 +382,14 @@ async def manage_channel(call: types.CallbackQuery, state: FSMContext):
              await call.answer("✅ Права успешно обновлены!", show_alert=True)
         else:
              await call.answer("⚠️ Не все права выданы. Проверьте настройки админа.", show_alert=True)
+
+
+@safe_handler("Stories Cancel Add Channel")
+async def cancel(call: types.CallbackQuery, state: FSMContext):
+    """Возврат в меню сториз при отмене добавления канала"""
+    await state.clear()
+    await call.message.delete()
+    await start_stories(call.message)
 
 
 def hand_add():
