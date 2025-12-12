@@ -163,22 +163,7 @@ async def choice_bots(call: types.CallbackQuery, state: FSMContext):
                     text("error_sub_channel_folder:bots")
                 )
 
-    available = 0
-    for cs in channels:
-        if cs.id in chosen:
-            user_bot = await db.get_bot_by_id(cs.bot_id)
-            other_db = Database()
-            other_db.schema = user_bot.schema
 
-            users = await other_db.get_users(cs.id) # Gets ACTIVE users from CHANNEL
-            # But for unique bots we need ALL users from BOT later in scheduler.
-            # Here we are iterating CHANNELS.
-            # Wait, the UI shows CHANNELS.
-            # Users can overlap if they are in multiple channels of same bot?
-            # Yes.
-            # But we want stats for the "Mailing". Mailing goes to Unique Bots.
-            # So we should calculate stats based on UNIQUE BOTS derived from selected channels.
-            available += len(users)
 
     # Recalculate stats based on Unique Bots for accuracy
     # Convert chosen channels to unique bots
