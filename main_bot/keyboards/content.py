@@ -478,7 +478,17 @@ class InlineContent(InlineKeyboardBuilder):
                     options = objects[idx].message
                     message_text = options.get("text") or options.get("caption")
                     obj_data = "ContentBotPost"
-                    emoji = "⏳" if objects[idx].status == Status.PENDING else "✅"
+                    # Иконки в зависимости от статуса рассылки
+                    if objects[idx].status == Status.PENDING:
+                        emoji = "⏳"  # Запланировано
+                    elif objects[idx].status == Status.FINISH:
+                        emoji = "✅"  # Завершено
+                    elif objects[idx].status == Status.DELETED:
+                        emoji = "🗑"  # Удалено
+                    elif objects[idx].status == Status.ERROR:
+                        emoji = "❌"  # Ошибка
+                    else:
+                        emoji = "📤"  # Готово к отправке (READY)
                 else:
                     options = objects[idx].story_options
                     message_text = options.get("caption")
