@@ -307,12 +307,20 @@ async def get_send_time(message: types.Message, state: FSMContext):
         await state.clear()
         data['send_date_values'] = send_date_values
         await state.update_data(data)
+        
+        # Получаем username автора
+        try:
+            author = (await message.bot.get_chat(post.admin_id)).username or "Unknown"
+        except:
+            author = "Unknown"
 
         return await message.answer(
             text("bot_post:content").format(
-                *send_date_values,
-                data.get("channel").emoji_id,
-                data.get("channel").title
+                "Нет" if not post.delete_time else f"{int(post.delete_time / 3600)} час.",
+                send_date_values[0],  # день
+                send_date_values[1],  # месяц
+                send_date_values[2],  # год
+                author
             ),
             reply_markup=keyboards.manage_remain_bot_post(
                 post=post
@@ -389,7 +397,7 @@ async def back_send_time(call: types.CallbackQuery, state: FSMContext):
     await state.update_data(data)
     
     post: BotPost = data.get("post")
-    chosen: list = data.get("chosen")
+    chosen: list = data.get("chosen") or post.chat_ids  # Используем post.chat_ids если chosen None
     
     channels = await db.get_bot_channels(call.from_user.id)
     objects = await db.get_user_channels(call.from_user.id, from_array=[i.id for i in channels])
@@ -403,7 +411,7 @@ async def back_send_time(call: types.CallbackQuery, state: FSMContext):
                 ) for obj in objects
                 if obj.chat_id in chosen[:10]
             ),
-            data.get("available")
+            data.get("available") or 0  # Используем 0 если available None
         ),
         reply_markup=keyboards.finish_bot_post_params(obj=post)
     )
