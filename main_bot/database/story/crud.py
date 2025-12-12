@@ -6,6 +6,8 @@ from sqlalchemy import insert, update, delete, select, or_, func
 
 from main_bot.database import DatabaseMixin
 from main_bot.database.story.model import Story
+from main_bot.database.types import Status
+
 
 
 class StoryCrud(DatabaseMixin):
@@ -66,7 +68,8 @@ class StoryCrud(DatabaseMixin):
                 or_(
                     Story.send_time.is_(None),
                     Story.send_time < current_time
-                )
+                ),
+                Story.status == Status.PENDING
             )
         )
 
