@@ -67,6 +67,7 @@ async def choice_channel(call: types.CallbackQuery, state: FSMContext):
 
     day = datetime.today()
     posts = await db.get_bot_posts(channel.chat_id, day)
+    days_with_posts = await get_days_with_bot_posts(channel.chat_id, day.year, day.month)
     day_values = (day.day, text("month").get(str(day.month)), day.year,)
 
     await state.update_data(
@@ -115,6 +116,7 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
             day = day - timedelta(days=int(temp[2]))
 
         posts = await db.get_bot_posts(channel.chat_id, day)
+        days_with_posts = await get_days_with_bot_posts(channel.chat_id, day.year, day.month)
         day_values = (day.day, text("month").get(str(day.month)), day.year,)
 
         await state.update_data(
@@ -264,11 +266,12 @@ async def choice_time_objects(call: types.CallbackQuery, state: FSMContext):
                 channel.title,
                 text("no_content") if not posts else text("has_content").format(len(posts))
             ),
+
             reply_markup=keyboards.choice_row_content(
                 posts=posts,
                 day=day,
                 show_more=show_more,
-                data="ContentBotPost",days_with_posts=days_with_posts
+                data="ContentBotPost",days_with_posts=await get_days_with_bot_posts(channel.chat_id, day.year, day.month)
             )
         )
 
@@ -295,7 +298,7 @@ async def manage_remain_post(call: types.CallbackQuery, state: FSMContext):
             reply_markup=keyboards.choice_row_content(
                 posts=posts,
                 day=day,
-                data="ContentBotPost",days_with_posts=days_with_posts
+                data="ContentBotPost",days_with_posts=await get_days_with_bot_posts(data.get("channel").chat_id, day.year, day.month)
             )
         )
 
@@ -355,7 +358,7 @@ async def accept_delete_row_content(call: types.CallbackQuery, state: FSMContext
             reply_markup=keyboards.choice_row_content(
                 posts=posts,
                 day=day,
-                data="ContentBotPost",days_with_posts=days_with_posts
+                data="ContentBotPost",days_with_posts=await get_days_with_bot_posts(channel.chat_id, day.year, day.month)
             )
         )
 
