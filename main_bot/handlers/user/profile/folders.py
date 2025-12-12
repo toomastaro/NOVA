@@ -41,7 +41,8 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
         # Возврат в меню настроек (профиль)
         return await call.message.answer(
             text('start_profile_text'),
-            reply_markup=keyboards.profile_menu()
+            reply_markup=keyboards.profile_menu(),
+            parse_mode="HTML"
         )
 
     if temp[1] == 'create':
@@ -98,7 +99,8 @@ async def choice_object(call: types.CallbackQuery, state: FSMContext, user: User
             # Cancel creation -> go back to settings
             return await call.message.answer(
                 text('start_profile_text'),
-                reply_markup=keyboards.profile_menu()
+                reply_markup=keyboards.profile_menu(),
+                parse_mode="HTML"
             )
         else:
             await show_manage_folder(call.message, state)
@@ -205,7 +207,8 @@ async def cancel(call: types.CallbackQuery, state: FSMContext, user: User):
         # Cancel creation -> back to settings
         await call.message.answer(
             text('start_profile_text'),
-            reply_markup=keyboards.profile_menu()
+            reply_markup=keyboards.profile_menu(),
+            parse_mode="HTML"
         )
 
 

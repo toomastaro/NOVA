@@ -57,7 +57,8 @@ async def cancel(call: types.CallbackQuery, state: FSMContext):
     from main_bot.utils.lang.language import text
     await call.message.answer(
         text('start_profile_text'),
-        reply_markup=keyboards.profile_menu()
+        reply_markup=keyboards.profile_menu(),
+        parse_mode="HTML"
     )
 
 
