@@ -52,9 +52,7 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
     if temp[1] == "cancel":
         if send_time:
             await state.update_data(send_time=None)
-            message_text = text("manage:post_bot:new:send_time").format(
-                *data.get("day_values")
-            )
+            message_text = text("manage:post_bot:new:send_time")
             reply_markup = keyboards.choice_send_time_bot_post(day=data.get("day"))
             await state.set_state(Bots.input_send_time)
         else:

@@ -341,12 +341,19 @@ async def manage_remain_post(call: types.CallbackQuery, state: FSMContext):
 
     if temp[1] == "change":
         await call.message.delete()
-        await data.get("post_message").edit_reply_markup(
-            reply_markup=keyboards.manage_bot_post(
-                post=data.get('post'),
-                is_edit=data.get('is_edit')
-            )
-        )
+        post_message = data.get("post_message")
+        if post_message:
+            try:
+                await call.bot.edit_message_reply_markup(
+                    chat_id=call.from_user.id,
+                    message_id=post_message.message_id,
+                    reply_markup=keyboards.manage_bot_post(
+                        post=data.get('post'),
+                        is_edit=data.get('is_edit')
+                    )
+                )
+            except Exception as e:
+                logger.error(f"Ошибка редактирования клавиатуры: {e}")
 
 
 async def accept_delete_row_content(call: types.CallbackQuery, state: FSMContext):
@@ -363,10 +370,21 @@ async def accept_delete_row_content(call: types.CallbackQuery, state: FSMContext
     post = data.get("post")
 
     if temp[1] == "cancel":
+        # Получаем username автора
+        try:
+            author = (await call.bot.get_chat(post.admin_id)).username or "Unknown"
+        except:
+            author = "Unknown"
+        
+        send_date = datetime.fromtimestamp(post.send_time or post.start_timestamp)
+        
         return await call.message.edit_text(
             text("bot_post:content").format(
-                *send_date_values,
-                channel.title
+                "Нет" if not post.delete_time else f"{int(post.delete_time / 3600)} час.",
+                send_date.day,
+                text("month").get(str(send_date.month)),
+                send_date.year,
+                author
             ),
             reply_markup=keyboards.manage_remain_bot_post(
                 post=post
