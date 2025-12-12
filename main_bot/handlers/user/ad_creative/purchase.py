@@ -283,11 +283,11 @@ async def view_purchase(call: CallbackQuery, purchase_id: int):
     status_text = status_map.get(purchase.status, purchase.status)
     
     text = (
-        f"💳 <b>Закуп #{purchase.id}</b>\n"
+        f"💳 <b>Закуп: «{purchase.comment or 'Нет названия'}»</b>\n"
         f"🎨 Креатив: {creative_name}\n"
         f"📊 Тип: {purchase.pricing_type.value}\n"
         f"💸 Ставка: {purchase.price_value} руб.\n"
-        f"📝 Комментарий: {purchase.comment or 'Нет'}\n"
+        f"📋 Комментарий: {purchase.comment or 'Нет'}\n"
         f"📌 Статус: {status_text}"
     )
     
@@ -423,7 +423,7 @@ async def render_purchase_stats(call: CallbackQuery, purchase_id: int, period: s
 
     # Format message
     stats_text = (
-        f"📊 <b>Статистика закупа #{purchase_id}</b>\n"
+        f"📊 <b>Статистика закупа: «{purchase.comment or 'Нет названия'}»</b>\n"
         f"Период: {period_name}\n\n"
         f"📎 Всего заявок: {leads_count}\n"
         f"👥 Активных подписок: {subs_count}\n"
