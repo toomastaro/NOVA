@@ -390,8 +390,12 @@ class InlinePosting(InlineKeyboardBuilder):
         kb = cls()
 
         kb.button(
-            text=text("manage:post:send_time:button"),
+            text=text("manage:post:accept:date:button"),
             callback_data=f"{data}|send_time"
+        )
+        kb.button(
+            text=text("manage:post:send_time:button"),
+            callback_data=f"{data}|change_time"
         )
         kb.button(
             text=text("back:button"),

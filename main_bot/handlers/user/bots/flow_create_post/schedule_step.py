@@ -349,7 +349,7 @@ async def get_send_time(message: types.Message, state: FSMContext):
                 if obj.chat_id in chosen[:10]
             )
         ),
-        reply_markup=keyboards.accept_date(
+        reply_markup=keyboards.accept_bot_date(
             data="AcceptBotPost"
         )
     )
