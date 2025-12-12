@@ -83,8 +83,8 @@ async def choice_channel(call: types.CallbackQuery, state: FSMContext):
     await call.message.delete()
     await call.message.answer(
         text("bot:content").format(
-            *day_values,
             channel.title,
+            *day_values,
             text("no_content") if not posts else text("has_content").format(len(posts))
         ),
         reply_markup=keyboards.choice_row_content(
@@ -228,10 +228,20 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
         )
 
     await call.message.delete()
+    
+    # Получаем username автора
+    try:
+        author = (await call.bot.get_chat(post.admin_id)).username or "Unknown"
+    except:
+        author = "Unknown"
+    
     await call.message.answer(
         text("bot_post:content").format(
-            *send_date_values,
-            channel.title
+            "Нет" if not post.delete_time else f"{int(post.delete_time / 3600)} час.",
+            send_date.day,
+            text("month").get(str(send_date.month)),
+            send_date.year,
+            author
         ),
         reply_markup=keyboards.manage_remain_bot_post(
             post=post
