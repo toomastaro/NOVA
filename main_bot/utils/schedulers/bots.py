@@ -69,11 +69,11 @@ async def start_delete_bot_posts():
             user_bot = await db.get_bot_by_id(int(bot_id))
             asyncio.create_task(delete_bot_posts(user_bot, messages[bot_id]["message_ids"]))
         
-        # Обновляем статус, чтобы не пытаться удалять снова и снова
+        # Обновляем delete_time, чтобы не пытаться удалять снова и снова
+        # Статус DELETED пока не добавляем - его нет в enum базы данных
         await db.update_bot_post(
             post_id=bot_post.id,
-            delete_time=None,
-            status=Status.DELETED
+            delete_time=None
         )
 
 
