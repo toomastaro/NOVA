@@ -136,12 +136,13 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
 
     if send_time:
         weekday, day, month, year, _time = date_values
+        # Reordered to match: Weekday, Day, Month, Year, Time, Recipients
         message_text = text("manage:post_bot:success:date").format(
-            _time,
             weekday,
             day,
             month,
             year,
+            _time,
             "\n".join(
                 f"{obj.title} (@{obj.username})" for obj in objects
                 if obj.id in chosen[:10]
