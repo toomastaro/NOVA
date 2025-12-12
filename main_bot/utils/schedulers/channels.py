@@ -81,7 +81,7 @@ async def update_channel_stats(channel_id: int):
             subs = int(getattr(full.full_chat, "participants_count", 0) or 0)
             
             # Обновляем в БД
-            await db.update_channel(channel.id, subscribers_count=subs)
+            await db.update_channel_by_id(channel.id, subscribers_count=subs)
             logger.info(f"Updated subscribers for {channel.title}: {subs}")
         except Exception as e:
             logger.error(f"Failed to get subscribers: {e}")
@@ -94,7 +94,7 @@ async def update_channel_stats(channel_id: int):
             if stats and 'views' in stats:
                 views_data = stats['views'] # {24: ..., 48: ..., 72: ...}
                 
-                await db.update_channel(
+                await db.update_channel_by_id(
                     channel.id,
                     novastat_24h=views_data.get(24, 0),
                     novastat_48h=views_data.get(48, 0),
