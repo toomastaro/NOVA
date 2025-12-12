@@ -147,3 +147,7 @@ class InlineStories(InlineKeyboardBuilder):
 
         kb.adjust(1, 1, 2)
         return kb.as_markup()
+
+    @classmethod
+    def story_kb(cls, post: Story):
+        return None

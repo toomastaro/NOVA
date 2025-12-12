@@ -393,3 +393,14 @@ class InlineBots(InlineKeyboardBuilder):
 
         kb.adjust(1)
         return kb.as_markup()
+
+    @classmethod
+    def bot_post_kb(cls, post: BotPost):
+        kb = cls()
+        options = MessageOptionsHello(**post.message)
+        
+        if options.reply_markup:
+            for row in options.reply_markup.inline_keyboard:
+                kb.row(*row)
+                
+        return kb.as_markup()
