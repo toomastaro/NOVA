@@ -152,7 +152,11 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
 
     if temp[1] == 'cancel':
         await call.message.delete()
-        return await start_posting(call.message)
+        # Возврат в меню настроек (профиль)
+        return await call.message.answer(
+            text('start_profile_text'),
+            reply_markup=keyboards.profile_menu()
+        )
 
     if temp[1] == 'add':
         await state.set_state(AddChannel.waiting_for_channel)
