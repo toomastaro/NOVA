@@ -22,6 +22,17 @@ class UserCrud(DatabaseMixin):
             )
         )
 
+    async def get_all_users(self):
+        """
+        Получает всех активных пользователей бота (без фильтра по каналу).
+        """
+        return await self.fetch(
+            select(User.id).where(
+                User.is_active.is_(True),
+                User.walk_captcha.is_(True),
+            )
+        )
+
     async def get_time_users(self, chat_id: int, start_time, end_time, participant: bool = True):
         stmt = select(User).where(
             User.channel_id == chat_id,

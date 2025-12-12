@@ -65,6 +65,16 @@ class UserBotCrud(DatabaseMixin):
             )
         )
 
+    async def get_bots_by_ids(self, ids: List[int]) -> List[UserBot]:
+        """
+        Получает список ботов по списку ID.
+        """
+        return await self.fetch(
+            select(UserBot).where(
+                UserBot.id.in_(ids)
+            )
+        )
+
     async def delete_bot_by_id(self, row_id: int) -> None:
         """
         Удаляет бота по ID.

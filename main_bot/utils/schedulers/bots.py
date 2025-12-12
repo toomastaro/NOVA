@@ -223,28 +223,43 @@ async def send_bot_post(bot_post: BotPost):
     user_bot_objects = []
 
     # Подготовка задач для каждого канала
+    unique_bot_ids = set()
+    
+    # 1. Сначала определяем уникальных ботов из выбранных каналов
     for chat_id in bot_post.chat_ids:
-        channel = await db.get_channel_by_chat_id(chat_id)
-        if not channel.subscribe:
-            continue
+        # Получаем данные о канале и привязанном боте
+        # ВАЖНО: chat_ids здесь это именно ID каналов, как выбрал юзер, а не ID ботов
+        try:
+             # Нам нужно найти Bot ID, привязанный к этому каналу
+             # Используем табличку настроек channel_bot_settings
+             channel_settings = await db.get_channel_bot_setting(
+                chat_id=int(chat_id)
+             )
+             if channel_settings and channel_settings.bot_id:
+                 unique_bot_ids.add(channel_settings.bot_id)
+        except Exception as e:
+             logger.error(f"Error resolving bot for channel {chat_id}: {e}")
+             continue
 
-        channel_settings = await db.get_channel_bot_setting(
-            chat_id=channel.chat_id
-        )
-        user_bot = await db.get_bot_by_id(
-            row_id=channel_settings.bot_id
-        )
+    # 2. Итерируем по уникальным ботам
+    for bot_id in unique_bot_ids:
+        user_bot = await db.get_bot_by_id(int(bot_id))
+        if not user_bot or not user_bot.subscribe:
+            continue
 
         other_db = Database()
         other_db.schema = user_bot.schema
 
-        users = await other_db.get_users(channel.chat_id)
+        # Получаем всех пользователей бота
+        raw_users = await other_db.get_all_users()
+        # Extract IDs if records are returned
+        users = [u.id if hasattr(u, 'id') else u for u in raw_users]
+        
         users_count += len(users)
 
         tasks.append(
             process_semaphore(user_bot, bot_post, users, filepath)
         )
-        user_bot_objects.append(channel)
 
     success_count = 0
     message_ids = {}
