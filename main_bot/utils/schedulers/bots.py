@@ -239,16 +239,23 @@ async def send_bot_post(bot_post: BotPost):
                  logger.warning(f"⚠️ Канал с ID {chat_id} не найден в базе данных.")
                  continue
 
-             # 2. Используем Database ID канала (PK) для поиска настроек
+             # 2. Пробуем найти настройки по Telegram Chat ID (наиболее вероятно)
              channel_settings = await db.get_channel_bot_setting(
-                chat_id=channel.id
+                chat_id=channel.chat_id
              )
              
+             if not channel_settings:
+                 # Если не нашли, пробуем по Database ID (PK)
+                 logger.info(f"⚠️ Настройки не найдены по Chat ID {channel.chat_id}, пробуем по DB ID {channel.id}")
+                 channel_settings = await db.get_channel_bot_setting(
+                    chat_id=channel.id
+                 )
+
              if channel_settings and channel_settings.bot_id:
                  unique_bot_ids.add(channel_settings.bot_id)
-                 logger.info(f"✅ Для канала {channel.title} ({channel.chat_id}) найден бот ID: {channel_settings.bot_id}")
+                 logger.info(f"✅ Для канала {channel.title} найден бот ID: {channel_settings.bot_id} (Settings ID: {channel_settings.id})")
              else:
-                 logger.warning(f"⚠️ Для канала {channel.title} ({channel.chat_id}) не найдены настройки бота или bot_id.")
+                 logger.warning(f"⚠️ Для канала {channel.title} (ID: {channel.id}, ChatID: {channel.chat_id}) настройки НЕ найдены ни по одному ключу.")
         except Exception as e:
              logger.error(f"❌ Ошибка при разрешении бота для канала {chat_id}: {e}")
              continue
