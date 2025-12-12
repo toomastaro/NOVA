@@ -498,12 +498,16 @@ class InlineContent(InlineKeyboardBuilder):
                     message_text = message_text.replace('tg-emoji emoji-id', '').replace('</tg-emoji>', '')
                     message_text = re.sub(r'<[^>]+>', '', message_text)
 
+
+                # Пропускаем посты без времени (не должно быть, но на всякий случай)
+                timestamp = getattr(objects[idx], "send_time") or getattr(objects[idx], "start_timestamp")
+                if not timestamp:
+                    continue
+                    
                 kb.row(
                     InlineKeyboardButton(
                         text="{} | {} | {}".format(
-                            datetime.fromtimestamp(
-                                getattr(objects[idx], "send_time") or getattr(objects[idx], "start_timestamp")
-                            ).strftime("%H:%M"),
+                            datetime.fromtimestamp(timestamp).strftime("%H:%M"),
                             emoji,
                             message_text or "Медиа"
                         ),
