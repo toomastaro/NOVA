@@ -25,7 +25,7 @@ def hand_add():
     router = Router()
     
     # Выбор ботов
-    router.callback_query.register(choice_bots, F.data.split("|")[0] == "ChoiceBotsChannels")
+    router.callback_query.register(choice_bots, F.data.split("|")[0] == "ChoicePostBots")
     
     # Ввод сообщения для ботов
     router.message.register(get_message, Bots.input_message, F.text | F.photo | F.video | F.animation)
