@@ -90,7 +90,7 @@ async def finish_params(call: types.CallbackQuery, state: FSMContext):
 
         await call.message.edit_text(
             text("manage:post_bot:new:send_time"),
-            reply_markup=None
+            reply_markup=keyboards.back(data="BackSendTimeBots")
         )
         await state.set_state(Bots.input_send_time)
         return
@@ -375,4 +375,32 @@ async def get_send_time(message: types.Message, state: FSMContext):
         reply_markup=keyboards.accept_bot_date(
             data="AcceptBotPost"
         )
+    )
+
+
+@safe_handler("Bots Back Send Time")
+async def back_send_time(call: types.CallbackQuery, state: FSMContext):
+    """Возврат с экрана ввода времени на экран финальных параметров."""
+    data = await state.get_data()
+    await state.clear()
+    await state.update_data(data)
+    
+    post: BotPost = data.get("post")
+    chosen: list = data.get("chosen")
+    
+    channels = await db.get_bot_channels(call.from_user.id)
+    objects = await db.get_user_channels(call.from_user.id, from_array=[i.id for i in channels])
+    
+    await call.message.edit_text(
+        text("manage:post_bot:finish_params").format(
+            len(chosen),
+            "\n".join(
+                text("resource_title").format(
+                    obj.title
+                ) for obj in objects
+                if obj.chat_id in chosen[:10]
+            ),
+            data.get("available")
+        ),
+        reply_markup=keyboards.finish_bot_post_params(obj=post)
     )

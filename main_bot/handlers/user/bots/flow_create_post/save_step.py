@@ -97,10 +97,14 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
     date_values: tuple = data.get("date_values")
     kwargs = {}
 
+    # Обрабатываем оба варианта: send_time (запланировать) и public (разослать)
     if temp[1] == "send_time":
         kwargs["send_time"] = send_time or post.send_time
-    if temp[1] == "public":
+    elif temp[1] == "public":
         kwargs["status"] = Status.READY
+    else:
+        # Неизвестная команда
+        return
 
     # Update bot post in DB
     await db.update_bot_post(
@@ -124,24 +128,28 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
         # Если бэкап уже есть, обновляем его (для редактирования запланированных рассылок)
         await edit_backup_message(post)
 
-    # После нажатия "Запланировать" возвращаемся на экран "Готов к рассылке"
+    # После нажатия "Запланировать" показываем сообщение об успехе
     await state.clear()
-    await state.update_data(
-        post=post,
-        chosen=chosen,
-        available=data.get("available")
-    )
     
-    await call.message.edit_text(
-        text("manage:post_bot:finish_params").format(
-            len(chosen),
+    if send_time:
+        weekday, day, month, year, _time = date_values
+        message_text = text("manage:post_bot:success:date").format(
+            weekday,
+            day,
+            month,
+            year,
+            _time
+        )
+    else:
+        message_text = text("manage:post_bot:success:public").format(
             "\n".join(
-                text("resource_title").format(
-                    obj.title
-                ) for obj in objects
+                text("resource_title").format(obj.title) for obj in objects
                 if obj.chat_id in chosen[:10]
-            ),
-            data.get("available")
-        ),
-        reply_markup=keyboards.finish_bot_post_params(obj=post)
+            )
+        )
+    
+    await call.message.delete()
+    await call.message.answer(
+        message_text,
+        reply_markup=keyboards.create_finish(data="MenuBots")
     )

@@ -11,7 +11,7 @@ from main_bot.states.user import Bots
 # Импорты из модулей с логикой шагов
 from .bot_step import choice_bots
 from .media_step import get_message, cancel_message, manage_post, cancel_value, get_value
-from .schedule_step import finish_params, choice_delete_time, send_time_inline, get_send_time
+from .schedule_step import finish_params, choice_delete_time, send_time_inline, get_send_time, back_send_time
 from .save_step import accept
 
 
@@ -42,6 +42,7 @@ def hand_add():
     router.callback_query.register(finish_params, F.data.split("|")[0] == "FinishBotPostParams")
     router.callback_query.register(choice_delete_time, F.data.split("|")[0] == "GetDeleteTimeBotPost")
     router.callback_query.register(send_time_inline, F.data.split("|")[0] == "SendTimeBotPost")
+    router.callback_query.register(back_send_time, F.data.split("|")[0] == "BackSendTimeBots")
     router.message.register(get_send_time, Bots.input_send_time, F.text)
     
     # Подтверждение и сохранение
