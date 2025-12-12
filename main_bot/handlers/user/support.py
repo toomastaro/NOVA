@@ -67,20 +67,25 @@ async def get_support_message(message: types.Message):
         logger.error(f"Ошибка парсинга ID пользователя из сообщения поддержки: {e}")
         return
 
+    # Импортируем Reply клавиатуру для главного меню
+    from main_bot.keyboards.common import Reply
+    
     if message.photo:
         await message.bot.send_photo(
             photo=message.photo[-1].file_id,
             chat_id=user_id,
             caption=text("support_answer").format(
                 message.caption
-            )
+            ),
+            reply_markup=Reply.menu()
         )
     else:
         await message.bot.send_message(
             chat_id=user_id,
             text=text("support_answer").format(
                 message.text
-            )
+            ),
+            reply_markup=Reply.menu()
         )
 
 
