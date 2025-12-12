@@ -26,11 +26,15 @@ class InlineStories(InlineKeyboardBuilder):
             callback_data='MenuStories|content_plan'
         )
         kb.button(
+            text=text('channels:add:button'),
+            callback_data='ChoicePostChannel|add'
+        )
+        kb.button(
             text=text('back:button'),
             callback_data='MenuStories|back'
         )
 
-        kb.adjust(1, 1, 1)
+        kb.adjust(1, 1, 1, 1)
         return kb.as_markup()
 
     @classmethod

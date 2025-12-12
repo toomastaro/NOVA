@@ -83,8 +83,8 @@ async def choice_channel(call: types.CallbackQuery, state: FSMContext):
     await call.message.delete()
     await call.message.answer(
         text("channel:content").format(
-            channel.title,
             *day_values,
+            channel.title,
             text("no_content:story") if not posts else text("has_content:story").format(len(posts))
         ),
         reply_markup=keyboards.choice_row_content(
@@ -244,8 +244,8 @@ async def choice_time_objects(call: types.CallbackQuery, state: FSMContext):
         days_with_stories = await get_days_with_stories(channel.chat_id, day.year, day.month)
         return await call.message.edit_text(
             text("channel:content").format(
-                channel.title,
                 *data.get("day_values"),
+                channel.title,
                 text("no_content:story") if not posts else text("has_content:story").format(len(posts))
             ),
             reply_markup=keyboards.choice_row_content(
@@ -274,8 +274,8 @@ async def manage_remain_post(call: types.CallbackQuery, state: FSMContext):
         await data.get("post_message").delete()
         return await call.message.edit_text(
             text("channel:content").format(
-                data.get("channel").title,
                 *data.get("day_values"),
+                data.get("channel").title,
                 text("no_content:story") if not posts else text("has_content:story").format(len(posts))
             ),
             reply_markup=keyboards.choice_row_content(
@@ -337,8 +337,8 @@ async def accept_delete_row_content(call: types.CallbackQuery, state: FSMContext
         await data.get("post_message").delete()
         return await call.message.edit_text(
             text("channel:content").format(
-                channel.title,
                 *day_values,
+                channel.title,
                 text("no_content:story") if not posts else text("has_content:story").format(len(posts))
             ),
             reply_markup=keyboards.choice_row_content(
