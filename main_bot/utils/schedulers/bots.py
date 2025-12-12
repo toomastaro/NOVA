@@ -231,9 +231,15 @@ async def send_bot_post(bot_post: BotPost):
         # ВАЖНО: chat_ids здесь это именно ID каналов, как выбрал юзер, а не ID ботов
         try:
              # Нам нужно найти Bot ID, привязанный к этому каналу
-             # Используем табличку настроек channel_bot_settings
+             # Сначала получаем канал по его ID в базе (так как в chat_ids лежат ID строк)
+             channel = await db.get_channel_by_id(int(chat_id))
+             if not channel:
+                 logger.warning(f"Channel with ID {chat_id} not found during mailing")
+                 continue
+
+             # Теперь используем telegram chat_id для поиска настроек
              channel_settings = await db.get_channel_bot_setting(
-                chat_id=int(chat_id)
+                chat_id=channel.chat_id
              )
              if channel_settings and channel_settings.bot_id:
                  unique_bot_ids.add(channel_settings.bot_id)
