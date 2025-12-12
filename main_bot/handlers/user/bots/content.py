@@ -198,11 +198,8 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
             post_message = await call.bot.copy_message(
                 chat_id=call.from_user.id,
                 from_chat_id=post.backup_chat_id,
-                message_id=post.backup_message_id,
-                reply_markup=keyboards.manage_bot_post(
-                    post=post,
-                    is_edit=True
-                )
+                message_id=post.backup_message_id
+                # Без reply_markup - показываем только контент поста
             )
         except Exception as e:
              # Fallback если копирование не удалось
@@ -308,12 +305,21 @@ async def manage_remain_post(call: types.CallbackQuery, state: FSMContext):
         day = data.get('day')
         posts = await db.get_bot_posts(data.get("channel").chat_id, day)
 
-        await data.get("post_message").delete()
+        # Удаляем превью поста
+        post_message = data.get("post_message")
+        if post_message:
+            try:
+                await call.bot.delete_message(
+                    chat_id=call.from_user.id,
+                    message_id=post_message.message_id
+                )
+            except:
+                pass
+        
         return await call.message.edit_text(
             text("bot:content").format(
-                *data.get("day_values"),
-                data.get("channel").emoji_id,
                 data.get("channel").title,
+                *data.get("day_values"),
                 text("no_content") if not posts else text("has_content").format(len(posts))
             ),
             reply_markup=keyboards.choice_row_content(
@@ -369,11 +375,21 @@ async def accept_delete_row_content(call: types.CallbackQuery, state: FSMContext
         await db.delete_bot_post(post.id)
         posts = await db.get_bot_posts(channel.chat_id, day)
 
-        await data.get("post_message").delete()
+        # Удаляем превью поста
+        post_message = data.get("post_message")
+        if post_message:
+            try:
+                await call.bot.delete_message(
+                    chat_id=call.from_user.id,
+                    message_id=post_message.message_id
+                )
+            except:
+                pass
+        
         return await call.message.edit_text(
             text("bot:content").format(
-                *day_values,
                 channel.title,
+                *day_values,
                 text("no_content") if not posts else text("has_content").format(len(posts))
             ),
             reply_markup=keyboards.choice_row_content(
