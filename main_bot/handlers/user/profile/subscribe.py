@@ -1,4 +1,8 @@
+"""
+Модуль оформления подписок на каналы и ботов.
+"""
 from datetime import datetime
+import logging
 
 from aiogram import types, Router, F
 from aiogram.fsm.context import FSMContext
@@ -11,12 +15,13 @@ from main_bot.handlers.user.menu import profile
 from main_bot.handlers.user.profile.profile import show_subscribe
 from main_bot.keyboards import keyboards
 from main_bot.utils.lang.language import text
-import logging
+from main_bot.utils.error_handler import safe_handler
 
 logger = logging.getLogger(__name__)
 
 
-def get_subscribe_list_resources(objects, object_type, sort_by):
+def get_subscribe_list_resources(objects: list, object_type: str, sort_by: str) -> str:
+    """Формирует текстовый список ресурсов для подписки."""
     if not objects:
         return text(f'not_found_{object_type}')
 
@@ -47,6 +52,7 @@ def get_subscribe_list_resources(objects, object_type, sort_by):
 
 
 async def get_pay_info_text(state: FSMContext, user: User) -> str:
+    """Формирует текст информации о платеже."""
     data = await state.get_data()
 
     total_days = data.get('total_days')
@@ -105,7 +111,9 @@ async def get_pay_info_text(state: FSMContext, user: User) -> str:
     )
 
 
+@safe_handler("Subscribe Choice")
 async def choice(call: types.CallbackQuery, state: FSMContext, user: User):
+    """Маршрутизатор выбора типа подписки (каналы/боты)."""
     temp = call.data.split('|')
     await call.message.delete()
 
@@ -151,7 +159,9 @@ async def choice(call: types.CallbackQuery, state: FSMContext, user: User):
     )
 
 
+@safe_handler("Subscribe Choice Period")
 async def choice_period(call: types.CallbackQuery, state: FSMContext, user: User):
+    """Выбор периода подписки."""
     temp = call.data.split('|')
 
     if temp[1] == 'back':
@@ -208,7 +218,9 @@ async def choice_period(call: types.CallbackQuery, state: FSMContext, user: User
     )
 
 
+@safe_handler("Subscribe Choice Object")
 async def choice_object_subscribe(call: types.CallbackQuery, state: FSMContext, user: User):
+    """Выбор конкретных каналов/ботов для подписки."""
     temp = call.data.split('|')
     data = await state.get_data()
     if not data:
@@ -346,7 +358,8 @@ async def choice_object_subscribe(call: types.CallbackQuery, state: FSMContext, 
     )
 
 
-def hand_add():
+def get_router():
+    """Регистрация роутеров подписки."""
     router = Router()
     router.callback_query.register(choice, F.data.split("|")[0] == "Subscribe")
     router.callback_query.register(choice_period, F.data.split("|")[0] == "ChoiceSubscribePeriod")

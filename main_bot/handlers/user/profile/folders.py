@@ -1,3 +1,10 @@
+"""
+Управление папками пользователя (коллекции каналов).
+
+Позволяет создавать папки, добавлять в них каналы и управлять ими.
+Используется для группировки каналов при массовых операциях (аналитика, покупка рекламы).
+"""
+import logging
 from aiogram import types, Router, F
 from aiogram.fsm.context import FSMContext
 
@@ -9,9 +16,14 @@ from main_bot.handlers.user.profile.settings import show_folders
 from main_bot.keyboards import keyboards
 from main_bot.states.user import Folder
 from main_bot.utils.lang.language import text
+from main_bot.utils.error_handler import safe_handler
+
+logger = logging.getLogger(__name__)
 
 
+@safe_handler("Show Manage Folder")
 async def show_manage_folder(message: types.Message, state: FSMContext):
+    """Показывает меню управления конкретной папкой."""
     data = await state.get_data()
     folder_id = data.get('folder_id')
     folder = await db.user_folder.get_folder_by_id(folder_id)
@@ -22,7 +34,9 @@ async def show_manage_folder(message: types.Message, state: FSMContext):
     )
 
 
+@safe_handler("Folders Choice")
 async def choice(call: types.CallbackQuery, state: FSMContext):
+    """Маршрутизатор главного меню папок."""
     temp = call.data.split('|')
 
     if temp[1] in ['next', 'back']:
@@ -74,12 +88,16 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
 # Since we removed the call to it in `choice`, we can remove it or leave it as dead code for now.
 # Better to remove it to clean up.
 
+@safe_handler("Folders Choice Type")
 async def choice_type(call: types.CallbackQuery, state: FSMContext, user: User):
+    """Заглушка для выбора типа папки (устаревшее)."""
     # This handler is no longer used in the new flow
     pass
 
 
+@safe_handler("Folders Choice Object")
 async def choice_object(call: types.CallbackQuery, state: FSMContext, user: User):
+    """Обработчик выбора объектов (каналов) для папки."""
     temp = call.data.split('|')
     data = await state.get_data()
     if not data:
@@ -188,7 +206,9 @@ async def choice_object(call: types.CallbackQuery, state: FSMContext, user: User
     )
 
 
+@safe_handler("Folders Cancel")
 async def cancel(call: types.CallbackQuery, state: FSMContext, user: User):
+    """Отмена текущего действия (создания или переименования)."""
     # This is for InputFolderName cancel
     data = await state.get_data()
     
@@ -212,7 +232,9 @@ async def cancel(call: types.CallbackQuery, state: FSMContext, user: User):
         )
 
 
+@safe_handler("Folders Get Name")
 async def get_folder_name(message: types.Message, state: FSMContext, user: User):
+    """Обработчик ввода имени папки."""
     title = message.text
     if len(title) > 20:
         return await message.answer(
@@ -290,7 +312,9 @@ async def get_folder_name(message: types.Message, state: FSMContext, user: User)
         await show_manage_folder(message, state)
 
 
+@safe_handler("Manage Folder")
 async def manage_folder(call: types.CallbackQuery, state: FSMContext, user: User):
+    """Управление папкой: переименование, изменение контента, удаление."""
     temp = call.data.split('|')
     data = await state.get_data()
     if not data:
@@ -356,7 +380,8 @@ async def manage_folder(call: types.CallbackQuery, state: FSMContext, user: User
         )
 
 
-def hand_add():
+def get_router():
+    """Регистрация роутеров для папок."""
     router = Router()
     router.callback_query.register(choice, F.data.split('|')[0] == 'ChoiceFolder')
     router.callback_query.register(choice_type, F.data.split('|')[0] == 'ChoiceTypeFolder')

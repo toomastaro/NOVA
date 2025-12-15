@@ -1,8 +1,10 @@
 """
-Обработчики для переноса подписки между каналами
+Обработчики для переноса подписки между каналами.
+Позволяет пользователю перенести оплаченные дни подписки с одного канала (донора) на другие.
 """
 import time
 from datetime import datetime
+import logging
 
 from aiogram import Router, F, types
 from aiogram.fsm.context import FSMContext
@@ -11,8 +13,12 @@ from main_bot.database.db import db
 from main_bot.database.user.model import User
 from main_bot.keyboards import keyboards
 from main_bot.utils.lang.language import text
+from main_bot.utils.error_handler import safe_handler
+
+logger = logging.getLogger(__name__)
 
 
+@safe_handler("Show Transfer Subscription Menu")
 async def show_transfer_sub_menu(call: types.CallbackQuery, state: FSMContext):
     """Показать меню выбора канала-донора для переноса подписки"""
     user = await db.user.get_user(user_id=call.from_user.id)
@@ -43,9 +49,9 @@ async def show_transfer_sub_menu(call: types.CallbackQuery, state: FSMContext):
     )
 
 
+@safe_handler("Choose Transfer Donor")
 async def choose_donor(call: types.CallbackQuery, state: FSMContext, user: User):
     """Обработчик выбора канала-донора"""
-    from main_bot.utils.lang.language import text
     
     temp = call.data.split('|')
     
@@ -126,10 +132,9 @@ async def choose_donor(call: types.CallbackQuery, state: FSMContext, user: User)
     )
 
 
+@safe_handler("Choose Transfer Recipients")
 async def choose_recipients(call: types.CallbackQuery, state: FSMContext, user: User):
     """Обработчик выбора каналов-получателей"""
-    import logging
-    logger = logging.getLogger(__name__)
     
     temp = call.data.split('|')
     data = await state.get_data()
@@ -241,6 +246,7 @@ async def choose_recipients(call: types.CallbackQuery, state: FSMContext, user: 
         pass
 
 
+@safe_handler("Execute Subscription Transfer")
 async def execute_transfer(call: types.CallbackQuery, state: FSMContext, user: User, chosen: list):
     """Выполнить перенос подписки"""
     data = await state.get_data()
@@ -308,8 +314,8 @@ async def execute_transfer(call: types.CallbackQuery, state: FSMContext, user: U
     )
 
 
-def hand_add():
-    """Регистрация обработчиков"""
+def get_router():
+    """Регистрация роутеров переноса подписки."""
     router = Router()
     router.callback_query.register(choose_donor, F.data.split("|")[0] == "TransferSubDonor")
     router.callback_query.register(choose_recipients, F.data.split("|")[0] == "TransferSubRecipients")

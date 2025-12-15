@@ -1,9 +1,15 @@
+"""
+Модуль обработки реферальной программы в профиле.
+"""
 from aiogram import types, Router, F
 
 from main_bot.handlers.user.menu import profile
+from main_bot.utils.error_handler import safe_handler
 
 
+@safe_handler("Referral Choice")
 async def choice(call: types.CallbackQuery):
+    """Обработчик действий в меню реферальной программы."""
     temp = call.data.split('|')
     await call.message.delete()
 
@@ -21,7 +27,8 @@ async def choice(call: types.CallbackQuery):
         )
 
 
-def hand_add():
+def get_router():
+    """Регистрация роутера реферальной системы."""
     router = Router()
     router.callback_query.register(choice, F.data.split("|")[0] == "Referral")
     return router

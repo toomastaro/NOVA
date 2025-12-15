@@ -1,6 +1,16 @@
+"""
+Модуль обработки платежей и пополнения баланса.
+
+Поддерживает методы:
+- CryptoBot
+- Platega (каты)
+- Telegram Stars
+- Промокоды
+"""
 import asyncio
 import random
 import time
+import logging
 
 from aiogram import types, Router, F
 from aiogram.fsm.context import FSMContext
@@ -15,6 +25,9 @@ from main_bot.keyboards import keyboards
 from main_bot.states.user import Balance
 from main_bot.utils.lang.language import text
 from main_bot.utils.payments.crypto_bot import crypto_bot
+from main_bot.utils.error_handler import safe_handler
+
+logger = logging.getLogger(__name__)
 
 
 
@@ -26,7 +39,9 @@ async def safe_delete(message: types.Message):
         pass
 
 
+@safe_handler("Payment Choice")
 async def choice(call: types.CallbackQuery, state: FSMContext, user: User):
+    """Маршрутизатор выбора метода оплаты."""
     temp = call.data.split('|')
     data = await state.get_data()
 
@@ -67,7 +82,9 @@ async def choice(call: types.CallbackQuery, state: FSMContext, user: User):
     await state.set_state(Balance.input_amount)
 
 
+@safe_handler("Payment Cancel")
 async def cancel(call: types.CallbackQuery, state: FSMContext):
+    """Отмена ввода суммы."""
     data = await state.get_data()
     await state.clear()
     await state.update_data(data)
@@ -76,10 +93,9 @@ async def cancel(call: types.CallbackQuery, state: FSMContext):
     await show_top_up(call.message, state)
 
 
+@safe_handler("Back To Payment Method")
 async def back_to_method(call: types.CallbackQuery, state: FSMContext):
     """Возврат к выбору способа оплаты с экрана ожидания"""
-    import logging
-    logger = logging.getLogger(__name__)
     try:
         await call.answer()
     except:
@@ -123,7 +139,9 @@ async def back_to_method(call: types.CallbackQuery, state: FSMContext):
     )
 
 
+@safe_handler("Get Promo")
 async def get_promo(message: types.Message, state: FSMContext, user: User):
+    """Обработка ввода промокода."""
     name = message.text
 
     promo = await db.promo.get_promo(name)
@@ -164,7 +182,9 @@ async def get_promo(message: types.Message, state: FSMContext, user: User):
     )
 
 
+@safe_handler("Get Payment Amount")
 async def get_amount(message: types.Message, state: FSMContext):
+    """Обработка ввода суммы пополнения и создание счета."""
     try:
         amount = int(message.text)
     except ValueError:
@@ -328,6 +348,7 @@ async def process_pre_checkout_query(call: types.PreCheckoutQuery):
     await call.answer(ok=True)
 
 
+@safe_handler("Payment Success")
 async def success(message: types.Message, state: FSMContext):
     # ВАЖНО: refund_star_payment убран - он делал возврат денег!
     # Используйте его только для тестирования или реального возврата средств
@@ -365,7 +386,8 @@ async def success(message: types.Message, state: FSMContext):
     await show_balance(message, user)
 
 
-def hand_add():
+def get_router():
+    """Регистрация роутеров платежей."""
     router = Router()
     router.callback_query.register(choice, F.data.split("|")[0] == "ChoicePaymentMethod")
     router.callback_query.register(cancel, F.data.split("|")[0] == "BalanceAmountCancel")

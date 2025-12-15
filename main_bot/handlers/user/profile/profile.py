@@ -1,3 +1,12 @@
+"""
+Модуль профиля пользователя.
+
+Содержит:
+- Главное меню профиля
+- Настройки аккаунта (часовой пояс)
+- Списки каналов и ботов
+- Подписку и реферальную программу
+"""
 from aiogram import types, Router, F
 from aiogram.fsm.context import FSMContext
 
@@ -6,9 +15,12 @@ from main_bot.database.user.model import User
 from main_bot.keyboards import keyboards
 from main_bot.utils.lang.language import text
 from main_bot.handlers.user.profile.report_settings import show_report_settings_menu
+from main_bot.utils.error_handler import safe_handler
 
 
+@safe_handler("Profile Choice")
 async def choice(call: types.CallbackQuery, user: User, state: FSMContext):
+    """Маршрутизатор меню профиля."""
     temp = call.data.split('|')
     await call.message.delete()
 
@@ -47,6 +59,7 @@ async def choice(call: types.CallbackQuery, user: User, state: FSMContext):
     await cor(*args)
 
 
+@safe_handler("Show Balance")
 async def show_balance(message: types.Message, user: User):
     await message.answer(
         text("balance_text").format(
@@ -56,6 +69,7 @@ async def show_balance(message: types.Message, user: User):
     )
 
 
+@safe_handler("Show Channels")
 async def show_channels(message: types.Message):
     """Показать список каналов пользователя (перенесено из Posting)"""
     channels = await db.channel.get_user_channels(
@@ -70,6 +84,7 @@ async def show_channels(message: types.Message):
     )
 
 
+@safe_handler("Show Bots")
 async def show_bots(message: types.Message):
     """Показать список ботов пользователя (перенесено из Bots/Mailing)"""
     bots = await db.user_bot.get_user_bots(
@@ -84,6 +99,7 @@ async def show_bots(message: types.Message):
     )
 
 
+@safe_handler("Show Timezone")
 async def show_timezone(message: types.Message, state: FSMContext):
     """Показать меню настройки часового пояса"""
     from main_bot.database.db import db
@@ -110,12 +126,14 @@ async def show_timezone(message: types.Message, state: FSMContext):
     await state.set_state(Setting.input_timezone)
 
 
+@safe_handler("Show Folders")
 async def show_folders(message: types.Message):
     """Показать меню папок"""
     from main_bot.handlers.user.profile.settings import show_folders as settings_folders
     await settings_folders(message)
 
 
+@safe_handler("Show Subscribe")
 async def show_subscribe(message: types.Message, state: FSMContext = None):
     """Показать выбор каналов для подписки (без промежуточного меню)"""
     from main_bot.handlers.user.profile.subscribe import get_subscribe_list_resources
@@ -155,6 +173,7 @@ async def show_subscribe(message: types.Message, state: FSMContext = None):
     )
 
 
+@safe_handler("Show Setting")
 async def show_setting(message: types.Message):
     await message.answer(
         text("setting_text"),
@@ -162,6 +181,7 @@ async def show_setting(message: types.Message):
     )
 
 
+@safe_handler("Show Referral")
 async def show_referral(message: types.Message, user: User):
     referral_count = await db.user.get_count_user_referral(
         user_id=user.id
@@ -183,6 +203,7 @@ async def show_referral(message: types.Message, user: User):
     )
 
 
+@safe_handler("Show Support")
 async def show_support(message: types.Message, state: FSMContext):
     """Показать информацию о поддержке"""
     from main_bot.states.user import Support
@@ -197,6 +218,7 @@ async def show_support(message: types.Message, state: FSMContext):
     await state.set_state(Support.message)
 
 
+@safe_handler("Profile Subscription Menu Choice")
 async def subscription_menu_choice(call: types.CallbackQuery, user: User, state: FSMContext):
     """Обработчик выбора пунктов меню подписки"""
     temp = call.data.split('|')
@@ -299,7 +321,8 @@ async def info_menu_choice(call: types.CallbackQuery, user: User):
         )
 
 
-def hand_add():
+def get_router():
+    """Регистрация роутеров профиля."""
     router = Router()
     router.callback_query.register(choice, F.data.split("|")[0] == "MenuProfile")
     router.callback_query.register(subscription_menu_choice, F.data.split("|")[0] == "MenuSubscription")

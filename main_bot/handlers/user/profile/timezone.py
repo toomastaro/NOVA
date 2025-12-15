@@ -1,14 +1,25 @@
+"""
+Модуль настройки часового пояса.
+Позволяет пользователю установить свой часовой пояс для корректного отображения статистики и планировщика.
+"""
+from datetime import timedelta, datetime
+import logging
+
 from aiogram import types, Router, F
 from aiogram.fsm.context import FSMContext
 
 from main_bot.database.db import db
-from main_bot.handlers.user.profile.profile import show_setting
 from main_bot.keyboards import keyboards
 from main_bot.states.user import Setting
 from main_bot.utils.lang.language import text
+from main_bot.utils.error_handler import safe_handler
+
+logger = logging.getLogger(__name__)
 
 
+@safe_handler("Get Timezone")
 async def get_timezone(message: types.Message, state: FSMContext):
+    """Обрабатывает ввод часового пояса от пользователя."""
     try:
         timezone_value = int(message.text.replace("+", ""))
 
@@ -33,7 +44,6 @@ async def get_timezone(message: types.Message, state: FSMContext):
     await state.clear()
     
     # Показываем обновленное время
-    from datetime import timedelta, datetime
     delta = timedelta(hours=abs(timezone_value))
     if timezone_value > 0:
         new_timezone = datetime.utcnow() + delta
@@ -49,12 +59,12 @@ async def get_timezone(message: types.Message, state: FSMContext):
     )
 
 
+@safe_handler("Timezone Cancel")
 async def cancel(call: types.CallbackQuery, state: FSMContext):
+    """Отмена ввода часового пояса."""
     await state.clear()
     await call.message.delete()
     # Возврат в меню настроек (профиль)
-    from main_bot.keyboards import keyboards
-    from main_bot.utils.lang.language import text
     await call.message.answer(
         text('start_profile_text'),
         reply_markup=keyboards.profile_menu(),
@@ -62,7 +72,8 @@ async def cancel(call: types.CallbackQuery, state: FSMContext):
     )
 
 
-def hand_add():
+def get_router():
+    """Регистрация роутеров часового пояса."""
     router = Router()
     router.message.register(get_timezone, Setting.input_timezone, F.text)
     router.callback_query.register(cancel, F.data.split('|')[0] == 'InputTimezoneCancel')

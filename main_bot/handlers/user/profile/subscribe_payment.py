@@ -1,6 +1,10 @@
+"""
+Модуль оплаты подписок и выравнивания дат подписки.
+"""
 import asyncio
 import random
 import time
+import logging
 
 from aiogram import types, Router, F
 from aiogram.fsm.context import FSMContext
@@ -14,10 +18,10 @@ from main_bot.handlers.user.profile.subscribe import get_pay_info_text
 from main_bot.keyboards import keyboards
 from main_bot.states.user import Subscribe
 from main_bot.utils.lang.language import text
-import logging
+from main_bot.utils.payments.crypto_bot import crypto_bot
+from main_bot.utils.error_handler import safe_handler
 
 logger = logging.getLogger(__name__)
-from main_bot.utils.payments.crypto_bot import crypto_bot
 
 
 
@@ -29,6 +33,7 @@ async def safe_delete(message: types.Message):
         pass
 
 async def give_subscribes(state: FSMContext, user: User):
+    """Начисляет подписку пользователю после оплаты."""
     data = await state.get_data()
 
     # cor = data.get('cor')
@@ -192,7 +197,9 @@ async def show_subscription_success(message: types.Message, state: FSMContext, u
 
 
 
+@safe_handler("Subscribe Payment Choice")
 async def choice(call: types.CallbackQuery, state: FSMContext, user: User):
+    """Обработка выбора метода оплаты подписки."""
     temp = call.data.split('|')
     data = await state.get_data()
 
@@ -387,10 +394,9 @@ async def choice(call: types.CallbackQuery, state: FSMContext, user: User):
     return
 
 
+@safe_handler("Align Subscribe")
 async def align_subscribe(call: types.CallbackQuery, state: FSMContext, user: User):
-    import logging
-    logger = logging.getLogger(__name__)
-    
+    """Логика выравнивания сроков подписок."""
     temp = call.data.split("|")
     logger.info(f"Align: align_subscribe called with callback_data: {call.data}")
     data = await state.get_data()
@@ -529,7 +535,9 @@ async def align_subscribe(call: types.CallbackQuery, state: FSMContext, user: Us
         pass
 
 
+@safe_handler("Subscribe Payment Cancel")
 async def cancel(call: types.CallbackQuery, state: FSMContext, user: User):
+    """Отмена оплаты подписки."""
     # data = await state.get_data()
     # await state.clear()
     # await state.update_data(data)
@@ -549,6 +557,7 @@ async def cancel(call: types.CallbackQuery, state: FSMContext, user: User):
     )
 
 
+@safe_handler("Subscribe Back To Method")
 async def back_to_method(call: types.CallbackQuery, state: FSMContext):
     """Возврат к выбору способа оплаты с экрана ожидания"""
     logger.info(f"back_to_method called: {call.data}")
@@ -599,9 +608,9 @@ async def back_to_method(call: types.CallbackQuery, state: FSMContext):
     )
 
 
-
-
+@safe_handler("Subscribe Get Promo")
 async def get_promo(message: types.Message, state: FSMContext, user: User):
+    """Обработка ввода промокода при оплате подписки."""
     data = await state.get_data()
 
     try:
@@ -670,7 +679,9 @@ async def get_promo(message: types.Message, state: FSMContext, user: User):
     )
 
 
+@safe_handler("Subscribe Payment Success")
 async def success(message: types.Message, state: FSMContext, user: User):
+    """Обработка успешной оплаты (для Stars)."""
     # ВАЖНО: refund_star_payment убран - он делал возврат денег!
     # Используйте его только для тестирования или реального возврата средств
 
@@ -688,7 +699,8 @@ async def success(message: types.Message, state: FSMContext, user: User):
     await state.clear()
 
 
-def hand_add():
+def get_router():
+    """Регистрация роутеров оплаты подписки."""
     router = Router()
     router.callback_query.register(choice, F.data.split("|")[0] == "ChoicePaymentMethodSubscribe")
     router.callback_query.register(align_subscribe, F.data.split("|")[0] == "ChoiceResourceAlignSubscribe")

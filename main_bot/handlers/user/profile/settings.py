@@ -1,5 +1,9 @@
-# FORCE UPDATE
+"""
+Модуль управления настройками пользователя.
+(Часовой пояс, папки, отчеты).
+"""
 from datetime import timedelta, datetime
+import logging
 
 from aiogram import types, Router, F
 from aiogram.fsm.context import FSMContext
@@ -10,9 +14,14 @@ from main_bot.handlers.user.menu import profile
 from main_bot.keyboards import keyboards
 from main_bot.states.user import Setting
 from main_bot.utils.lang.language import text
+from main_bot.utils.error_handler import safe_handler
+
+logger = logging.getLogger(__name__)
 
 
+@safe_handler("Settings Choice")
 async def choice(call: types.CallbackQuery, state: FSMContext, user: User):
+    """Маршрутизатор меню настроек."""
     temp = call.data.split('|')
     await call.message.delete()
 
@@ -59,11 +68,11 @@ async def choice(call: types.CallbackQuery, state: FSMContext, user: User):
         await state.set_state(Setting.input_timezone)
 
 
+@safe_handler("Show Timezone Settings")
 async def show_timezone(message: types.Message):
     """Показать меню настройки часового пояса"""
+    # Imports cleanup: removed local imports where possible if global are enough
     from main_bot.database.db import db
-    from datetime import timedelta, datetime
-    from aiogram.fsm.context import FSMContext
     
     user = await db.user.get_user(user_id=message.chat.id)
     delta = timedelta(hours=abs(user.timezone))
@@ -84,7 +93,9 @@ async def show_timezone(message: types.Message):
     )
 
 
+@safe_handler("Show Folders Settings")
 async def show_folders(message: types.Message):
+    """Показать список папок."""
     folders = await db.user_folder.get_folders(message.chat.id)
 
     await message.answer(
@@ -95,7 +106,8 @@ async def show_folders(message: types.Message):
     )
 
 
-def hand_add():
+def get_router():
+    """Регистрация роутеров настроек."""
     router = Router()
     router.callback_query.register(choice, F.data.split("|")[0] == "Setting")
     return router

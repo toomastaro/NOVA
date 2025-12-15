@@ -1,20 +1,26 @@
+"""
+Обработчики баланса пользователя.
+"""
+import logging
 from aiogram import types, Router, F
 from aiogram.fsm.context import FSMContext
 
-from main_bot.handlers.user.menu import profile
+from main_bot.database.db import db
 from main_bot.keyboards import keyboards
 from main_bot.utils.lang.language import text
+from main_bot.utils.error_handler import safe_handler
+
+logger = logging.getLogger(__name__)
 
 
+@safe_handler("Balance Choice")
 async def choice(call: types.CallbackQuery, state: FSMContext):
+    """Маршрутизатор меню баланса."""
     temp = call.data.split('|')
     await call.message.delete()
 
     if temp[1] == 'back':
         # Возврат в меню подписки с информацией о балансе
-        from main_bot.database.db import db
-        from main_bot.utils.lang.language import text
-        
         user = await db.user.get_user(user_id=call.from_user.id)
         await call.message.answer(
             text("balance_text").format(user.balance),
@@ -26,7 +32,9 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
         await show_top_up(call.message, state)
 
 
+@safe_handler("Show Top Up")
 async def show_top_up(message: types.Message, state: FSMContext):
+    """Показать методы пополнения баланса."""
     await state.update_data(
         payment_to='balance'
     )
@@ -38,7 +46,8 @@ async def show_top_up(message: types.Message, state: FSMContext):
     )
 
 
-def hand_add():
+def get_router():
+    """Возвращает роутер для управления балансом."""
     router = Router()
     router.callback_query.register(choice, F.data.split("|")[0] == "Balance")
     return router

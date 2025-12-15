@@ -1,3 +1,11 @@
+"""
+Модуль настроек отчетов (подписей).
+
+Позволяет настраивать подписи для разных типов отчетов:
+- CPM (рекламные посты)
+- Exchange (взаимный пиар)
+- Referral (реферальные ссылки)
+"""
 from aiogram import types, F, Router
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
@@ -7,6 +15,7 @@ from main_bot.database.db import db
 from main_bot.keyboards.profile import InlineProfile
 from main_bot.keyboards import keyboards
 from main_bot.utils.lang.language import text
+from main_bot.utils.error_handler import safe_handler
 
 logger = logging.getLogger(__name__)
 
@@ -15,6 +24,7 @@ class ReportSettingsStates(StatesGroup):
     input_text = State()
 
 
+@safe_handler("Show Report Settings Menu")
 async def show_report_settings_menu(call: types.CallbackQuery):
     """
     Показывает главное меню настроек отчетов.
@@ -31,6 +41,7 @@ async def show_report_settings_menu(call: types.CallbackQuery):
     )
 
 
+@safe_handler("Show Specific Setting")
 async def show_specific_setting(call: types.CallbackQuery, setting_type: str):
     """
     Показывает настройки конкретной подписи (CPM/Exchange/Referral).
@@ -68,6 +79,7 @@ async def show_specific_setting(call: types.CallbackQuery, setting_type: str):
     )
 
 
+@safe_handler("Process Settings Toggle")
 async def process_toggle(call: types.CallbackQuery):
     """
     Переключает состояние подписи (Вкл/Выкл).
@@ -91,6 +103,7 @@ async def process_toggle(call: types.CallbackQuery):
     await show_specific_setting(call, setting_type)
 
 
+@safe_handler("Start Edit Settings Text")
 async def start_edit_text(call: types.CallbackQuery, state: FSMContext):
     """
     Начинает редактирование текста подписи.
@@ -107,6 +120,7 @@ async def start_edit_text(call: types.CallbackQuery, state: FSMContext):
     await state.set_state(ReportSettingsStates.input_text)
 
 
+@safe_handler("Finish Edit Settings Text")
 async def finish_edit_text(message: types.Message, state: FSMContext):
     """
     Завершает редактирование текста.
@@ -171,29 +185,25 @@ async def finish_edit_text(message: types.Message, state: FSMContext):
     await state.clear()
 
 
+@safe_handler("Back To Main Settings")
 async def back_to_main_settings(call: types.CallbackQuery):
     """
     Возврат в главное меню настроек (из отчетов).
     """
-    logger.info(f"back_to_main_settings вызван, user_id={call.from_user.id}")
     await call.answer()
-    logger.info("call.answer() выполнен")
     await call.message.delete()
-    logger.info("call.message.delete() выполнен")
     
     profile_text = text('start_profile_text')
     profile_menu = InlineProfile.profile_menu()
-    logger.info(f"Текст: {profile_text[:50]}...")
-    logger.info(f"Клавиатура: {profile_menu}")
     
     await call.message.answer(
         profile_text,
         reply_markup=profile_menu,
         parse_mode="HTML"
     )
-    logger.info("call.message.answer() выполнен")
 
 
+@safe_handler("Settings Router Choice")
 async def router_choice(call: types.CallbackQuery, state: FSMContext):
     await call.answer()
     action = call.data.split('|')[1]
@@ -215,7 +225,8 @@ async def router_choice(call: types.CallbackQuery, state: FSMContext):
         await show_specific_setting(call, setting_type) 
 
 
-def hand_add():
+def get_router():
+    """Регистрация роутеров настроек отчетов."""
     router = Router()
     
     # Handlers
