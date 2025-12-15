@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+import logging
 
 from aiogram import types, F, Router
 from aiogram.fsm.context import FSMContext
@@ -12,6 +13,41 @@ from main_bot.keyboards import keyboards
 from main_bot.utils.functions import answer_bot_post
 from main_bot.utils.lang.language import text
 from main_bot.utils.backup_utils import send_to_backup
+
+logger = logging.getLogger(__name__)
+
+
+def serialize_channel(channel):
+    if not channel: return None
+    return {
+        'id': channel.id,
+        'chat_id': channel.chat_id,
+        'title': channel.title,
+        'username': getattr(channel, 'username', None),
+        'subscribers_count': getattr(channel, 'subscribers_count', 0),
+        'posting': getattr(channel, 'posting', False)
+    }
+
+
+def serialize_bot_post(post):
+    if not post: return None
+    return {
+        'id': post.id,
+        'bot_id': getattr(post, 'bot_id', None),
+        'channel_id': getattr(post, 'channel_id', None),
+        'message': getattr(post, 'message', {}),
+        'status': getattr(post, 'status', 'active'),
+        'start_timestamp': post.start_timestamp,
+        'end_timestamp': getattr(post, 'end_timestamp', None),
+        'send_time': getattr(post, 'send_time', None),
+        'delete_time': getattr(post, 'delete_time', None),
+        'admin_id': post.admin_id,
+        'backup_chat_id': getattr(post, 'backup_chat_id', None),
+        'backup_message_id': getattr(post, 'backup_message_id', None),
+        'success_send': getattr(post, 'success_send', 0),
+        'error_send': getattr(post, 'error_send', 0),
+        'created_at': getattr(post, 'created_at', None),
+    }
 
 
 async def get_days_with_bot_posts(bot_id: int, year: int, month: int) -> dict:
@@ -82,8 +118,8 @@ async def choice_channel(call: types.CallbackQuery, state: FSMContext):
     day_values = (day.day, text("month").get(str(day.month)), day.year,)
 
     await state.update_data(
-        channel=channel,
-        day=day,
+        channel=serialize_channel(channel),
+        day=day.isoformat(),
         day_values=day_values,
         show_more=False
     )
@@ -114,9 +150,11 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
         await call.message.delete()
         return await show_content(call.message)
 
-    channel: Channel = data.get("channel")
+    channel = data.get("channel")
     show_more: bool = data.get("show_more")
-    day: datetime = data.get("day")
+    
+    day_str = data.get("day")
+    day = datetime.fromisoformat(day_str) if isinstance(day_str, str) else (day_str or datetime.today())
 
     if temp[1] in ['next_day', 'next_month', 'back_day', 'back_month', "choice_day", "show_more"]:
         if temp[1] == "choice_day":
@@ -131,7 +169,7 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
         day_values = (day.day, text("month").get(str(day.month)), day.year,)
 
         await state.update_data(
-            day=day,
+            day=day.isoformat(),
             day_values=day_values,
             show_more=show_more
         )

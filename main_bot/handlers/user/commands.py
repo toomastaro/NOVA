@@ -65,7 +65,7 @@ async def commands(message: types.Message, command: CommandObject, state: FSMCon
     await cor(*args)
 
 
-def hand_add():
+def get_router():
     router = Router()
     router.message.register(
         commands,
