@@ -7,10 +7,10 @@ logger = logging.getLogger(__name__)
 
 def safe_handler(stage_info: str):
     """
-    Decorator to wrap handlers with try-except block and error reporting.
+    Декоратор для оборачивания хендлеров в блок try-except с логированием ошибок.
     
     Args:
-         stage_info: A short description of the handler/step.
+         stage_info: Короткое описание этапа/хендлера.
     """
     def decorator(func: Callable):
         @wraps(func)
@@ -18,8 +18,8 @@ def safe_handler(stage_info: str):
             try:
                 return await func(*args, **kwargs)
             except Exception as e:
-                logger.error(f"Error in {stage_info}: {e}", exc_info=True)
-                # Telegram reporting disabled as per user request.
+                logger.error(f"Ошибка в {stage_info}: {e}", exc_info=True)
+                # Отправка отчета в Telegram отключена по запросу пользователя.
                 pass
 
         return wrapper

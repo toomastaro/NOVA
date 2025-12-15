@@ -1,4 +1,6 @@
 import logging
+import asyncio
+from typing import Any
 from aiogram import Bot, types
 from main_bot.database.db import db
 from main_bot.database.post.model import Post
@@ -12,10 +14,35 @@ from instance_bot import bot
 
 logger = logging.getLogger(__name__)
 
+def _prepare_send_options(message_options: MessageOptions) -> tuple[Any, dict]:
+    """
+    Вспомогательная функция для определения метода отправки и подготовки параметров.
+    """
+    if message_options.text:
+        cor = bot.send_message
+        options = message_options.model_dump(exclude={"photo", "video", "animation", "show_caption_above_media", "has_spoiler", "caption", "reply_markup"})
+    elif message_options.photo:
+        cor = bot.send_photo
+        options = message_options.model_dump(exclude={"video", "animation", "text", "disable_web_page_preview", "reply_markup"})
+        if hasattr(message_options.photo, 'file_id'):
+            options["photo"] = message_options.photo.file_id
+    elif message_options.video:
+        cor = bot.send_video
+        options = message_options.model_dump(exclude={"photo", "animation", "text", "disable_web_page_preview", "reply_markup"})
+        if hasattr(message_options.video, 'file_id'):
+            options["video"] = message_options.video.file_id
+    else: # animation
+        cor = bot.send_animation
+        options = message_options.model_dump(exclude={"photo", "video", "text", "disable_web_page_preview", "reply_markup"})
+        if hasattr(message_options.animation, 'file_id'):
+            options["animation"] = message_options.animation.file_id
+            
+    options['parse_mode'] = 'HTML'
+    return cor, options
+
 async def send_to_backup(post: Post | Story | BotPost) -> tuple[int | None, int | None]:
     """
-    Sends the post to the backup channel.
-    Returns (backup_chat_id, backup_message_id).
+    Отправляет пост в резервный канал. Возвращает ID чата и сообщения.
     """
     if not Config.BACKUP_CHAT_ID:
         return None, None
@@ -24,7 +51,7 @@ async def send_to_backup(post: Post | Story | BotPost) -> tuple[int | None, int 
         message_options = MessageOptions(**post.message_options)
         reply_markup = keyboards.post_kb(post=post)
     elif isinstance(post, Story):
-        # Filter fields to match MessageOptions
+        # Фильтрация полей для соответствия MessageOptions
         story_dump = post.story_options.copy() if hasattr(post.story_options, 'copy') else dict(post.story_options)
         valid_fields = MessageOptions.model_fields.keys()
         filtered_story_options = {k: v for k, v in story_dump.items() if k in valid_fields}
@@ -38,51 +65,10 @@ async def send_to_backup(post: Post | Story | BotPost) -> tuple[int | None, int 
     else:
         return None, None
     
-    if message_options.text:
-        cor = bot.send_message
-    elif message_options.photo:
-        cor = bot.send_photo
-        # Handle both Media object and string (file_id)
-        if hasattr(message_options.photo, 'file_id'):
-            message_options.photo = message_options.photo.file_id
-    elif message_options.video:
-        cor = bot.send_video
-        if hasattr(message_options.video, 'file_id'):
-            message_options.video = message_options.video.file_id
-    else:
-        cor = bot.send_animation
-        if hasattr(message_options.animation, 'file_id'):
-            message_options.animation = message_options.animation.file_id
-
-    options = message_options.model_dump()
-    # Clean up options for send method
-    if message_options.text:
-        options.pop("photo", None)
-        options.pop("video", None)
-        options.pop("animation", None)
-        options.pop("show_caption_above_media", None)
-        options.pop("has_spoiler", None)
-        options.pop("caption", None)
-    elif message_options.photo:
-        options.pop("video", None)
-        options.pop("animation", None)
-        options.pop("text", None)
-        options.pop("disable_web_page_preview", None)
-    elif message_options.video:
-        options.pop("photo", None)
-        options.pop("animation", None)
-        options.pop("text", None)
-        options.pop("disable_web_page_preview", None)
-    else: # animation
-        options.pop("photo", None)
-        options.pop("video", None)
-        options.pop("text", None)
-        options.pop("disable_web_page_preview", None)
-
+    cor, options = _prepare_send_options(message_options)
     options['chat_id'] = Config.BACKUP_CHAT_ID
-    options['parse_mode'] = 'HTML'
-    options.pop('reply_markup', None)
-
+    # reply_markup передается отдельно, чтобы избежать путаницы с pop/clean, если словарь изменяется на месте
+    
     try:
         backup_msg = await cor(
             **options,
@@ -90,12 +76,12 @@ async def send_to_backup(post: Post | Story | BotPost) -> tuple[int | None, int 
         )
         return Config.BACKUP_CHAT_ID, backup_msg.message_id
     except Exception as e:
-        logger.error(f"Error sending to backup channel: {e}", exc_info=True)
+        logger.error(f"Ошибка отправки в резервный канал: {e}", exc_info=True)
         return None, None
 
 async def edit_backup_message(post: Post | PublishedPost | Story | BotPost, message_options: MessageOptions = None):
     """
-    Updates the message in the backup channel to match the current post state.
+    Обновляет сообщение в резервном канале в соответствии с текущим состоянием поста.
     """
     if not post or not post.backup_chat_id or not post.backup_message_id:
         return
@@ -105,7 +91,7 @@ async def edit_backup_message(post: Post | PublishedPost | Story | BotPost, mess
             message_options = MessageOptions(**post.message_options)
             reply_markup = keyboards.post_kb(post=post)
         elif isinstance(post, Story):
-            # Filter fields
+            # Фильтрация полей
             story_dump = post.story_options.copy() if hasattr(post.story_options, 'copy') else dict(post.story_options)
             valid_fields = MessageOptions.model_fields.keys()
             filtered = {k: v for k, v in story_dump.items() if k in valid_fields}
@@ -117,7 +103,7 @@ async def edit_backup_message(post: Post | PublishedPost | Story | BotPost, mess
             message_options = MessageOptionsHello(**post.message)
             reply_markup = keyboards.manage_bot_post(post=post)
     else:
-        # If message_options provided, we still need correct markup
+        # Если message_options передан, нам все равно нужна правильная клавиатура
         if isinstance(post, (Post, PublishedPost)):
              reply_markup = keyboards.post_kb(post=post)
         elif isinstance(post, Story):
@@ -141,7 +127,7 @@ async def edit_backup_message(post: Post | PublishedPost | Story | BotPost, mess
                 reply_markup=reply_markup
             )
         else:
-            # Media message
+            # Медиа сообщение
             if message_options.caption is not None:
                 await bot.edit_message_caption(
                     chat_id=chat_id,
@@ -151,7 +137,7 @@ async def edit_backup_message(post: Post | PublishedPost | Story | BotPost, mess
                     reply_markup=reply_markup
                 )
             else:
-                # Just update markup if caption didn't change (or if we just want to update buttons)
+                # Обновляем только клавиатуру, если подпись не изменилась
                 await bot.edit_message_reply_markup(
                     chat_id=chat_id,
                     message_id=message_id,
@@ -159,77 +145,53 @@ async def edit_backup_message(post: Post | PublishedPost | Story | BotPost, mess
                 )
                 
     except Exception as e:
-        logger.error(f"Error editing backup message {message_id} in {chat_id}: {e}. Attempting fallback (delete and resend).")
+        logger.error(f"Ошибка редактирования сообщения бэкапа {message_id} в {chat_id}: {e}. Попытка отката (удаление и повторная отправка).")
         try:
-            # Fallback: Delete and Resend to Backup
+            # Откат: Удаление и повторная отправка в бэкап
             try:
                 await bot.delete_message(chat_id, message_id)
             except Exception as del_e:
-                logger.warning(f"Failed to delete backup message {message_id}: {del_e}")
+                logger.warning(f"Не удалось удалить сообщение бэкапа {message_id}: {del_e}")
 
-            # Send new message to backup
-            # We need to construct options for send_message/photo/etc.
-            # Reuse send_to_backup logic or similar? 
-            # send_to_backup takes a Post object. We have Post or PublishedPost.
-            # Let's construct a temporary Post object or just use the options manually.
-            
-            # Helper to send based on options
-            if message_options.text:
-                cor = bot.send_message
-                send_options = message_options.model_dump(exclude={"photo", "video", "animation", "show_caption_above_media", "has_spoiler", "caption", "reply_markup"})
-            elif message_options.photo:
-                cor = bot.send_photo
-                send_options = message_options.model_dump(exclude={"video", "animation", "text", "disable_web_page_preview", "reply_markup"})
-                send_options["photo"] = message_options.photo.file_id if isinstance(message_options.photo, Media) else message_options.photo
-            elif message_options.video:
-                cor = bot.send_video
-                send_options = message_options.model_dump(exclude={"photo", "animation", "text", "disable_web_page_preview", "reply_markup"})
-                send_options["video"] = message_options.video.file_id if isinstance(message_options.video, Media) else message_options.video
-            else:
-                cor = bot.send_animation
-                send_options = message_options.model_dump(exclude={"photo", "video", "text", "disable_web_page_preview", "reply_markup"})
-                send_options["animation"] = message_options.animation.file_id if isinstance(message_options.animation, Media) else message_options.animation
-
+            # Отправка нового сообщения в бэкап с использованием хелпера
+            cor, send_options = _prepare_send_options(message_options)
             send_options['chat_id'] = chat_id
-            send_options['parse_mode'] = 'HTML'
-            send_options['reply_markup'] = reply_markup
-
-            new_backup_msg = await cor(**send_options)
+            
+            new_backup_msg = await cor(**send_options, reply_markup=reply_markup)
             new_backup_message_id = new_backup_msg.message_id
             
-            # Update DB
+            # Обновление БД
             post_id = post.post_id if isinstance(post, PublishedPost) else post.id
             
-            # Update Post
+            # Обновление поста
             if isinstance(post, Story):
                  await db.story.update_story(post.id, backup_message_id=new_backup_message_id)
             elif isinstance(post, BotPost):
                  await db.bot_post.update_bot_post(post.id, backup_message_id=new_backup_message_id)
             elif isinstance(post, (Post, PublishedPost)):
-                 # Update Post
+                 # Обновление поста
                 await db.post.update_post(
                     post_id=post_id,
                     backup_message_id=new_backup_message_id
                 )
                 
-                # Update all PublishedPosts
+                # Обновление всех опубликованных постов
                 await db.published_post.update_published_posts_by_post_id(
                     post_id=post_id,
                     backup_message_id=new_backup_message_id
                 )
             
-            logger.info(f"Backup fallback successful: Replaced {message_id} with {new_backup_message_id} for post {post_id}")
+            logger.info(f"Откат бэкапа успешен: Заменено {message_id} на {new_backup_message_id} для поста {post_id}")
 
         except Exception as fallback_e:
-            logger.error(f"Backup fallback failed for post {post.id if hasattr(post, 'id') else '?'}: {fallback_e}", exc_info=True)
+            logger.error(f"Ошибка отката бэкапа для поста {post.id if hasattr(post, 'id') else '?'}: {fallback_e}", exc_info=True)
 
-async def update_live_messages(post_id: int, message_options: MessageOptions, reply_markup=None):
+
+async def _update_single_live_message(post: PublishedPost, message_options: MessageOptions, reply_markup, semaphore: asyncio.Semaphore):
     """
-    Updates all live published messages for a given post_id.
+    Хелпер для обновления одного живого сообщения с семафором.
     """
-    published_posts = await db.published_post.get_published_posts_by_post_id(post_id)
-    
-    for post in published_posts:
+    async with semaphore:
         try:
             if message_options.text:
                 await bot.edit_message_text(
@@ -256,13 +218,13 @@ async def update_live_messages(post_id: int, message_options: MessageOptions, re
                         reply_markup=reply_markup
                     )
         except Exception as e:
-            logger.error(f"Error updating live message {post.message_id} in {post.chat_id}: {e}. Attempting fallback (delete and repost).")
+            logger.error(f"Ошибка обновления живого сообщения {post.message_id} в {post.chat_id}: {e}. Попытка отката (удаление и репост).")
             try:
-                # Fallback: Delete and Copy from Backup
+                # Откат: Удаление и копирование из бэкапа
                 try:
                     await bot.delete_message(post.chat_id, post.message_id)
                 except Exception as del_e:
-                    logger.warning(f"Failed to delete message {post.message_id} in {post.chat_id}: {del_e}")
+                    logger.warning(f"Не удалось удалить сообщение {post.message_id} в {post.chat_id}: {del_e}")
 
                 if post.backup_chat_id and post.backup_message_id:
                     new_msg = await bot.copy_message(
@@ -273,16 +235,34 @@ async def update_live_messages(post_id: int, message_options: MessageOptions, re
                         parse_mode='HTML'
                     )
                     
-                    # Update PublishedPost with new message_id
+                    # Обновление PublishedPost с новым message_id
                     await db.published_post.update_published_post(
                         post_id=post.id,
                         message_id=new_msg.message_id
                     )
-                    logger.info(f"Fallback successful: Replaced message {post.message_id} with {new_msg.message_id} in {post.chat_id}")
+                    logger.info(f"Откат успешен: Заменено сообщение {post.message_id} на {new_msg.message_id} в {post.chat_id}")
                 else:
-                    logger.error(f"Fallback failed: No backup info for post {post.id}")
+                    logger.error(f"Ошибка отката: Нет информации о бэкапе для поста {post.id}")
 
             except Exception as fallback_e:
-                logger.error(f"Fallback failed for {post.chat_id}: {fallback_e}", exc_info=True)
+                logger.error(f"Ошибка отката для {post.chat_id}: {fallback_e}", exc_info=True)
+
+async def update_live_messages(post_id: int, message_options: MessageOptions, reply_markup=None):
+    """
+    Обновляет все опубликованные сообщения (live/channels) для указанного поста.
+    """
+    published_posts = await db.published_post.get_published_posts_by_post_id(post_id)
+    if not published_posts:
+        return
+
+    # Ограничение конкурентности чтобы избежать флуда API Telegram
+    semaphore = asyncio.Semaphore(10)
+    
+    tasks = [
+        _update_single_live_message(post, message_options, reply_markup, semaphore) 
+        for post in published_posts
+    ]
+    
+    await asyncio.gather(*tasks)
             
-    logger.info(f"Updated {len(published_posts)} live messages for post {post_id}")
+    logger.info(f"Обновлено {len(published_posts)} живых сообщений для поста {post_id}")
