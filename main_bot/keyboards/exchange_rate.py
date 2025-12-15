@@ -17,12 +17,8 @@ class InlineExchangeRate(InlineKeyboardBuilder):
             text=text('exchange_rate:start_exchange_rate:settings:button'),
             callback_data='MenuExchangeRate|settings'
         )
-        kb.button(
-            text=text('back:button'),
-            callback_data='MenuExchangeRate|back'
-        )
 
-        kb.adjust(1, 1)
+        kb.adjust(1)
         return kb.as_markup()
 
     @classmethod

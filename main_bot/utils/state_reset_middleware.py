@@ -29,6 +29,7 @@ class StateResetMiddleware(BaseMiddleware):
             
             # Also add "🛒 Закуп" explicitly if it depends on config
             # But Reply.menu() already checks Config. So it matches the current runtime config.
+            self._main_menu_texts.add("🛒 Закуп")
             
             logger.info(f"StateResetMiddleware initialized with {len(self._main_menu_texts)} menu buttons: {self._main_menu_texts}")
         except Exception as e:

@@ -31,20 +31,19 @@ from .bots import get_router as bots_router
 
 def get_router():
     """Создает и возвращает главный роутер для пользовательских обработчиков."""
-    routers = [
         start.get_router(),
         menu.get_router(),
         support.get_router(),
         set_resource.get_router(),
         commands.get_router(),
         exchange_rate.get_router(),
+        ad_creative.get_router(),
+        ad_buy_menu.get_router(),
         novastat.router,
         profile_router(),
         posting_router(),
         stories_router(),
         bots_router(),
-        ad_creative.get_router(),
-        ad_buy_menu.get_router(),
         subscription_menu.router,
         join_request.get_router(),
     ]
