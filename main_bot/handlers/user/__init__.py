@@ -31,6 +31,7 @@ from .bots import get_router as bots_router
 
 def get_router():
     """Создает и возвращает главный роутер для пользовательских обработчиков."""
+    routers = [
         start.get_router(),
         menu.get_router(),
         support.get_router(),
