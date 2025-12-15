@@ -355,9 +355,10 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
             is_published=True 
         )
 
-        post_message = await answer_post(call.message, state, from_edit=True)
+    post_message = await answer_post(call.message, state, from_edit=True)
+    if post_message:
         await state.update_data(
-            post_message=post_message,
+            post_message=post_message.model_dump(mode='json'),
         )
 
         await call.message.delete()
