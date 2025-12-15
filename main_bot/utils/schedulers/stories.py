@@ -44,7 +44,7 @@ async def send_story(story: Story):
     success_send = []
 
     for chat_id in story.chat_ids:
-        channel = await db.get_channel_by_chat_id(chat_id)
+        channel = await db.channel.get_channel_by_chat_id(chat_id)
         if not channel:
             logger.warning(f"⚠️ Канал {chat_id} не найден в БД")
             continue
@@ -82,7 +82,7 @@ async def send_story(story: Story):
 
         if not manager.client:
             logger.error(f"❌ Ошибка инициализации клиента для {chat_id}")
-            await db.update_channel_by_chat_id(
+            await db.channel.update_channel_by_chat_id(
                 chat_id=chat_id,
                 session_path=None
             )
@@ -173,7 +173,7 @@ async def send_story(story: Story):
 
                 client = None
                 if session_path:
-                    clients = await db.get_mt_clients_by_pool('internal')
+                    clients = await db.mt_client.get_mt_clients_by_pool('internal')
                     for c in clients:
                         if Path(c.session_path) == session_path:
                             client = c
@@ -206,7 +206,7 @@ async def send_story(story: Story):
     logger.info(f"🏁 Завершение обработки сторис {story.id}. Успешно: {len(success_send)}, Ошибок: {len(error_send)}")
 
     # Обновление статуса сторис (вместо удаления)
-    await db.update_story(
+    await db.story.update_story(
         post_id=story.id,
         status=Status.FINISH
     )
@@ -215,7 +215,7 @@ async def send_story(story: Story):
     if not story.report:
         return
 
-    objects = await db.get_user_channels(
+    objects = await db.channel.get_user_channels(
         user_id=story.admin_id,
         from_array=story.chat_ids
     )
@@ -271,7 +271,7 @@ async def send_stories():
     
     Получает все сторис, готовые к отправке, и запускает их обработку.
     """
-    stories = await db.get_story_for_send()
+    stories = await db.story.get_story_for_send()
 
     if stories:
         logger.info(f"🔍 Найдено {len(stories)} сторис для отправки")

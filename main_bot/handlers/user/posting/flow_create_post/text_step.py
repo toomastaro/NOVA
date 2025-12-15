@@ -89,7 +89,7 @@ async def get_message(message: types.Message, state: FSMContext):
             buttons_str = "\n".join(rows)
 
     # Создание поста в БД с выбранными каналами
-    post = await db.add_post(
+    post = await db.post.add_post(
         return_obj=True,
         chat_ids=chosen,
         admin_id=message.from_user.id,

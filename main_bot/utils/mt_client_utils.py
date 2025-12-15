@@ -11,19 +11,19 @@ async def reset_client_task(client_id: int):
     logger.info(f"Starting reset for client {client_id}")
     
     # 1. Set status to RESETTING
-    await db.update_mt_client(
+    await db.mt_client.update_mt_client(
         client_id=client_id,
         status='RESETTING',
         is_active=False
     )
     
-    client = await db.get_mt_client(client_id)
+    client = await db.mt_client.get_mt_client(client_id)
     if not client:
         logger.error(f"Client {client_id} not found during reset")
         return
 
     # 2. Get all channels
-    channels = await db.get_channels_by_client(client_id)
+    channels = await db.mt_client_channel.get_channels_by_client(client_id)
     
     # 3. Leave channels
     if Path(client.session_path).exists():
@@ -38,10 +38,10 @@ async def reset_client_task(client_id: int):
         logger.warning(f"Session file not found for client {client_id}, skipping leave_channel")
 
     # 4. Delete MtClientChannel records
-    await db.delete_channels_by_client(client_id)
+    await db.mt_client_channel.delete_channels_by_client(client_id)
     
     # 5. Reset MtClient fields
-    await db.update_mt_client(
+    await db.mt_client.update_mt_client(
         client_id=client_id,
         status='NEW',
         is_active=False,

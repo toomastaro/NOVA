@@ -13,10 +13,10 @@ from main_bot.utils.schemas import HelloAnswer, ByeAnswer
 async def show_channel_setting(message: types.Message, db_obj: Database, state: FSMContext):
     data = await state.get_data()
 
-    channel = await db.get_channel_by_chat_id(
+    channel = await db.channel.get_channel_by_chat_id(
         chat_id=data.get("chat_id")
     )
-    channel_settings = await db.get_channel_bot_setting(
+    channel_settings = await db.channel_bot_settings.get_channel_bot_setting(
         chat_id=channel.chat_id
     )
     count_users = await db_obj.get_count_users(
@@ -42,11 +42,11 @@ async def choice_channel(call: types.CallbackQuery, state: FSMContext, db_obj: D
     data = await state.get_data()
 
     if temp[1] in ["next", "back"]:
-        channel_ids_in_bot = await db.get_all_channels_in_bot_id(
+        channel_ids_in_bot = await db.channel_bot_settings.get_all_channels_in_bot_id(
             bot_id=data.get("bot_id")
         )
         channels = [
-            await db.get_channel_by_chat_id(chat.id)
+            await db.channel.get_channel_by_chat_id(chat.id)
             for chat in channel_ids_in_bot
         ]
 
@@ -79,8 +79,8 @@ async def choice(call: types.CallbackQuery, state: FSMContext, db_obj: Database)
 
     if temp[1] == "back":
         if data.get("from_privetka"):
-            channels_raw = await db.get_bot_channels(call.from_user.id)
-            channels = await db.get_user_channels(call.from_user.id, from_array=[i.id for i in channels_raw])
+            channels_raw = await db.channel_bot_settings.get_bot_channels(call.from_user.id)
+            channels = await db.channel.get_user_channels(call.from_user.id, from_array=[i.id for i in channels_raw])
             return await call.message.edit_text(
                 text('privetka_text'),
                 reply_markup=keyboards.choice_channel_for_setting(
@@ -90,11 +90,11 @@ async def choice(call: types.CallbackQuery, state: FSMContext, db_obj: Database)
                 parse_mode="HTML"
             )
 
-        channel_ids_in_bot = await db.get_all_channels_in_bot_id(
+        channel_ids_in_bot = await db.channel_bot_settings.get_all_channels_in_bot_id(
             bot_id=data.get("bot_id")
         )
         channels = [
-            await db.get_channel_by_chat_id(chat.id)
+            await db.channel.get_channel_by_chat_id(chat.id)
             for chat in channel_ids_in_bot
         ]
         return await call.message.edit_reply_markup(
@@ -107,7 +107,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext, db_obj: Database)
         await call.message.delete()
         return await show_channel_setting(call.message, db_obj, state)
 
-    channel_setting = await db.get_channel_bot_setting(
+    channel_setting = await db.channel_bot_settings.get_channel_bot_setting(
         chat_id=data.get("chat_id")
     )
 
@@ -160,7 +160,7 @@ async def show_application(message: types.Message, setting: ChannelBotSetting, d
 
 
 async def show_captcha(message: types.Message, setting: ChannelBotSetting, db_obj: Database):
-    channel_captcha_list = await db.get_all_captcha(
+    channel_captcha_list = await db.channel_bot_captcha.get_all_captcha(
         chat_id=setting.id
     )
     count_users = await db_obj.get_captcha_users(
@@ -179,7 +179,7 @@ async def show_captcha(message: types.Message, setting: ChannelBotSetting, db_ob
 
 
 async def show_hello(message: types.Message, setting: ChannelBotSetting):
-    hello_messages = await db.get_hello_messages(
+    hello_messages = await db.channel_bot_hello.get_hello_messages(
         chat_id=setting.id
     )
 
@@ -217,11 +217,11 @@ async def show_bye(message: types.Message, setting: ChannelBotSetting):
 async def show_cloner(message: types.Message, state: FSMContext):
     data = await state.get_data()
 
-    channel_ids_in_bot = await db.get_all_channels_in_bot_id(
+    channel_ids_in_bot = await db.channel_bot_settings.get_all_channels_in_bot_id(
         bot_id=data.get("bot_id")
     )
     channels = [
-        await db.get_channel_by_chat_id(chat.id)
+        await db.channel.get_channel_by_chat_id(chat.id)
         for chat in channel_ids_in_bot if data.get("chat_id") != chat.id
     ]
 

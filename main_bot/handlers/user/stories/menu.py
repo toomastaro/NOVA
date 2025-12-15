@@ -55,7 +55,7 @@ async def show_create_post(message: types.Message, state: FSMContext):
     3. Если есть - показ выбора каналов
     """
     # Получаем каналы пользователя с сортировкой по stories
-    channels = await db.get_user_channels(
+    channels = await db.channel.get_user_channels(
         user_id=message.chat.id,
         sort_by="stories"
     )
@@ -69,7 +69,7 @@ async def show_create_post(message: types.Message, state: FSMContext):
         )
     
     # Получаем папки
-    folders = await db.get_folders(user_id=message.chat.id)
+    folders = await db.user_folder.get_folders(user_id=message.chat.id)
     
     # Инициализируем состояние
     await state.update_data(
@@ -93,7 +93,7 @@ async def show_create_post(message: types.Message, state: FSMContext):
 
 @safe_handler("Stories Show Settings")
 async def show_settings(message: types.Message):
-    channels = await db.get_user_channels(
+    channels = await db.channel.get_user_channels(
         user_id=message.chat.id,
         sort_by="stories"
     )
@@ -108,7 +108,7 @@ async def show_settings(message: types.Message):
 
 @safe_handler("Stories Show Content")
 async def show_content(message: types.Message):
-    channels = await db.get_user_channels(
+    channels = await db.channel.get_user_channels(
         user_id=message.chat.id
     )
     await message.answer(

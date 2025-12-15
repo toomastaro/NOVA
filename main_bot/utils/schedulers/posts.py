@@ -33,7 +33,7 @@ logger = logging.getLogger(__name__)
 
 async def get_views_for_post(post):
     """Получить количество просмотров для поста"""
-    channel = await db.get_channel_by_chat_id(post.chat_id)
+    channel = await db.channel.get_channel_by_chat_id(post.chat_id)
     session_path = None
     if channel.session_path:
         session_path = Path(channel.session_path)
@@ -114,7 +114,7 @@ async def send(post: Post):
                 )
                 backup_message_id = backup_msg.message_id
                 
-                await db.update_post(
+                await db.post.update_post(
                     post_id=post.id,
                     backup_chat_id=Config.BACKUP_CHAT_ID,
                     backup_message_id=backup_message_id
@@ -125,7 +125,7 @@ async def send(post: Post):
                 pass
 
     for chat_id in post.chat_ids:
-        channel = await db.get_channel_by_chat_id(chat_id)
+        channel = await db.channel.get_channel_by_chat_id(chat_id)
         if not channel.subscribe:
             continue
 
@@ -185,11 +185,11 @@ async def send(post: Post):
         )
 
     if success_send:
-        await db.add_many_published_post(
+        await db.published_post.add_many_published_post(
             posts=success_send
         )
 
-    await db.clear_posts(
+    await db.post.clear_posts(
         post_ids=[post.id]
     )
 
@@ -197,7 +197,7 @@ async def send(post: Post):
         return
 
     import html
-    objects = await db.get_user_channels(
+    objects = await db.channel.get_user_channels(
         user_id=post.admin_id,
         from_array=post.chat_ids
     )
@@ -250,7 +250,7 @@ async def send(post: Post):
 
 async def send_posts():
     """Периодическая задача: отправка отложенных постов"""
-    posts = await db.get_post_for_send()
+    posts = await db.post.get_post_for_send()
 
     for post in posts:
         asyncio.create_task(send(post))
@@ -258,7 +258,7 @@ async def send_posts():
 
 async def unpin_posts():
     """Периодическая задача: открепление постов"""
-    posts = await db.get_posts_for_unpin()
+    posts = await db.published_post.get_posts_for_unpin()
 
     for post in posts:
         try:
@@ -324,10 +324,10 @@ async def check_cpm_reports():
             cpm_price = post.cpm_price
             rub_price = round(float(cpm_price * float(views / 1000)), 2)
             
-            user = await db.get_user(post.admin_id)
+            user = await db.user.get_user(post.admin_id)
             usd_rate = 1.0
             if user and user.default_exchange_rate_id:
-                exchange_rate = await db.get_exchange_rate(user.default_exchange_rate_id)
+                exchange_rate = await db.exchange_rate.get_exchange_rate(user.default_exchange_rate_id)
                 if exchange_rate and exchange_rate.rate > 0:
                     usd_rate = exchange_rate.rate
 
@@ -367,7 +367,7 @@ async def delete_posts():
     from main_bot.utils.report_signature import get_report_signatures
     import html
 
-    db_posts = await db.get_posts_for_delete()
+    db_posts = await db.published_post.get_posts_for_delete()
 
     row_ids = []
     posts = {}
@@ -415,11 +415,11 @@ async def delete_posts():
 
         admin_id = message_objects[0]["admin_id"]
         
-        user = await db.get_user(admin_id)
+        user = await db.user.get_user(admin_id)
         usd_rate = 1.0
         exchange_rate_update_time = None
         if user and user.default_exchange_rate_id is not None:
-            exchange_rate = await db.get_exchange_rate(user.default_exchange_rate_id)
+            exchange_rate = await db.exchange_rate.get_exchange_rate(user.default_exchange_rate_id)
             if exchange_rate and exchange_rate.rate > 0:
                 usd_rate = exchange_rate.rate
                 exchange_rate_update_time = exchange_rate.last_update
@@ -506,7 +506,7 @@ async def delete_posts():
         except Exception as e:
             logger.error(f"Error sending CPM report to admin {admin_id}: {e}", exc_info=True)
 
-    await db.soft_delete_published_posts(
+    await db.published_post.soft_delete_published_posts(
         row_ids=row_ids
     )
 

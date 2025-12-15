@@ -43,13 +43,13 @@ async def update_exchange_rates_in_db():
     logger.info(f"Exchange Rates fetched: {new_update}")
 
     # Проверка наличия курсов в БД
-    all_exchange_rate = await db.get_all_exchange_rate()
+    all_exchange_rate = await db.exchange_rate.get_all_exchange_rate()
     if len(all_exchange_rate) == 0:
         # Инициализация курсов из JSON файла
         json_format_exchange_rate = get_exchange_rates_from_json()
         for exchange_rate in json_format_exchange_rate:
             ed_id = int(exchange_rate["id"])
-            await db.add_exchange_rate(
+            await db.exchange_rate.add_exchange_rate(
                 id=ed_id,
                 name=exchange_rate["name"],
                 rate=new_update[ed_id],
@@ -59,7 +59,7 @@ async def update_exchange_rates_in_db():
         # Обновление существующих курсов
         for er_id in new_update.keys():
             if new_update[er_id] != 0:
-                await db.update_exchange_rate(
+                await db.exchange_rate.update_exchange_rate(
                     exchange_rate_id=er_id,
                     rate=new_update[er_id],
                     last_update=last_update

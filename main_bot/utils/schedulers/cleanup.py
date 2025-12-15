@@ -54,7 +54,7 @@ async def check_subscriptions():
     import time as time_module
     current_day = time_module.strftime("%Y-%m-%d", time_module.localtime())
     
-    for channel in await db.get_active_channels():
+    for channel in await db.channel.get_active_channels():
         for field, text_prefix in [
             ("subscribe", "post"),
         ]:
@@ -70,7 +70,7 @@ async def check_subscriptions():
 
             if status == "expired":
                 msg = text(f"expire_off_sub").format(channel.title)
-                await db.update_channel_by_id(channel.id, **{field: None})
+                await db.channel.update_channel_by_id(channel.id, **{field: None})
             else:
                 msg = text(f"expire_sub").format(
                     channel.title,
@@ -112,7 +112,7 @@ async def mt_clients_self_check():
                 logger.error(
                     f"Файл сессии не найден для клиента {client.id}: {session_path}"
                 )
-                await db.update_mt_client(
+                await db.mt_client.update_mt_client(
                     client_id=client.id,
                     status="ERROR",
                     last_error_code="SESSION_FILE_MISSING",
@@ -204,11 +204,11 @@ async def mt_clients_self_check():
                             ),
                         )
 
-                await db.update_mt_client(client_id=client.id, **updates)
+                await db.mt_client.update_mt_client(client_id=client.id, **updates)
 
         except Exception as e:
             logger.error(f"Ошибка при проверке MT клиента {client.id}: {e}", exc_info=True)
-            await db.update_mt_client(
+            await db.mt_client.update_mt_client(
                 client_id=client.id,
                 status="ERROR",
                 last_error_code=f"CHECK_EXCEPTION_{str(e)}",

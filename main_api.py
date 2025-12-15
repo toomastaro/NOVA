@@ -129,7 +129,7 @@ async def platega_webhook(request: Request):
         logger.warning("Platega Invalid payload: Missing id or status")
         return {"status": "error", "message": "Invalid payload"}
 
-    payment_link = await db.get_payment_link(order_id)
+    payment_link = await db.payment_link.get_payment_link(order_id)
     if not payment_link:
         logger.warning(f"Platega Payment link not found for Order ID: {order_id}")
         return {"status": "error", "message": "Payment link not found"}
@@ -141,7 +141,7 @@ async def platega_webhook(request: Request):
     logger.info(f"Platega Processing Order {order_id} with Status {status}")
 
     if status == "CONFIRMED":
-        await db.update_payment_link_status(order_id, "PAID")
+        await db.payment_link.update_payment_link_status(order_id, "PAID")
         
         await process_successful_payment(
             user_id=int(payment_link.user_id),
@@ -194,9 +194,9 @@ async def process_successful_payment(user_id: int, payload: dict, amount: float 
         amount = float(amount)
         logger.info(f"Adding balance {amount} to user {user_id}")
         
-        user = await db.get_user(user_id=user_id)
+        user = await db.user.get_user(user_id=user_id)
         if user:
-            await db.update_user(user_id=user.id, balance=user.balance + amount)
+            await db.user.update_user(user_id=user.id, balance=user.balance + amount)
             from main_bot.database.types import PaymentMethod
             # Determine method from payload or default?
             method_str = payload.get('method', 'UNKNOWN')
@@ -210,7 +210,7 @@ async def process_successful_payment(user_id: int, payload: dict, amount: float 
                 # Fallback based on logic if method is not in payload (legacy Platega links)
                 method = PaymentMethod.PLATEGA
 
-            await db.add_payment(user_id=user.id, amount=amount, method=method)
+            await db.payment.add_payment(user_id=user.id, amount=amount, method=method)
             
             try:
                 from main_bot.utils.lang.language import text
@@ -235,17 +235,17 @@ async def process_successful_payment(user_id: int, payload: dict, amount: float 
         referral_id = payload.get('referral_id')
         
         if referral_id:
-            ref_user = await db.get_user(referral_id)
+            ref_user = await db.user.get_user(referral_id)
             if ref_user:
                 try:
                     # Проверяем была ли покупка РАНЕЕ
-                    has_purchase = await db.has_purchase(user_id)
+                    has_purchase = await db.purchase.has_purchase(user_id)
                     percent = 15 if has_purchase else 60
                     total_ref_earn = int(total_price / 100 * percent)
                     
                     logger.info(f"Referral bonus {total_ref_earn} to {referral_id} (percent={percent}%)")
 
-                    await db.update_user(
+                    await db.user.update_user(
                         user_id=ref_user.id,
                         balance=ref_user.balance + total_ref_earn,
                         referral_earned=ref_user.referral_earned + total_ref_earn
@@ -270,7 +270,7 @@ async def process_successful_payment(user_id: int, payload: dict, amount: float 
         elif object_type == 'bots':
              service_enum = Service.BOTS
              
-        await db.add_purchase(
+        await db.purchase.add_purchase(
             user_id=user_id,
             amount=total_price,
             method=method,
@@ -363,7 +363,7 @@ async def other_update(request: Request, token: str):
     data = await request.json()
     update = types.Update.model_validate(data)
 
-    exist = await db.get_bot_by_token(token)
+    exist = await db.user_bot.get_bot_by_token(token)
     if not exist:
         return
 

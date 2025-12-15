@@ -29,7 +29,7 @@ async def show_ad_purchase_menu_internal(message: types.Message, edit: bool = Fa
     # Maybe we show a summary status? "Bot Client: Active" or "Inactive (Check Rights)"
     
     # Let's check if the user has ANY channels added to the bot first.
-    user_channels = await db.get_user_channels(message.chat.id)
+    user_channels = await db.channel.get_user_channels(message.chat.id)
     
     status_text = ""
     client_name = "NovaClient" # Placeholder if no specific client logic exposed clearly
@@ -45,7 +45,7 @@ async def show_ad_purchase_menu_internal(message: types.Message, edit: bool = Fa
         # Check first channel for sample
         first_ch = user_channels[0]
         # Get client
-        client_model = await db.get_preferred_for_stats(first_ch.chat_id) or await db.get_any_client_for_channel(first_ch.chat_id)
+        client_model = await db.mt_client_channel.get_preferred_for_stats(first_ch.chat_id) or await db.mt_client_channel.get_any_client_for_channel(first_ch.chat_id)
         
         if client_model and client_model.client:
             client_name = client_model.client.alias or f"Client #{client_model.client.id}"
@@ -86,7 +86,7 @@ async def show_ad_purchase_menu_internal(message: types.Message, edit: bool = Fa
 async def check_client_status(call: CallbackQuery):
     await call.answer("⏳ Полная проверка всех каналов...", show_alert=False)
     
-    user_channels = await db.get_user_channels(call.message.chat.id)
+    user_channels = await db.channel.get_user_channels(call.message.chat.id)
     if not user_channels:
          await call.answer("Нет каналов для проверки.", show_alert=True)
          return
@@ -96,7 +96,7 @@ async def check_client_status(call: CallbackQuery):
     no_client_channels = []
     
     for channel in user_channels:
-        client_model = await db.get_preferred_for_stats(channel.chat_id) or await db.get_any_client_for_channel(channel.chat_id)
+        client_model = await db.mt_client_channel.get_preferred_for_stats(channel.chat_id) or await db.mt_client_channel.get_any_client_for_channel(channel.chat_id)
         
         if not client_model or not client_model.client:
             no_client_channels.append(channel)
@@ -189,7 +189,7 @@ async def check_client_status(call: CallbackQuery):
 
 @router.callback_query(F.data == "AdPurchase|create_menu")
 async def show_creative_selection(call: CallbackQuery):
-    creatives = await db.get_user_creatives(call.from_user.id)
+    creatives = await db.ad_creative.get_user_creatives(call.from_user.id)
     if not creatives:
         await call.answer("У вас нет креативов. Сначала создайте креатив.", show_alert=True)
         return
@@ -197,12 +197,12 @@ async def show_creative_selection(call: CallbackQuery):
     # Block if no client rights (simplified check: must have client)
     # Ideally should read status from DB which we updated in 'check_client_status'
     # For now, unblock to allow flow testing, or check simplistic presence
-    user_channels = await db.get_user_channels(call.from_user.id)
+    user_channels = await db.channel.get_user_channels(call.from_user.id)
     if not user_channels:
          await call.answer("Нет подключенных каналов!", show_alert=True)
          return
     
-    client_model = await db.get_preferred_for_stats(user_channels[0].chat_id) or await db.get_any_client_for_channel(user_channels[0].chat_id)
+    client_model = await db.mt_client_channel.get_preferred_for_stats(user_channels[0].chat_id) or await db.mt_client_channel.get_any_client_for_channel(user_channels[0].chat_id)
     if not client_model:
          await call.answer("Требуется технический аккаунт в канале!", show_alert=True)
          return
@@ -215,7 +215,7 @@ async def show_creative_selection(call: CallbackQuery):
 
 @router.callback_query(F.data == "AdPurchase|list")
 async def show_purchase_list(call: CallbackQuery, send_new: bool = False):
-    purchases = await db.get_user_purchases(call.from_user.id)
+    purchases = await db.ad_purchase.get_user_purchases(call.from_user.id)
     if not purchases:
         if send_new:
             await call.message.answer("У вас пока нет закупов.", show_alert=True)
@@ -228,7 +228,7 @@ async def show_purchase_list(call: CallbackQuery, send_new: bool = False):
     # For now, let's fetch creative for each purchase
     enriched_purchases = []
     for p in purchases:
-        creative = await db.get_creative(p.creative_id)
+        creative = await db.ad_creative.get_creative(p.creative_id)
         p.creative_name = creative.name if creative else "Unknown"
         enriched_purchases.append(p)
     

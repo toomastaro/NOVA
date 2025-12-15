@@ -14,7 +14,7 @@ from main_bot.utils.lang.language import text
 async def show_manage_folder(message: types.Message, state: FSMContext):
     data = await state.get_data()
     folder_id = data.get('folder_id')
-    folder = await db.get_folder_by_id(folder_id)
+    folder = await db.user_folder.get_folder_by_id(folder_id)
 
     await message.answer(
         text('manage:folder').format(folder.title),
@@ -26,7 +26,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
     temp = call.data.split('|')
 
     if temp[1] in ['next', 'back']:
-        folders = await db.get_folders(call.from_user.id)
+        folders = await db.user_folder.get_folders(call.from_user.id)
 
         return await call.message.edit_reply_markup(
             reply_markup=keyboards.folders(
@@ -87,7 +87,7 @@ async def choice_object(call: types.CallbackQuery, state: FSMContext, user: User
         return await call.message.delete()
 
     # Always channels
-    cor = db.get_user_channels
+    cor = db.channel.get_user_channels
     object_type = 'channels'
     chosen: list = data.get('chosen')
     folder_edit = data.get('folder_edit')
@@ -142,7 +142,7 @@ async def choice_object(call: types.CallbackQuery, state: FSMContext, user: User
             # But if we want "Name -> Content -> Save", then:
             pass
         else:
-            await db.update_folder(
+            await db.user_folder.update_folder(
                 folder_id=data.get('folder_id'),
                 content=[str(i) for i in chosen]
             )
@@ -219,7 +219,7 @@ async def get_folder_name(message: types.Message, state: FSMContext, user: User)
             text('error_symbol_folder_name')
         )
 
-    folder = await db.get_folder_by_title(title, user.id)
+    folder = await db.user_folder.get_folder_by_title(title, user.id)
     if folder:
         return await message.answer(
             text('error_exist_folder_name')
@@ -230,7 +230,7 @@ async def get_folder_name(message: types.Message, state: FSMContext, user: User)
 
     if not folder_edit:
         # Creating new folder
-        await db.add_folder(
+        await db.user_folder.add_folder(
             user_id=user.id,
             title=title,
             type=FolderType.CHANNEL,
@@ -238,12 +238,12 @@ async def get_folder_name(message: types.Message, state: FSMContext, user: User)
         )
     else:
         folder_id = data.get('folder_id')
-        await db.update_folder(
+        await db.user_folder.update_folder(
             folder_id=folder_id,
             title=title
         )
 
-    folder = await db.get_folder_by_title(
+    folder = await db.user_folder.get_folder_by_title(
         title=title,
         user_id=user.id
     )
@@ -261,7 +261,7 @@ async def get_folder_name(message: types.Message, state: FSMContext, user: User)
         # Simulate clicking "Content"
         # We need to set up state for content management
         chosen = []
-        cor = db.get_user_channels
+        cor = db.channel.get_user_channels
         object_type = 'channels'
         
         objects = await cor(user_id=user.id)
@@ -271,7 +271,7 @@ async def get_folder_name(message: types.Message, state: FSMContext, user: User)
             folder_edit=True, # Now we are in edit mode effectively
             cor=cor, # Store coroutine function? No, we can't store async func in state easily if it's not pickleable, but here it was stored before.
             # Actually, previous code stored 'cor'. Let's avoid storing functions in state if possible, but if it works...
-            # 'db.get_user_channels' is a bound method.
+            # 'db.channel.get_user_channels' is a bound method.
             # Better to just store 'object_type' and deduce 'cor' in handlers.
             chosen=chosen,
             object_type=object_type
@@ -301,7 +301,7 @@ async def manage_folder(call: types.CallbackQuery, state: FSMContext, user: User
 
     if temp[1] in ['back', 'remove']:
         if temp[1] == 'remove':
-            await db.remove_folder(
+            await db.user_folder.remove_folder(
                 folder_id=data.get('folder_id')
             )
 
@@ -321,7 +321,7 @@ async def manage_folder(call: types.CallbackQuery, state: FSMContext, user: User
         await state.set_state(Folder.input_name)
 
     if temp[1] == 'content':
-        folder = await db.get_folder_by_id(
+        folder = await db.user_folder.get_folder_by_id(
             folder_id=data.get('folder_id')
         )
         # Content is list of strings (chat_ids)
@@ -330,7 +330,7 @@ async def manage_folder(call: types.CallbackQuery, state: FSMContext, user: User
         ]
         
         # Always channels
-        cor = db.get_user_channels
+        cor = db.channel.get_user_channels
         object_type = 'channels'
 
         objects = await cor(

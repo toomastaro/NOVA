@@ -51,12 +51,12 @@ async def show_choice_channel(message: types.Message, state: FSMContext):
     3. Если нет - показ ошибки
     4. Если есть - показ выбора ботов
     """
-    channels_raw = await db.get_bot_channels(message.chat.id)
+    channels_raw = await db.channel_bot_settings.get_bot_channels(message.chat.id)
     if not channels_raw:
         return await message.answer(text('error_no_bots'))
 
     # Получаем полные объекты каналов для проверки подписки
-    objects = await db.get_user_channels(message.chat.id, from_array=[i.id for i in channels_raw])
+    objects = await db.channel.get_user_channels(message.chat.id, from_array=[i.id for i in channels_raw])
     
     # Проверяем наличие каналов с активной подпиской
     has_active_sub = any(obj.subscribe for obj in objects)
@@ -66,7 +66,7 @@ async def show_choice_channel(message: types.Message, state: FSMContext):
             text('error_no_subscription_bots')
         )
 
-    folders = await db.get_folders(message.chat.id)
+    folders = await db.user_folder.get_folders(message.chat.id)
 
     data = await state.get_data()
     chosen = data.get("chosen", [])
@@ -111,7 +111,7 @@ async def show_create_post(message: types.Message, state: FSMContext):
 
 @safe_handler("Bots Show Settings")
 async def show_settings(message: types.Message):
-    bots = await db.get_user_bots(
+    bots = await db.user_bot.get_user_bots(
         user_id=message.chat.id,
         sort_by=True
     )
@@ -125,8 +125,8 @@ async def show_settings(message: types.Message):
 
 @safe_handler("Bots Show Content")
 async def show_content(message: types.Message):
-    channels = await db.get_bot_channels(message.chat.id)
-    objects = await db.get_user_channels(message.chat.id, from_array=[i.id for i in channels])
+    channels = await db.channel_bot_settings.get_bot_channels(message.chat.id)
+    objects = await db.channel.get_user_channels(message.chat.id, from_array=[i.id for i in channels])
 
     await message.answer(
         text('choice_bot:content'),

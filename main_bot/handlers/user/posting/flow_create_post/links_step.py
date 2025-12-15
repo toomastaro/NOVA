@@ -178,7 +178,7 @@ async def get_for_member_text(message: types.Message, state: FSMContext):
         }
     )
 
-    post = await db.update_post(
+    post = await db.post.update_post(
         post_id=post.id,
         return_obj=True,
         hide=post.hide
@@ -211,7 +211,7 @@ async def click_hide(call: types.CallbackQuery):
     """
     temp = call.data.split('|')
 
-    published_post = await db.get_published_post(
+    published_post = await db.published_post.get_published_post(
         chat_id=call.message.sender_chat.id,
         message_id=call.message.message_id,
     )
@@ -246,7 +246,7 @@ async def click_react(call: types.CallbackQuery):
     """
     temp = call.data.split('|')
 
-    published_post = await db.get_published_post(
+    published_post = await db.published_post.get_published_post(
         chat_id=call.message.sender_chat.id,
         message_id=call.message.message_id,
     )
@@ -269,7 +269,7 @@ async def click_react(call: types.CallbackQuery):
                 react.users.append(call.from_user.id)
 
     # Обновляем пост в БД
-    post = await db.update_published_post(
+    post = await db.published_post.update_published_post(
         post_id=published_post.id,
         return_obj=True,
         reaction=react_model.model_dump()

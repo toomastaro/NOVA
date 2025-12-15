@@ -41,7 +41,7 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
     chosen: list = data.get("chosen", post.chat_ids)
     send_time: int = data.get("send_time")
     is_edit: bool = data.get("is_edit")
-    objects = await db.get_user_channels(
+    objects = await db.channel.get_user_channels(
         user_id=call.from_user.id,
         sort_by="stories"
     )
@@ -89,7 +89,7 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
         kwargs["send_time"] = None
 
     # Обновляем историю в БД
-    await db.update_story(
+    await db.story.update_story(
         post_id=post.id,
         **kwargs
     )
@@ -98,7 +98,7 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
     if not post.backup_message_id:
         backup_chat_id, backup_message_id = await send_to_backup(post)
         if backup_chat_id and backup_message_id:
-            await db.update_story(
+            await db.story.update_story(
                 post_id=post.id,
                 backup_chat_id=backup_chat_id,
                 backup_message_id=backup_message_id

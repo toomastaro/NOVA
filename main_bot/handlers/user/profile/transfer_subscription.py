@@ -15,8 +15,8 @@ from main_bot.utils.lang.language import text
 
 async def show_transfer_sub_menu(call: types.CallbackQuery, state: FSMContext):
     """Показать меню выбора канала-донора для переноса подписки"""
-    user = await db.get_user(user_id=call.from_user.id)
-    all_channels = await db.get_subscribe_channels(user_id=user.id)
+    user = await db.user.get_user(user_id=call.from_user.id)
+    all_channels = await db.channel.get_subscribe_channels(user_id=user.id)
     
     # Фильтруем только активные подписки (не истекшие)
     now = int(time.time())
@@ -60,7 +60,7 @@ async def choose_donor(call: types.CallbackQuery, state: FSMContext, user: User)
     
     # Навигация
     if temp[1] in ['next', 'back']:
-        all_channels = await db.get_subscribe_channels(user_id=user.id)
+        all_channels = await db.channel.get_subscribe_channels(user_id=user.id)
         # Фильтруем только активные подписки
         now = int(time.time())
         channels = [
@@ -76,7 +76,7 @@ async def choose_donor(call: types.CallbackQuery, state: FSMContext, user: User)
     
     # Выбран канал-донор
     donor_chat_id = int(temp[1])
-    donor_channel = await db.get_channel_by_chat_id(chat_id=donor_chat_id)
+    donor_channel = await db.channel.get_channel_by_chat_id(chat_id=donor_chat_id)
     
     if not donor_channel or not donor_channel.subscribe:
         return await call.answer(
@@ -95,7 +95,7 @@ async def choose_donor(call: types.CallbackQuery, state: FSMContext, user: User)
         )
     
     # Получаем все каналы пользователя кроме донора
-    all_channels = await db.get_user_channels(user_id=user.id)
+    all_channels = await db.channel.get_user_channels(user_id=user.id)
     recipient_channels = [ch for ch in all_channels if ch.chat_id != donor_chat_id]
     
     if not recipient_channels:
@@ -144,12 +144,12 @@ async def choose_recipients(call: types.CallbackQuery, state: FSMContext, user: 
     chosen: list = data.get('transfer_chosen_recipients', [])
     
     # Получаем каналы-получатели (все кроме донора)
-    all_channels = await db.get_user_channels(user_id=user.id)
+    all_channels = await db.channel.get_user_channels(user_id=user.id)
     recipient_channels = [ch for ch in all_channels if ch.chat_id != donor_chat_id]
     
     if temp[1] == 'cancel':
         # Возврат к выбору донора
-        channels = await db.get_subscribe_channels(user_id=user.id)
+        channels = await db.channel.get_subscribe_channels(user_id=user.id)
         await call.message.delete()
         return await call.message.answer(
             text("transfer_sub:choose_donor"),
@@ -250,7 +250,7 @@ async def execute_transfer(call: types.CallbackQuery, state: FSMContext, user: U
     days_available = data.get('transfer_days_available')
     
     # Получаем канал-донор
-    donor_channel = await db.get_channel_by_chat_id(chat_id=donor_chat_id)
+    donor_channel = await db.channel.get_channel_by_chat_id(chat_id=donor_chat_id)
     
     # Вычисляем конец сегодняшнего дня (23:59:59)
     now = datetime.now()
@@ -258,7 +258,7 @@ async def execute_transfer(call: types.CallbackQuery, state: FSMContext, user: U
     end_of_today_timestamp = int(end_of_today.timestamp())
     
     # Обнуляем подписку донора до конца сегодняшнего дня
-    await db.update_channel_by_chat_id(
+    await db.channel.update_channel_by_chat_id(
         chat_id=donor_chat_id,
         subscribe=end_of_today_timestamp
     )
@@ -268,7 +268,7 @@ async def execute_transfer(call: types.CallbackQuery, state: FSMContext, user: U
     seconds_per_recipient = days_per_recipient * 86400
     
     # Получаем каналы-получатели
-    recipient_channels = await db.get_user_channels(
+    recipient_channels = await db.channel.get_user_channels(
         user_id=user.id,
         from_array=chosen
     )
@@ -281,7 +281,7 @@ async def execute_transfer(call: types.CallbackQuery, state: FSMContext, user: U
         else:
             new_subscribe = int(time.time()) + seconds_per_recipient
         
-        await db.update_channel_by_chat_id(
+        await db.channel.update_channel_by_chat_id(
             chat_id=channel.chat_id,
             subscribe=new_subscribe
         )

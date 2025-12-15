@@ -64,7 +64,7 @@ async def process_ad_stats():
 
     # 3. For each purchase, get mappings
     for purchase in active_purchases:
-        mappings = await db.get_link_mappings(purchase.id)
+        mappings = await db.ad_purchase.get_link_mappings(purchase.id)
         
         # Group mappings by channel to minimize getAdminLog calls
         # Only interested in CHANNEL target type where tracking is enabled
@@ -100,9 +100,9 @@ async def process_channel_logs(channel_id: int, mappings: list[AdPurchaseLinkMap
     """
     Fetch and process admin logs for a specific channel and verify against mappings.
     """
-    client_model = await db.get_preferred_for_stats(channel_id)
+    client_model = await db.mt_client_channel.get_preferred_for_stats(channel_id)
     if not client_model:
-        client_model = await db.get_any_client_for_channel(channel_id)
+        client_model = await db.mt_client_channel.get_any_client_for_channel(channel_id)
         
     if not client_model or not client_model.client:
         return
@@ -152,7 +152,7 @@ async def process_channel_logs(channel_id: int, mappings: list[AdPurchaseLinkMap
                         for m in mappings:
                             # Robust comparison
                             if normalize_link(m.invite_link) == norm_event_link:
-                                await db.process_join_event(
+                                await db.ad_purchase.process_join_event(
                                     channel_id=channel_id,
                                     user_id=user_id,
                                     invite_link=m.invite_link # Use DB link for consistency
@@ -162,7 +162,7 @@ async def process_channel_logs(channel_id: int, mappings: list[AdPurchaseLinkMap
                 # --- LEAVE EVENT ---
                 elif isinstance(event.action, ChannelAdminLogEventActionParticipantLeave):
                     # update_subscription_status handles logic by (user_id, channel_id)
-                    await db.update_subscription_status(
+                    await db.ad_purchase.update_subscription_status(
                         user_id=user_id,
                         channel_id=channel_id,
                         status="left"

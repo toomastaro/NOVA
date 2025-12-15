@@ -66,7 +66,7 @@ async def process_comment(message: Message, state: FSMContext):
     data = await state.get_data()
     
     # Create Purchase
-    purchase_id = await db.create_purchase(
+    purchase_id = await db.ad_purchase.create_purchase(
         owner_id=message.from_user.id,
         creative_id=data['creative_id'],
         pricing_type=data['pricing_type'],
@@ -82,8 +82,8 @@ async def process_comment(message: Message, state: FSMContext):
 
 
 async def start_mapping(message: Message, purchase_id: int, creative_id: int):
-    slots = await db.get_slots(creative_id)
-    user_channels = await db.get_user_channels(message.chat.id)
+    slots = await db.ad_creative.get_slots(creative_id)
+    user_channels = await db.channel.get_user_channels(message.chat.id)
     
     # Auto-detection
     for slot in slots:
@@ -97,7 +97,7 @@ async def start_mapping(message: Message, purchase_id: int, creative_id: int):
         
         # Since we don't have a specific check method exposed in crud easily without fetching all, 
         # let's fetch all mappings for this purchase first.
-        existing_mappings = await db.get_link_mappings(purchase_id)
+        existing_mappings = await db.ad_purchase.get_link_mappings(purchase_id)
         existing_slot_ids = [m.slot_id for m in existing_mappings]
         
         if slot.id in existing_slot_ids:
@@ -122,7 +122,7 @@ async def start_mapping(message: Message, purchase_id: int, creative_id: int):
         # target_channel_id = channel.chat_id
         # track_enabled = True
         
-        await db.upsert_link_mapping(
+        await db.ad_purchase.upsert_link_mapping(
             ad_purchase_id=purchase_id,
             slot_id=slot.id,
             original_url=slot.original_url,
@@ -135,8 +135,8 @@ async def start_mapping(message: Message, purchase_id: int, creative_id: int):
 
 
 async def show_mapping_menu(message: Message, purchase_id: int):
-    mappings = await db.get_link_mappings(purchase_id)
-    user_channels = await db.get_user_channels(message.chat.id)
+    mappings = await db.ad_purchase.get_link_mappings(purchase_id)
+    user_channels = await db.channel.get_user_channels(message.chat.id)
     channels_map = {ch.chat_id: ch.title for ch in user_channels}
     
     links_data = []
@@ -178,7 +178,7 @@ async def show_channel_list(call: CallbackQuery):
     purchase_id = int(purchase_id)
     slot_id = int(slot_id)
     
-    channels = await db.get_user_channels(call.from_user.id)
+    channels = await db.channel.get_user_channels(call.from_user.id)
     
     await call.message.edit_text(
         "Выберите канал:",
@@ -194,7 +194,7 @@ async def save_mapping_channel(call: CallbackQuery):
     channel_id = int(channel_id)
     
     # Check subscription
-    channel = await db.get_channel_by_chat_id(channel_id)
+    channel = await db.channel.get_channel_by_chat_id(channel_id)
     if not channel:
         await call.answer("Канал не найден", show_alert=True)
         return
@@ -204,7 +204,7 @@ async def save_mapping_channel(call: CallbackQuery):
         await call.answer("У канала нет активной подписки. Продлите подписку для использования.", show_alert=True)
         return
     
-    await db.upsert_link_mapping(
+    await db.ad_purchase.upsert_link_mapping(
         ad_purchase_id=purchase_id,
         slot_id=slot_id,
         target_type=AdTargetType.CHANNEL,
@@ -223,7 +223,7 @@ async def save_mapping_external(call: CallbackQuery):
     purchase_id = int(purchase_id)
     slot_id = int(slot_id)
     
-    await db.upsert_link_mapping(
+    await db.ad_purchase.upsert_link_mapping(
         ad_purchase_id=purchase_id,
         slot_id=slot_id,
         target_type=AdTargetType.EXTERNAL,
@@ -265,12 +265,12 @@ async def view_purchase_callback(call: CallbackQuery):
 
 
 async def view_purchase(call: CallbackQuery, purchase_id: int):
-    purchase = await db.get_purchase(purchase_id)
+    purchase = await db.ad_purchase.get_purchase(purchase_id)
     if not purchase:
         await call.answer("Закуп не найден", show_alert=True)
         return
 
-    creative = await db.get_creative(purchase.creative_id)
+    creative = await db.ad_creative.get_creative(purchase.creative_id)
     creative_name = creative.name if creative else "Unknown"
     
     # Localize status
@@ -312,11 +312,11 @@ async def view_purchase(call: CallbackQuery, purchase_id: int):
 @router.callback_query(F.data.startswith("AdPurchase|delete|"))
 async def delete_purchase(call: CallbackQuery):
     purchase_id = int(call.data.split("|")[2])
-    await db.update_purchase_status(purchase_id, "deleted")
+    await db.ad_purchase.update_purchase_status(purchase_id, "deleted")
     await call.answer("Закуп удален")
     
     # Check remaining
-    purchases = await db.get_user_purchases(call.from_user.id)
+    purchases = await db.ad_purchase.get_user_purchases(call.from_user.id)
     # Filter out deleted if get_user_purchases returns deleted ones? 
     # CRUD get_user_purchases filters status != 'deleted'.
     
@@ -366,17 +366,17 @@ async def render_purchase_stats(call: CallbackQuery, purchase_id: int, period: s
     to_ts = now
     
     # Get purchase info
-    purchase = await db.get_purchase(purchase_id)
+    purchase = await db.ad_purchase.get_purchase(purchase_id)
     if not purchase:
         await call.answer("Закуп не найден", show_alert=True)
         return
     
     # Get statistics
-    leads_count = await db.get_leads_count(purchase_id)
-    subs_count = await db.get_subscriptions_count(purchase_id, from_ts, to_ts)
+    leads_count = await db.ad_purchase.get_leads_count(purchase_id)
+    subs_count = await db.ad_purchase.get_subscriptions_count(purchase_id, from_ts, to_ts)
     
     # Get per-channel statistics
-    mappings = await db.get_link_mappings(purchase_id)
+    mappings = await db.ad_purchase.get_link_mappings(purchase_id)
     channels_stats = {}
     total_unsubs = 0  # Общее количество отписок
     
@@ -384,7 +384,7 @@ async def render_purchase_stats(call: CallbackQuery, purchase_id: int, period: s
         if m.target_channel_id:
             # Setup calc
             if m.target_channel_id not in channels_stats:
-                channel = await db.get_channel_by_chat_id(m.target_channel_id)
+                channel = await db.channel.get_channel_by_chat_id(m.target_channel_id)
                 channels_stats[m.target_channel_id] = {
                     "name": channel.title if channel else f"ID: {m.target_channel_id}",
                     "leads": 0,
@@ -393,11 +393,11 @@ async def render_purchase_stats(call: CallbackQuery, purchase_id: int, period: s
                 }
             
             # Leads (linked to slot)
-            slot_leads = await db.get_leads_by_slot(purchase_id, m.slot_id)
+            slot_leads = await db.ad_purchase.get_leads_by_slot(purchase_id, m.slot_id)
             channels_stats[m.target_channel_id]["leads"] += len(slot_leads)
             
             # Subs (linked to slot/channel)
-            slot_subs_all = await db.get_subscriptions_by_slot(purchase_id, m.slot_id, from_ts, to_ts)
+            slot_subs_all = await db.ad_purchase.get_subscriptions_by_slot(purchase_id, m.slot_id, from_ts, to_ts)
             
             # Filter
             active_subs = [s for s in slot_subs_all if s.status == 'active']
@@ -532,7 +532,7 @@ async def show_global_stats(call: CallbackQuery):
     # We need a new query or use existing one filtered.
     # I'll fetch all and filter in python for now to avoid modifying CRUD if not strictly needed, 
     # but `get_user_purchases` is by owner_id.
-    all_purchases = await db.get_user_purchases(user_id)
+    all_purchases = await db.ad_purchase.get_user_purchases(user_id)
     purchases = [p for p in all_purchases if p.created_timestamp >= from_ts and p.created_timestamp <= to_ts]
     
     if not purchases:
@@ -562,13 +562,13 @@ async def show_global_stats(call: CallbackQuery):
     
     for p in purchases:
         # Fetch details
-        creative = await db.get_creative(p.creative_id)
+        creative = await db.ad_creative.get_creative(p.creative_id)
         creative_name = creative.name if creative else f"Unknown #{p.creative_id}"
         
         # Stats (Lifetime for this purchase)
-        leads_count = await db.get_leads_count(p.id)
+        leads_count = await db.ad_purchase.get_leads_count(p.id)
         # Assuming get_subscriptions_count without time args returns total, or pass None/0
-        subs_count = await db.get_subscriptions_count(p.id, None, None) 
+        subs_count = await db.ad_purchase.get_subscriptions_count(p.id, None, None) 
         
         # Prices
         fix_price = p.price_value if p.pricing_type.value == "FIXED" else 0
@@ -645,7 +645,7 @@ async def generate_post(call: CallbackQuery):
     purchase_id = int(call.data.split("|")[2])
     
     # 1. Ensure invite links
-    mappings, errors = await db.ensure_invite_links(purchase_id, call.bot)
+    mappings, errors = await db.ad_purchase.ensure_invite_links(purchase_id, call.bot)
     
     # Show errors if any
     if errors:
@@ -653,8 +653,8 @@ async def generate_post(call: CallbackQuery):
         await call.message.answer(error_text)
     
     # 2. Get Creative
-    purchase = await db.get_purchase(purchase_id)
-    creative = await db.get_creative(purchase.creative_id)
+    purchase = await db.ad_purchase.get_purchase(purchase_id)
+    creative = await db.ad_creative.get_creative(purchase.creative_id)
     
     if not creative or not creative.raw_message:
         await call.answer("Ошибка: креатив не найден или пуст", show_alert=True)
@@ -681,7 +681,7 @@ async def generate_post(call: CallbackQuery):
                 ref_param = f"ref_{purchase_id}_{m.slot_id}"
                 
                 # Update mapping in DB with ref_param
-                await db.upsert_link_mapping(
+                await db.ad_purchase.upsert_link_mapping(
                     ad_purchase_id=purchase_id,
                     slot_id=m.slot_id,
                     ref_param=ref_param
@@ -692,7 +692,7 @@ async def generate_post(call: CallbackQuery):
                 
                 # Set target_type to BOT if not already set
                 if m.target_type != AdTargetType.BOT:
-                    await db.upsert_link_mapping(
+                    await db.ad_purchase.upsert_link_mapping(
                         ad_purchase_id=purchase_id,
                         slot_id=m.slot_id,
                         target_type=AdTargetType.BOT

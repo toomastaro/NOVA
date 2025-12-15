@@ -15,7 +15,7 @@ CHANNELS_PER_PAGE = 10
 async def show_channels_list(call: types.CallbackQuery, offset: int = 0):
     """Показать список каналов с пагинацией"""
     # Получить все каналы
-    all_channels = await db.get_all_channels()
+    all_channels = await db.channel.get_all_channels()
     total = len(all_channels)
     
     # Пагинация
@@ -59,7 +59,7 @@ async def search_channel_process(message: types.Message, state: FSMContext):
     query = message.text.strip().lower()
     
     # Получить все каналы
-    all_channels = await db.get_all_channels()
+    all_channels = await db.channel.get_all_channels()
     
     # Фильтрация
     found_channels = [
@@ -93,7 +93,7 @@ async def view_channel_details(call: types.CallbackQuery):
     channel_id = int(call.data.split('|')[2])
     
     # Получить канал
-    channel = await db.get_channel_by_id(channel_id)
+    channel = await db.channel.get_channel_by_id(channel_id)
     
     if not channel:
         await call.answer("❌ Канал не найден", show_alert=True)

@@ -52,20 +52,20 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
     # Определяем что показывать
     if current_folder_id:
         # Внутри папки
-        folder = await db.get_folder_by_id(current_folder_id)
+        folder = await db.user_folder.get_folder_by_id(current_folder_id)
         objects = []
         if folder and folder.content:
             for chat_id in folder.content:
-                channel = await db.get_channel_by_chat_id(int(chat_id))
+                channel = await db.channel.get_channel_by_chat_id(int(chat_id))
                 if channel:
                     objects.append(channel)
         folders = []
     else:
         # Корневой уровень
-        objects = await db.get_user_channels_without_folders(
+        objects = await db.channel.get_user_channels_without_folders(
             user_id=call.from_user.id
         )
-        folders = await db.get_folders(
+        folders = await db.user_folder.get_folders(
             user_id=call.from_user.id
         )
 
@@ -93,10 +93,10 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
             # Возврат к корневому уровню
             await state.update_data(current_folder_id=None)
             # Перезагружаем данные корневого уровня
-            objects = await db.get_user_channels_without_folders(
+            objects = await db.channel.get_user_channels_without_folders(
                 user_id=call.from_user.id
             )
-            folders = await db.get_folders(
+            folders = await db.user_folder.get_folders(
                 user_id=call.from_user.id
             )
             # Сбрасываем remover при переключении видов
@@ -168,11 +168,11 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
             # Вход в папку
             await state.update_data(current_folder_id=resource_id)
             # Перезагружаем данные папки
-            folder = await db.get_folder_by_id(resource_id)
+            folder = await db.user_folder.get_folder_by_id(resource_id)
             objects = []
             if folder and folder.content:
                 for chat_id in folder.content:
-                    channel = await db.get_channel_by_chat_id(int(chat_id))
+                    channel = await db.channel.get_channel_by_chat_id(int(chat_id))
                     if channel:
                         objects.append(channel)
             folders = []
@@ -187,7 +187,7 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
             if resource_id in chosen:
                 chosen.remove(resource_id)
             else:
-                channel = await db.get_channel_by_chat_id(resource_id)
+                channel = await db.channel.get_channel_by_chat_id(resource_id)
                 if not channel.subscribe:
                     return await call.answer(
                         text("error_sub_channel").format(channel.title),
@@ -200,7 +200,7 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
     )
     
     # Пересчитываем список для отображения (показываем выбранные каналы)
-    display_objects = await db.get_user_channels(
+    display_objects = await db.channel.get_user_channels(
         user_id=call.from_user.id,
         from_array=chosen[:10]
     )
@@ -255,7 +255,7 @@ async def finish_params(call: types.CallbackQuery, state: FSMContext):
         await call.answer(text("error_post_not_found"))
         return await call.message.delete()
     chosen: list = data.get("chosen", post.chat_ids)
-    objects = await db.get_user_channels(
+    objects = await db.channel.get_user_channels(
         user_id=call.from_user.id,
         sort_by="posting"
     )
@@ -269,7 +269,7 @@ async def finish_params(call: types.CallbackQuery, state: FSMContext):
 
     # Переключение отчетов
     if temp[1] == "report":
-        post = await db.update_post(
+        post = await db.post.update_post(
             post_id=post.id,
             return_obj=True,
             report=not post.report
@@ -291,11 +291,11 @@ async def finish_params(call: types.CallbackQuery, state: FSMContext):
         target_channels = data.get("chosen") or post.chat_ids
         
         for chat_id in target_channels:
-            channel = await db.get_channel_by_chat_id(int(chat_id))
+            channel = await db.channel.get_channel_by_chat_id(int(chat_id))
             if not channel:
                 continue
                 
-            client_row = await db.get_my_membership(channel.chat_id)
+            client_row = await db.mt_client_channel.get_my_membership(channel.chat_id)
             has_perms = False
             if client_row and client_row[0].is_admin:
                  has_perms = True
@@ -361,7 +361,7 @@ async def finish_params(call: types.CallbackQuery, state: FSMContext):
             await call.answer(text("error_cpm_without_timer"), show_alert=True)
             return
 
-        display_objects = await db.get_user_channels(
+        display_objects = await db.channel.get_user_channels(
             user_id=call.from_user.id,
             from_array=chosen[:10]
         )
@@ -416,14 +416,14 @@ async def choice_delete_time(call: types.CallbackQuery, state: FSMContext):
     # Обновляем только если значение изменилось
     if post.delete_time != delete_time:
         if data.get("is_published"):
-            await db.update_published_posts_by_post_id(
+            await db.published_post.update_published_posts_by_post_id(
                 post_id=post.post_id,
                 delete_time=delete_time
             )
             # Обновляем объект поста
-            post = await db.get_published_post_by_id(post.id)
+            post = await db.published_post.get_published_post_by_id(post.id)
         else:
-            post = await db.update_post(
+            post = await db.post.update_post(
                 post_id=post.id,
                 return_obj=True,
                 delete_time=delete_time
@@ -451,7 +451,7 @@ async def choice_delete_time(call: types.CallbackQuery, state: FSMContext):
 
     # Возврат к финальным параметрам
     chosen: list = data.get("chosen")
-    objects = await db.get_user_channels(
+    objects = await db.channel.get_user_channels(
         user_id=call.from_user.id,
         sort_by="posting"
     )
@@ -500,7 +500,7 @@ async def cancel_send_time(call: types.CallbackQuery, state: FSMContext):
 
     # Возврат к финальным параметрам
     chosen: list = data.get("chosen")
-    objects = await db.get_user_channels(
+    objects = await db.channel.get_user_channels(
         user_id=call.from_user.id,
         sort_by="posting"
     )
@@ -573,7 +573,7 @@ async def get_send_time(message: types.Message, state: FSMContext):
 
     # Если редактируем опубликованный пост
     if is_edit:
-        post = await db.update_post(
+        post = await db.post.update_post(
             post_id=post.id,
             return_obj=True,
             send_time=send_time
@@ -614,7 +614,7 @@ async def get_send_time(message: types.Message, state: FSMContext):
 
     chosen: list = data.get('chosen')
 
-    display_objects = await db.get_user_channels(
+    display_objects = await db.channel.get_user_channels(
         user_id=message.from_user.id,
         from_array=chosen[:10]
     )

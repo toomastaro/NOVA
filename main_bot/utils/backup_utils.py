@@ -202,18 +202,18 @@ async def edit_backup_message(post: Post | PublishedPost | Story | BotPost, mess
             
             # Update Post
             if isinstance(post, Story):
-                 await db.update_story(post.id, backup_message_id=new_backup_message_id)
+                 await db.story.update_story(post.id, backup_message_id=new_backup_message_id)
             elif isinstance(post, BotPost):
-                 await db.update_bot_post(post.id, backup_message_id=new_backup_message_id)
+                 await db.bot_post.update_bot_post(post.id, backup_message_id=new_backup_message_id)
             elif isinstance(post, (Post, PublishedPost)):
                  # Update Post
-                await db.update_post(
+                await db.post.update_post(
                     post_id=post_id,
                     backup_message_id=new_backup_message_id
                 )
                 
                 # Update all PublishedPosts
-                await db.update_published_posts_by_post_id(
+                await db.published_post.update_published_posts_by_post_id(
                     post_id=post_id,
                     backup_message_id=new_backup_message_id
                 )
@@ -227,7 +227,7 @@ async def update_live_messages(post_id: int, message_options: MessageOptions, re
     """
     Updates all live published messages for a given post_id.
     """
-    published_posts = await db.get_published_posts_by_post_id(post_id)
+    published_posts = await db.published_post.get_published_posts_by_post_id(post_id)
     
     for post in published_posts:
         try:
@@ -274,7 +274,7 @@ async def update_live_messages(post_id: int, message_options: MessageOptions, re
                     )
                     
                     # Update PublishedPost with new message_id
-                    await db.update_published_post(
+                    await db.published_post.update_published_post(
                         post_id=post.id,
                         message_id=new_msg.message_id
                     )

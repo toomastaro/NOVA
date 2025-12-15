@@ -106,14 +106,14 @@ async def subscription(message: types.Message):
     """Меню подписки с балансом, подпиской и реферальной системой"""
     from main_bot.database.db import db
     
-    user = await db.get_user(user_id=message.chat.id)
+    user = await db.user.get_user(user_id=message.chat.id)
     if not user:
-        await db.add_user(
+        await db.user.add_user(
             id=message.from_user.id,
             username=message.from_user.username,
             full_name=message.from_user.full_name
         )
-        user = await db.get_user(user_id=message.chat.id)
+        user = await db.user.get_user(user_id=message.chat.id)
     await message.answer(
         text("balance_text").format(user.balance),
         reply_markup=keyboards.subscription_menu(),
@@ -126,7 +126,7 @@ async def show_channels(message: types.Message):
     """Показать список каналов пользователя"""
     from main_bot.database.db import db
     
-    channels = await db.get_user_channels(
+    channels = await db.channel.get_user_channels(
         user_id=message.chat.id,
         sort_by="posting"
     )
@@ -141,8 +141,8 @@ async def show_channels(message: types.Message):
 @safe_handler("Start Privetka")
 async def start_privetka(message: types.Message, state: FSMContext):
     await state.update_data(from_privetka=True)
-    channels_raw = await db.get_bot_channels(message.chat.id)
-    channels = await db.get_user_channels(message.chat.id, from_array=[i.id for i in channels_raw])
+    channels_raw = await db.channel_bot_settings.get_bot_channels(message.chat.id)
+    channels = await db.channel.get_user_channels(message.chat.id, from_array=[i.id for i in channels_raw])
 
     await message.answer(
         text('privetka_text'),
@@ -164,8 +164,8 @@ async def privetka_choice_channel(call: types.CallbackQuery, state: FSMContext):
         return
 
     if temp[1] in ["next", "back"]:
-        channels_raw = await db.get_bot_channels(call.from_user.id)
-        channels = await db.get_user_channels(call.from_user.id, from_array=[i.id for i in channels_raw])
+        channels_raw = await db.channel_bot_settings.get_bot_channels(call.from_user.id)
+        channels = await db.channel.get_user_channels(call.from_user.id, from_array=[i.id for i in channels_raw])
 
         return await call.message.edit_reply_markup(
             reply_markup=keyboards.choice_channel_for_setting(
@@ -176,14 +176,14 @@ async def privetka_choice_channel(call: types.CallbackQuery, state: FSMContext):
         )
 
     chat_id = int(temp[1])
-    channel_setting = await db.get_channel_bot_setting(chat_id=chat_id)
+    channel_setting = await db.channel_bot_settings.get_channel_bot_setting(chat_id=chat_id)
 
     bot_id = channel_setting.bot_id if channel_setting else None
 
     await state.update_data(chat_id=chat_id)
     if bot_id:
         await state.update_data(bot_id=bot_id)
-        user_bot = await db.get_bot_by_id(bot_id)
+        user_bot = await db.user_bot.get_bot_by_id(bot_id)
         if user_bot:
              await state.update_data(user_bot=user_bot)
 

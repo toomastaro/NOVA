@@ -15,7 +15,7 @@ from main_bot.utils.functions import answer_message
 
 async def show_manage_captcha(message: types.Message,  state: FSMContext):
     data = await state.get_data()
-    captcha = await db.get_captcha(
+    captcha = await db.channel_bot_captcha.get_captcha(
         message_id=data.get("captcha_id")
     )
 
@@ -33,7 +33,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext, db_obj: Database,
     await call.message.delete()
 
     if temp[1] in ["next", "back"]:
-        channel_captcha_list = await db.get_all_captcha(
+        channel_captcha_list = await db.channel_bot_captcha.get_all_captcha(
             chat_id=channel_settings.id
         )
         return await call.message.edit_reply_markup(
@@ -65,11 +65,11 @@ async def choice(call: types.CallbackQuery, state: FSMContext, db_obj: Database,
         if captcha_id == channel_settings.active_captcha_id:
             captcha_id = None
 
-        await db.update_channel_bot_setting(
+        await db.channel_bot_settings.update_channel_bot_setting(
             chat_id=data.get("chat_id"),
             active_captcha_id=captcha_id
         )
-        channel_settings = await db.get_channel_bot_setting(
+        channel_settings = await db.channel_bot_settings.get_channel_bot_setting(
             chat_id=data.get("chat_id"),
         )
 
@@ -85,16 +85,16 @@ async def manage_hello_message(call: types.CallbackQuery, state: FSMContext, db_
 
     if temp[1] in ["cancel", "delete"]:
         if temp[1] == "delete":
-            await db.delete_captcha(
+            await db.channel_bot_captcha.delete_captcha(
                 data.get("captcha_id")
             )
 
-        cs = await db.get_channel_bot_setting(data.get("chat_id"))
+        cs = await db.channel_bot_settings.get_channel_bot_setting(data.get("chat_id"))
 
         await call.message.delete()
         return await show_captcha(call.message, cs, db_obj)
 
-    captcha = await db.get_captcha(
+    captcha = await db.channel_bot_captcha.get_captcha(
         message_id=data.get("captcha_id")
     )
 
@@ -150,7 +150,7 @@ async def manage_hello_message_post(call: types.CallbackQuery, state: FSMContext
         return await state.set_state(Captcha.buttons)
 
     if temp[1] == "resize":
-        captcha = await db.get_captcha(
+        captcha = await db.channel_bot_captcha.get_captcha(
             message_id=data.get("captcha_id")
         )
 
@@ -164,7 +164,7 @@ async def manage_hello_message_post(call: types.CallbackQuery, state: FSMContext
             message_obj.resize_markup
         )
 
-        await db.update_captcha(
+        await db.channel_bot_captcha.update_captcha(
             captcha_id=captcha.id,
             return_obj=True,
             message=message_obj.model_dump()
@@ -206,7 +206,7 @@ async def choice_hello_message_delay(call: types.CallbackQuery, state: FSMContex
         return await show_manage_captcha(call.message, state)
 
     delay = int(temp[1])
-    captcha = await db.update_captcha(
+    captcha = await db.channel_bot_captcha.update_captcha(
         captcha_id=data.get("captcha_id"),
         return_obj=True,
         delay=delay
@@ -229,7 +229,7 @@ async def back(call: types.CallbackQuery, state: FSMContext, db_obj: Database):
     await call.message.delete()
 
     if data.get("is_edit"):
-        captcha = await db.get_captcha(
+        captcha = await db.channel_bot_captcha.get_captcha(
             message_id=data.get("captcha_id")
         )
         message_obj = MessageOptionsCaptcha(**captcha.message)
@@ -241,7 +241,7 @@ async def back(call: types.CallbackQuery, state: FSMContext, db_obj: Database):
             )
         )
     else:
-        cs = await db.get_channel_bot_setting(data.get("chat_id"))
+        cs = await db.channel_bot_settings.get_channel_bot_setting(data.get("chat_id"))
         return await show_captcha(call.message, cs, db_obj)
 
 
@@ -268,7 +268,7 @@ async def get_message(message: types.Message, state: FSMContext, db_obj: Databas
     data = await state.get_data()
 
     if data.get("is_edit"):
-        await db.update_captcha(
+        await db.channel_bot_captcha.update_captcha(
             captcha_id=data.get("captcha_id"),
             message=message_options.model_dump()
         )
@@ -288,7 +288,7 @@ async def get_message(message: types.Message, state: FSMContext, db_obj: Databas
         )
 
     else:
-        await db.add_channel_captcha(
+        await db.channel_bot_captcha.add_channel_captcha(
             channel_id=data.get("chat_id"),
             message=message_options.model_dump()
         )
@@ -299,13 +299,13 @@ async def get_message(message: types.Message, state: FSMContext, db_obj: Databas
 
     await message.answer(text("success_add_captcha"))
 
-    cs = await db.get_channel_bot_setting(data.get("chat_id"))
+    cs = await db.channel_bot_settings.get_channel_bot_setting(data.get("chat_id"))
     await show_captcha(message, cs, db_obj)
 
 
 async def get_buttons(message: types.Message, state: FSMContext):
     data = await state.get_data()
-    hello_obj = await db.get_captcha(
+    hello_obj = await db.channel_bot_captcha.get_captcha(
         message_id=data.get("captcha_id")
     )
 
@@ -322,7 +322,7 @@ async def get_buttons(message: types.Message, state: FSMContext):
     hello_message = MessageOptionsCaptcha(**hello_obj.message)
     hello_message.reply_markup = reply_markup
 
-    await db.update_captcha(
+    await db.channel_bot_captcha.update_captcha(
         captcha_id=hello_obj.id,
         message=hello_message.model_dump()
     )

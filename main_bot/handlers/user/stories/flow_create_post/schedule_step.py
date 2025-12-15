@@ -44,7 +44,7 @@ async def get_story_report_text(chosen, objects):
     target_objects = [obj for obj in objects if obj.chat_id in target_ids]
 
     for obj in target_objects:
-        posted_stories = await db.get_stories(obj.chat_id, datetime.now())
+        posted_stories = await db.story.get_stories(obj.chat_id, datetime.now())
         posted = len(posted_stories)
 
         limit = 0
@@ -74,7 +74,7 @@ async def set_folder_content(resource_id, chosen, chosen_folders):
     Returns:
         tuple: (chosen, chosen_folders) или ("subscribe", "") при ошибке
     """
-    folder = await db.get_folder_by_id(
+    folder = await db.user_folder.get_folder_by_id(
         folder_id=resource_id
     )
     is_append = resource_id not in chosen_folders
@@ -87,7 +87,7 @@ async def set_folder_content(resource_id, chosen, chosen_folders):
     for chat_id in folder.content:
         chat_id = int(chat_id)
 
-        channel = await db.get_channel_by_chat_id(chat_id)
+        channel = await db.channel.get_channel_by_chat_id(chat_id)
         if not channel.subscribe:
             return "subscribe", ""
 
@@ -115,7 +115,7 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
     chosen: list = data.get("chosen")
     chosen_folders: list = data.get("chosen_folders")
 
-    objects = await db.get_user_channels(
+    objects = await db.channel.get_user_channels(
         user_id=call.from_user.id,
         sort_by="stories"
     )
@@ -137,7 +137,7 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
         await state.set_state(Stories.input_message)
         return
 
-    folders = await db.get_folders(
+    folders = await db.user_folder.get_folders(
         user_id=call.from_user.id
     )
 
@@ -187,7 +187,7 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
                 for folder in folders:
                     sub_channels = []
                     for chat_id in folder.content:
-                        channel = await db.get_channel_by_chat_id(int(chat_id))
+                        channel = await db.channel.get_channel_by_chat_id(int(chat_id))
 
                         if not channel.subscribe:
                             continue
@@ -206,7 +206,7 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
             if resource_id in chosen:
                 chosen.remove(resource_id)
             else:
-                channel = await db.get_channel_by_chat_id(resource_id)
+                channel = await db.channel.get_channel_by_chat_id(resource_id)
                 if not channel.subscribe:
                     return await call.answer(
                         text("error_sub_channel").format(channel.title),
@@ -258,7 +258,7 @@ async def finish_params(call: types.CallbackQuery, state: FSMContext):
     options = StoryOptions(**post.story_options)
 
     chosen: list = data.get("chosen", post.chat_ids)
-    objects = await db.get_user_channels(
+    objects = await db.channel.get_user_channels(
         user_id=call.from_user.id,
         sort_by="stories"
     )
@@ -270,7 +270,7 @@ async def finish_params(call: types.CallbackQuery, state: FSMContext):
         return
 
     if temp[1] == "report":
-        post = await db.update_story(
+        post = await db.story.update_story(
             post_id=post.id,
             return_obj=True,
             report=not post.report
@@ -329,7 +329,7 @@ async def choice_delete_time(call: types.CallbackQuery, state: FSMContext):
         delete_time = int(temp[1])
     if story_options.period != delete_time:
         story_options.period = delete_time
-        post = await db.update_story(
+        post = await db.story.update_story(
             post_id=post.id,
             return_obj=True,
             story_options=story_options.model_dump()
@@ -353,7 +353,7 @@ async def choice_delete_time(call: types.CallbackQuery, state: FSMContext):
         )
 
     chosen: list = data.get("chosen")
-    objects = await db.get_user_channels(
+    objects = await db.channel.get_user_channels(
         user_id=call.from_user.id,
         sort_by="stories"
     )
@@ -391,7 +391,7 @@ async def cancel_send_time(call: types.CallbackQuery, state: FSMContext):
         )
 
     chosen: list = data.get("chosen")
-    objects = await db.get_user_channels(
+    objects = await db.channel.get_user_channels(
         user_id=call.from_user.id,
         sort_by="stories"
     )
@@ -455,7 +455,7 @@ async def get_send_time(message: types.Message, state: FSMContext):
     options = StoryOptions(**post.story_options)
 
     if is_edit:
-        post = await db.update_story(
+        post = await db.story.update_story(
             post_id=post.id,
             return_obj=True,
             send_time=send_time
@@ -495,7 +495,7 @@ async def get_send_time(message: types.Message, state: FSMContext):
 
     chosen: list = data.get('chosen')
 
-    objects = await db.get_user_channels(
+    objects = await db.channel.get_user_channels(
         user_id=message.from_user.id,
         sort_by="stories"
     )

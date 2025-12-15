@@ -24,7 +24,7 @@ router = Router()
 async def novastat_main(message: types.Message, state: FSMContext):
     # Check subscription
     import time
-    subscribed_channels = await db.get_subscribe_channels(message.from_user.id)
+    subscribed_channels = await db.channel.get_subscribe_channels(message.from_user.id)
     has_active_sub = any(ch.subscribe and ch.subscribe > time.time() for ch in subscribed_channels)
     
     if not has_active_sub:
@@ -50,7 +50,7 @@ async def novastat_main(message: types.Message, state: FSMContext):
 async def novastat_main_cb(call: types.CallbackQuery, state: FSMContext):
     # Check subscription
     import time
-    subscribed_channels = await db.get_subscribe_channels(call.from_user.id)
+    subscribed_channels = await db.channel.get_subscribe_channels(call.from_user.id)
     has_active_sub = any(ch.subscribe and ch.subscribe > time.time() for ch in subscribed_channels)
     
     if not has_active_sub:
@@ -86,7 +86,7 @@ async def novastat_exit(call: types.CallbackQuery, state: FSMContext):
 # --- Settings ---
 @router.callback_query(F.data == "NovaStat|settings")
 async def novastat_settings(call: types.CallbackQuery):
-    settings = await db.get_novastat_settings(call.from_user.id)
+    settings = await db.novastat.get_novastat_settings(call.from_user.id)
     await call.message.edit_text(
         f"<b>Настройки NOVAстат</b>\n\n"
         f"Текущая глубина анализа: {settings.depth_days} дней.\n"
@@ -98,11 +98,11 @@ async def novastat_settings(call: types.CallbackQuery):
 @router.callback_query(F.data.startswith("NovaStat|set_depth|"))
 async def novastat_set_depth(call: types.CallbackQuery):
     depth = int(call.data.split("|")[2])
-    await db.update_novastat_settings(call.from_user.id, depth_days=depth)
+    await db.novastat.update_novastat_settings(call.from_user.id, depth_days=depth)
     await call.answer(f"Глубина анализа обновлена: {depth} дней")
     
     # Refresh view
-    settings = await db.get_novastat_settings(call.from_user.id)
+    settings = await db.novastat.get_novastat_settings(call.from_user.id)
     await call.message.edit_text(
         f"<b>Настройки NOVAстат</b>\n\n"
         f"Текущая глубина анализа: {settings.depth_days} дней.\n"
@@ -114,7 +114,7 @@ async def novastat_set_depth(call: types.CallbackQuery):
 # --- Collections ---
 @router.callback_query(F.data == "NovaStat|collections")
 async def novastat_collections(call: types.CallbackQuery):
-    collections = await db.get_collections(call.from_user.id)
+    collections = await db.novastat.get_collections(call.from_user.id)
     if not collections:
         await call.message.edit_text(
             "У вас пока нет коллекций каналов.\n"
@@ -143,11 +143,11 @@ async def novastat_create_col_start(call: types.CallbackQuery, state: FSMContext
 @router.message(NovaStatStates.waiting_for_collection_name)
 async def novastat_create_col_finish(message: types.Message, state: FSMContext):
     name = message.text
-    await db.create_collection(message.from_user.id, name)
+    await db.novastat.create_collection(message.from_user.id, name)
     await message.answer(f"Коллекция '{name}' создана!")
     
     # Return to collections list
-    collections = await db.get_collections(message.from_user.id)
+    collections = await db.novastat.get_collections(message.from_user.id)
     await message.answer(
         "Ваши коллекции:",
         reply_markup=InlineNovaStat.collections_list(collections)
@@ -157,8 +157,8 @@ async def novastat_create_col_finish(message: types.Message, state: FSMContext):
 @router.callback_query(F.data.startswith("NovaStat|col_open|"))
 async def novastat_open_col(call: types.CallbackQuery):
     col_id = int(call.data.split("|")[2])
-    collection = await db.get_collection(col_id)
-    channels = await db.get_collection_channels(col_id)
+    collection = await db.novastat.get_collection(col_id)
+    channels = await db.novastat.get_collection_channels(col_id)
     
     text_msg = f"<b>Коллекция: {collection.name}</b>\n\n"
     if not channels:
@@ -176,7 +176,7 @@ async def novastat_open_col(call: types.CallbackQuery):
 @router.callback_query(F.data.startswith("NovaStat|col_delete|"))
 async def novastat_delete_col(call: types.CallbackQuery):
     col_id = int(call.data.split("|")[2])
-    await db.delete_collection(col_id)
+    await db.novastat.delete_collection(col_id)
     await call.answer("Коллекция удалена")
     await novastat_collections(call)
 
@@ -193,14 +193,14 @@ async def novastat_rename_col_finish(message: types.Message, state: FSMContext):
     data = await state.get_data()
     col_id = data['col_id']
     new_name = message.text
-    await db.rename_collection(col_id, new_name)
+    await db.novastat.rename_collection(col_id, new_name)
     await message.answer(f"Коллекция переименована в '{new_name}'")
     
     # Return to collection view
     # We need to manually trigger the view update or just send a new message
     # Sending new message is easier
-    collection = await db.get_collection(col_id)
-    channels = await db.get_collection_channels(col_id)
+    collection = await db.novastat.get_collection(col_id)
+    channels = await db.novastat.get_collection_channels(col_id)
     
     text_msg = f"<b>Коллекция: {collection.name}</b>\n\n"
     if not channels:
@@ -237,7 +237,7 @@ async def novastat_add_channel_finish(message: types.Message, state: FSMContext)
         return
 
     # Check limit
-    existing = await db.get_collection_channels(col_id)
+    existing = await db.novastat.get_collection_channels(col_id)
     if len(existing) + len(channels_to_add) > 100:
         await message.answer(f"⚠️ Лимит превышен! В коллекции максимум 100 каналов.\nСейчас: {len(existing)}. Попытка добавить: {len(channels_to_add)}.\nДоступно мест: {100 - len(existing)}.")
         return
@@ -245,14 +245,14 @@ async def novastat_add_channel_finish(message: types.Message, state: FSMContext)
     added_count = 0
     for identifier in channels_to_add:
         # Simple validation or error handling could be added here if needed
-        await db.add_channel_to_collection(col_id, identifier)
+        await db.novastat.add_channel_to_collection(col_id, identifier)
         added_count += 1
     
     await message.answer(f"Добавлено каналов: {added_count}")
     
     # Return to collection view
-    collection = await db.get_collection(col_id)
-    channels = await db.get_collection_channels(col_id)
+    collection = await db.novastat.get_collection(col_id)
+    channels = await db.novastat.get_collection_channels(col_id)
     
     text_msg = f"<b>Коллекция: {collection.name}</b>\n\n"
     if not channels:
@@ -271,7 +271,7 @@ async def novastat_add_channel_finish(message: types.Message, state: FSMContext)
 @router.callback_query(F.data.startswith("NovaStat|col_del_channel_list|"))
 async def novastat_del_channel_list(call: types.CallbackQuery):
     col_id = int(call.data.split("|")[2])
-    channels = await db.get_collection_channels(col_id)
+    channels = await db.novastat.get_collection_channels(col_id)
     await call.message.edit_text(
         "Выберите канал для удаления:",
         reply_markup=InlineNovaStat.collection_channels_delete(col_id, channels)
@@ -283,18 +283,18 @@ async def novastat_del_channel(call: types.CallbackQuery):
     col_id = int(parts[2])
     channel_db_id = int(parts[3])
     
-    await db.remove_channel_from_collection(channel_db_id)
+    await db.novastat.remove_channel_from_collection(channel_db_id)
     await call.answer("Канал удален")
     
     # Refresh list
-    channels = await db.get_collection_channels(col_id)
+    channels = await db.novastat.get_collection_channels(col_id)
     await call.message.edit_reply_markup(
         reply_markup=InlineNovaStat.collection_channels_delete(col_id, channels)
     )
 
 # --- Analysis Logic ---
 async def process_analysis(message: types.Message, channels: list, state: FSMContext):
-    settings = await db.get_novastat_settings(message.from_user.id)
+    settings = await db.novastat.get_novastat_settings(message.from_user.id)
     depth = settings.depth_days
     
     if len(channels) > 5:
@@ -369,7 +369,7 @@ async def run_analysis_logic(message: types.Message, channels: list, depth: int,
         else:
             # Error checks
             error_text = f"❌ Не удалось получить статистику: {html.escape(str(ch))}"
-            cache = await db.get_cache(str(ch), 24)
+            cache = await db.novastat_cache.get_cache(str(ch), 24)
             if cache and cache.error_message:
                 error_text += f"\nПричина: {html.escape(cache.error_message)}"
                 
@@ -444,7 +444,7 @@ async def novastat_analyze_text(message: types.Message, state: FSMContext):
 @router.callback_query(F.data.startswith("NovaStat|col_analyze|"))
 async def novastat_analyze_collection(call: types.CallbackQuery, state: FSMContext):
     col_id = int(call.data.split("|")[2])
-    channels_db = await db.get_collection_channels(col_id)
+    channels_db = await db.novastat.get_collection_channels(col_id)
     
     if not channels_db:
         await call.answer("В коллекции нет каналов!", show_alert=True)
@@ -478,9 +478,9 @@ async def calculate_and_show_price(message: types.Message, cpm: int, state: FSMC
         return
         
     # Fetch user's exchange rate
-    user = await db.get_user(user_id)
+    user = await db.user.get_user(user_id)
     if user and user.default_exchange_rate_id:
-        exchange_rate_obj = await db.get_exchange_rate(user.default_exchange_rate_id)
+        exchange_rate_obj = await db.exchange_rate.get_exchange_rate(user.default_exchange_rate_id)
         rate = exchange_rate_obj.rate if exchange_rate_obj else 100.0
     else:
         rate = 100.0
@@ -535,10 +535,10 @@ async def novastat_cpm_text(message: types.Message, state: FSMContext):
 # --- My Channels Selection ---
 @router.callback_query(F.data == "NovaStat|my_channels")
 async def novastat_my_channels(call: types.CallbackQuery, state: FSMContext):
-    folders = await db.get_folders(
+    folders = await db.user_folder.get_folders(
         user_id=call.from_user.id
     )
-    channels = await db.get_user_channels_without_folders(
+    channels = await db.channel.get_user_channels_without_folders(
         user_id=call.from_user.id
     )
     
@@ -573,19 +573,19 @@ async def novastat_choice_channels(call: types.CallbackQuery, state: FSMContext)
 
     # Determine objects
     if current_folder_id:
-        folder = await db.get_folder_by_id(current_folder_id)
+        folder = await db.user_folder.get_folder_by_id(current_folder_id)
         objects = []
         if folder and folder.content:
             for chat_id in folder.content:
-                channel = await db.get_channel_by_chat_id(int(chat_id))
+                channel = await db.channel.get_channel_by_chat_id(int(chat_id))
                 if channel:
                     objects.append(channel)
         folders = []
     else:
-        objects = await db.get_user_channels_without_folders(
+        objects = await db.channel.get_user_channels_without_folders(
             user_id=call.from_user.id
         )
-        folders = await db.get_folders(
+        folders = await db.user_folder.get_folders(
             user_id=call.from_user.id
         )
 
@@ -596,7 +596,7 @@ async def novastat_choice_channels(call: types.CallbackQuery, state: FSMContext)
             
         real_chosen = []
         for cid in chosen:
-             ch = await db.get_channel_by_chat_id(cid)
+             ch = await db.channel.get_channel_by_chat_id(cid)
              if ch:
                  real_chosen.append(ch.chat_id)
         
@@ -607,10 +607,10 @@ async def novastat_choice_channels(call: types.CallbackQuery, state: FSMContext)
     if temp[1] == "cancel":
         if current_folder_id:
             await state.update_data(current_folder_id=None)
-            objects = await db.get_user_channels_without_folders(
+            objects = await db.channel.get_user_channels_without_folders(
                 user_id=call.from_user.id
             )
-            folders = await db.get_folders(
+            folders = await db.user_folder.get_folders(
                 user_id=call.from_user.id
             )
             # Reset pagination
@@ -655,11 +655,11 @@ async def novastat_choice_channels(call: types.CallbackQuery, state: FSMContext)
 
         if resource_type == 'folder':
             await state.update_data(current_folder_id=resource_id)
-            folder = await db.get_folder_by_id(resource_id)
+            folder = await db.user_folder.get_folder_by_id(resource_id)
             objects = []
             if folder and folder.content:
                 for chat_id in folder.content:
-                    channel = await db.get_channel_by_chat_id(int(chat_id))
+                    channel = await db.channel.get_channel_by_chat_id(int(chat_id))
                     if channel:
                         objects.append(channel)
             folders = []
@@ -677,7 +677,7 @@ async def novastat_choice_channels(call: types.CallbackQuery, state: FSMContext)
     await state.update_data(chosen=chosen)
     
     # Display logic for formatted list of chosen channels
-    display_objects = await db.get_user_channels(
+    display_objects = await db.channel.get_user_channels(
         user_id=call.from_user.id,
         from_array=chosen[:10]
     )

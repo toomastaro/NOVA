@@ -40,7 +40,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
 
     if action == 'cancel' or action == 'back_to_main':
         # Показываем только клиенты из БД (без автосканирования)
-        all_clients = await db.get_mt_clients_by_pool('internal') + await db.get_mt_clients_by_pool('external')
+        all_clients = await db.mt_client.get_mt_clients_by_pool('internal') + await db.mt_client.get_mt_clients_by_pool('external')
         
         try:
             await call.message.edit_text(
@@ -55,7 +55,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
 
     if action in ['internal', 'external']:
         pool_type = action
-        clients = await db.get_mt_clients_by_pool(pool_type)
+        clients = await db.mt_client.get_mt_clients_by_pool(pool_type)
         
         # Store pool type in state to return to list later if needed
         await state.update_data(current_pool=pool_type)
@@ -75,7 +75,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
     if action == 'back_to_list':
         data = await state.get_data()
         pool_type = data.get("current_pool", "internal")
-        clients = await db.get_mt_clients_by_pool(pool_type)
+        clients = await db.mt_client.get_mt_clients_by_pool(pool_type)
         await call.message.edit_text(
             f"Список {pool_type} клиентов:",
             reply_markup=keyboards.admin_sessions(clients=clients)
@@ -84,7 +84,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
 
     if action == 'scan':
         # Ручное сканирование orphaned сессий
-        all_clients = await db.get_mt_clients_by_pool('internal') + await db.get_mt_clients_by_pool('external')
+        all_clients = await db.mt_client.get_mt_clients_by_pool('internal') + await db.mt_client.get_mt_clients_by_pool('external')
         db_session_paths = {Path(c.session_path).name for c in all_clients}
         
         # Сканируем директорию
@@ -144,10 +144,10 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
             
             # Fallback: если не удалось получить имя
             if not alias:
-                existing_clients = await db.get_mt_clients_by_pool(pool_type)
+                existing_clients = await db.mt_client.get_mt_clients_by_pool(pool_type)
                 alias = f"{pool_type}-{len(existing_clients) + 1}"
         
-        new_client = await db.create_mt_client(
+        new_client = await db.mt_client.create_mt_client(
             alias=alias,
             pool_type=pool_type,
             session_path=str(session_path),
@@ -175,7 +175,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
             updates["last_error_at"] = current_time
             result_text = f"❌ ERROR: {health.get('error_code')}"
             
-        await db.update_mt_client(client_id=new_client.id, **updates)
+        await db.mt_client.update_mt_client(client_id=new_client.id, **updates)
         
         await call.message.edit_text(
             f"✅ Сессия {session_file} добавлена!\n\n"
@@ -189,7 +189,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
 
     if action == 'manage':
         client_id = int(temp[2])
-        client = await db.get_mt_client(client_id)
+        client = await db.mt_client.get_mt_client(client_id)
         if not client:
             await call.answer("Клиент не найден", show_alert=True)
             return
@@ -226,7 +226,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
 
     if action == 'check_health':
         client_id = int(temp[2])
-        client = await db.get_mt_client(client_id)
+        client = await db.mt_client.get_mt_client(client_id)
         if not client:
             await call.answer("Клиент не найден", show_alert=True)
             return
@@ -286,10 +286,10 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
                     error_text=f"Клиент не прошел проверку здоровья"
                 ))
             
-        await db.update_mt_client(client_id=client.id, **updates)
+        await db.mt_client.update_mt_client(client_id=client.id, **updates)
         
         # Refresh view with updated data
-        client = await db.get_mt_client(client_id)  # Получаем обновленные данные
+        client = await db.mt_client.get_mt_client(client_id)  # Получаем обновленные данные
         
         created_at = "N/A"
         if client.created_at:
@@ -342,7 +342,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
         await call.answer("Задача на сброс запущена", show_alert=True)
         
         # Go back to client details (it will update status on next refresh)
-        client = await db.get_mt_client(client_id)
+        client = await db.mt_client.get_mt_client(client_id)
         # Manually set status for immediate feedback in UI
         info = (
             f"🆔 ID: {client_id}\n"
@@ -374,7 +374,7 @@ async def admin_session_back(call: types.CallbackQuery, state: FSMContext):
     await state.clear()
     
     # Получаем все сессии из базы данных (без автосканирования)
-    all_clients = await db.get_mt_clients_by_pool('internal') + await db.get_mt_clients_by_pool('external')
+    all_clients = await db.mt_client.get_mt_clients_by_pool('internal') + await db.mt_client.get_mt_clients_by_pool('external')
 
     await call.message.delete()
     await call.message.answer(
@@ -478,11 +478,11 @@ async def get_code(message: types.Message, state: FSMContext):
     
     # Fallback: если не удалось получить имя
     if not alias:
-        existing_clients = await db.get_mt_clients_by_pool(pool_type)
+        existing_clients = await db.mt_client.get_mt_clients_by_pool(pool_type)
         alias = f"{pool_type}-{len(existing_clients) + 1}"
     
     # 2. Create MtClient
-    new_client = await db.create_mt_client(
+    new_client = await db.mt_client.create_mt_client(
         alias=alias,
         pool_type=pool_type,
         session_path=str(app.session_path),
@@ -509,7 +509,7 @@ async def get_code(message: types.Message, state: FSMContext):
         updates["last_error_at"] = current_time
         result_text = f"❌ ERROR: {health.get('error_code')}"
         
-    await db.update_mt_client(client_id=new_client.id, **updates)
+    await db.mt_client.update_mt_client(client_id=new_client.id, **updates)
     
     await app.close()
     await state.clear()

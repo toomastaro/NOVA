@@ -58,7 +58,7 @@ async def show_balance(message: types.Message, user: User):
 
 async def show_channels(message: types.Message):
     """Показать список каналов пользователя (перенесено из Posting)"""
-    channels = await db.get_user_channels(
+    channels = await db.channel.get_user_channels(
         user_id=message.chat.id,
         sort_by="posting"
     )
@@ -72,7 +72,7 @@ async def show_channels(message: types.Message):
 
 async def show_bots(message: types.Message):
     """Показать список ботов пользователя (перенесено из Bots/Mailing)"""
-    bots = await db.get_user_bots(
+    bots = await db.user_bot.get_user_bots(
         user_id=message.chat.id,
         sort_by=True
     )
@@ -90,7 +90,7 @@ async def show_timezone(message: types.Message, state: FSMContext):
     from datetime import timedelta, datetime
     from main_bot.states.user import Setting
     
-    user = await db.get_user(user_id=message.chat.id)
+    user = await db.user.get_user(user_id=message.chat.id)
     delta = timedelta(hours=abs(user.timezone))
 
     if user.timezone > 0:
@@ -123,10 +123,10 @@ async def show_subscribe(message: types.Message, state: FSMContext = None):
     
     service = "subscribe"
     object_type = 'channels'
-    cor = db.get_user_channels
+    cor = db.channel.get_user_channels
     
     # Получаем список каналов пользователя
-    user = await db.get_user(user_id=message.chat.id)
+    user = await db.user.get_user(user_id=message.chat.id)
     objects = await cor(
         user_id=user.id,
         limit=10,
@@ -163,7 +163,7 @@ async def show_setting(message: types.Message):
 
 
 async def show_referral(message: types.Message, user: User):
-    referral_count = await db.get_count_user_referral(
+    referral_count = await db.user.get_count_user_referral(
         user_id=user.id
     )
 
@@ -206,7 +206,7 @@ async def subscription_menu_choice(call: types.CallbackQuery, user: User, state:
         await call.message.delete()
         
         # Получаем все каналы пользователя
-        channels = await db.get_user_channels(user_id=user.id)
+        channels = await db.channel.get_user_channels(user_id=user.id)
         
         if not channels:
             return await call.message.answer(

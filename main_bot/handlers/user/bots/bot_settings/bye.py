@@ -44,11 +44,11 @@ async def choice(call: types.CallbackQuery, state: FSMContext, db_obj: Database,
                 text("error:bye:add_message")
             )
 
-        await db.update_channel_bot_setting(
+        await db.channel_bot_settings.update_channel_bot_setting(
             chat_id=data.get("chat_id"),
             bye=hello.model_dump()
         )
-        setting = await db.get_channel_bot_setting(
+        setting = await db.channel_bot_settings.get_channel_bot_setting(
             chat_id=data.get("chat_id")
         )
 
@@ -97,11 +97,11 @@ async def get_message(message: types.Message, state: FSMContext, channel_setting
     hello.message = message_options
 
     data = await state.get_data()
-    await db.update_channel_bot_setting(
+    await db.channel_bot_settings.update_channel_bot_setting(
         chat_id=data.get("chat_id"),
         bye=hello.model_dump()
     )
-    setting = await db.get_channel_bot_setting(
+    setting = await db.channel_bot_settings.get_channel_bot_setting(
         chat_id=data.get("chat_id")
     )
 

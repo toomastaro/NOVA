@@ -96,7 +96,7 @@ async def back_to_method(call: types.CallbackQuery, state: FSMContext):
     if payment_method == PaymentMethod.PLATEGA and payment_order_id:
         try:
             # Platega не имеет публичного API для отмены, поэтому просто обновляем статус в БД
-            await db.update_payment_link_status(payment_order_id, "CANCELLED")
+            await db.payment_link.update_payment_link_status(payment_order_id, "CANCELLED")
             logger.info(f"Marked Platega payment link {payment_order_id} as CANCELLED in DB")
         except Exception as e:
             logger.error(f"Failed to cancel Platega payment link: {e}")
@@ -115,7 +115,7 @@ async def back_to_method(call: types.CallbackQuery, state: FSMContext):
     await state.clear()
     await safe_delete(call.message)
     
-    user = await db.get_user(user_id=call.from_user.id)
+    user = await db.user.get_user(user_id=call.from_user.id)
     await call.message.answer(
         text("balance_text").format(user.balance),
         reply_markup=keyboards.subscription_menu(),
@@ -126,7 +126,7 @@ async def back_to_method(call: types.CallbackQuery, state: FSMContext):
 async def get_promo(message: types.Message, state: FSMContext, user: User):
     name = message.text
 
-    promo = await db.get_promo(name)
+    promo = await db.promo.get_promo(name)
     if not promo:
         return await message.answer(
             text('error_promo'),
@@ -142,12 +142,12 @@ async def get_promo(message: types.Message, state: FSMContext, user: User):
             )
         )
 
-    await db.use_promo(promo)
-    await db.update_user(
+    await db.promo.use_promo(promo)
+    await db.user.update_user(
         user_id=user.id,
         balance=user.balance + promo.amount
     )
-    user = await db.get_user(
+    user = await db.user.get_user(
         user_id=user.id
     )
 
@@ -208,7 +208,7 @@ async def get_amount(message: types.Message, state: FSMContext):
         from main_bot.utils.payments.platega import platega_api
         
         # Create persistent payment link
-        payment_link = await db.create_payment_link(
+        payment_link = await db.payment_link.create_payment_link(
             user_id=message.from_user.id,
             amount=amount,
             payload={'type': 'balance'}
@@ -280,13 +280,13 @@ async def get_amount(message: types.Message, state: FSMContext):
                 continue
             
             # Если оплачено - начисляем баланс
-            user = await db.get_user(user_id=message.from_user.id)
-            user = await db.update_user(
+            user = await db.user.get_user(user_id=message.from_user.id)
+            user = await db.user.update_user(
                 user_id=user.id,
                 return_obj=True,
                 balance=user.balance + amount
             )
-            await db.add_payment(
+            await db.payment.add_payment(
                 user_id=user.id,
                 amount=amount,
                 method=method
@@ -301,12 +301,12 @@ async def get_amount(message: types.Message, state: FSMContext):
         if method == PaymentMethod.PLATEGA:
             # Webhook handles the payment and crediting.
             # We just watch DB for status update to clean up UI.
-            payment_link = await db.get_payment_link(order_id)
+            payment_link = await db.payment_link.get_payment_link(order_id)
             if payment_link and payment_link.status == 'PAID':
                 await safe_delete(wait_msg)
                 # Success message is sent by webhook
                 # Just refresh balance view for user
-                user = await db.get_user(user_id=message.from_user.id)
+                user = await db.user.get_user(user_id=message.from_user.id)
                 await show_balance(message, user)
                 await state.clear()
                 return
@@ -342,15 +342,15 @@ async def success(message: types.Message, state: FSMContext):
     amount = data.get('amount')
     method = PaymentMethod.STARS
 
-    user = await db.get_user(
+    user = await db.user.get_user(
         user_id=message.from_user.id
     )
-    user = await db.update_user(
+    user = await db.user.update_user(
         user_id=user.id,
         return_obj=True,
         balance=user.balance + amount
     )
-    await db.add_payment(
+    await db.payment.add_payment(
         user_id=user.id,
         amount=amount,
         method=method

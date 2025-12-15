@@ -75,9 +75,9 @@ async def get_pay_info_text(state: FSMContext, user: User) -> str:
     object_type = data.get('object_type', 'channels')
     
     if object_type == 'bots':
-        cor = db.get_user_bots
+        cor = db.user_bot.get_user_bots
     else:
-        cor = db.get_user_channels
+        cor = db.channel.get_user_channels
 
     objects = await cor(
         user_id=user.id,
@@ -121,10 +121,10 @@ async def choice(call: types.CallbackQuery, state: FSMContext, user: User):
     message_text = text('subscribe_text:{}'.format(temp[1]))
 
     if temp[1] == 'bots':
-        cor = db.get_user_bots
+        cor = db.user_bot.get_user_bots
         object_type = 'bots'
     else:
-        cor = db.get_user_channels
+        cor = db.channel.get_user_channels
         object_type = 'channels'
 
     objects = await cor(
@@ -178,9 +178,9 @@ async def choice_period(call: types.CallbackQuery, state: FSMContext, user: User
     
     # Определяем функцию динамически
     if object_type == 'bots':
-        cor = db.get_user_bots
+        cor = db.user_bot.get_user_bots
     else:
-        cor = db.get_user_channels
+        cor = db.channel.get_user_channels
 
     objects = await cor(
         user_id=user.id,
@@ -227,9 +227,9 @@ async def choice_object_subscribe(call: types.CallbackQuery, state: FSMContext, 
     
     # Определяем функцию динамически
     if object_type == 'bots':
-        cor = db.get_user_bots
+        cor = db.user_bot.get_user_bots
     else:
-        cor = db.get_user_channels
+        cor = db.channel.get_user_channels
     
     tariff_id = data.get('tariff_id')
     

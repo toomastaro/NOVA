@@ -58,7 +58,7 @@ async def get_message(message: types.Message, state: FSMContext):
             story_options.caption = message.html_text
 
     # Создаем story с выбранными каналами
-    post = await db.add_story(
+    post = await db.story.add_story(
         return_obj=True,
         chat_ids=chosen,
         admin_id=message.from_user.id,
@@ -107,7 +107,7 @@ async def manage_post(call: types.CallbackQuery, state: FSMContext):
                 )
             )
 
-        await db.delete_story(data.get('post').id)
+        await db.story.delete_story(data.get('post').id)
         await call.message.delete()
         return await show_create_post(call.message, state)
 
@@ -134,7 +134,7 @@ async def manage_post(call: types.CallbackQuery, state: FSMContext):
         from main_bot.handlers.user.stories.flow_create_post.schedule_step import get_story_report_text
         
         chosen = data.get('chosen', post.chat_ids)
-        objects = await db.get_user_channels(
+        objects = await db.channel.get_user_channels(
             user_id=call.from_user.id,
             sort_by="stories"
         )
@@ -159,7 +159,7 @@ async def manage_post(call: types.CallbackQuery, state: FSMContext):
         if temp[1] == 'pinned':
             story_options.pinned = not story_options.pinned
 
-        post = await db.update_story(
+        post = await db.story.update_story(
             post_id=data.get('post').id,
             return_obj=True,
             story_options=story_options.model_dump(),
@@ -217,12 +217,12 @@ async def cancel_value(call: types.CallbackQuery, state: FSMContext):
         if False not in none_list:
             await state.clear()
             await call.message.delete()
-            await db.delete_story(data.get('post').id)
+            await db.story.delete_story(data.get('post').id)
             return await show_create_post(call.message, state)
 
         kwargs = {"story_options": message_options.model_dump()}
 
-        post = await db.update_story(
+        post = await db.story.update_story(
             post_id=data.get('post').id,
             return_obj=True,
             **kwargs
@@ -269,7 +269,7 @@ async def get_value(message: types.Message, state: FSMContext):
 
     kwargs = {"story_options": message_options.model_dump()}
 
-    post = await db.update_story(
+    post = await db.story.update_story(
         post_id=post.id,
         return_obj=True,
         **kwargs

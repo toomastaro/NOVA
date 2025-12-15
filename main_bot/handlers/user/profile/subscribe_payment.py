@@ -43,9 +43,9 @@ async def give_subscribes(state: FSMContext, user: User):
 
     # Определяем функцию динамически
     if object_type == 'bots':
-        cor = db.get_user_bots
+        cor = db.user_bot.get_user_bots
     else:
-        cor = db.get_user_channels
+        cor = db.channel.get_user_channels
     chosen: list = data.get('chosen')
     total_days: int = data.get('total_days')
     total_price: int = data.get('total_price')
@@ -64,7 +64,7 @@ async def give_subscribes(state: FSMContext, user: User):
     added_time = 86400 * total_days
     for chosen_object in chosen_objects:
         if object_type == 'channels':
-            channel = await db.get_channel_by_row_id(
+            channel = await db.channel.get_channel_by_row_id(
                 row_id=chosen_object.id
             )
             subscribe_value = channel.subscribe
@@ -74,12 +74,12 @@ async def give_subscribes(state: FSMContext, user: User):
             else:
                 subscribe_value += added_time
 
-            await db.update_channel_by_chat_id(
+            await db.channel.update_channel_by_chat_id(
                 chat_id=channel.chat_id,
                 **{"subscribe": subscribe_value}
             )
         else:
-            user_bot = await db.get_bot_by_id(
+            user_bot = await db.user_bot.get_bot_by_id(
                 row_id=chosen_object.id
             )
             subscribe_value = user_bot.subscribe
@@ -89,25 +89,25 @@ async def give_subscribes(state: FSMContext, user: User):
             else:
                 subscribe_value += added_time
 
-            await db.update_bot_by_id(
+            await db.user_bot.update_bot_by_id(
                 row_id=user_bot.id,
                 subscribe=subscribe_value
             )
 
     if promo_name:
-        promo = await db.get_promo(promo_name)
-        await db.use_promo(promo)
+        promo = await db.promo.get_promo(promo_name)
+        await db.promo.use_promo(promo)
 
     if user.referral_id:
-        ref_user = await db.get_user(user.referral_id)
+        ref_user = await db.user.get_user(user.referral_id)
         if not ref_user:
             return
 
-        has_purchase = await db.has_purchase(user.id)
+        has_purchase = await db.purchase.has_purchase(user.id)
         percent = 15 if has_purchase else 60
         total_ref_earn = int(total_price / 100 * percent)
 
-        await db.update_user(
+        await db.user.update_user(
             user_id=ref_user.id,
             balance=ref_user.balance + total_ref_earn,
             referral_earned=ref_user.referral_earned + total_ref_earn
@@ -128,13 +128,13 @@ async def show_subscription_success(message: types.Message, state: FSMContext, u
     # Получаем обновленные объекты
     if object_type == 'bots':
         # Получаем все боты пользователя и фильтруем по chosen
-        all_bots = await db.get_user_bots(user_id=user.id)
+        all_bots = await db.user_bot.get_user_bots(user_id=user.id)
         updated_objects = [bot for bot in all_bots if bot.id in chosen]
         emoji = "🤖"
         object_name = "бот"
     else:
         # Получаем все каналы пользователя и фильтруем по chosen
-        all_channels = await db.get_user_channels(user_id=user.id)
+        all_channels = await db.channel.get_user_channels(user_id=user.id)
         updated_objects = [channel for channel in all_channels if channel.id in chosen]
         emoji = "📺"
         object_name = "канал"
@@ -214,9 +214,9 @@ async def choice(call: types.CallbackQuery, state: FSMContext, user: User):
 
         # Определяем функцию динамически
         if object_type == 'bots':
-            cor = db.get_user_bots
+            cor = db.user_bot.get_user_bots
         else:
-            cor = db.get_user_channels
+            cor = db.channel.get_user_channels
 
         objects = await cor(
             user_id=user.id,
@@ -262,7 +262,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext, user: User):
                 show_alert=True
             )
 
-        await db.update_user(
+        await db.user.update_user(
             user_id=user.id,
             balance=user.balance - total_price
         )
@@ -279,7 +279,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext, user: User):
         else:
             service_enum = service_data
 
-        await db.add_purchase(
+        await db.purchase.add_purchase(
             user_id=user.id,
             amount=total_price,
             method=PaymentMethod.BALANCE,
@@ -325,7 +325,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext, user: User):
     elif method == PaymentMethod.PLATEGA:
         from main_bot.utils.payments.platega import platega_api
         
-        payment_link = await db.create_payment_link(
+        payment_link = await db.payment_link.create_payment_link(
             user_id=user.id,
             amount=total_price,
             payload=sub_payload
@@ -403,7 +403,7 @@ async def align_subscribe(call: types.CallbackQuery, state: FSMContext, user: Us
     
     # Получаем ВСЕ каналы пользователя (не только с активной подпиской) 
     # Пользователь может захотеть выровнять подписки даже если на некоторых каналах их нет
-    sub_objects = await db.get_user_channels(user_id=user.id)
+    sub_objects = await db.channel.get_user_channels(user_id=user.id)
 
     if temp[1] in ["next", "back"]:
         return await call.message.edit_reply_markup(
@@ -427,7 +427,7 @@ async def align_subscribe(call: types.CallbackQuery, state: FSMContext, user: Us
                 show_alert=True
             )
         
-        chosen_objects = await db.get_user_channels(
+        chosen_objects = await db.channel.get_user_channels(
             user_id=user.id,
             from_array=align_chosen
         )
@@ -449,7 +449,7 @@ async def align_subscribe(call: types.CallbackQuery, state: FSMContext, user: Us
             )
 
         for chosen_object in chosen_objects:
-            await db.update_channel_by_chat_id(
+            await db.channel.update_channel_by_chat_id(
                 chat_id=chosen_object.chat_id,
                 subscribe=days_per_object * 86400 + int(time.time())
             )
@@ -465,7 +465,7 @@ async def align_subscribe(call: types.CallbackQuery, state: FSMContext, user: Us
         await state.update_data(align_chosen=[])
         
         # Получаем обновленный список всех каналов пользователя
-        all_channels = await db.get_user_channels(user_id=user.id)
+        all_channels = await db.channel.get_user_channels(user_id=user.id)
         
         # Форматируем список каналов с датами подписки
         from datetime import datetime
@@ -557,7 +557,7 @@ async def back_to_method(call: types.CallbackQuery, state: FSMContext):
     except:
         pass
 
-    user = await db.get_user(user_id=call.from_user.id)
+    user = await db.user.get_user(user_id=call.from_user.id)
     data = await state.get_data()
     
     # Отменяем платеж Platega если он был создан
@@ -569,7 +569,7 @@ async def back_to_method(call: types.CallbackQuery, state: FSMContext):
     if payment_method == PaymentMethod.PLATEGA and payment_order_id:
         try:
             # Platega не имеет публичного API для отмены, поэтому просто обновляем статус в БД
-            await db.update_payment_link_status(payment_order_id, "CANCELLED")
+            await db.payment_link.update_payment_link_status(payment_order_id, "CANCELLED")
             logger.info(f"Marked Platega payment link {payment_order_id} as CANCELLED in DB")
         except Exception as e:
             logger.error(f"Failed to cancel Platega payment link: {e}")
@@ -613,7 +613,7 @@ async def get_promo(message: types.Message, state: FSMContext, user: User):
         logger.error(f"Error deleting message: {e}")
 
     name = message.text
-    promo = await db.get_promo(name)
+    promo = await db.promo.get_promo(name)
 
     if not promo:
         return await message.answer(

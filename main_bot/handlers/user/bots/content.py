@@ -32,7 +32,7 @@ async def get_days_with_bot_posts(bot_id: int, year: int, month: int) -> dict:
     month_end = datetime(year, month, last_day, 23, 59, 59)
     
     # Получаем все рассылки
-    all_month_posts = await db.get_bot_posts(bot_id)
+    all_month_posts = await db.bot_post.get_bot_posts(bot_id)
     
     days_info = {}
     for post in all_month_posts:
@@ -58,8 +58,8 @@ async def choice_channel(call: types.CallbackQuery, state: FSMContext):
     temp = call.data.split('|')
 
     if temp[1] in ["next", "back"]:
-        channels = await db.get_bot_channels(call.from_user.id)
-        objects = await db.get_user_channels(call.from_user.id, from_array=[i.id for i in channels])
+        channels = await db.channel_bot_settings.get_bot_channels(call.from_user.id)
+        objects = await db.channel.get_user_channels(call.from_user.id, from_array=[i.id for i in channels])
 
         return await call.message.edit_reply_markup(
             reply_markup=keyboards.choice_object_content(
@@ -74,10 +74,10 @@ async def choice_channel(call: types.CallbackQuery, state: FSMContext):
         return await start_bots(call.message)
 
     bot_id = int(temp[1])
-    channel = await db.get_channel_by_chat_id(bot_id)
+    channel = await db.channel.get_channel_by_chat_id(bot_id)
 
     day = datetime.today()
-    posts = await db.get_bot_posts(channel.chat_id, day)
+    posts = await db.bot_post.get_bot_posts(channel.chat_id, day)
     days_with_posts = await get_days_with_bot_posts(channel.chat_id, day.year, day.month)
     day_values = (day.day, text("month").get(str(day.month)), day.year,)
 
@@ -126,7 +126,7 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
         else:
             day = day - timedelta(days=int(temp[2]))
 
-        posts = await db.get_bot_posts(channel.chat_id, day)
+        posts = await db.bot_post.get_bot_posts(channel.chat_id, day)
         days_with_posts = await get_days_with_bot_posts(channel.chat_id, day.year, day.month)
         day_values = (day.day, text("month").get(str(day.month)), day.year,)
 
@@ -151,7 +151,7 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
         )
 
     if temp[1] == "show_all":
-        all_posts = await db.get_bot_posts(channel.chat_id)
+        all_posts = await db.bot_post.get_bot_posts(channel.chat_id)
         # Показываем только запланированные рассылки
         posts = [post for post in all_posts if post.status == Status.PENDING]
         return await call.message.edit_text(
@@ -169,7 +169,7 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
         return await call.answer()
 
     post_id = int(temp[1])
-    post = await db.get_bot_post(post_id)
+    post = await db.bot_post.get_bot_post(post_id)
 
     send_date = datetime.fromtimestamp(post.send_time or post.start_timestamp)
     send_date_values = (send_date.day, text("month").get(str(send_date.month)), send_date.year,)
@@ -185,7 +185,7 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
     if not post.backup_message_id:
         backup_chat_id, backup_message_id = await send_to_backup(post)
         if backup_chat_id and backup_message_id:
-            await db.update_bot_post(
+            await db.bot_post.update_bot_post(
                 post_id=post.id,
                 backup_chat_id=backup_chat_id,
                 backup_message_id=backup_message_id
@@ -266,7 +266,7 @@ async def choice_time_objects(call: types.CallbackQuery, state: FSMContext):
     channel: Channel = data.get("channel")
 
     if temp[1] in ["next", "back"]:
-        posts = await db.get_bot_posts(channel.chat_id)
+        posts = await db.bot_post.get_bot_posts(channel.chat_id)
         return await call.message.edit_reply_markup(
             reply_markup=keyboards.choice_time_objects(
                 objects=posts,
@@ -279,7 +279,7 @@ async def choice_time_objects(call: types.CallbackQuery, state: FSMContext):
     day: datetime = data.get("day")
 
     if temp[1] == "cancel":
-        posts = await db.get_bot_posts(channel.chat_id, day)
+        posts = await db.bot_post.get_bot_posts(channel.chat_id, day)
         return await call.message.edit_text(
             text("bot:content").format(
                 *data.get("day_values"),
@@ -305,7 +305,7 @@ async def manage_remain_post(call: types.CallbackQuery, state: FSMContext):
 
     if temp[1] == "cancel":
         day = data.get('day')
-        posts = await db.get_bot_posts(data.get("channel").chat_id, day)
+        posts = await db.bot_post.get_bot_posts(data.get("channel").chat_id, day)
 
         # Удаляем превью поста
         post_message = data.get("post_message")
@@ -392,8 +392,8 @@ async def accept_delete_row_content(call: types.CallbackQuery, state: FSMContext
         )
 
     if temp[1] == "accept":
-        await db.delete_bot_post(post.id)
-        posts = await db.get_bot_posts(channel.chat_id, day)
+        await db.bot_post.delete_bot_post(post.id)
+        posts = await db.bot_post.get_bot_posts(channel.chat_id, day)
 
         # Удаляем превью поста
         post_message = data.get("post_message")

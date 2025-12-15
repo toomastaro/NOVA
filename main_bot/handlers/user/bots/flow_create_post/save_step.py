@@ -46,8 +46,8 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
     chosen: list = data.get("chosen", post.chat_ids)
     send_time: int = data.get("send_time")
     is_edit: bool = data.get("is_edit")
-    channels = await db.get_bot_channels(call.from_user.id)
-    objects = await db.get_user_channels(call.from_user.id, from_array=[i.id for i in channels])
+    channels = await db.channel_bot_settings.get_bot_channels(call.from_user.id)
+    objects = await db.channel.get_user_channels(call.from_user.id, from_array=[i.id for i in channels])
 
     if temp[1] == "cancel":
         if send_time:
@@ -107,7 +107,7 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
         return
 
     # Update bot post in DB
-    await db.update_bot_post(
+    await db.bot_post.update_bot_post(
         post_id=post.id,
         **kwargs
     )
@@ -116,7 +116,7 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
     if not post.backup_message_id:
         backup_chat_id, backup_message_id = await send_to_backup(post)
         if backup_chat_id and backup_message_id:
-            await db.update_bot_post(
+            await db.bot_post.update_bot_post(
                 post_id=post.id,
                 backup_chat_id=backup_chat_id,
                 backup_message_id=backup_message_id

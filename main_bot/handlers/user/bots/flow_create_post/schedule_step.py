@@ -36,15 +36,15 @@ async def finish_params(call: types.CallbackQuery, state: FSMContext):
     post: BotPost = data.get("post")
     chosen: list = data.get("chosen", post.chat_ids)
 
-    channels = await db.get_bot_channels(call.from_user.id)
-    objects = await db.get_user_channels(call.from_user.id, from_array=[i.id for i in channels])
+    channels = await db.channel_bot_settings.get_bot_channels(call.from_user.id)
+    objects = await db.channel.get_user_channels(call.from_user.id, from_array=[i.id for i in channels])
 
     if temp[1] == 'cancel':
         await call.message.delete()
         return await answer_bot_post(call.message, state)
 
     if temp[1] == "report":
-        post = await db.update_bot_post(
+        post = await db.bot_post.update_bot_post(
             post_id=post.id,
             return_obj=True,
             report=not post.report
@@ -59,7 +59,7 @@ async def finish_params(call: types.CallbackQuery, state: FSMContext):
         )
 
     if temp[1] == "text_with_name":
-        post = await db.update_bot_post(
+        post = await db.bot_post.update_bot_post(
             post_id=post.id,
             return_obj=True,
             text_with_name=not post.text_with_name
@@ -130,7 +130,7 @@ async def choice_delete_time(call: types.CallbackQuery, state: FSMContext):
         delete_time = None
 
     if post.delete_time != delete_time:
-        post = await db.update_bot_post(
+        post = await db.bot_post.update_bot_post(
             post_id=post.id,
             return_obj=True,
             delete_time=delete_time
@@ -157,8 +157,8 @@ async def choice_delete_time(call: types.CallbackQuery, state: FSMContext):
         )
 
     chosen: list = data.get("chosen")
-    channels = await db.get_bot_channels(call.from_user.id)
-    objects = await db.get_user_channels(call.from_user.id, from_array=[i.id for i in channels])
+    channels = await db.channel_bot_settings.get_bot_channels(call.from_user.id)
+    objects = await db.channel.get_user_channels(call.from_user.id, from_array=[i.id for i in channels])
 
     await call.message.edit_text(
         text("manage:post_bot:finish_params").format(
@@ -201,8 +201,8 @@ async def send_time_inline(call: types.CallbackQuery, state: FSMContext):
             )
 
         chosen: list = data.get("chosen")
-        channels = await db.get_bot_channels(call.from_user.id)
-        objects = await db.get_user_channels(call.from_user.id, from_array=[i.id for i in channels])
+        channels = await db.channel_bot_settings.get_bot_channels(call.from_user.id)
+        objects = await db.channel.get_user_channels(call.from_user.id, from_array=[i.id for i in channels])
 
         return await call.message.edit_text(
             text("manage:post_bot:finish_params").format(
@@ -296,7 +296,7 @@ async def get_send_time(message: types.Message, state: FSMContext):
     is_changing_time = data.get("send_time") is not None  # Проверяем, меняем ли мы время
 
     if is_edit:
-        post = await db.update_bot_post(
+        post = await db.bot_post.update_bot_post(
             post_id=post.id,
             return_obj=True,
             send_time=send_time
@@ -344,12 +344,12 @@ async def get_send_time(message: types.Message, state: FSMContext):
 
     chosen: list = data.get('chosen')
 
-    channels = await db.get_bot_channels(message.from_user.id)
-    objects = await db.get_user_channels(message.from_user.id, from_array=[i.id for i in channels])
+    channels = await db.channel_bot_settings.get_bot_channels(message.from_user.id)
+    objects = await db.channel.get_user_channels(message.from_user.id, from_array=[i.id for i in channels])
 
     # Если меняем время (уже было запланировано), сразу возвращаемся на экран "Готов к рассылке"
     if is_changing_time:
-        await db.update_bot_post(
+        await db.bot_post.update_bot_post(
             post_id=post.id,
             send_time=send_time
         )
@@ -399,8 +399,8 @@ async def back_send_time(call: types.CallbackQuery, state: FSMContext):
     post: BotPost = data.get("post")
     chosen: list = data.get("chosen") or post.chat_ids  # Используем post.chat_ids если chosen None
     
-    channels = await db.get_bot_channels(call.from_user.id)
-    objects = await db.get_user_channels(call.from_user.id, from_array=[i.id for i in channels])
+    channels = await db.channel_bot_settings.get_bot_channels(call.from_user.id)
+    objects = await db.channel.get_user_channels(call.from_user.id, from_array=[i.id for i in channels])
     
     await call.message.edit_text(
         text("manage:post_bot:finish_params").format(

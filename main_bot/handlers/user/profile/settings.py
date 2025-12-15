@@ -65,7 +65,7 @@ async def show_timezone(message: types.Message):
     from datetime import timedelta, datetime
     from aiogram.fsm.context import FSMContext
     
-    user = await db.get_user(user_id=message.chat.id)
+    user = await db.user.get_user(user_id=message.chat.id)
     delta = timedelta(hours=abs(user.timezone))
 
     if user.timezone > 0:
@@ -85,7 +85,7 @@ async def show_timezone(message: types.Message):
 
 
 async def show_folders(message: types.Message):
-    folders = await db.get_folders(message.chat.id)
+    folders = await db.user_folder.get_folders(message.chat.id)
 
     await message.answer(
         text('folders_text'),

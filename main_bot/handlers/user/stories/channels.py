@@ -18,12 +18,12 @@ logger = logging.getLogger(__name__)
 
 
 async def render_channel_info(call: types.CallbackQuery, state: FSMContext, channel_id: int):
-    channels = await db.get_user_channels(
+    channels = await db.channel.get_user_channels(
         user_id=call.from_user.id,
         sort_by="stories"
     )
 
-    channel = await db.get_channel_by_chat_id(channel_id)
+    channel = await db.channel.get_channel_by_chat_id(channel_id)
     if not channel:
         return await call.message.edit_text(
             text=text("channels_text"),
@@ -61,7 +61,7 @@ async def render_channel_info(call: types.CallbackQuery, state: FSMContext, chan
     # Получаем статус помощника
     try:
         # Находим привязанного клиента
-        client_row = await db.get_my_membership(channel.chat_id)
+        client_row = await db.mt_client_channel.get_my_membership(channel.chat_id)
         
         can_post = False
         can_stories = False
@@ -81,7 +81,7 @@ async def render_channel_info(call: types.CallbackQuery, state: FSMContext, chan
         status_mail = "❌"
         
         # Check welcome messages
-        hello_msgs = await db.get_hello_messages(channel.chat_id, active=True)
+        hello_msgs = await db.channel_bot_hello.get_hello_messages(channel.chat_id, active=True)
         status_welcome = "✅" if hello_msgs else "❌"
         
         if mt_client:
@@ -140,7 +140,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
 
     if temp[1] in ['next', 'back']:
         logger.info(f"Stories processing navigation: {temp[1]}")
-        channels = await db.get_user_channels(
+        channels = await db.channel.get_user_channels(
             user_id=call.from_user.id,
             sort_by="stories"
         )
@@ -185,7 +185,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
 
 @safe_handler("Stories Channel Cancel")
 async def cancel(call: types.CallbackQuery):
-    channels = await db.get_user_channels(
+    channels = await db.channel.get_user_channels(
         user_id=call.from_user.id,
         sort_by="stories"
     )
@@ -224,13 +224,13 @@ async def manage_channel(call: types.CallbackQuery, state: FSMContext):
              await call.answer("Ошибка: выберите канал заново", show_alert=True)
              return await cancel(call)
 
-        channel = await db.get_channel_by_chat_id(channel_id)
+        channel = await db.channel.get_channel_by_chat_id(channel_id)
         if not channel:
             await call.answer("Канал не найден", show_alert=True)
             return
         
         # Проверяем, есть ли уже права у помощника
-        client_row = await db.get_my_membership(channel.chat_id)
+        client_row = await db.mt_client_channel.get_my_membership(channel.chat_id)
         if client_row:
             can_post = client_row[0].is_admin
             can_stories = client_row[0].can_post_stories
@@ -271,7 +271,7 @@ async def manage_channel(call: types.CallbackQuery, state: FSMContext):
                     # Update username if possible
                     me = await manager.me()
                     if me and me.username:
-                         await db.update_mt_client(mt_client.id, alias=me.username)
+                         await db.mt_client.update_mt_client(mt_client.id, alias=me.username)
                          mt_client.alias = me.username
                 except Exception as e:
                     logger.error(f"Join error: {e}")
@@ -314,7 +314,7 @@ async def manage_channel(call: types.CallbackQuery, state: FSMContext):
              await call.answer("Ошибка: выберите канал заново", show_alert=True)
              return await cancel(call)
 
-        channel = await db.get_channel_by_chat_id(channel_id)
+        channel = await db.channel.get_channel_by_chat_id(channel_id)
         if not channel:
             await call.answer("Канал не найден", show_alert=True)
             return
@@ -322,13 +322,13 @@ async def manage_channel(call: types.CallbackQuery, state: FSMContext):
         await call.answer("⏳ Проверяем права...", show_alert=False)
         
         # 1. Get client
-        client_row = await db.get_my_membership(channel.chat_id)
+        client_row = await db.mt_client_channel.get_my_membership(channel.chat_id)
         
         if not client_row:
              # Try assign
              from main_bot.handlers.user.set_resource import set_channel_session
              await set_channel_session(channel.chat_id)
-             client_row = await db.get_my_membership(channel.chat_id)
+             client_row = await db.mt_client_channel.get_my_membership(channel.chat_id)
         
         if not client_row:
              await call.answer("❌ Ошибка: нет назначенного помощника", show_alert=True)
@@ -363,9 +363,9 @@ async def manage_channel(call: types.CallbackQuery, state: FSMContext):
         can_stories = perms.get("can_post_stories", False)
         
         if perms.get("me") and perms.get("me").username:
-             await db.update_mt_client(mt_client.id, alias=perms.get("me").username)
+             await db.mt_client.update_mt_client(mt_client.id, alias=perms.get("me").username)
         
-        await db.set_membership(
+        await db.mt_client_channel.set_membership(
             client_id=mt_client.id,
             channel_id=channel.chat_id,
             is_member=perms.get("is_member", False),

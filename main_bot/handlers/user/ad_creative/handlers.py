@@ -91,13 +91,13 @@ async def process_creative_content(message: Message, state: FSMContext):
         return
 
     # Create Creative
-    creative_id = await db.create_creative(
+    creative_id = await db.ad_creative.create_creative(
         owner_id=message.from_user.id,
         name="Без названия", # Temporary name
         raw_message=raw_message
     )
     
-    await db.create_slots_for_creative(creative_id, slots)
+    await db.ad_creative.create_slots_for_creative(creative_id, slots)
     
     # Show found links
     links_text = "\n".join([f"{s['slot_index']}. {s['original_url'][:50]}" for s in slots])
@@ -138,14 +138,14 @@ async def process_creative_name(message: Message, state: FSMContext):
 
 @router.callback_query(F.data == "AdCreative|list")
 async def list_creatives(call: CallbackQuery):
-    creatives = await db.get_user_creatives(call.from_user.id)
+    creatives = await db.ad_creative.get_user_creatives(call.from_user.id)
     # We need slots count for each.
     # This is N+1 but okay for small lists.
     # Or we could join. For now, simple loop.
     
     creatives_with_slots = []
     for c in creatives:
-        slots = await db.get_slots(c.id)
+        slots = await db.ad_creative.get_slots(c.id)
         c.slots = slots # Monkey patch for display
         creatives_with_slots.append(c)
         
@@ -171,11 +171,11 @@ async def cancel_creation(call: CallbackQuery, state: FSMContext):
 @router.callback_query(F.data.startswith("AdCreative|delete|"))
 async def delete_creative(call: CallbackQuery):
     creative_id = int(call.data.split("|")[2])
-    await db.update_creative_status(creative_id, "deleted")
+    await db.ad_creative.update_creative_status(creative_id, "deleted")
     await call.answer("Креатив удален")
     
     # Check remaining
-    creatives = await db.get_user_creatives(call.from_user.id)
+    creatives = await db.ad_creative.get_user_creatives(call.from_user.id)
     if not creatives:
         # No creatives left, go to main menu
         # Assuming we can go back to Ad Buy Menu or specific Creative Menu
@@ -191,12 +191,12 @@ async def delete_creative(call: CallbackQuery):
 @router.callback_query(F.data.startswith("AdCreative|view|"))
 async def view_creative(call: CallbackQuery):
     creative_id = int(call.data.split("|")[2])
-    creative = await db.get_creative(creative_id)
+    creative = await db.ad_creative.get_creative(creative_id)
     if not creative:
         await call.answer("Креатив не найден")
         return
         
-    slots = await db.get_slots(creative_id)
+    slots = await db.ad_creative.get_slots(creative_id)
     links_text = "\n".join([f"{s.slot_index}. {s.original_url[:50]}" for s in slots])
     
     text = (

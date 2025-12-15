@@ -29,11 +29,11 @@ async def show_bot_manage(message: types.Message, user_bot: UserBot):
 
     count_users = await bot_database.get_count_users()
 
-    channel_ids_in_bot = await db.get_all_channels_in_bot_id(
+    channel_ids_in_bot = await db.channel_bot_settings.get_all_channels_in_bot_id(
         bot_id=user_bot.id
     )
     channels = [
-        await db.get_channel_by_chat_id(chat.id)
+        await db.channel.get_channel_by_chat_id(chat.id)
         for chat in channel_ids_in_bot
     ]
 
@@ -64,7 +64,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
     temp = call.data.split('|')
 
     if temp[1] in ['next', 'back']:
-        bots = await db.get_user_bots(
+        bots = await db.user_bot.get_user_bots(
             user_id=call.from_user.id,
             sort_by=True
         )
@@ -95,7 +95,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
         return
 
     bot_id = int(temp[1])
-    user_bot = await db.get_bot_by_id(bot_id)
+    user_bot = await db.user_bot.get_bot_by_id(bot_id)
 
     await state.update_data(
         user_bot=user_bot,
@@ -108,7 +108,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
 
 @safe_handler("Bots Settings Cancel")
 async def cancel(call: types.CallbackQuery, state: FSMContext):
-    bots = await db.get_user_bots(
+    bots = await db.user_bot.get_user_bots(
         user_id=call.from_user.id,
         sort_by=True
     )
@@ -143,7 +143,7 @@ async def get_token(message: types.Message, state: FSMContext):
         )
 
     bot_id = is_valid.id
-    exist = await db.get_bot_by_id(bot_id)
+    exist = await db.user_bot.get_bot_by_id(bot_id)
     if exist:
         return await message.answer(
             text("error_exist_token"),
@@ -180,7 +180,7 @@ async def get_token(message: types.Message, state: FSMContext):
         message.from_user.id,
         username
     )
-    await db.add_bot(
+    await db.user_bot.add_bot(
         id=bot_id,
         admin_id=message.from_user.id,
         schema=schema,
@@ -279,14 +279,14 @@ async def manage_bot(call: types.CallbackQuery, state: FSMContext):
         )
 
     if temp[1] == "settings":
-        channel_ids_in_bot = await db.get_all_channels_in_bot_id(
+        channel_ids_in_bot = await db.channel_bot_settings.get_all_channels_in_bot_id(
             bot_id=data.get("bot_id")
         )
         if not channel_ids_in_bot:
             return await call.answer(text("not_have_channels"), show_alert=True)
 
         channels = [
-            await db.get_channel_by_chat_id(chat.id)
+            await db.channel.get_channel_by_chat_id(chat.id)
             for chat in channel_ids_in_bot
         ]
         await call.message.edit_reply_markup(
@@ -326,7 +326,7 @@ async def update_token(message: types.Message, state: FSMContext):
                 )
             )
 
-        user_bot = await db.update_bot_by_id(
+        user_bot = await db.user_bot.update_bot_by_id(
             row_id=user_bot.id,
             return_obj=True,
             token=token
@@ -366,7 +366,7 @@ async def delete_bot(call: types.CallbackQuery, state: FSMContext):
     await call.message.delete()
 
     if len(temp) == 2 and temp[1] == "yes":
-        await db.delete_bot_by_id(
+        await db.user_bot.delete_bot_by_id(
             row_id=data.get("user_bot").id
         )
         other_db = Database()

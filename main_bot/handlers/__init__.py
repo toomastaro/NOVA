@@ -68,21 +68,21 @@ async def set_scheduler():
     
     # Регистрация задач очистки БД (выполняются в полночь)
     sch.add_job(
-        func=db.clear_empty_bot_posts,
+        func=db.bot_post.clear_empty_bot_posts,
         trigger=CronTrigger(hour='0'),
         id="clear_empty_bot_posts_daily",
         replace_existing=True,
         name="Очистка пустых постов ботов"
     )
     sch.add_job(
-        func=db.clear_empty_posts,
+        func=db.post.clear_empty_posts,
         trigger=CronTrigger(hour='0'),
         id="clear_empty_posts_daily",
         replace_existing=True,
         name="Очистка пустых постов"
     )
     sch.add_job(
-        func=db.clear_empty_stories,
+        func=db.story.clear_empty_stories,
         trigger=CronTrigger(hour='0'),
         id="clear_empty_stories_daily",
         replace_existing=True,

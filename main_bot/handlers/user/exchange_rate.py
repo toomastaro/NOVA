@@ -18,13 +18,13 @@ async def _get_and_format_exchange_rate(user_id: int, state: FSMContext) -> tupl
     Returns tuple of (rate_data, formatted_text)
     """
 
-    user_data = await db.get_user(user_id=user_id)
+    user_data = await db.user.get_user(user_id=user_id)
     user_exchange_rate_id = int(user_data.default_exchange_rate_id)
 
-    all_rates = await db.get_all_exchange_rate()
+    all_rates = await db.exchange_rate.get_all_exchange_rate()
     if len(all_rates) == 0:
         await update_exchange_rates_in_db()
-        all_rates = await db.get_all_exchange_rate()
+        all_rates = await db.exchange_rate.get_all_exchange_rate()
 
     if len(all_rates) != 0:
         default_rate = [i for i in all_rates if i.id == user_exchange_rate_id][0]
@@ -41,7 +41,7 @@ async def _get_and_format_exchange_rate(user_id: int, state: FSMContext) -> tupl
 async def start_exchange_rate(message: types.Message, state: FSMContext):
     # Check subscription
     import time
-    subscribed_channels = await db.get_subscribe_channels(message.from_user.id)
+    subscribed_channels = await db.channel.get_subscribe_channels(message.from_user.id)
     has_active_sub = any(ch.subscribe and ch.subscribe > time.time() for ch in subscribed_channels)
     
     if not has_active_sub:
@@ -81,7 +81,7 @@ async def choice_of_exchange_resources(call: types.CallbackQuery, state: FSMCont
     exchange_rate_id = call.data.split("|")[-1]
     data = await state.get_data()
 
-    await db.update_user(
+    await db.user.update_user(
         user_id=int(call.from_user.id),
         return_obj=False,
         default_exchange_rate_id=int(exchange_rate_id)
@@ -95,7 +95,7 @@ async def choice_of_exchange_resources(call: types.CallbackQuery, state: FSMCont
 async def back_to_start_exchange_rate(call: types.CallbackQuery, state: FSMContext):
     # Check subscription
     import time
-    subscribed_channels = await db.get_subscribe_channels(call.from_user.id)
+    subscribed_channels = await db.channel.get_subscribe_channels(call.from_user.id)
     has_active_sub = any(ch.subscribe and ch.subscribe > time.time() for ch in subscribed_channels)
     
     if not has_active_sub:
@@ -137,7 +137,7 @@ async def get_exchange_rate_of_custom_amount(message: types.Message, state: FSMC
         
         # Adding signatures
         user_id = message.from_user.id
-        user = await db.get_user(user_id) # Need to fetch user or use from db logic?
+        user = await db.user.get_user(user_id) # Need to fetch user or use from db logic?
         # data object might not have full user, let's fetch fresh simple way or maybe we have it?
         # get_exchange_rate_of_custom_amount doesn't fetch user.
         # But we need user object for signatures.

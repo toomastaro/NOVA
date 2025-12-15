@@ -21,7 +21,7 @@ async def update_channel_stats(channel_id: int):
     logger.info(f"Starting hourly stats update for channel {channel_id}")
     
     # 1. Получаем канал и проверяем подписку
-    channel = await db.get_channel_by_chat_id(channel_id)
+    channel = await db.channel.get_channel_by_chat_id(channel_id)
     if not channel:
         logger.warning(f"Channel {channel_id} not found during stats update")
         return
@@ -38,18 +38,18 @@ async def update_channel_stats(channel_id: int):
     # Попробуем найти клиент через get_preferred_for_stats или просто get_active_client_for_channel?
     # В utils/novastat мы искали get_preferred_for_stats.
     
-    mt_client_channel = await db.get_preferred_for_stats(channel.chat_id)
+    mt_client_channel = await db.mt_client_channel.get_preferred_for_stats(channel.chat_id)
     
     if not mt_client_channel:
         # Fallback: get any attached client
-        mt_client_channel = await db.get_any_client_for_channel(channel.chat_id)
+        mt_client_channel = await db.mt_client_channel.get_any_client_for_channel(channel.chat_id)
         if mt_client_channel:
             logger.info(f"Using fallback client {mt_client_channel.client_id} for channel {channel.title}")
             
     client_obj = None
     
     if mt_client_channel:
-        client_obj = await db.get_mt_client(mt_client_channel.client_id)
+        client_obj = await db.mt_client.get_mt_client(mt_client_channel.client_id)
         
     if not client_obj:
         # Fallback: try to find any client for this admin? or just fail?
@@ -81,7 +81,7 @@ async def update_channel_stats(channel_id: int):
             subs = int(getattr(full.full_chat, "participants_count", 0) or 0)
             
             # Обновляем в БД
-            await db.update_channel_by_id(channel.id, subscribers_count=subs)
+            await db.channel.update_channel_by_id(channel.id, subscribers_count=subs)
             logger.info(f"Updated subscribers for {channel.title}: {subs}")
         except Exception as e:
             logger.error(f"Failed to get subscribers: {e}")
@@ -94,7 +94,7 @@ async def update_channel_stats(channel_id: int):
             if stats and 'views' in stats:
                 views_data = stats['views'] # {24: ..., 48: ..., 72: ...}
                 
-                await db.update_channel_by_id(
+                await db.channel.update_channel_by_id(
                     channel.id,
                     novastat_24h=views_data.get(24, 0),
                     novastat_48h=views_data.get(48, 0),
@@ -163,7 +163,7 @@ async def update_channel_stats(channel_id: int):
                     update_data['views_72h'] = views
                 
                 if update_data:
-                    await db.update_published_post(post_obj.id, **update_data)
+                    await db.published_post.update_published_post(post_obj.id, **update_data)
                     
             logger.info(f"Updated views for {len(messages)} posts in {channel.title}")
             
@@ -202,6 +202,6 @@ async def register_channel_jobs(scheduler: AsyncIOScheduler):
     """
     Регистрирует задачи для всех каналов при старте.
     """
-    channels = await db.get_channels()
+    channels = await db.channel.get_channels()
     for channel in channels:
         schedule_channel_job(scheduler, channel)

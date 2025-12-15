@@ -15,7 +15,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
         from main_bot.database.db import db
         from main_bot.utils.lang.language import text
         
-        user = await db.get_user(user_id=call.from_user.id)
+        user = await db.user.get_user(user_id=call.from_user.id)
         await call.message.answer(
             text("balance_text").format(user.balance),
             reply_markup=keyboards.subscription_menu(),

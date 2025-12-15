@@ -19,7 +19,7 @@ async def show_report_settings_menu(call: types.CallbackQuery):
     """
     Показывает главное меню настроек отчетов.
     """
-    user = await db.get_user(call.from_user.id)
+    user = await db.user.get_user(call.from_user.id)
     
     await call.message.answer(
         text('report_settings_text'),
@@ -35,7 +35,7 @@ async def show_specific_setting(call: types.CallbackQuery, setting_type: str):
     """
     Показывает настройки конкретной подписи (CPM/Exchange/Referral).
     """
-    user = await db.get_user(call.from_user.id)
+    user = await db.user.get_user(call.from_user.id)
     
     is_active = False
     current_text = ""
@@ -74,19 +74,19 @@ async def process_toggle(call: types.CallbackQuery):
     """
     setting_type = call.data.split('|')[2]
     user_id = call.from_user.id
-    user = await db.get_user(user_id)
+    user = await db.user.get_user(user_id)
     
     new_state = False
     
     if setting_type == 'cpm':
         new_state = not user.cpm_signature_active
-        await db.update_user(user_id=user_id, cpm_signature_active=new_state, return_obj=False)
+        await db.user.update_user(user_id=user_id, cpm_signature_active=new_state, return_obj=False)
     elif setting_type == 'exchange':
         new_state = not user.exchange_signature_active
-        await db.update_user(user_id=user_id, exchange_signature_active=new_state, return_obj=False)
+        await db.user.update_user(user_id=user_id, exchange_signature_active=new_state, return_obj=False)
     elif setting_type == 'referral':
         new_state = not user.referral_signature_active
-        await db.update_user(user_id=user_id, referral_signature_active=new_state, return_obj=False)
+        await db.user.update_user(user_id=user_id, referral_signature_active=new_state, return_obj=False)
         
     await show_specific_setting(call, setting_type)
 
@@ -129,18 +129,18 @@ async def finish_edit_text(message: types.Message, state: FSMContext):
     user_id = message.from_user.id
     
     if setting_type == 'cpm':
-        await db.update_user(user_id=user_id, cpm_signature_text=content, return_obj=False)
+        await db.user.update_user(user_id=user_id, cpm_signature_text=content, return_obj=False)
     elif setting_type == 'exchange':
-        await db.update_user(user_id=user_id, exchange_signature_text=content, return_obj=False)
+        await db.user.update_user(user_id=user_id, exchange_signature_text=content, return_obj=False)
     elif setting_type == 'referral':
-        await db.update_user(user_id=user_id, referral_signature_text=content, return_obj=False)
+        await db.user.update_user(user_id=user_id, referral_signature_text=content, return_obj=False)
         
     await message.answer(text('report:text_updated'))
     
     # Возвращаемся в меню настройки
     # Отправляем новое сообщение с меню
     
-    user = await db.get_user(user_id)
+    user = await db.user.get_user(user_id)
     
     # Логика из show_specific_setting для отправки нового сообщения
     is_active = False

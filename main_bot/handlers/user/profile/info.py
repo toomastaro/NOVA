@@ -24,7 +24,7 @@ async def choice(call: types.CallbackQuery):
     
     if temp[1] == 'back':
         # Возврат в меню подписки с информацией о балансе
-        user = await db.get_user(user_id=call.from_user.id)
+        user = await db.user.get_user(user_id=call.from_user.id)
         await call.message.delete()
         return await call.message.answer(
             text("balance_text").format(user.balance),

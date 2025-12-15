@@ -22,7 +22,7 @@ async def get_promo(message: types.Message, state: FSMContext):
         )
 
     name = temp[0]
-    exist = await db.get_promo(name)
+    exist = await db.promo.get_promo(name)
     if exist:
         return await message.answer("Уже существует")
 
@@ -35,7 +35,7 @@ async def get_promo(message: types.Message, state: FSMContext):
             '❌ Количественные значения должны быть цифрой или числом'
         )
 
-    await db.add_promo(
+    await db.promo.add_promo(
         name=name,
         amount=amount,
         use_count=count_use,

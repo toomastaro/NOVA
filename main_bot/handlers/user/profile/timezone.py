@@ -25,7 +25,7 @@ async def get_timezone(message: types.Message, state: FSMContext):
             )
         )
 
-    await db.update_user(
+    await db.user.update_user(
         user_id=message.from_user.id,
         timezone=timezone_value
     )

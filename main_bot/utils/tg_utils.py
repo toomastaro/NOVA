@@ -131,7 +131,7 @@ async def get_editors(call: types.CallbackQuery, chat_id: int):
                 continue
 
             # Проверяем наличие записи в БД
-            row = await db.get_channel_admin_row(chat_id, admin.user.id)
+            row = await db.channel.get_channel_admin_row(chat_id, admin.user.id)
             if not row:
                 continue
 
@@ -211,13 +211,13 @@ async def set_channel_session(chat_id: int):
         return {"error": "Invite Creation Failed", "message": str(e)}
 
     # 1. Получить информацию о канале для round-robin
-    channel = await db.get_channel_by_chat_id(chat_id)
+    channel = await db.channel.get_channel_by_chat_id(chat_id)
     if not channel:
         logger.error(f"Канал {chat_id} не найден в базе данных")
         return {"error": "Channel Not Found"}
     
     # 2. Получить следующего внутреннего клиента используя round-robin
-    client = await db.get_next_internal_client(channel.id)
+    client = await db.mt_client.get_next_internal_client(channel.id)
     
     if not client:
         logger.error("Нет активных внутренних клиентов")
@@ -254,19 +254,19 @@ async def set_channel_session(chat_id: int):
              logger.error(f"Ошибка при вступлении клиента {client.id}: {e}")
 
         if me.username:
-             await db.update_mt_client(client.id, alias=me.username)
+             await db.mt_client.update_mt_client(client.id, alias=me.username)
 
         # Добавляем клиента в БД
-        await db.get_or_create_mt_client_channel(client.id, chat_id)
+        await db.mt_client_channel.get_or_create_mt_client_channel(client.id, chat_id)
         
         # Проверяем, есть ли другие помощники
-        preferred_stats = await db.get_preferred_for_stats(chat_id)
+        preferred_stats = await db.mt_client_channel.get_preferred_for_stats(chat_id)
         is_preferred = False
         if not preferred_stats:
             is_preferred = True
             
         # Устанавливаем членство
-        await db.set_membership(
+        await db.mt_client_channel.set_membership(
             client_id=client.id,
             channel_id=chat_id,
             is_member=join_success, # True if joined
@@ -276,13 +276,13 @@ async def set_channel_session(chat_id: int):
             preferred_for_stats=is_preferred
         )
         
-        await db.update_channel_by_chat_id(
+        await db.channel.update_channel_by_chat_id(
             chat_id=chat_id,
             session_path=str(session_path)
         )
         
         # Update last_client_id for round-robin
-        await db.update_last_client(channel.id, client.id)
+        await db.channel.update_last_client(channel.id, client.id)
         logger.info(f"✅ Обновлен last_client_id для канала {channel.id} на {client.id}")
         
         return {

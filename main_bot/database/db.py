@@ -1,4 +1,4 @@
-from main_bot.database import Base, engine
+from main_bot.database import Base, DatabaseMixin, engine
 from main_bot.database.ad_creative.crud import AdCreativeCrud
 from main_bot.database.ad_purchase.crud import AdPurchaseCrud
 from main_bot.database.ad_tag.crud import AdTagCrud
@@ -25,40 +25,37 @@ from main_bot.database.user_bot.crud import UserBotCrud
 from main_bot.database.user_folder.crud import UserFolderCrud
 
 
-class Database(
-    AdCreativeCrud,
-    AdPurchaseCrud,
-    AdTagCrud,
-    UserFolderCrud,
-    UserCrud,
-    PromoCrud,
-    PaymentCrud,
-    PurchaseCrud,
-    StatsCrud,
-    PostCrud,
-    BotPostCrud,
-    PublishedPostCrud,
-    StoryCrud,
-    UserBotCrud,
-    ChannelCrud,
-    ExchangeRateCrud,
-    NovaStatCrud,
-    # Bot Settings
-    ChannelBotSettingCrud,
-    ChannelHelloMessageCrud,
-    ChannelCaptchaMessageCrud,
-    # MT Client
-    MtClientCrud,
-    MtClientChannelCrud,
-    # NovaStat Cache
-    NovaStatCacheCrud,
-    # Payments
-    PaymentLinkCrud,
-):
+class Database(DatabaseMixin):
     """
-    Основной класс базы данных, объединяющий все операции CRUD.
-    Использует множественное наследование для агрегации методов.
+    Основной класс базы данных, использующий композицию для доступа к CRUD-компонентам.
+    Пример: db.user.get_users(), db.post.add_post()
     """
+
+    def __init__(self):
+        self.ad_creative = AdCreativeCrud()
+        self.ad_purchase = AdPurchaseCrud()
+        self.ad_tag = AdTagCrud()
+        self.bot_post = BotPostCrud()
+        self.channel = ChannelCrud()
+        self.channel_bot_captcha = ChannelCaptchaMessageCrud()
+        self.channel_bot_hello = ChannelHelloMessageCrud()
+        self.channel_bot_settings = ChannelBotSettingCrud()
+        self.exchange_rate = ExchangeRateCrud()
+        self.mt_client = MtClientCrud()
+        self.mt_client_channel = MtClientChannelCrud()
+        self.novastat = NovaStatCrud()
+        self.novastat_cache = NovaStatCacheCrud()
+        self.payment = PaymentCrud()
+        self.payment_link = PaymentLinkCrud()
+        self.post = PostCrud()
+        self.promo = PromoCrud()
+        self.published_post = PublishedPostCrud()
+        self.purchase = PurchaseCrud()
+        self.stats = StatsCrud()
+        self.story = StoryCrud()
+        self.user = UserCrud()
+        self.user_bot = UserBotCrud()
+        self.user_folder = UserFolderCrud()
 
     @staticmethod
     async def create_tables():

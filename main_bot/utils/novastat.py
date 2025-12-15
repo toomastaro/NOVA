@@ -61,7 +61,7 @@ class NovaStatService:
     async def get_external_client(self) -> Optional[tuple]:
         """Получить наименее используемого external MtClient и SessionManager (least-used алгоритм)"""
         # Используем least-used алгоритм
-        client = await db.get_next_external_client()
+        client = await db.mt_client.get_next_external_client()
         
         if not client:
             logger.warning("No active external clients found")
@@ -83,7 +83,7 @@ class NovaStatService:
             return None
         
         # Увеличить счетчик использования
-        await db.increment_usage(client.id)
+        await db.mt_client.increment_usage(client.id)
         logger.debug(f"Incremented usage_count for client {client.id}")
         
         return (client, manager)
@@ -123,10 +123,10 @@ class NovaStatService:
         channel_identifier = str(channel_identifier)
 
         # 1. Проверить кэш
-        is_fresh = await db.is_cache_fresh(channel_identifier, horizon, CACHE_TTL_SECONDS)
+        is_fresh = await db.novastat_cache.is_cache_fresh(channel_identifier, horizon, CACHE_TTL_SECONDS)
         
         if is_fresh:
-            cache = await db.get_cache(channel_identifier, horizon)
+            cache = await db.novastat_cache.get_cache(channel_identifier, horizon)
             if cache and not cache.error_message:
                 data = self.normalize_cache_keys(cache.value_json)
                 # Если в кэше 0 просмотров, принудительно обновляем (по запросу пользователя)
@@ -137,7 +137,7 @@ class NovaStatService:
                 logger.info(f"Cached views are 0 for {channel_identifier}, forcing refresh.")
         
         # 2. Проверить, идет ли обновление
-        cache = await db.get_cache(channel_identifier, horizon)
+        cache = await db.novastat_cache.get_cache(channel_identifier, horizon)
         if cache and cache.refresh_in_progress:
             # Вернуть старые данные или None
             if cache.value_json:
@@ -149,7 +149,7 @@ class NovaStatService:
         await self.async_refresh_stats(channel_identifier, days_limit, horizon, bot=bot)
         
         # 4. Получить обновленные данные из кэша
-        cache = await db.get_cache(channel_identifier, horizon)
+        cache = await db.novastat_cache.get_cache(channel_identifier, horizon)
         if cache and cache.value_json and not cache.error_message:
             return self.normalize_cache_keys(cache.value_json)
         
@@ -175,7 +175,7 @@ class NovaStatService:
         """Асинхронное обновление статистики в кэше"""
         try:
             # Установить флаг обновления
-            await db.mark_refresh_in_progress(channel_identifier, horizon, True)
+            await db.novastat_cache.mark_refresh_in_progress(channel_identifier, horizon, True)
             
             # Шаг 1: Проверить, является ли канал "своим" (в нашем боте)
             our_channel = None
@@ -185,7 +185,7 @@ class NovaStatService:
             try:
                 if isinstance(channel_identifier, int) or (isinstance(channel_identifier, str) and channel_identifier.lstrip('-').replace(' ', '').isdigit()):
                      channel_id = int(channel_identifier)
-                     our_channel = await db.get_channel_by_chat_id(channel_id)
+                     our_channel = await db.channel.get_channel_by_chat_id(channel_id)
                      username = our_channel.title if our_channel else str(channel_id)
                 else:
                     if "t.me/" in channel_identifier:
@@ -196,7 +196,7 @@ class NovaStatService:
                         username = channel_identifier.replace('@', '')
                     
                     # Поиск канала в базе
-                    channels = await db.get_channels()
+                    channels = await db.channel.get_channels()
                     for ch in channels:
                         if ch.title == username or (hasattr(ch, 'username') and ch.username == username):
                             our_channel = ch
@@ -221,7 +221,7 @@ class NovaStatService:
                             try:
                                 count = await bot.get_chat_member_count(channel_id)
                                 if count > 0:
-                                    await db.update_channel_by_chat_id(our_channel.chat_id, subscribers_count=count)
+                                    await db.channel.update_channel_by_chat_id(our_channel.chat_id, subscribers_count=count)
                                     our_channel.subscribers_count = count
                                     subs = count
                                     updated_via_bot = True
@@ -249,7 +249,7 @@ class NovaStatService:
                                         subs = full.full_chat.participants_count
                                     
                                     if subs > 0:
-                                        await db.update_channel_by_chat_id(our_channel.chat_id, subscribers_count=subs)
+                                        await db.channel.update_channel_by_chat_id(our_channel.chat_id, subscribers_count=subs)
                                         # Обновляем объект в памяти для этого запуска
                                         our_channel.subscribers_count = subs
                                         logger.info(f"Updated initial subscribers count for {our_channel.chat_id}: {subs}")
@@ -275,7 +275,7 @@ class NovaStatService:
                                 stats = await self._collect_stats_impl(manager.client, entity, days_limit=4)
                                 if stats and 'views' in stats:
                                     v = stats['views']
-                                    await db.update_channel_by_id(
+                                    await db.channel.update_channel_by_id(
                                         our_channel.id,
                                         novastat_24h=v.get(24, 0),
                                         novastat_48h=v.get(48, 0),
@@ -317,7 +317,7 @@ class NovaStatService:
                     'er': er_res
                 }
 
-                await db.set_cache(channel_identifier, horizon, stats, error_message=None)
+                await db.novastat_cache.set_cache(channel_identifier, horizon, stats, error_message=None)
                 return
             
             # Шаг 3: Канал не "свой" или нет internal клиента - использовать external клиента
@@ -326,7 +326,7 @@ class NovaStatService:
             # Получить external клиента
             client_data = await self.get_external_client()
             if not client_data:
-                await db.set_cache(
+                await db.novastat_cache.set_cache(
                     channel_identifier,
                     horizon,
                     {},
@@ -342,9 +342,9 @@ class NovaStatService:
                 
                 if stats:
                     # Сохранить в кэш
-                    await db.set_cache(channel_identifier, horizon, stats, error_message=None)
+                    await db.novastat_cache.set_cache(channel_identifier, horizon, stats, error_message=None)
                 else:
-                    await db.set_cache(
+                    await db.novastat_cache.set_cache(
                         channel_identifier,
                         horizon,
                         {},
@@ -356,7 +356,7 @@ class NovaStatService:
         except Exception as e:
             error_msg = self._map_error(e)
             
-            await db.set_cache(
+            await db.novastat_cache.set_cache(
                 channel_identifier,
                 horizon,
                 {},
@@ -364,7 +364,7 @@ class NovaStatService:
             )
         finally:
             # Сбросить флаг обновления
-            await db.mark_refresh_in_progress(channel_identifier, horizon, False)
+            await db.novastat_cache.mark_refresh_in_progress(channel_identifier, horizon, False)
 
     async def _collect_stats_impl(self, client: TelegramClient, channel_identifier: str, days_limit: int) -> Optional[Dict]:
         """Внутренняя реализация сбора статистики"""

@@ -15,7 +15,7 @@ created_db_objects = {}
 
 class SetCrud(BaseMiddleware):
     async def __call__(self, handler, event, data):
-        db_bot = await db.get_bot_by_id(event.bot.id)
+        db_bot = await db.user_bot.get_bot_by_id(event.bot.id)
 
         from hello_bot.database.db import Database as HelloDatabase
 
@@ -47,7 +47,7 @@ class SetCrudMain(BaseMiddleware):
                 data[key] = value
 
                 if state_data.get("chat_id"):
-                    channel_settings = await db.get_channel_bot_setting(
+                    channel_settings = await db.channel_bot_settings.get_channel_bot_setting(
                         chat_id=state_data.get("chat_id")
                     )
                     data["channel_settings"] = channel_settings
@@ -55,13 +55,13 @@ class SetCrudMain(BaseMiddleware):
             return await handler(event, data)
 
         if state_data.get("chat_id"):
-            channel_settings = await db.get_channel_bot_setting(
+            channel_settings = await db.channel_bot_settings.get_channel_bot_setting(
                 chat_id=state_data.get("chat_id")
             )
         else:
             channel_settings = None
 
-        db_bot = await db.get_bot_by_id(bot_id)
+        db_bot = await db.user_bot.get_bot_by_id(bot_id)
         from hello_bot.database.db import Database as HelloDatabase
 
         other_db = HelloDatabase()

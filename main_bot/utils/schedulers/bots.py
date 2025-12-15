@@ -55,7 +55,7 @@ async def start_delete_bot_posts():
     Проверяет все посты ботов с установленным временем удаления
     и удаляет сообщения, если время истекло.
     """
-    bot_posts = await db.get_bot_posts_for_clear_messages()
+    bot_posts = await db.bot_post.get_bot_posts_for_clear_messages()
 
     for bot_post in bot_posts:
         if (bot_post.delete_time + bot_post.start_timestamp) > time.time():
@@ -66,12 +66,12 @@ async def start_delete_bot_posts():
             continue
 
         for bot_id in list(messages.keys()):
-            user_bot = await db.get_bot_by_id(int(bot_id))
+            user_bot = await db.user_bot.get_bot_by_id(int(bot_id))
             asyncio.create_task(delete_bot_posts(user_bot, messages[bot_id]["message_ids"]))
         
         # Обновляем delete_time, чтобы не пытаться удалять снова и снова
         # Статус DELETED пока не добавляем - его нет в enum базы данных
-        await db.update_bot_post(
+        await db.bot_post.update_bot_post(
             post_id=bot_post.id,
             delete_time=None
         )
@@ -243,20 +243,20 @@ async def send_bot_post(bot_post: BotPost):
              # Но настройки (ChannelBotSetting) привязаны к ID канала в базе данных (PK), а не к Telegram ID.
              
              # 1. Находим канал по Telegram ID
-             channel = await db.get_channel_by_chat_id(int(chat_id))
+             channel = await db.channel.get_channel_by_chat_id(int(chat_id))
              if not channel:
                  logger.warning(f"⚠️ Канал с ID {chat_id} не найден в базе данных.")
                  continue
 
              # 2. Пробуем найти настройки по Telegram Chat ID (наиболее вероятно)
-             channel_settings = await db.get_channel_bot_setting(
+             channel_settings = await db.channel_bot_settings.get_channel_bot_setting(
                 chat_id=channel.chat_id
              )
              
              if not channel_settings:
                  # Если не нашли, пробуем по Database ID (PK)
                  logger.info(f"⚠️ Настройки не найдены по Chat ID {channel.chat_id}, пробуем по DB ID {channel.id}")
-                 channel_settings = await db.get_channel_bot_setting(
+                 channel_settings = await db.channel_bot_settings.get_channel_bot_setting(
                     chat_id=channel.id
                  )
 
@@ -271,7 +271,7 @@ async def send_bot_post(bot_post: BotPost):
 
     # 2. Итерируем по уникальным ботам
     for bot_id in unique_bot_ids:
-        user_bot = await db.get_bot_by_id(int(bot_id))
+        user_bot = await db.user_bot.get_bot_by_id(int(bot_id))
         
         if not user_bot:
             logger.warning(f"⚠️ Бот с ID {bot_id} не найден в базе данных.")
@@ -281,11 +281,11 @@ async def send_bot_post(bot_post: BotPost):
         has_active_subscription = False
         
         # Получаем все настройки (связки канал-бот) для этого бота
-        linked_settings = await db.get_all_channels_in_bot_id(bot_id)
+        linked_settings = await db.channel_bot_settings.get_all_channels_in_bot_id(bot_id)
         
         for setting in linked_settings:
             # setting.id - это Telegram Chat ID канала (как мы выяснили ранее)
-            linked_channel = await db.get_channel_by_chat_id(setting.id)
+            linked_channel = await db.channel.get_channel_by_chat_id(setting.id)
             
             if linked_channel and linked_channel.subscribe:
                 # Проверяем срок действия подписки
@@ -352,7 +352,7 @@ async def send_bot_post(bot_post: BotPost):
             logger.error(f"Ошибка при удалении файла {filepath}: {e}", exc_info=True)
 
     # Обновление статуса поста
-    await db.update_bot_post(
+    await db.bot_post.update_bot_post(
         post_id=bot_post.id,
         success_send=success_count,
         error_send=users_count - success_count,
@@ -370,7 +370,7 @@ async def send_bot_posts():
     Получает все посты, готовые к отправке, и запускает их обработку.
     """
 
-    posts = await db.get_bot_post_for_send()
+    posts = await db.bot_post.get_bot_post_for_send()
     if posts:
         logger.info(f"🔎 Найдено {len(posts)} постов для рассылки.")
     if not posts:

@@ -33,7 +33,7 @@ async def start(message: types.Message, state: FSMContext):
                     
                     # Add lead (silently, no user feedback)
                     from main_bot.database.db import db
-                    await db.add_lead(
+                    await db.ad_purchase.add_lead(
                         user_id=message.from_user.id,
                         ad_purchase_id=purchase_id,
                         slot_id=slot_id,

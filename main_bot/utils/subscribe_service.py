@@ -25,7 +25,7 @@ async def grant_subscription(user_id: int, chosen: list, total_days: int, servic
     
     for obj_id in chosen:
         if object_type == 'channels':
-            channel = await db.get_channel_by_row_id(row_id=obj_id)
+            channel = await db.channel.get_channel_by_row_id(row_id=obj_id)
             if not channel: continue
             
             subscribe_value = channel.subscribe
@@ -34,12 +34,12 @@ async def grant_subscription(user_id: int, chosen: list, total_days: int, servic
             else:
                 subscribe_value += added_time
 
-            await db.update_channel_by_chat_id(
+            await db.channel.update_channel_by_chat_id(
                 chat_id=channel.chat_id,
                 subscribe=subscribe_value
             )
         else:
-            user_bot = await db.get_bot_by_id(row_id=obj_id)
+            user_bot = await db.user_bot.get_bot_by_id(row_id=obj_id)
             if not user_bot: continue
             
             subscribe_value = user_bot.subscribe
@@ -48,7 +48,7 @@ async def grant_subscription(user_id: int, chosen: list, total_days: int, servic
             else:
                 subscribe_value += added_time
 
-            await db.update_bot_by_id(
+            await db.user_bot.update_bot_by_id(
                 row_id=user_bot.id,
                 subscribe=subscribe_value
             )

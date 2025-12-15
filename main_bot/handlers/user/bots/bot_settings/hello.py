@@ -15,7 +15,7 @@ from main_bot.utils.functions import answer_message
 async def show_manage_hello_message(message: types.Message,  state: FSMContext):
     data = await state.get_data()
 
-    hello_message = await db.get_hello_message(
+    hello_message = await db.channel_bot_hello.get_hello_message(
         message_id=data.get("hello_message_id")
     )
     await message.answer(
@@ -59,21 +59,21 @@ async def manage_hello_message(call: types.CallbackQuery, state: FSMContext):
 
     if temp[1] in ["cancel", "delete"]:
         if temp[1] == "delete":
-            await db.delete_hello_message(
+            await db.channel_bot_hello.delete_hello_message(
                 data.get("hello_message_id")
             )
 
-        cs = await db.get_channel_bot_setting(data.get("chat_id"))
+        cs = await db.channel_bot_settings.get_channel_bot_setting(data.get("chat_id"))
 
         await call.message.delete()
         return await show_hello(call.message, cs)
 
-    hello_message = await db.get_hello_message(
+    hello_message = await db.channel_bot_hello.get_hello_message(
         message_id=data.get("hello_message_id")
     )
 
     if temp[1] == "on":
-        await db.update_hello_message(
+        await db.channel_bot_hello.update_hello_message(
             message_id=hello_message.id,
             return_obj=True,
             is_active=not hello_message.is_active
@@ -92,10 +92,10 @@ async def manage_hello_message(call: types.CallbackQuery, state: FSMContext):
         )
 
     if temp[1] == "text_with_name":
-        hello_message = await db.get_hello_message(
+        hello_message = await db.channel_bot_hello.get_hello_message(
             message_id=data.get("hello_message_id")
         )
-        await db.update_hello_message(
+        await db.channel_bot_hello.update_hello_message(
             message_id=hello_message.id,
             return_obj=True,
             text_with_name=not hello_message.text_with_name
@@ -162,7 +162,7 @@ async def choice_hello_message_delay(call: types.CallbackQuery, state: FSMContex
         return await show_manage_hello_message(call.message, state)
 
     delay = int(temp[1])
-    hello_message = await db.update_hello_message(
+    hello_message = await db.channel_bot_hello.update_hello_message(
         message_id=data.get("hello_message_id"),
         return_obj=True,
         delay=delay
@@ -190,7 +190,7 @@ async def back(call: types.CallbackQuery, state: FSMContext):
             reply_markup=keyboards.manage_hello_message_post()
         )
     else:
-        cs = await db.get_channel_bot_setting(data.get("chat_id"))
+        cs = await db.channel_bot_settings.get_channel_bot_setting(data.get("chat_id"))
         return await show_hello(call.message, cs)
 
 
@@ -215,7 +215,7 @@ async def get_message(message: types.Message, state: FSMContext):
     data = await state.get_data()
 
     if data.get("is_edit"):
-        await db.update_hello_message(
+        await db.channel_bot_hello.update_hello_message(
             message_id=data.get("hello_message_id"),
             return_obj=True,
             message=message_options.model_dump()
@@ -234,8 +234,8 @@ async def get_message(message: types.Message, state: FSMContext):
         )
 
     else:
-        next_id = await db.get_next_id_hello_message()
-        await db.add_channel_hello_message(
+        next_id = await db.channel_bot_hello.get_next_id_hello_message()
+        await db.channel_bot_hello.add_channel_hello_message(
             id=next_id,
             channel_id=data.get("chat_id"),
             message=message_options.model_dump()
@@ -250,7 +250,7 @@ async def get_message(message: types.Message, state: FSMContext):
 
     await message.answer(text("success_add_hello"))
 
-    cs = await db.get_channel_bot_setting(data.get("chat_id"))
+    cs = await db.channel_bot_settings.get_channel_bot_setting(data.get("chat_id"))
     await show_hello(message, cs)
 
 
@@ -266,14 +266,14 @@ async def get_buttons(message: types.Message, state: FSMContext):
         )
 
     data = await state.get_data()
-    hello_obj = await db.get_hello_message(
+    hello_obj = await db.channel_bot_hello.get_hello_message(
         message_id=data.get("hello_message_id")
     )
 
     hello_message = MessageOptionsHello(**hello_obj.message)
     hello_message.reply_markup = reply_markup
 
-    await db.update_hello_message(
+    await db.channel_bot_hello.update_hello_message(
         message_id=hello_obj.id,
         message=hello_message.model_dump()
     )

@@ -27,11 +27,11 @@ async def choice(call: types.CallbackQuery, state: FSMContext, db_obj: Database,
         return await show_channel_setting(call.message, db_obj, state)
 
     if temp[1] == "auto_approve":
-        await db.update_channel_bot_setting(
+        await db.channel_bot_settings.update_channel_bot_setting(
             chat_id=channel_settings.id,
             auto_approve=not channel_settings.auto_approve
         )
-        channel_settings = await db.get_channel_bot_setting(
+        channel_settings = await db.channel_bot_settings.get_channel_bot_setting(
             chat_id=channel_settings.id
         )
         return await show_application(call.message, channel_settings, db_obj)
@@ -70,11 +70,11 @@ async def choice_application_delay(call: types.CallbackQuery, db_obj: Database, 
 
     delay_approve = int(temp[1])
 
-    await db.update_channel_bot_setting(
+    await db.channel_bot_settings.update_channel_bot_setting(
         chat_id=channel_settings.id,
         delay_approve=delay_approve
     )
-    channel_settings = await db.get_channel_bot_setting(
+    channel_settings = await db.channel_bot_settings.get_channel_bot_setting(
         chat_id=channel_settings.id
     )
     await call.message.answer(

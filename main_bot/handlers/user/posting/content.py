@@ -38,7 +38,7 @@ async def get_days_with_posts(channel_chat_id: int, year: int, month: int) -> se
     month_end = datetime(year, month, last_day, 23, 59, 59)
     
     # Получаем все посты (запланированные и опубликованные)
-    all_month_posts = await db.get_posts(channel_chat_id, only_scheduled=False)
+    all_month_posts = await db.post.get_posts(channel_chat_id, only_scheduled=False)
     
     days_with_posts = set()
     for post in all_month_posts:
@@ -62,7 +62,7 @@ async def generate_post_info_text(post_obj, is_published: bool = False) -> str:
         is_published: Флаг того, что пост уже опубликован
     """
     try:
-        author = await db.get_user(post_obj.admin_id)
+        author = await db.user.get_user(post_obj.admin_id)
         author_name = f"<a href='tg://user?id={author.id}'>{author.first_name}</a>" if author else "Неизвестно"
     except:
         author_name = "Неизвестно"
@@ -73,11 +73,11 @@ async def generate_post_info_text(post_obj, is_published: bool = False) -> str:
     if is_published:
         # Для опубликованного поста - ищем все связанные публикации по post_id
         # PublishedPost.post_id хранит ID родительского поста (или уникальный ID группы)
-        published_posts = await db.get_published_posts_by_post_id(post_obj.post_id)
+        published_posts = await db.published_post.get_published_posts_by_post_id(post_obj.post_id)
         
         channels_text = "<blockquote>Пост опубликован в:\n"
         for p in published_posts:
-            channel = await db.get_channel_by_chat_id(p.chat_id)
+            channel = await db.channel.get_channel_by_chat_id(p.chat_id)
             if channel:
                 # Получаем кол-во подписчиков для display (если есть в базе)
                 subs = getattr(channel, 'subscribers_count', '???')
@@ -98,7 +98,7 @@ async def generate_post_info_text(post_obj, is_published: bool = False) -> str:
         post_link = f"https://t.me/c/{chat_id_str}/{post_obj.message_id}"
 
         # Если бы был username, могли бы сделать публичную ссылку
-        # ch = await db.get_channel_by_chat_id(post_obj.chat_id)
+        # ch = await db.channel.get_channel_by_chat_id(post_obj.chat_id)
         # if ch and getattr(ch, 'username', None):
         #      post_link = f"https://t.me/{ch.username}/{post_obj.message_id}"
 
@@ -137,7 +137,7 @@ async def generate_post_info_text(post_obj, is_published: bool = False) -> str:
             # Получаем каналы куда планировалось/было
             channels_text = "<blockquote>Пост должен был быть в:\n"
             for chat_id in post_obj.chat_ids:
-                channel = await db.get_channel_by_chat_id(chat_id)
+                channel = await db.channel.get_channel_by_chat_id(chat_id)
                 if channel:
                     channels_text += f"📺 {channel.title}\n"
             channels_text += "</blockquote>"
@@ -156,7 +156,7 @@ async def generate_post_info_text(post_obj, is_published: bool = False) -> str:
             
             channels_text = "<blockquote>Пост будет скопирован в:\n"
             for chat_id in post_obj.chat_ids:
-                channel = await db.get_channel_by_chat_id(chat_id)
+                channel = await db.channel.get_channel_by_chat_id(chat_id)
                 if channel:
                      # Построение ссылки
                     url = "" # Нет username
@@ -177,7 +177,7 @@ async def choice_channel(call: types.CallbackQuery, state: FSMContext):
     temp = call.data.split('|')
 
     if temp[1] in ["next", "back"]:
-        channels = await db.get_user_channels(
+        channels = await db.channel.get_user_channels(
             user_id=call.from_user.id,
             sort_by="posting"
         )
@@ -194,10 +194,10 @@ async def choice_channel(call: types.CallbackQuery, state: FSMContext):
 
     chat_id = int(temp[1])
     logger.info(f"User {call.from_user.id} selected channel {chat_id} for content view")
-    channel = await db.get_channel_by_chat_id(chat_id)
+    channel = await db.channel.get_channel_by_chat_id(chat_id)
 
     day = datetime.today()
-    posts = await db.get_posts(channel.chat_id, day)
+    posts = await db.post.get_posts(channel.chat_id, day)
     day_values = (day.day, text("month").get(str(day.month)), day.year,)
 
     await state.update_data(
@@ -251,7 +251,7 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
         else:
             day = day - timedelta(days=int(temp[2]))
 
-        posts = await db.get_posts(channel.chat_id, day)
+        posts = await db.post.get_posts(channel.chat_id, day)
         day_values = (day.day, text("month").get(str(day.month)), day.year,)
 
         await state.update_data(
@@ -278,7 +278,7 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
         )
 
     if temp[1] == "show_all":
-        posts = await db.get_posts(channel.chat_id, only_scheduled=True)
+        posts = await db.post.get_posts(channel.chat_id, only_scheduled=True)
         return await call.message.edit_text(
             text("channel:show_all:content").format(
                 channel.title,
@@ -297,7 +297,7 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
     if call.data.startswith("ContentPublishedPost"):
         post_id = int(temp[1])
         logger.info(f"User {call.from_user.id} viewing published post {post_id}")
-        post = await db.get_published_post_by_id(post_id)
+        post = await db.published_post.get_published_post_by_id(post_id)
         
         # Prepare date values matching the expected format
         dt = datetime.fromtimestamp(post.created_timestamp)
@@ -329,7 +329,7 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
         return
 
     post_id = int(temp[1])
-    post = await db.get_post(post_id)
+    post = await db.post.get_post(post_id)
     send_date = datetime.fromtimestamp(post.send_time)
     send_date_values = (send_date.day, text("month").get(str(send_date.month)), send_date.year,)
     await state.update_data(
@@ -368,7 +368,7 @@ async def choice_time_objects(call: types.CallbackQuery, state: FSMContext):
     channel: Channel = data.get("channel")
 
     if temp[1] in ["next", "back"]:
-        posts = await db.get_posts(channel.chat_id)
+        posts = await db.post.get_posts(channel.chat_id)
         return await call.message.edit_reply_markup(
             reply_markup=keyboards.choice_time_objects(
                 objects=posts
@@ -379,7 +379,7 @@ async def choice_time_objects(call: types.CallbackQuery, state: FSMContext):
     day: datetime = data.get("day")
 
     if temp[1] == "cancel":
-        posts = await db.get_posts(channel.chat_id, day)
+        posts = await db.post.get_posts(channel.chat_id, day)
         days_with_posts = await get_days_with_posts(channel.chat_id, day.year, day.month)
         return await call.message.edit_text(
             text("channel:content").format(
@@ -408,7 +408,7 @@ async def manage_remain_post(call: types.CallbackQuery, state: FSMContext):
     day = data.get("day")
 
     if temp[1] == "cancel":
-        posts = await db.get_posts(channel.chat_id, day)
+        posts = await db.post.get_posts(channel.chat_id, day)
 
         post_message = data.get("post_message")
         if isinstance(post_message, types.Message):
@@ -486,8 +486,8 @@ async def accept_delete_row_content(call: types.CallbackQuery, state: FSMContext
         )
 
     if temp[1] == "accept":
-        await db.delete_post(post.id)
-        posts = await db.get_posts(channel.chat_id, day)
+        await db.post.delete_post(post.id)
+        posts = await db.post.get_posts(channel.chat_id, day)
 
         post_message = data.get("post_message")
         if isinstance(post_message, types.Message):
@@ -525,7 +525,7 @@ async def manage_published_post(call: types.CallbackQuery, state: FSMContext):
         from main_bot.utils.report_signature import get_report_signatures
         
         # Fetch related posts
-        related_posts = await db.get_published_posts_by_post_id(post.post_id)
+        related_posts = await db.published_post.get_published_posts_by_post_id(post.post_id)
         if not related_posts:
             related_posts = [post]
 
@@ -538,7 +538,7 @@ async def manage_published_post(call: types.CallbackQuery, state: FSMContext):
             views = v_hist
             
             total_views += views
-            channel = await db.get_channel_by_chat_id(p.chat_id)
+            channel = await db.channel.get_channel_by_chat_id(p.chat_id)
             channels_info.append(f"{html.escape(channel.title)} - 👀 {views}")
 
         # Calculate Price
@@ -546,7 +546,7 @@ async def manage_published_post(call: types.CallbackQuery, state: FSMContext):
         rub_price = round(float(cpm_price * float(total_views / 1000)), 2)
         
         # Get Rate
-        user = await db.get_user(post.admin_id)
+        user = await db.user.get_user(post.admin_id)
         usd_rate = 1.0
         exch_update = "N/A"
         
@@ -555,7 +555,7 @@ async def manage_published_post(call: types.CallbackQuery, state: FSMContext):
         if user and user.default_exchange_rate_id is not None:
              rate_id = user.default_exchange_rate_id
              
-        exchange_rate = await db.get_exchange_rate(rate_id)
+        exchange_rate = await db.exchange_rate.get_exchange_rate(rate_id)
         if exchange_rate and exchange_rate.rate > 0:
             usd_rate = exchange_rate.rate
             exch_update = exchange_rate.last_update.strftime("%H:%M %d.%m.%Y") if exchange_rate.last_update else "N/A"
@@ -600,7 +600,7 @@ async def manage_published_post(call: types.CallbackQuery, state: FSMContext):
 
     if temp[1] == "cancel":
         day = data.get('day')
-        posts = await db.get_posts(data.get("channel").chat_id, day)
+        posts = await db.post.get_posts(data.get("channel").chat_id, day)
 
         post_message = data.get("post_message")
         if isinstance(post_message, types.Message):
@@ -712,7 +712,7 @@ async def accept_delete_published_post(call: types.CallbackQuery, state: FSMCont
         logger.info(f"User {call.from_user.id} deleting published post {post.id} (message_id: {post.message_id}) and all related posts")
         
         # Fetch all related published posts
-        related_posts = await db.get_published_posts_by_post_id(post.post_id)
+        related_posts = await db.published_post.get_published_posts_by_post_id(post.post_id)
         
         # Delete from Telegram for all channels
         ids_to_delete = []
@@ -725,9 +725,9 @@ async def accept_delete_published_post(call: types.CallbackQuery, state: FSMCont
 
         # Soft Delete all from DB
         if ids_to_delete:
-            await db.soft_delete_published_posts(ids_to_delete)
+            await db.published_post.soft_delete_published_posts(ids_to_delete)
         
-        posts = await db.get_posts(channel.chat_id, day)
+        posts = await db.post.get_posts(channel.chat_id, day)
 
         post_message = data.get("post_message")
         if isinstance(post_message, types.Message):

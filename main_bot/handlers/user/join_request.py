@@ -38,7 +38,7 @@ async def on_join_request(request: types.ChatJoinRequest):
         # But 'add_lead' exists.
         
         # Let's inspect create_emoji/process_join_event usage.
-        # db.process_join_event is used in set_resource. It queries mapping.
+        # db.ad_purchase.process_join_event is used in set_resource. It queries mapping.
         
         # I will inline the logic here using db.fetchrow or similar, or better yet, add a method to CRUD.
         # But for now, let's query AdPurchaseLinkMapping directly.
@@ -52,7 +52,7 @@ async def on_join_request(request: types.ChatJoinRequest):
         if mapping:
             # It's an ad link! Track lead.
             logger.info(f"Mapping found for link {invite_link}: Purchase {mapping.ad_purchase_id}, Slot {mapping.slot_id}")
-            result = await db.add_lead(
+            result = await db.ad_purchase.add_lead(
                 user_id=user_id,
                 ad_purchase_id=mapping.ad_purchase_id,
                 slot_id=mapping.slot_id,

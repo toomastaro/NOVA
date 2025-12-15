@@ -86,7 +86,7 @@ async def manage_post(call: types.CallbackQuery, state: FSMContext):
                 )
 
         if post:
-            await db.delete_post(post.id)
+            await db.post.delete_post(post.id)
         await call.message.delete()
         return await show_create_post(call.message, state)
 
@@ -113,7 +113,7 @@ async def manage_post(call: types.CallbackQuery, state: FSMContext):
         
         # Для нового поста - переход к настройкам
         chosen = data.get("chosen", [])
-        display_objects = await db.get_user_channels(
+        display_objects = await db.channel.get_user_channels(
             user_id=call.from_user.id,
             from_array=chosen[:10]
         )
@@ -180,12 +180,12 @@ async def manage_post(call: types.CallbackQuery, state: FSMContext):
             else:
                 update_kwargs['message_options'] = message_options.model_dump()
             
-            await db.update_published_posts_by_post_id(
+            await db.published_post.update_published_posts_by_post_id(
                 post_id=post.post_id,
                 **update_kwargs
             )
             # Fetch updated object (just one of them to keep in state)
-            post = await db.get_published_post_by_id(post.id)
+            post = await db.published_post.get_published_post_by_id(post.id)
         else:
             update_kwargs = {}
             if temp[1] == 'pin_time':
@@ -193,7 +193,7 @@ async def manage_post(call: types.CallbackQuery, state: FSMContext):
             else:
                 update_kwargs['message_options'] = message_options.model_dump()
             
-            post = await db.update_post(
+            post = await db.post.update_post(
                 post_id=data.get('post').id,
                 return_obj=True,
                 **update_kwargs
@@ -284,14 +284,14 @@ async def cancel_value(call: types.CallbackQuery, state: FSMContext):
             if False not in none_list:
                 await state.clear()
                 await call.message.delete()
-                await db.delete_post(data.get('post').id)
+                await db.post.delete_post(data.get('post').id)
                 return await show_create_post(call.message, state)
 
             kwargs = {"message_options": message_options.model_dump()}
         else:
             kwargs = {param: None}
 
-        post = await db.update_post(
+        post = await db.post.update_post(
             post_id=data.get('post').id,
             return_obj=True,
             **kwargs
@@ -310,7 +310,7 @@ async def cancel_value(call: types.CallbackQuery, state: FSMContext):
     if data.get('param') == "cpm_price":
         post: Post = data.get("post")
         chosen = data.get("chosen", post.chat_ids)
-        display_objects = await db.get_user_channels(
+        display_objects = await db.channel.get_user_channels(
             user_id=call.from_user.id,
             from_array=chosen[:10]
         )
@@ -432,13 +432,13 @@ async def get_value(message: types.Message, state: FSMContext):
 
     # Обновление в БД
     if data.get("is_published"):
-        await db.update_published_posts_by_post_id(
+        await db.published_post.update_published_posts_by_post_id(
             post_id=post.post_id,
             **kwargs
         )
-        post = await db.get_published_post_by_id(post.id)
+        post = await db.published_post.get_published_post_by_id(post.id)
     else:
-        post = await db.update_post(
+        post = await db.post.update_post(
             post_id=post.id,
             return_obj=True,
             **kwargs
@@ -450,9 +450,9 @@ async def get_value(message: types.Message, state: FSMContext):
         
         # Refresh post object to get updated backup_message_id if fallback occurred
         if data.get("is_published"):
-            post = await db.get_published_post_by_id(post.id) if post else None
+            post = await db.published_post.get_published_post_by_id(post.id) if post else None
         else:
-            post = await db.get_post(post.id) if post else None
+            post = await db.post.get_post(post.id) if post else None
 
         # Update live messages if published
         if data.get("is_published"):
@@ -472,7 +472,7 @@ async def get_value(message: types.Message, state: FSMContext):
     # Для cpm_price возвращаемся к выбору каналов
     if param == "cpm_price":
         chosen = data.get("chosen", post.chat_ids)
-        display_objects = await db.get_user_channels(
+        display_objects = await db.channel.get_user_channels(
             user_id=message.from_user.id,
             from_array=chosen[:10]
         )

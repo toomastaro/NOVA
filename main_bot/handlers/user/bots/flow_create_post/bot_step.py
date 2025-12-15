@@ -23,7 +23,7 @@ from main_bot.utils.error_handler import safe_handler
 
 async def set_folder_content(resource_id, chosen, chosen_folders):
     """Добавление/удаление всех каналов из папки в список выбранных."""
-    folder = await db.get_folder_by_id(
+    folder = await db.user_folder.get_folder_by_id(
         folder_id=resource_id
     )
     is_append = resource_id not in chosen_folders
@@ -36,7 +36,7 @@ async def set_folder_content(resource_id, chosen, chosen_folders):
     for chat_id in folder.content:
         chat_id = int(chat_id)
 
-        channel = await db.get_channel_by_chat_id(chat_id)
+        channel = await db.channel.get_channel_by_chat_id(chat_id)
         if not channel.subscribe:
             return "subscribe", ""
 
@@ -64,8 +64,8 @@ async def choice_bots(call: types.CallbackQuery, state: FSMContext):
     chosen: list = data.get("chosen")
     chosen_folders: list = data.get("chosen_folders")
 
-    channels = await db.get_bot_channels(call.from_user.id)
-    objects = await db.get_user_channels(call.from_user.id, from_array=[i.id for i in channels])
+    channels = await db.channel_bot_settings.get_bot_channels(call.from_user.id)
+    objects = await db.channel.get_user_channels(call.from_user.id, from_array=[i.id for i in channels])
 
     if temp[1] == "next_step":
         if not chosen:
@@ -76,7 +76,7 @@ async def choice_bots(call: types.CallbackQuery, state: FSMContext):
         await call.message.delete()
         return await show_create_post(call.message, state)
 
-    folders = await db.get_folders(
+    folders = await db.user_folder.get_folders(
         user_id=call.from_user.id,
     )
 
@@ -125,7 +125,7 @@ async def choice_bots(call: types.CallbackQuery, state: FSMContext):
                 for folder in folders:
                     sub_channels = []
                     for chat_id in folder.content:
-                        user_bot = await db.get_channel_by_chat_id(int(chat_id))
+                        user_bot = await db.channel.get_channel_by_chat_id(int(chat_id))
 
                         if not user_bot.subscribe:
                             continue
@@ -148,7 +148,7 @@ async def choice_bots(call: types.CallbackQuery, state: FSMContext):
                 chosen.remove(resource_id)
                 logger.info(f"Удален канал {resource_id} из выбранных")
             else:
-                user_bot = await db.get_channel_by_chat_id(resource_id)
+                user_bot = await db.channel.get_channel_by_chat_id(resource_id)
                 logger.info(f"Проверка подписки для канала {resource_id}: {user_bot.subscribe if user_bot else 'Не найден'}")
                 if not user_bot.subscribe:
                     logger.warning(f"У канала {resource_id} нет подписки")
@@ -174,7 +174,7 @@ async def choice_bots(call: types.CallbackQuery, state: FSMContext):
 
     # Recalculate stats based on Unique Bots for accuracy
     # Convert chosen channels to unique bots
-    all_settings = await db.get_bot_channels(call.from_user.id)
+    all_settings = await db.channel_bot_settings.get_bot_channels(call.from_user.id)
     selected_settings = [s for s in all_settings if s.id in chosen]
     unique_bot_ids = list(set(s.bot_id for s in selected_settings if s.bot_id))
     
@@ -184,7 +184,7 @@ async def choice_bots(call: types.CallbackQuery, state: FSMContext):
     active_users = 0
     
     for bot_id in unique_bot_ids:
-        user_bot = await db.get_bot_by_id(bot_id)
+        user_bot = await db.user_bot.get_bot_by_id(bot_id)
         if not user_bot: 
             logger.warning(f"Бот {bot_id} не найден в БД")
             continue

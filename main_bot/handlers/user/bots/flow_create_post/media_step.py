@@ -55,7 +55,7 @@ async def get_message(message: types.Message, state: FSMContext):
             message_options.caption = message.html_text
 
     data = await state.get_data()
-    post = await db.add_bot_post(
+    post = await db.bot_post.add_bot_post(
         return_obj=True,
         chat_ids=data.get("chosen"),
         admin_id=message.from_user.id,
@@ -99,7 +99,7 @@ async def manage_post(call: types.CallbackQuery, state: FSMContext):
                 )
             )
 
-        await db.delete_bot_post(data.get('post').id)
+        await db.bot_post.delete_bot_post(data.get('post').id)
         await call.message.delete()
         return await show_create_post(call.message, state)
 
@@ -123,8 +123,8 @@ async def manage_post(call: types.CallbackQuery, state: FSMContext):
 
         chosen: list = data.get("chosen")
         available: int = data.get("available")
-        channels = await db.get_bot_channels(call.from_user.id)
-        objects = await db.get_user_channels(call.from_user.id, from_array=[i.id for i in channels])
+        channels = await db.channel_bot_settings.get_bot_channels(call.from_user.id)
+        objects = await db.channel.get_user_channels(call.from_user.id, from_array=[i.id for i in channels])
 
         await call.message.delete()
         return await call.message.answer(
@@ -202,14 +202,14 @@ async def cancel_value(call: types.CallbackQuery, state: FSMContext):
                 await state.update_data(**data)
 
                 await call.message.delete()
-                await db.delete_bot_post(data.get('post').id)
+                await db.bot_post.delete_bot_post(data.get('post').id)
                 return await show_create_post(call.message, state)
 
             kwargs = {"message": message_options.model_dump()}
         else:
             kwargs = {param: None}
 
-        post = await db.update_bot_post(
+        post = await db.bot_post.update_bot_post(
             post_id=data.get('post').id,
             return_obj=True,
             **kwargs
@@ -293,7 +293,7 @@ async def get_value(message: types.Message, state: FSMContext):
 
         kwargs = {param: value}
 
-    post = await db.update_bot_post(
+    post = await db.bot_post.update_bot_post(
         post_id=post.id,
         return_obj=True,
         **kwargs

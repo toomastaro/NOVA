@@ -13,11 +13,11 @@ async def choice_channel(call: types.CallbackQuery, state: FSMContext, db_obj: D
     data = await state.get_data()
 
     chosen: list = data.get("chosen")
-    channel_ids_in_bot = await db.get_all_channels_in_bot_id(
+    channel_ids_in_bot = await db.channel_bot_settings.get_all_channels_in_bot_id(
         bot_id=data.get("bot_id")
     )
     channels = [
-        await db.get_channel_by_chat_id(chat.id)
+        await db.channel.get_channel_by_chat_id(chat.id)
         for chat in channel_ids_in_bot if data.get("chat_id") != chat.id
     ]
 
@@ -79,13 +79,13 @@ async def choice_channel(call: types.CallbackQuery, state: FSMContext, db_obj: D
 
 
 async def start_clone(settings: list[int], chat_ids: list[int], current_chat: int):
-    channel = await db.get_channel_bot_setting(
+    channel = await db.channel_bot_settings.get_channel_bot_setting(
         chat_id=current_chat
     )
-    hello_messages = await db.get_hello_messages(
+    hello_messages = await db.channel_bot_hello.get_hello_messages(
         chat_id=channel.id
     )
-    captcha_list = await db.get_all_captcha(
+    captcha_list = await db.channel_bot_captcha.get_all_captcha(
         chat_id=channel.id
     )
 
@@ -100,7 +100,7 @@ async def start_clone(settings: list[int], chat_ids: list[int], current_chat: in
             kwargs["bye"] = channel.bye
 
         for chat_id in chat_ids:
-            await db.update_channel_bot_setting(
+            await db.channel_bot_settings.update_channel_bot_setting(
                 chat_id=chat_id,
                 **kwargs
             )
@@ -108,14 +108,14 @@ async def start_clone(settings: list[int], chat_ids: list[int], current_chat: in
     # captcha
     if 1 in settings:
         for chat_id in chat_ids:
-            captcha_list_remove = await db.get_all_captcha(
+            captcha_list_remove = await db.channel_bot_captcha.get_all_captcha(
                 chat_id=chat_id
             )
             for captcha_remove in captcha_list_remove:
-                await db.delete_captcha(captcha_remove.id)
+                await db.channel_bot_captcha.delete_captcha(captcha_remove.id)
 
             for captcha in captcha_list:
-                await db.add_channel_captcha(
+                await db.channel_bot_captcha.add_channel_captcha(
                     channel_id=chat_id,
                     message=captcha.message,
                     delay=captcha.delay
@@ -124,15 +124,15 @@ async def start_clone(settings: list[int], chat_ids: list[int], current_chat: in
     # hello
     if 2 in settings:
         for chat_id in chat_ids:
-            hello_messages_remove = await db.get_hello_messages(
+            hello_messages_remove = await db.channel_bot_hello.get_hello_messages(
                 chat_id=chat_id
             )
             for hello_remove in hello_messages_remove:
-                await db.delete_hello_message(hello_remove.id)
+                await db.channel_bot_hello.delete_hello_message(hello_remove.id)
 
             for hello in hello_messages:
-                max_id = await db.get_next_id_hello_message()
-                await db.add_channel_hello_message(
+                max_id = await db.channel_bot_hello.get_next_id_hello_message()
+                await db.channel_bot_hello.add_channel_hello_message(
                     id=max_id,
                     channel_id=chat_id,
                     message=hello.message,
@@ -150,11 +150,11 @@ async def choice(call: types.CallbackQuery, state: FSMContext, db_obj: Database)
     chosen_settings: list = data.get("chosen_settings")
 
     if temp[1] == "cancel":
-        channel_ids_in_bot = await db.get_all_channels_in_bot_id(
+        channel_ids_in_bot = await db.channel_bot_settings.get_all_channels_in_bot_id(
             bot_id=data.get("bot_id")
         )
         channels = [
-            await db.get_channel_by_chat_id(chat.id)
+            await db.channel.get_channel_by_chat_id(chat.id)
             for chat in channel_ids_in_bot if data.get("chat_id") != chat.id
         ]
 

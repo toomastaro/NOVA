@@ -76,7 +76,7 @@ async def show_referral_menu(call: types.CallbackQuery):
     from main_bot.handlers.user.profile.profile import show_referral
     from main_bot.database.db import db
     
-    user = await db.get_user(user_id=call.from_user.id)
+    user = await db.user.get_user(user_id=call.from_user.id)
     await show_referral(call.message, user)
 
 
@@ -88,8 +88,8 @@ async def show_align_sub_menu(call: types.CallbackQuery, state: FSMContext):
     from main_bot.utils.lang.language import text
     import time
     
-    user = await db.get_user(user_id=call.from_user.id)
-    all_sub_objects = await db.get_subscribe_channels(
+    user = await db.user.get_user(user_id=call.from_user.id)
+    all_sub_objects = await db.channel.get_subscribe_channels(
         user_id=user.id
     )
     

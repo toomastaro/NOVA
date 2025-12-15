@@ -13,7 +13,7 @@ async def choice(call: types.CallbackQuery):
         from main_bot.keyboards import keyboards
         from main_bot.utils.lang.language import text
         
-        user = await db.get_user(user_id=call.from_user.id)
+        user = await db.user.get_user(user_id=call.from_user.id)
         await call.message.answer(
             text("balance_text").format(user.balance),
             reply_markup=keyboards.subscription_menu(),

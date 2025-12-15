@@ -29,7 +29,7 @@ async def set_admins(bot: Bot, chat_id: int, chat_title: str, emoji_id: str, use
         logger.error(f"Ошибка получения администраторов канала {chat_id}: {e}")
         # Если не можем получить список админов, добавляем хотя бы того, кто добавил бота
         if user_id:
-            await db.add_channel(
+            await db.channel.add_channel(
                 chat_id=chat_id,
                 title=chat_title,
                 admin_id=user_id,
@@ -53,7 +53,7 @@ async def set_admins(bot: Bot, chat_id: int, chat_title: str, emoji_id: str, use
             if False in rights:
                 continue
 
-        await db.add_channel(
+        await db.channel.add_channel(
             chat_id=chat_id,
             title=chat_title,
             admin_id=admin.user.id,
@@ -64,7 +64,7 @@ async def set_admins(bot: Bot, chat_id: int, chat_title: str, emoji_id: str, use
 @safe_handler("Set Channel")
 async def set_channel(call: types.ChatMemberUpdated):
     chat_id = call.chat.id
-    channel = await db.get_channel_by_chat_id(
+    channel = await db.channel.get_channel_by_chat_id(
         chat_id=chat_id
     )
 
@@ -100,7 +100,7 @@ async def set_channel(call: types.ChatMemberUpdated):
         res = await set_channel_session(chat_id)
         
         # Schedule stats job
-        channel_obj = await db.get_channel_by_chat_id(chat_id)
+        channel_obj = await db.channel.get_channel_by_chat_id(chat_id)
         if channel_obj and scheduler_instance:
              schedule_channel_job(scheduler_instance, channel_obj)
              asyncio.create_task(update_channel_stats(chat_id))
@@ -134,7 +134,7 @@ async def set_channel(call: types.ChatMemberUpdated):
         if not channel:
             return
 
-        await db.delete_channel(
+        await db.channel.delete_channel(
             chat_id=chat_id
         )
 
@@ -165,7 +165,7 @@ async def set_admin(call: types.ChatMemberUpdated):
     if call.new_chat_member.status == ChatMemberStatus.MEMBER: 
         if call.invite_link:
             try:
-                await db.process_join_event(
+                await db.ad_purchase.process_join_event(
                     channel_id=chat_id,
                     user_id=call.new_chat_member.user.id,
                     invite_link=call.invite_link.invite_link
@@ -177,7 +177,7 @@ async def set_admin(call: types.ChatMemberUpdated):
     # Track Unsubscribe (Left/Kicked)
     if call.new_chat_member.status in [ChatMemberStatus.LEFT, ChatMemberStatus.KICKED]:
         try:
-            await db.update_subscription_status(
+            await db.ad_purchase.update_subscription_status(
                 user_id=call.new_chat_member.user.id,
                 channel_id=chat_id,
                 status="left"
@@ -186,7 +186,7 @@ async def set_admin(call: types.ChatMemberUpdated):
             pass
     
     if call.new_chat_member.status == ChatMemberStatus.MEMBER:
-        await db.delete_channel(
+        await db.channel.delete_channel(
             chat_id=chat_id,
             user_id=call.new_chat_member.user.id
         )
@@ -202,13 +202,13 @@ async def set_admin(call: types.ChatMemberUpdated):
             admin.can_delete_stories
         }
         if False in rights:
-            return await db.delete_channel(
+            return await db.channel.delete_channel(
                 chat_id=chat_id,
                 user_id=admin.user.id
             )
 
-        channel = await db.get_channel_by_chat_id(chat_id)
-        await db.add_channel(
+        channel = await db.channel.get_channel_by_chat_id(chat_id)
+        await db.channel.add_channel(
             chat_id=chat_id,
             admin_id=admin.user.id,
             title=call.chat.title,
@@ -221,7 +221,7 @@ async def set_admin(call: types.ChatMemberUpdated):
 
 @safe_handler("Set Active")
 async def set_active(call: types.ChatMemberUpdated):
-    await db.update_user(
+    await db.user.update_user(
         user_id=call.from_user.id,
         is_active=call.new_chat_member.status != ChatMemberStatus.KICKED
     )
@@ -306,7 +306,7 @@ async def manual_add_channel(message: types.Message, state: FSMContext):
     res = await set_channel_session(chat_id)
 
     # Schedule stats job
-    channel_obj = await db.get_channel_by_chat_id(chat_id)
+    channel_obj = await db.channel.get_channel_by_chat_id(chat_id)
     if channel_obj and scheduler_instance:
          schedule_channel_job(scheduler_instance, channel_obj)
          asyncio.create_task(update_channel_stats(chat_id))

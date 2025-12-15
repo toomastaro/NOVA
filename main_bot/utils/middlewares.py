@@ -15,7 +15,7 @@ class StartMiddle(BaseMiddleware):
             return
 
         user_obj = message.from_user
-        user = await db.get_user(user_obj.id)
+        user = await db.user.get_user(user_obj.id)
 
         if not user:
             referral_id = None
@@ -24,19 +24,19 @@ class StartMiddle(BaseMiddleware):
             if command.args:
                 start_utm = command.args
                 if start_utm.isdigit():
-                    ref_user = await db.get_user(int(start_utm))
+                    ref_user = await db.user.get_user(int(start_utm))
 
                     if ref_user:
                         referral_id = int(start_utm)
                 else:
                     if 'utm' in start_utm:
                         ads_tag = start_utm.replace('utm-', "")
-                        tag = await db.get_ad_tag(ads_tag)
+                        tag = await db.ad_tag.get_ad_tag(ads_tag)
 
                         if not tag:
                             ads_tag = None
 
-            await db.add_user(
+            await db.user.add_user(
                 id=user_obj.id,
                 is_premium=user_obj.is_premium or False,
                 referral_id=referral_id,
@@ -56,7 +56,7 @@ class GetUserMiddleware(BaseMiddleware):
 
             user_id = event.callback_query.from_user.id
 
-        user = await db.get_user(user_id)
+        user = await db.user.get_user(user_id)
         data['user'] = user
 
         return await handler(event, data)

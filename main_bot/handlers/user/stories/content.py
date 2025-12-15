@@ -32,7 +32,7 @@ async def get_days_with_stories(channel_chat_id: int, year: int, month: int) -> 
     month_end = datetime(year, month, last_day, 23, 59, 59)
     
     # Получаем все истории
-    all_month_stories = await db.get_stories(channel_chat_id)
+    all_month_stories = await db.story.get_stories(channel_chat_id)
     
     days_with_stories = set()
     for story in all_month_stories:
@@ -48,7 +48,7 @@ async def choice_channel(call: types.CallbackQuery, state: FSMContext):
     temp = call.data.split('|')
 
     if temp[1] in ["next", "back"]:
-        channels = await db.get_user_channels(
+        channels = await db.channel.get_user_channels(
             user_id=call.from_user.id,
             sort_by="stories"
         )
@@ -65,10 +65,10 @@ async def choice_channel(call: types.CallbackQuery, state: FSMContext):
         return await start_stories(call.message)
 
     chat_id = int(temp[1])
-    channel = await db.get_channel_by_chat_id(chat_id)
+    channel = await db.channel.get_channel_by_chat_id(chat_id)
 
     day = datetime.today()
-    posts = await db.get_stories(channel.chat_id, day)
+    posts = await db.story.get_stories(channel.chat_id, day)
     day_values = (day.day, text("month").get(str(day.month)), day.year,)
 
     await state.update_data(
@@ -119,7 +119,7 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
         else:
             day = day - timedelta(days=int(temp[2]))
 
-        posts = await db.get_stories(channel.chat_id, day)
+        posts = await db.story.get_stories(channel.chat_id, day)
         day_values = (day.day, text("month").get(str(day.month)), day.year,)
 
         await state.update_data(
@@ -145,7 +145,7 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
         )
 
     if temp[1] == "show_all":
-        posts = await db.get_stories(channel.chat_id)
+        posts = await db.story.get_stories(channel.chat_id)
         return await call.message.edit_text(
             text("channel:show_all:content").format(
                 channel.title,
@@ -161,7 +161,7 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
         return await call.answer()
 
     post_id = int(temp[1])
-    post = await db.get_story(post_id)
+    post = await db.story.get_story(post_id)
     send_date = datetime.fromtimestamp(post.send_time)
     send_date_values = (send_date.day, text("month").get(str(send_date.month)), send_date.year,)
     await state.update_data(
@@ -174,7 +174,7 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
     if not post.backup_message_id:
         backup_chat_id, backup_message_id = await send_to_backup(post)
         if backup_chat_id and backup_message_id:
-            await db.update_story(
+            await db.story.update_story(
                 post_id=post.id,
                 backup_chat_id=backup_chat_id,
                 backup_message_id=backup_message_id
@@ -229,7 +229,7 @@ async def choice_time_objects(call: types.CallbackQuery, state: FSMContext):
     channel: Channel = data.get("channel")
 
     if temp[1] in ["next", "back"]:
-        posts = await db.get_stories(channel.chat_id)
+        posts = await db.story.get_stories(channel.chat_id)
         return await call.message.edit_reply_markup(
             reply_markup=keyboards.choice_time_objects(
                 objects=posts,
@@ -242,7 +242,7 @@ async def choice_time_objects(call: types.CallbackQuery, state: FSMContext):
     day: datetime = data.get("day")
 
     if temp[1] == "cancel":
-        posts = await db.get_stories(channel.chat_id, day)
+        posts = await db.story.get_stories(channel.chat_id, day)
         days_with_stories = await get_days_with_stories(channel.chat_id, day.year, day.month)
         return await call.message.edit_text(
             text("channel:content").format(
@@ -269,7 +269,7 @@ async def manage_remain_post(call: types.CallbackQuery, state: FSMContext):
 
     if temp[1] == "cancel":
         day = data.get('day')
-        posts = await db.get_stories(data.get("channel").chat_id, day)
+        posts = await db.story.get_stories(data.get("channel").chat_id, day)
 
         days_with_stories = await get_days_with_stories(data.get("channel").chat_id, day.year, day.month)
 
@@ -331,8 +331,8 @@ async def accept_delete_row_content(call: types.CallbackQuery, state: FSMContext
         )
 
     if temp[1] == "accept":
-        await db.delete_post(post.id)
-        posts = await db.get_stories(channel.chat_id, day)
+        await db.post.delete_post(post.id)
+        posts = await db.story.get_stories(channel.chat_id, day)
 
         days_with_stories = await get_days_with_stories(channel.chat_id, day.year, day.month)
 
