@@ -12,6 +12,18 @@ from main_bot.utils.schedulers import update_exchange_rates_in_db
 from main_bot.utils.report_signature import get_report_signatures
 
 
+
+def serialize_rate(rate):
+    if not rate:
+        return None
+    return {
+        'id': rate.id,
+        'name': rate.name,
+        'rate': rate.rate,
+        'last_update': rate.last_update.isoformat() if rate.last_update else None
+    }
+
+
 async def _get_and_format_exchange_rate(user_id: int, state: FSMContext) -> tuple[dict | None, str | None]:
     """
     Helper function to fetch and format exchange rate data.
@@ -33,7 +45,10 @@ async def _get_and_format_exchange_rate(user_id: int, state: FSMContext) -> tupl
             default_rate.rate, default_rate.name, last_update
         )
 
-        await state.update_data(all_rates=all_rates, exchange_rate=default_rate)
+        await state.update_data(
+            all_rates=[serialize_rate(r) for r in all_rates],
+            exchange_rate=serialize_rate(default_rate)
+        )
         return default_rate, formatted
     return None, None
 
@@ -73,7 +88,7 @@ async def settings_of_exchange_rate(call: types.CallbackQuery, state: FSMContext
     data = await state.get_data()
     await call.message.answer(
         text=text("exchange_rate:start_exchange_rate:settings"),
-        reply_markup=InlineExchangeRate.choose_exchange_rate(data["all_rates"], chosen_exchange_rate_id=data["exchange_rate"].id)
+        reply_markup=InlineExchangeRate.choose_exchange_rate(data["all_rates"], chosen_exchange_rate_id=data["exchange_rate"]['id'])
     )
 
 
@@ -123,16 +138,19 @@ async def back_to_start_exchange_rate(call: types.CallbackQuery, state: FSMConte
 
 async def get_exchange_rate_of_custom_amount(message: types.Message, state: FSMContext):
     data = await state.get_data()
-    exchange_rate = data['exchange_rate'].rate
+    exchange_rate = data['exchange_rate']['rate']
     amount = message.text
     if amount.replace(".", "").isdigit():
+        last_update_str = data['exchange_rate']['last_update']
+        last_update_dt = datetime.fromisoformat(last_update_str) if last_update_str else datetime.now()
+        
         msg_text = text("exchange_rate:start_exchange_rate:calculate_sum").format(
             float(exchange_rate),
             float(amount),
             float(amount) / float(exchange_rate),
             float(amount),
             float(exchange_rate) * float(amount),
-            data['exchange_rate'].last_update.strftime("%H:%M %d.%m.%Y")
+            last_update_dt.strftime("%H:%M %d.%m.%Y")
         )
         
         # Adding signatures
