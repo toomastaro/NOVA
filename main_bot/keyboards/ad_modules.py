@@ -1,12 +1,13 @@
 """
 Клавиатуры для рекламных креативов и закупов.
 """
+
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 
 class InlineAdCreative(InlineKeyboardBuilder):
     """Клавиатуры для рекламных креативов"""
-    
+
     @classmethod
     def create_creative_cancel(cls):
         kb = cls()
@@ -27,17 +28,17 @@ class InlineAdCreative(InlineKeyboardBuilder):
     def creative_list(cls, creatives: list, page: int = 0):
         kb = cls()
         from datetime import datetime
-        
+
         for creative in creatives:
             # Format: 🎨 DD.MM.YYYY Name (N ссылок)
-            ts = getattr(creative, 'created_timestamp', 0)
+            ts = getattr(creative, "created_timestamp", 0)
             date_str = datetime.fromtimestamp(ts).strftime("%d.%m.%Y")
-            
-            slots_count = len(creative.slots) if hasattr(creative, 'slots') else 0
-            
+
+            slots_count = len(creative.slots) if hasattr(creative, "slots") else 0
+
             kb.button(
                 text=f"🎨 {date_str} {creative.name} ({slots_count} ссылок)",
-                callback_data=f"AdCreative|view|{creative.id}"
+                callback_data=f"AdCreative|view|{creative.id}",
             )
         kb.button(text="⬅️ Назад", callback_data="AdBuyMenu|menu")
         kb.adjust(1)
@@ -46,7 +47,9 @@ class InlineAdCreative(InlineKeyboardBuilder):
     @classmethod
     def creative_view(cls, creative_id: int):
         kb = cls()
-        kb.button(text="💰 Создать закуп", callback_data=f"AdPurchase|create|{creative_id}")
+        kb.button(
+            text="💰 Создать закуп", callback_data=f"AdPurchase|create|{creative_id}"
+        )
         kb.button(text="🗑 Удалить", callback_data=f"AdCreative|delete|{creative_id}")
         kb.button(text="⬅️ Назад", callback_data="AdCreative|list")
         kb.adjust(1)
@@ -55,7 +58,17 @@ class InlineAdCreative(InlineKeyboardBuilder):
 
 class InlineAdPurchase(InlineKeyboardBuilder):
     """Клавиатуры для рекламных закупов"""
-    
+
+    @classmethod
+    def ad_buy_main_menu(cls):
+        """Главное меню раздела Закуп"""
+        kb = cls()
+        kb.button(text="🎨 Рекламные креативы", callback_data="AdBuyMenu|creatives")
+        kb.button(text="💰 Рекламные закупы", callback_data="AdBuyMenu|purchases")
+        kb.button(text="⬅️ Назад", callback_data="AdBuyMenu|back")
+        kb.adjust(1)
+        return kb.as_markup()
+
     @classmethod
     def menu(cls):
         return cls.main_menu()
@@ -66,7 +79,9 @@ class InlineAdPurchase(InlineKeyboardBuilder):
         kb.button(text="➕ Создать закуп", callback_data="AdPurchase|create_menu")
         kb.button(text="📋 Мои закупы", callback_data="AdPurchase|list")
         kb.button(text="🌍 Моя статистика", callback_data="AdPurchase|global_stats")
-        kb.button(text="🔄 Проверить статус", callback_data="AdPurchase|check_client_status")
+        kb.button(
+            text="🔄 Проверить статус", callback_data="AdPurchase|check_client_status"
+        )
         kb.button(text="⬅️ Назад", callback_data="AdBuyMenu|menu")
         kb.adjust(1)
         return kb.as_markup()
@@ -75,7 +90,9 @@ class InlineAdPurchase(InlineKeyboardBuilder):
     def creative_selection_menu(cls, creatives: list):
         kb = cls()
         for c in creatives:
-            kb.button(text=f"👇 Выбрать {c.name}", callback_data=f"AdPurchase|create|{c.id}")
+            kb.button(
+                text=f"👇 Выбрать {c.name}", callback_data=f"AdPurchase|create|{c.id}"
+            )
         kb.button(text="⬅️ Назад", callback_data="AdPurchase|menu")
         kb.adjust(1)
         return kb.as_markup()
@@ -96,19 +113,19 @@ class InlineAdPurchase(InlineKeyboardBuilder):
         # links_data is list of dict: {slot_id, original_url, status_text, is_channel}
         for link in links_data:
             # Left button: URL (inactive/noop)
-            kb.button(
-                text=f"{link['original_url']}", 
-                callback_data="noop"
-            )
+            kb.button(text=f"{link['original_url']}", callback_data="noop")
             # Right button: Status/Channel (clickable)
             kb.button(
                 text=f"{link['status_text']}",
-                callback_data=f"AdPurchase|map_link|{purchase_id}|{link['slot_id']}"
+                callback_data=f"AdPurchase|map_link|{purchase_id}|{link['slot_id']}",
             )
-        
+
         kb.button(text="⬅️ Назад", callback_data=f"AdPurchase|view|{purchase_id}")
-        kb.button(text="✅ Сохранить мапинг", callback_data=f"AdPurchase|save_mapping|{purchase_id}")
-        
+        kb.button(
+            text="✅ Сохранить мапинг",
+            callback_data=f"AdPurchase|save_mapping|{purchase_id}",
+        )
+
         # Adjust: 2 columns for links, 2 columns for bottom buttons
         sizes = [2] * len(links_data) + [2]
         kb.adjust(*sizes)
@@ -119,16 +136,13 @@ class InlineAdPurchase(InlineKeyboardBuilder):
         kb = cls()
         kb.button(
             text="📺 Выбрать канал",
-            callback_data=f"AdPurchase|select_channel_list|{purchase_id}|{slot_id}"
+            callback_data=f"AdPurchase|select_channel_list|{purchase_id}|{slot_id}",
         )
         kb.button(
             text="❌ Не трекать",
-            callback_data=f"AdPurchase|set_external|{purchase_id}|{slot_id}"
+            callback_data=f"AdPurchase|set_external|{purchase_id}|{slot_id}",
         )
-        kb.button(
-            text="⬅️ Назад",
-            callback_data=f"AdPurchase|mapping|{purchase_id}"
-        )
+        kb.button(text="⬅️ Назад", callback_data=f"AdPurchase|mapping|{purchase_id}")
         kb.adjust(1)
         return kb.as_markup()
 
@@ -138,12 +152,11 @@ class InlineAdPurchase(InlineKeyboardBuilder):
         for ch in channels:
             kb.button(
                 text=ch.title,
-                callback_data=f"AdPurchase|set_channel|{purchase_id}|{slot_id}|{ch.chat_id}"
+                callback_data=f"AdPurchase|set_channel|{purchase_id}|{slot_id}|{ch.chat_id}",
             )
-        
+
         kb.button(
-            text="⬅️ Назад",
-            callback_data=f"AdPurchase|map_link|{purchase_id}|{slot_id}"
+            text="⬅️ Назад", callback_data=f"AdPurchase|map_link|{purchase_id}|{slot_id}"
         )
         kb.adjust(1)
         return kb.as_markup()
@@ -152,37 +165,41 @@ class InlineAdPurchase(InlineKeyboardBuilder):
     def purchase_list_menu(cls, purchases: list):
         kb = cls()
         from datetime import datetime
-        
+
         # Mapping for pricing types
-        type_ru = {
-            "CPL": "Заявка",
-            "CPS": "Подписка",
-            "FIXED": "Фикс"
-        }
-        
+        type_ru = {"CPL": "Заявка", "CPS": "Подписка", "FIXED": "Фикс"}
+
         for p in purchases:
             # p is AdPurchase object
             # Use comment as name if available, else creative name, else ID
-            raw_name = p.comment if p.comment else getattr(p, 'creative_name', f"Purchase #{p.id}")
+            raw_name = (
+                p.comment
+                if p.comment
+                else getattr(p, "creative_name", f"Purchase #{p.id}")
+            )
             # Truncate to keep button clean
             if len(raw_name) > 20:
                 raw_name = raw_name[:20] + "..."
             name = raw_name
             # Format: 🛒 DD.MM.YYYY Name (Type)
             date_str = datetime.fromtimestamp(p.created_timestamp).strftime("%d.%m.%Y")
-            
-            p_type = p.pricing_type.value if hasattr(p.pricing_type, 'value') else str(p.pricing_type)
+
+            p_type = (
+                p.pricing_type.value
+                if hasattr(p.pricing_type, "value")
+                else str(p.pricing_type)
+            )
             ru_type = type_ru.get(p_type, p_type)
-            
+
             text_str = f"🛒 {date_str} {name} ({ru_type})"
-            
+
             kb.button(text=text_str, callback_data=f"AdPurchase|view|{p.id}")
-        
+
         # Add "Created Post" button in the same line? No, requested "next to Back button"
         # "в списке ... справа от кнопки Назад добавить кнопку создать закуп"
         kb.button(text="⬅️ Назад", callback_data="AdBuyMenu|menu")
         kb.button(text="➕ Создать закуп", callback_data="AdPurchase|create_menu")
-        
+
         # Adjust: 1 column for list items, 2 for navigation row
         sizes = [1] * len(purchases) + [2]
         kb.adjust(*sizes)
@@ -191,32 +208,50 @@ class InlineAdPurchase(InlineKeyboardBuilder):
     @classmethod
     def purchase_view_menu(cls, purchase_id: int):
         kb = cls()
-        kb.button(text="🔗 Мапинг ссылок", callback_data=f"AdPurchase|mapping|{purchase_id}")
-        kb.button(text="📤 Сгенерировать пост", callback_data=f"AdPurchase|gen_post|{purchase_id}")
+        kb.button(
+            text="🔗 Мапинг ссылок", callback_data=f"AdPurchase|mapping|{purchase_id}"
+        )
+        kb.button(
+            text="📤 Сгенерировать пост",
+            callback_data=f"AdPurchase|gen_post|{purchase_id}",
+        )
         kb.button(text="📊 Статистика", callback_data=f"AdPurchase|stats|{purchase_id}")
         kb.button(text="🗑 Удалить", callback_data=f"AdPurchase|delete|{purchase_id}")
         kb.button(text="⬅️ Назад", callback_data="AdPurchase|list")
         kb.adjust(1)
         return kb.as_markup()
-    
+
     @classmethod
     def stats_period_menu(cls, purchase_id: int):
         kb = cls()
-        kb.button(text="📅 24 часа", callback_data=f"AdPurchase|stats_period|{purchase_id}|24h")
-        kb.button(text="📅 7 дней", callback_data=f"AdPurchase|stats_period|{purchase_id}|7d")
-        kb.button(text="📅 30 дней", callback_data=f"AdPurchase|stats_period|{purchase_id}|30d")
-        kb.button(text="📅 Всё время", callback_data=f"AdPurchase|stats_period|{purchase_id}|all")
+        kb.button(
+            text="📅 24 часа",
+            callback_data=f"AdPurchase|stats_period|{purchase_id}|24h",
+        )
+        kb.button(
+            text="📅 7 дней", callback_data=f"AdPurchase|stats_period|{purchase_id}|7d"
+        )
+        kb.button(
+            text="📅 30 дней",
+            callback_data=f"AdPurchase|stats_period|{purchase_id}|30d",
+        )
+        kb.button(
+            text="📅 Всё время",
+            callback_data=f"AdPurchase|stats_period|{purchase_id}|all",
+        )
         kb.button(text="Назад", callback_data=f"AdPurchase|view|{purchase_id}")
         kb.adjust(1)
         return kb.as_markup()
-    
+
     @classmethod
     def global_stats_period_menu(cls):
         kb = cls()
         kb.button(text="📅 24 часа", callback_data="AdPurchase|global_stats_period|24h")
         kb.button(text="📅 7 дней", callback_data="AdPurchase|global_stats_period|7d")
         kb.button(text="📅 30 дней", callback_data="AdPurchase|global_stats_period|30d")
-        kb.button(text="📅 Всё время", callback_data="AdPurchase|global_stats_period|all")
+        kb.button(
+            text="📅 Всё время", callback_data="AdPurchase|global_stats_period|all"
+        )
         kb.button(text="Назад", callback_data="AdPurchase|menu")
         kb.adjust(1)
         return kb.as_markup()

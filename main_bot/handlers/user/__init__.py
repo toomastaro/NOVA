@@ -33,7 +33,7 @@ def get_router():
         stories_router(),
         bots_router(),
         ad_creative.get_router(),
-        ad_buy_menu.router,
+        ad_buy_menu.get_router(),
         subscription_menu.router,
         join_request.get_router(),
     ]
