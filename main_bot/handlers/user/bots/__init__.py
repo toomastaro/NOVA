@@ -10,7 +10,7 @@ def get_router():
         menu.hand_add(),
         settings.hand_add(),
         create_post.hand_add(),
-        content.hand_add(),
+        content.get_router(),
 
         application.hand_add(),
         hello.hand_add(),

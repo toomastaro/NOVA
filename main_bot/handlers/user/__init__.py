@@ -9,11 +9,11 @@ from .bots import get_router as bots_router
 
 def get_router():
     routers = [
-        start.hand_add(),
+        start.get_router(),
         menu.hand_add(),
         support.hand_add(),
         set_resource.hand_add(),
-        commands.hand_add(),
+        commands.get_router(),
         exchange_rate.hand_add(),
         novastat.router,
         profile_router(),
