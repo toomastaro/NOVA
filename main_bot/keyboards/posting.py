@@ -304,6 +304,7 @@ class InlinePosting(InlineKeyboardBuilder):
 
     @classmethod
     def finish_params(cls, obj: Post | Story, data: str = "FinishPostParams"):
+        obj = ensure_obj(obj)
         kb = cls()
 
         if isinstance(obj, Post):
