@@ -5,15 +5,30 @@
 - Обработки изображений для сторис (изменение размера, добавление фона)
 - Обработки видео для сторис (изменение размера, добавление размытого фона)
 - Определения цветов и режимов изображений
+
+Все тяжелые операции выполняются в отдельном потоке (executor), чтобы не блокировать event loop.
 """
 import math
 import os
 import logging
+import asyncio
+import pathlib
+from concurrent.futures import ThreadPoolExecutor
 
 import ffmpeg
 from PIL import Image, ImageDraw, ImageFilter
 
 logger = logging.getLogger(__name__)
+
+# Определяем пути
+CURRENT_DIR = pathlib.Path(__file__).parent.resolve()
+TEMP_DIR = CURRENT_DIR / "temp"
+
+# Создаем папку для временных файлов, если её нет
+TEMP_DIR.mkdir(parents=True, exist_ok=True)
+
+# Пул потоков для тяжелых операций
+_executor = ThreadPoolExecutor(max_workers=4)
 
 
 def get_mode(image: Image) -> str:
@@ -78,12 +93,47 @@ def get_color(image: Image):
     )
 
 
-def get_path(photo, chat_id):
+def _process_image_sync(photo, chat_id) -> str:
     """
-    Обработать фото для сторис (540x960).
-    
-    Изменяет размер изображения, добавляет фон среднего цвета,
-    центрирует изображение.
+    Синхронная версия обработки фото.
+    """
+    try:
+        # Если photo - это путь к файлу, убедимся что это строка или Path
+        
+        with Image.open(photo) as img:
+            mask = Image.new("RGBA", (540, 960), get_color(img))
+
+            if img.width < 540:
+                img = img.resize((540, 960))
+                img.thumbnail((540, 960))
+
+            if img.width > 540:
+                img.thumbnail((540, 960))
+
+            height = int(960 / 2 - img.height / 2)
+
+            mask.paste(
+                img,
+                (0, height),
+                img.convert('RGBA')
+            )
+
+            # Сохраняем во временную директорию
+            # Используем str(TEMP_DIR) для совместимости с save
+            output_filename = f"{chat_id}.png"
+            output_path = TEMP_DIR / output_filename
+            mask.save(str(output_path))
+
+            return str(output_path)
+    except Exception as e:
+        logger.error(f"Ошибка при обработке изображения: {e}", exc_info=True)
+        raise e
+
+
+async def get_path(photo, chat_id) -> str:
+    """
+    Асинхронная обертка для обработки фото.
+    Запускает обработку в executor'е.
     
     Args:
         photo: Путь к файлу или file-like объект с изображением
@@ -92,49 +142,31 @@ def get_path(photo, chat_id):
     Returns:
         Путь к обработанному файлу
     """
-    with Image.open(photo) as img:
-
-        mask = Image.new("RGBA", (540, 960), get_color(img))
-
-        if img.width < 540:
-            img = img.resize((540, 960))
-            img.thumbnail((540, 960))
-
-        if img.width > 540:
-            img.thumbnail((540, 960))
-
-        height = int(960 / 2 - img.height / 2)
-
-        mask.paste(
-            img,
-            (0, height),
-            img.convert('RGBA')
-        )
-
-        path = str(chat_id) + '.png'
-        mask.save(path)
-
-        return path
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(_executor, _process_image_sync, photo, chat_id)
 
 
-def get_path_video(input_path: str, chat_id: int):
+def _process_video_sync(input_path: str, chat_id: int) -> str | None:
     """
-    Обработать видео для сторис (540x960).
-    
-    Для горизонтальных видео добавляет размытый фон,
-    для вертикальных просто изменяет размер.
-    
-    Args:
-        input_path: Путь к исходному видео
-        chat_id: ID чата для формирования имени файла
-        
-    Returns:
-        Путь к обработанному видео или None при ошибке
+    Синхронная версия обработки видео.
     """
+    # Гарантируем строковый путь
+    input_path = str(input_path)
     base_name = f"{abs(chat_id)}"
-    extension = input_path.split('.')[1]
-    tmp_path = f"main_bot/utils/temp/{base_name}_tmp.{extension}"
-    output_path = f"main_bot/utils/temp/{base_name}_final.{extension}"
+    
+    # Получаем расширение безопасно
+    _, extension = os.path.splitext(input_path)
+    if not extension:
+         extension = ".mp4" # Fallback
+    # Убираем точку если она есть (для ffmpeg путей может быть важно, но здесь splitext оставляет точку)
+    # В оригинале было split('.')[1], что ненадежно
+    
+    # Формируем пути
+    tmp_path = TEMP_DIR / f"{base_name}_tmp{extension}"
+    output_path = TEMP_DIR / f"{base_name}_final{extension}"
+
+    tmp_path_str = str(tmp_path)
+    output_path_str = str(output_path)
 
     try:
         probe = ffmpeg.probe(input_path)
@@ -159,32 +191,48 @@ def get_path_video(input_path: str, chat_id: int):
                 )
                 .overlay(ffmpeg.input(input_path), x="(W-w)/2", y="(H-h)/2")
                 .filter("setsar", 1)
-                .output(tmp_path, loglevel="quiet", y=None)
+                .output(tmp_path_str, loglevel="error", y=None) # Changed loglevel to error to reduce noise
                 .run()
             )
+            intermediate_file = tmp_path_str
         else:
             # Для вертикальных видео используем исходное
-            tmp_path = input_path
+            intermediate_file = input_path
 
         # Финальное изменение размера до 540x960
         (
             ffmpeg
-            .input(tmp_path)
+            .input(intermediate_file)
             .filter("scale", 540, 960)
-            .output(output_path, loglevel="quiet", y=None)
+            .output(output_path_str, loglevel="error", y=None)
             .run()
         )
 
-        return output_path
+        return output_path_str
 
     except Exception as e:
-        logger.error(f"Ошибка при обработке видео: {e}")
+        logger.error(f"Ошибка при обработке видео: {e}", exc_info=True)
         return None
     finally:
-        # Очистка временных файлов
-        for f in (input_path, tmp_path):
-            if os.path.exists(f) and f != output_path:
-                try:
-                    os.remove(f)
-                except Exception as ex:
-                    logger.warning(f"Не удалось удалить {f}: {ex}")
+        # Очистка временных файлов (кроме финального и исходного)
+        if 'tmp_path_str' in locals() and os.path.exists(tmp_path_str) and tmp_path_str != output_path_str:
+             try:
+                 os.remove(tmp_path_str)
+             except Exception as ex:
+                 logger.warning(f"Не удалось удалить временный файл {tmp_path_str}: {ex}")
+
+
+async def get_path_video(input_path: str, chat_id: int) -> str | None:
+    """
+    Асинхронная обертка для обработки видео.
+    Запускает ffmpeg в executor'е.
+    
+    Args:
+        input_path: Путь к исходному видео
+        chat_id: ID чата для формирования имени файла
+        
+    Returns:
+        Путь к обработанному видео или None при ошибке
+    """
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(_executor, _process_video_sync, input_path, chat_id)

@@ -8,9 +8,17 @@ logger = logging.getLogger(__name__)
 
 
 async def reset_client_task(client_id: int):
-    logger.info(f"Starting reset for client {client_id}")
+    """
+    Задача полного сброса клиента (MTProto).
     
-    # 1. Set status to RESETTING
+    1. Устанавливает статус RESETTING
+    2. Выходит из всех каналов
+    3. Удаляет записи о каналах
+    4. Сбрасывает поля клиента (статус NEW)
+    """
+    logger.info(f"Запуск сброса клиента {client_id}")
+    
+    # 1. Устанавливаем статус RESETTING
     await db.mt_client.update_mt_client(
         client_id=client_id,
         status='RESETTING',
@@ -19,28 +27,28 @@ async def reset_client_task(client_id: int):
     
     client = await db.mt_client.get_mt_client(client_id)
     if not client:
-        logger.error(f"Client {client_id} not found during reset")
+        logger.error(f"Клиент {client_id} не найден во время сброса")
         return
 
-    # 2. Get all channels
+    # 2. Получаем все каналы
     channels = await db.mt_client_channel.get_channels_by_client(client_id)
     
-    # 3. Leave channels
+    # 3. Выходим из каналов
     if Path(client.session_path).exists():
         async with SessionManager(Path(client.session_path)) as manager:
             for channel in channels:
                 try:
-                    logger.info(f"Client {client_id} leaving channel {channel.channel_id}")
+                    logger.info(f"Клиент {client_id} покидает канал {channel.channel_id}")
                     await manager.leave_channel(channel.channel_id)
                 except Exception as e:
-                    logger.error(f"Error leaving channel {channel.channel_id} for client {client_id}: {e}")
+                    logger.error(f"Ошибка выхода из канала {channel.channel_id} для клиента {client_id}: {e}")
     else:
-        logger.warning(f"Session file not found for client {client_id}, skipping leave_channel")
+        logger.warning(f"Файл сессии не найден для клиента {client_id}, пропуск выхода из каналов")
 
-    # 4. Delete MtClientChannel records
+    # 4. Удаляем записи MtClientChannel
     await db.mt_client_channel.delete_channels_by_client(client_id)
     
-    # 5. Reset MtClient fields
+    # 5. Сбрасываем поля MtClient
     await db.mt_client.update_mt_client(
         client_id=client_id,
         status='NEW',
@@ -50,4 +58,4 @@ async def reset_client_task(client_id: int):
         flood_wait_until=None
     )
     
-    logger.info(f"Client {client_id} reset complete")
+    logger.info(f"Сброс клиента {client_id} завершен")

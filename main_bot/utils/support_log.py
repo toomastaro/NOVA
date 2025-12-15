@@ -3,10 +3,14 @@
 Отслеживает критические ошибки работы Нова помощников.
 """
 import time
+import logging
 from datetime import datetime
 from typing import Optional
-from pydantic import BaseModel
+
 from aiogram import Bot
+from pydantic import BaseModel
+
+logger = logging.getLogger(__name__)
 
 # Конфигурация
 SUPPORT_CHANNEL_ID = -1002049832561
@@ -182,6 +186,7 @@ async def send_support_alert(bot: Bot, alert: SupportAlert) -> None:
     """
     # Проверка на спам
     if not _should_send_alert(alert):
+        logger.info(f"Алерт {alert.event_type} для {alert.client_id} пропущен (spam protection)")
         return
     
     # Форматирование сообщения
@@ -194,6 +199,7 @@ async def send_support_alert(bot: Bot, alert: SupportAlert) -> None:
             text=message,
             parse_mode='HTML'
         )
+        logger.info(f"Отправлен алерт поддержки: {alert.event_type}")
     except Exception as e:
         # Логируем ошибку, но не падаем
-        print(f"Failed to send support alert: {e}")
+        logger.error(f"Не удалось отправить алерт поддержки: {e}", exc_info=True)

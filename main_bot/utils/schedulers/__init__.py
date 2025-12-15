@@ -49,6 +49,9 @@ from .extra import (
     update_exchange_rates_in_db,
 )
 
+from .ad_stats import process_ad_stats
+from config import config
+
 logger = logging.getLogger(__name__)
 
 scheduler_instance: AsyncIOScheduler | None = None
@@ -163,22 +166,8 @@ def init_scheduler(scheduler: AsyncIOScheduler):
     )
     
     # === AD STATS ===
-    # Проверка статистики рекламы через Admin Log (по таймеру из .env)
-    # Импорт внутри функции, чтобы избежать циклического импорта
-    from .ad_stats import ad_stats_worker
-    
-    # We create a task that runs the infinite loop worker.
-    # But ad_stats_worker is written as a "while True" loop.
-    # APScheduler usually manages intervals itself.
-    # If I add it as a job, it should NOT be a while loop inside, but a single execution function.
-    # REFACTOR required: ad_stats_worker should be a single execution, scheduled by IntervalTrigger.
-    
-    # Let's fix ad_stats.py first to be a single-run function, or wrap it properly.
-    # Actually, the user requirement was "scheduler that runs by timer".
-    # APScheduler is perfect for this. I will use 'process_ad_stats' directly with IntervalTrigger.
-    
-    from .ad_stats import process_ad_stats
-    from config import config
+    # Сбор статистики рекламы (Admin Log)
+    # Используем `process_ad_stats` с IntervalTrigger
     
     ad_timer = int(config.zakup_timer or 600)
     

@@ -4,6 +4,7 @@
 Этот модуль содержит функции для:
 - Обновления курсов валют
 """
+import asyncio
 import logging
 from datetime import datetime, timezone, timedelta
 
@@ -21,10 +22,7 @@ async def update_exchange_rates_in_db():
     Если курсы отсутствуют в БД, создает их из JSON файла.
     """
     # Получение текущего времени по МСК
-    last_update = datetime.now(timezone(timedelta(hours=3)))
-    last_update = last_update.replace(tzinfo=None)
-    
-    import asyncio
+    last_update = datetime.now(timezone(timedelta(hours=3))).replace(tzinfo=None)
     
     # Получение новых курсов валют (Retry logic)
     new_update = {}
@@ -35,12 +33,12 @@ async def update_exchange_rates_in_db():
             if any(val > 0 for val in new_update.values()):
                 break
         except Exception as e:
-            logger.error(f"Attempt {attempt+1} failed to fetch rates: {e}")
+            logger.error(f"Попытка {attempt+1} не удалась при получении курсов: {e}")
         
-        logger.warning(f"Attempt {attempt+1}: All rates zero or failed. Retrying in 5s...")
+        logger.warning(f"Попытка {attempt+1}: Все курсы нулевые или ошибка. Повтор через 5с...")
         await asyncio.sleep(5)
     
-    logger.info(f"Exchange Rates fetched: {new_update}")
+    logger.info(f"Получены курсы валют: {new_update}")
 
     # Проверка наличия курсов в БД
     all_exchange_rate = await db.exchange_rate.get_all_exchange_rate()
@@ -52,7 +50,7 @@ async def update_exchange_rates_in_db():
             await db.exchange_rate.add_exchange_rate(
                 id=ed_id,
                 name=exchange_rate["name"],
-                rate=new_update[ed_id],
+                rate=new_update.get(ed_id, 0.0), # Use .get for safety
                 last_update=last_update
             )
     else:

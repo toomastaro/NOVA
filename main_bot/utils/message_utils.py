@@ -8,6 +8,7 @@
 """
 import os
 import logging
+import pathlib
 
 from aiogram import types, Bot
 from aiogram.fsm.context import FSMContext
@@ -19,6 +20,7 @@ from main_bot.database.story.model import Story
 from main_bot.keyboards import keyboards
 from main_bot.keyboards.posting import ensure_obj # Use existing helper
 from main_bot.utils.schemas import MessageOptions, StoryOptions, MessageOptionsHello, MessageOptionsCaptcha
+from main_bot.utils.file_utils import TEMP_DIR
 from instance_bot import bot as main_bot_obj
 
 logger = logging.getLogger(__name__)
@@ -218,13 +220,16 @@ async def answer_message_bot(bot: Bot, chat_id: int, message_options: MessageOpt
     )
 
     # Скачиваем медиафайл если есть
+    filepath = None
     try:
-        filepath = None
         if file_id:
             get_file = await main_bot_obj.get_file(file_id)
-            filepath = "main_bot/utils/temp/hello_message_media_{}".format(
-                get_file.file_path.split("/")[-1]
-            )
+            # Используем pathlib для формирования безопасного пути
+            filename = f"hello_message_media_{pathlib.Path(get_file.file_path).name}"
+            # Используем общий TEMP_DIR
+            filepath_obj = TEMP_DIR / filename
+            filepath = str(filepath_obj)
+            
             await main_bot_obj.download(file_id, filepath)
     except Exception as e:
         logger.error(f"Ошибка при скачивании медиафайла: {e}")
@@ -270,14 +275,15 @@ async def answer_message_bot(bot: Bot, chat_id: int, message_options: MessageOpt
         dump.pop("text", None)
 
     # Отправляем сообщение
+    post_message = None
     try:
         post_message = await cor(**dump)
     except Exception as e:
         logger.error(f"Ошибка при отправке сообщения: {e}")
-        return None
+        # Не возвращаем сразу, чтобы сработал finally/cleanup (здесь явного finally нет, но есть блок ниже)
 
     # Удаляем временный файл
-    if filepath:
+    if filepath and os.path.exists(filepath):
         try:
             os.remove(filepath)
         except Exception as e:

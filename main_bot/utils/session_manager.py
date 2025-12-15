@@ -1,3 +1,9 @@
+"""
+Менеджер сессий Telegram клиентов.
+
+Управляет инициализацией, блокировками и использованием Telethon клиентов.
+Обеспечивает потокобезопасный доступ к файлам сессий.
+"""
 import asyncio
 import logging
 from pathlib import Path
@@ -37,6 +43,7 @@ class SessionManager:
         await self.close()
 
     async def init_client(self):
+        """Инициализация клиента с блокировкой файла сессии"""
         # Получаем или создаем блокировку для этого файла сессии
         path_str = str(self.session_path)
         if path_str not in self._locks:
@@ -64,13 +71,14 @@ class SessionManager:
                 pass
                 
         except Exception as e:
-            print(f"Ошибка инициализации клиента: {e}")
+            logger.error(f"Ошибка инициализации клиента: {e}")
             # Если возникла ошибка, освобождаем блокировку
             if self._session_lock and self._session_lock.locked():
                 self._session_lock.release()
                 self._session_lock = None
 
     async def close(self):
+        """Закрытие соединения и освобождение блокировки"""
         if self.client:
             await self.client.disconnect()
             
@@ -79,6 +87,7 @@ class SessionManager:
             self._session_lock = None
 
     async def me(self):
+        """Получения информации о текущем пользователе"""
         if not self.client:
             return None
         return await self.client.get_me()
@@ -232,6 +241,7 @@ class SessionManager:
             return True
 
     async def send_story(self, chat_id: int, file_path: str, options: StoryOptions) -> bool:
+        """Отправка истории в канал (MTProto)."""
         try:
             caption, entities = utils.html.parse(options.caption)
             peer = await self.client.get_input_entity(chat_id)
@@ -274,6 +284,7 @@ class SessionManager:
             raise e
 
     async def get_views(self, chat_id: int, messages_ids: List[int]) -> Optional[types.messages.MessageViews]:
+        """Получить количество просмотров для сообщений."""
         try:
             peer = await self.client.get_input_entity(chat_id)
             return await self.client(functions.messages.GetMessagesViewsRequest(
@@ -286,6 +297,7 @@ class SessionManager:
             return None
 
     async def leave_channel(self, chat_id: int) -> bool:
+        """Выйти из канала."""
         try:
             peer = await self.client.get_input_entity(chat_id)
             await self.client(functions.channels.LeaveChannelRequest(channel=peer))

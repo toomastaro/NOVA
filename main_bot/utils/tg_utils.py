@@ -27,7 +27,7 @@ from main_bot.utils.session_manager import SessionManager
 logger = logging.getLogger(__name__)
 
 
-async def create_emoji(user_id: int, photo_bytes=None):
+async def create_emoji(user_id: int, photo_bytes=None) -> str:
     """
     Создать custom emoji из фотографии пользователя.
     
@@ -63,12 +63,16 @@ async def create_emoji(user_id: int, photo_bytes=None):
 
             # Сохраняем обработанное изображение
             output_path = f"main_bot/utils/temp/{user_id}.png"
+            # Ensure directory exists
+            os.makedirs(os.path.dirname(output_path), exist_ok=True)
+            
             result = new_image.copy()
             result.putalpha(mask)
             result.save(output_path)
 
             # Генерируем уникальное имя стикер-пака
-            set_id = ''.join(random.sample(string.ascii_letters, k=10)) + '_by_' + (await main_bot_obj.get_me()).username
+            bot_info = await main_bot_obj.get_me()
+            set_id = ''.join(random.sample(string.ascii_letters, k=10)) + '_by_' + bot_info.username
 
         # Создаем стикер-пак
         try:
@@ -89,17 +93,22 @@ async def create_emoji(user_id: int, photo_bytes=None):
                 sticker_type='custom_emoji'
             )
             r = await main_bot_obj.get_sticker_set(set_id)
-            await main_bot_obj.session.close()
-            emoji_id = r.stickers[0].custom_emoji_id
-            logger.info(f"Создан custom emoji для пользователя {user_id}: {emoji_id}")
+            # await main_bot_obj.session.close() # Don't close session here, shared bot object
+            if r.stickers:
+                emoji_id = r.stickers[0].custom_emoji_id
+                logger.info(f"Создан custom emoji для пользователя {user_id}: {emoji_id}")
+            else:
+                logger.warning(f"Стикер-пак создан, но стикеров нет для {user_id}")
+
         except Exception as e:
             logger.error(f"Ошибка создания стикера: {e}")
 
         # Удаляем временный файл
         try:
-            os.remove(output_path)
-        except:
-            pass
+            if os.path.exists(output_path):
+                os.remove(output_path)
+        except Exception as e:
+            logger.warning(f"Не удалось удалить временный файл {output_path}: {e}")
 
     except Exception as e:
         logger.error(f"Ошибка обработки фото для emoji: {e}")
@@ -158,16 +167,17 @@ async def get_editors(call: types.CallbackQuery, chat_id: int):
         "@{}".format(i.user.username)
         if i.user.username else i.user.full_name
         for i in editors
+        if not isinstance(i, str) # Filter out error strings if mixed
     )
 
 
-
-
-
 async def set_channel_session(chat_id: int):
+    """
+    Настройка сессии MT клиента для канала.
+    Проверяет права бота, создает инвайт, назначает свободный клиент с round-robin.
+    """
     # 0. Проверить что бот является членом канала (с retry)
     bot_is_admin = False
-    from aiogram.enums import ChatMemberStatus
     
     for attempt in range(3):
         try:
@@ -191,7 +201,7 @@ async def set_channel_session(chat_id: int):
     
     # Если после всех попыток бот не админ - возвращаем ошибку
     if not bot_is_admin:
-        error_msg = "Бот не является администратором канала после 3 попыток"
+        error_msg = "Bot Not Admin"
         logger.error(f"❌ {error_msg} в {chat_id}")
         return {
             "error": "Bot Not Admin",
@@ -199,16 +209,18 @@ async def set_channel_session(chat_id: int):
         }
     
     # NEW: Create invite link for the assistant
+    invite_link = None
     try:
         invite = await main_bot_obj.create_chat_invite_link(
             chat_id=chat_id,
             name="Nova Assistant Auto",
             creates_join_request=False
         )
+        invite_link = invite.invite_link
         logger.info(f"Создана инвайт-ссылка для канала {chat_id}")
     except Exception as e:
         logger.error(f"Ошибка создания ссылки приглашения: {e}")
-        return {"error": "Invite Creation Failed", "message": str(e)}
+        return {"error": "Invite Creation Failed", "message": f"Не удалось создать ссылку: {str(e)}"}
 
     # 1. Получить информацию о канале для round-robin
     channel = await db.channel.get_channel_by_chat_id(chat_id)
@@ -231,8 +243,8 @@ async def set_channel_session(chat_id: int):
         return {"error": "Session File Not Found"}
         
     async with SessionManager(session_path) as manager:
-        if not manager:
-            logger.error(f"Не удалось создать SessionManager для клиента {client.id}")
+        if not manager.client: # Check if client initialized
+            logger.error(f"Не удалось инициализировать SessionManager для клиента {client.id}")
             return {"error": "Session Manager Failed"}
         
         # Получить user_id клиента
@@ -245,7 +257,11 @@ async def set_channel_session(chat_id: int):
         logger.info(f"Клиент {client.id} пробует вступить в канал {chat_id}...")
         join_success = False
         try:
-            join_success = await manager.join(invite.invite_link, max_attempts=5)
+            if invite_link:
+                join_success = await manager.join(invite_link, max_attempts=5)
+            else:
+                logger.warning("Ссылка приглашения отсутствует, пропуск вступления")
+                
             if join_success:
                  logger.info(f"✅ Клиент {client.id} успешно вступил в канал {chat_id}")
             else:
@@ -303,8 +319,7 @@ async def background_join_channel(chat_id: int, user_id: int = None):
     Попытка добавить клиента в канал в фоне с ретраями.
     Делает 3 попытки с экспоненциальной задержкой.
     """
-    import asyncio
-    
+    # Try adding client with exponential backoff
     for attempt in range(3):
         try:
             # Используем существующую логику set_channel_session
@@ -334,4 +349,3 @@ async def background_join_channel(chat_id: int, user_id: int = None):
     
     # Если все попытки исчерпаны
     logger.error(f"Все попытки добавления клиента в канал {chat_id} исчерпаны")
-

@@ -9,6 +9,7 @@ import asyncio
 import logging
 import os
 import time
+from pathlib import Path
 
 from aiogram import Bot, types
 from hello_bot.database.db import Database
@@ -19,6 +20,7 @@ from main_bot.database.db_types import Status
 from main_bot.database.user_bot.model import UserBot
 from main_bot.utils.bot_manager import BotManager
 from main_bot.utils.schemas import MessageOptionsHello
+from main_bot.utils.file_utils import TEMP_DIR
 
 logger = logging.getLogger(__name__)
 
@@ -67,17 +69,17 @@ async def start_delete_bot_posts():
 
         for bot_id in list(messages.keys()):
             user_bot = await db.user_bot.get_bot_by_id(int(bot_id))
-            asyncio.create_task(delete_bot_posts(user_bot, messages[bot_id]["message_ids"]))
+            if user_bot:
+                asyncio.create_task(delete_bot_posts(user_bot, messages[bot_id]["message_ids"]))
         
         # Обновляем delete_time, чтобы не пытаться удалять снова и снова
-        # Статус DELETED пока не добавляем - его нет в enum базы данных
         await db.bot_post.update_bot_post(
             post_id=bot_post.id,
             delete_time=None
         )
 
 
-async def send_bot_messages(other_bot: Bot, bot_post: BotPost, users, filepath):
+async def send_bot_messages(other_bot: Bot, bot_post: BotPost, users, filepath: Path | str | None):
     """
     Отправить сообщения через бота всем пользователям.
     
@@ -91,48 +93,37 @@ async def send_bot_messages(other_bot: Bot, bot_post: BotPost, users, filepath):
         Словарь с результатами отправки
     """
     message_options = MessageOptionsHello(**bot_post.message)
+    file_input = types.FSInputFile(str(filepath)) if filepath else None
 
     # Определяем тип сообщения и соответствующую функцию отправки
     if message_options.text:
         cor = other_bot.send_message
     elif message_options.photo:
         cor = other_bot.send_photo
-        message_options.photo = types.FSInputFile(filepath)
+        message_options.photo = file_input
     elif message_options.video:
         cor = other_bot.send_video
-        message_options.video = types.FSInputFile(filepath)
+        message_options.video = file_input
     else:
         cor = other_bot.send_animation
-        message_options.animation = types.FSInputFile(filepath)
+        message_options.animation = file_input
 
     options = message_options.model_dump()
 
-    # Удаляем неиспользуемые поля
-    try:
-        options.pop("show_caption_above_media")
-        options.pop("disable_web_page_preview")
-        options.pop("has_spoiler")
-    except KeyError:
-        pass
+    # Удаляем неиспользуемые поля (Telegram API строг к лишним полям)
+    keys_to_remove = ["show_caption_above_media", "disable_web_page_preview", "has_spoiler"]
+    for key in keys_to_remove:
+        options.pop(key, None)
 
-    # Удаляем поля в зависимости от типа сообщения
+    # Удаляем взаимоисключающие поля медиа
     if message_options.text:
-        options.pop("photo")
-        options.pop("video")
-        options.pop("animation")
-        options.pop("caption")
+        for k in ["photo", "video", "animation", "caption"]: options.pop(k, None)
     elif message_options.photo:
-        options.pop("video")
-        options.pop("animation")
-        options.pop("text")
+        for k in ["video", "animation", "text"]: options.pop(k, None)
     elif message_options.video:
-        options.pop("photo")
-        options.pop("animation")
-        options.pop("text")
+        for k in ["photo", "animation", "text"]: options.pop(k, None)
     else:  # animation
-        options.pop("photo")
-        options.pop("video")
-        options.pop("text")
+        for k in ["photo", "video", "text"]: options.pop(k, None)
 
     options['parse_mode'] = 'HTML'
 
@@ -167,27 +158,15 @@ async def send_bot_messages(other_bot: Bot, bot_post: BotPost, users, filepath):
 async def process_bot(user_bot: UserBot, bot_post: BotPost, users, filepath):
     """
     Обработать отправку через бота.
-    
-    Args:
-        user_bot: Объект пользовательского бота
-        bot_post: Объект поста для рассылки
-        users: Список ID пользователей
-        filepath: Путь к медиафайлу
-        
-    Returns:
-        Результаты отправки
-        
-    Raises:
-        Exception: При проблемах с токеном или статусом бота
     """
     async with BotManager(user_bot.token) as bot_manager:
         validate = await bot_manager.validate_token()
 
         if not validate:
-            raise Exception("TOKEN")
+            raise Exception("TOKEN_INVALID")
         status = await bot_manager.status()
         if not status:
-            raise Exception("STATUS")
+            raise Exception("STATUS_INVALID")
 
         return await send_bot_messages(
             other_bot=bot_manager.bot,
@@ -200,12 +179,6 @@ async def process_bot(user_bot: UserBot, bot_post: BotPost, users, filepath):
 async def send_bot_post(bot_post: BotPost):
     """
     Отправить пост через ботов.
-    
-    Обрабатывает отправку поста через всех ботов, привязанных к каналам.
-    Использует семафор для ограничения параллельных запросов.
-    
-    Args:
-        bot_post: Объект поста для отправки
     """
     logger.info(f"🚀 Начинаем обработку рассылки BotPost ID: {bot_post.id}")
     users_count = 0
@@ -225,18 +198,22 @@ async def send_bot_post(bot_post: BotPost):
 
     filepath = None
     if file_id:
-        get_file = await bot.get_file(file_id)
-        filepath = "main_bot/utils/temp/mail_{}".format(
-            get_file.file_path.split("/")[-1]
-        )
+        try:
+            get_file = await bot.get_file(file_id)
+            # Используем TEMP_DIR
+            filename = f"mail_{Path(get_file.file_path).name}"
+            filepath = TEMP_DIR / filename
+            await bot.download(file_id, str(filepath))
+        except Exception as e:
+            logger.error(f"Ошибка загрузки файла для рассылки: {e}")
+            return # Прерываем, если файл не загружен
 
     tasks = []
-    user_bot_objects = []
-
-    # Подготовка задач для каждого канала
+    
+    # 2. Подготовка задач для каждого канала
     unique_bot_ids = set()
     
-    # 1. Сначала определяем уникальных ботов из выбранных каналов
+    # Сначала определяем уникальных ботов из выбранных каналов
     for chat_id in bot_post.chat_ids:
         try:
              # ВАЖНО: chat_ids здесь это именно ID каналов (Telegram ID), как выбрал юзер.
@@ -248,7 +225,7 @@ async def send_bot_post(bot_post: BotPost):
                  logger.warning(f"⚠️ Канал с ID {chat_id} не найден в базе данных.")
                  continue
 
-             # 2. Пробуем найти настройки по Telegram Chat ID (наиболее вероятно)
+             # 2. Пробуем найти настройки по Telegram Chat ID
              channel_settings = await db.channel_bot_settings.get_channel_bot_setting(
                 chat_id=channel.chat_id
              )
@@ -262,14 +239,14 @@ async def send_bot_post(bot_post: BotPost):
 
              if channel_settings and channel_settings.bot_id:
                  unique_bot_ids.add(channel_settings.bot_id)
-                 logger.info(f"✅ Для канала {channel.title} найден бот ID: {channel_settings.bot_id} (Settings ID: {channel_settings.id})")
+                 logger.info(f"✅ Для канала {channel.title} найден бот ID: {channel_settings.bot_id}")
              else:
-                 logger.warning(f"⚠️ Для канала {channel.title} (ID: {channel.id}, ChatID: {channel.chat_id}) настройки НЕ найдены ни по одному ключу.")
+                 logger.warning(f"⚠️ Для канала {channel.title} (ID: {channel.id}) настройки НЕ найдены.")
         except Exception as e:
              logger.error(f"❌ Ошибка при разрешении бота для канала {chat_id}: {e}")
              continue
 
-    # 2. Итерируем по уникальным ботам
+    # 3. Итерируем по уникальным ботам
     for bot_id in unique_bot_ids:
         user_bot = await db.user_bot.get_bot_by_id(int(bot_id))
         
@@ -284,7 +261,7 @@ async def send_bot_post(bot_post: BotPost):
         linked_settings = await db.channel_bot_settings.get_all_channels_in_bot_id(bot_id)
         
         for setting in linked_settings:
-            # setting.id - это Telegram Chat ID канала (как мы выяснили ранее)
+            # setting.id - это Telegram Chat ID канала
             linked_channel = await db.channel.get_channel_by_chat_id(setting.id)
             
             if linked_channel and linked_channel.subscribe:
@@ -295,35 +272,35 @@ async def send_bot_post(bot_post: BotPost):
                     break
         
         if not has_active_subscription:
-            logger.warning(f"⚠️ Бот {user_bot.title} (ID: {bot_id}) не имеет активных подписок ни на одном канале. Рассылка отменена.")
+            logger.warning(f"⚠️ Бот {user_bot.title} (ID: {bot_id}) не имеет активных подписок. Рассылка отменена.")
             continue
 
         other_db = Database()
         other_db.schema = user_bot.schema
 
         # Получаем всех пользователей бота
-        raw_users = await other_db.get_all_users()
-        # Extract IDs if records are returned
-        users = [u.id if hasattr(u, 'id') else u for u in raw_users]
-        logger.info(f"👥 Найдено {len(users)} пользователей для бота {user_bot.title} (ID: {bot_id})")
-        
-        users_count += len(users)
+        try:
+            raw_users = await other_db.get_all_users()
+            # Extract IDs if records are returned
+            users = [u.id if hasattr(u, 'id') else u for u in raw_users]
+            logger.info(f"👥 Найдено {len(users)} пользователей для бота {user_bot.title} (ID: {bot_id})")
+            
+            users_count += len(users)
 
-        tasks.append(
-            process_semaphore(user_bot, bot_post, users, filepath)
-        )
+            tasks.append(
+                process_semaphore(user_bot, bot_post, users, filepath)
+            )
+        except Exception as e:
+            logger.error(f"Ошибка получения пользователей для бота {bot_id}: {e}")
+            continue
 
     success_count = 0
     message_ids = {}
 
     start_timestamp = int(time.time())
-    end_timestamp = int(time.time())
     
     # Выполнение всех задач
     if tasks:
-        if file_id and filepath:
-            await bot.download(file_id, filepath)
-
         result = await asyncio.gather(*tasks, return_exceptions=True)
         for i in result:
             if not isinstance(i, dict):
@@ -336,20 +313,13 @@ async def send_bot_post(bot_post: BotPost):
                  message_ids[bot_id]["message_ids"] = res["message_ids"]
 
     # Удаление временного файла
-    if file_id and filepath:
+    if filepath:
         try:
             os.remove(filepath)
         except Exception as e:
             logger.error(f"Ошибка при удалении файла {filepath}: {e}", exc_info=True)
 
-    # Обновление статуса поста - здесь мы используем backup_message_id только как ссылку в БД
-
-    # Удаление временного файла
-    if file_id and filepath:
-        try:
-            os.remove(filepath)
-        except Exception as e:
-            logger.error(f"Ошибка при удалении файла {filepath}: {e}", exc_info=True)
+    end_timestamp = int(time.time())
 
     # Обновление статуса поста
     await db.bot_post.update_bot_post(
@@ -366,18 +336,22 @@ async def send_bot_post(bot_post: BotPost):
 async def send_bot_posts():
     """
     Периодическая задача: отправка постов через ботов.
-    
-    Получает все посты, готовые к отправке, и запускает их обработку.
     """
+    try:
+        posts = await db.bot_post.get_bot_post_for_send()
+        if posts:
+            logger.info(f"🔎 Найдено {len(posts)} постов для рассылки.")
+        if not posts:
+            return
 
-    posts = await db.bot_post.get_bot_post_for_send()
-    if posts:
-        logger.info(f"🔎 Найдено {len(posts)} постов для рассылки.")
-    if not posts:
-        return
+        tasks = []
+        for post in posts:
+            # Создаем таск и не ждем его завершения здесь, 
+            # чтобы рассылка одного поста не блокировала поиск новых?
+            # В оригинале было asyncio.create_task и потом gather.
+            # Если постов много, это ок.
+            tasks.append(asyncio.create_task(send_bot_post(post)))
 
-    tasks = []
-    for post in posts:
-        asyncio.create_task(send_bot_post(post))
-
-    await asyncio.gather(*tasks, return_exceptions=True)
+        await asyncio.gather(*tasks, return_exceptions=True)
+    except Exception as e:
+        logger.error(f"Ошибка в цикле рассылки ботов: {e}", exc_info=True)

@@ -1,12 +1,17 @@
 import asyncio
 import uuid
-
+import logging
 from httpx import AsyncClient
 
 from config import Config
 
+logger = logging.getLogger(__name__)
+
 
 class Platega:
+    """
+    Класс для работы с платежным шлюзом Platega.
+    """
     def __init__(self, merchant_id: str, secret_key: str, base_url: str = 'https://app.platega.io'):
         self.base_url = base_url
         self.headers = {
@@ -19,10 +24,10 @@ class Platega:
             headers=self.headers
         )
 
-    async def create_invoice(self, order_id: str, amount: float, description: str):
-        import logging
-        logger = logging.getLogger(__name__)
-
+    async def create_invoice(self, order_id: str, amount: float, description: str) -> dict:
+        """
+        Создать платеж.
+        """
         params = {
           "paymentMethod": 2,
           "id": order_id,
@@ -36,52 +41,49 @@ class Platega:
         }
 
         try:
-            logger.info(f"Platega Creating invoice: {params}")
+            logger.info(f"Platega Создание счета: {params}")
             res = await self.client.post('/transaction/process', json=params)
             
-            logger.info(f"Platega Response Status: {res.status_code}")
-            logger.info(f"Platega Response Body: {res.text}")
+            logger.info(f"Platega Статус ответа: {res.status_code}")
+            logger.info(f"Platega Тело ответа: {res.text}")
 
             res.raise_for_status()
             res_json = res.json()
             
-            # Map response fields to what handler expects
+            # Маппинг полей ответа для обработчика
             if 'redirect' in res_json:
                 res_json['pay_url'] = res_json['redirect']
             
-            # Response uses 'transactionId', but we treat our 'order_id' as the main ID.
-            # Handler expects 'id'. Platega response might not have 'id' key, or 'transactionId' matches order_id (UUID).
-            # Let's ensure 'id' is present.
+            # Ответ использует 'transactionId', но мы используем 'order_id' как основной ID.
+            # Обработчик ожидает 'id'. В ответе Platega может не быть 'id', или 'transactionId' совпадает с order_id.
             if 'transactionId' in res_json:
                 res_json['id'] = res_json['transactionId']
             else:
-                res_json['id'] = order_id # Fallback to our generated ID if not returned
+                res_json['id'] = order_id # Fallback к нашему ID
 
-            # Attempt H2H calls only if needed/successful, and don't block main success
+            # Попытка H2H (пропускаем в текущей версии, так как redirect достаточно)
             try:
-                # If we have a redirect URL, H2H might be secondary or for QR display.
-                # Only try if we really suspect we need a direct QR string, but usually redirect is enough.
-                # Check if it fails/logs error. Logs ended abruptly in user report?
-                # "h2h_url = await self.h2h_invoice(invoice_id=order_id)"
-                # If this is for SBP QR, maybe we need it. But 'redirect' works for flow.
                 pass 
             except Exception as e:
-                logger.error(f"Platega H2H fetch error: {e}")
+                logger.error(f"Ошибка получения H2H ссылки Platega: {e}")
 
             return res_json
         except Exception as e:
-            logger.error(f"Platega Create Invoice Error: {e}", exc_info=True)
+            logger.error(f"Ошибка создания счета Platega: {e}", exc_info=True)
             return {}
 
     async def h2h_invoice(self, invoice_id: str):
+        """Получить H2H данные (QR код)"""
         res = await self.client.get(f'/h2h/{invoice_id}')
         return res.json().get("qr")
 
     async def check_invoice(self, invoice_id: str):
+        """Проверить статус транзакции"""
         res = await self.client.get(f'/transaction/{invoice_id}')
         return res.json()
 
-    async def is_paid(self, invoice_id: str):
+    async def is_paid(self, invoice_id: str) -> bool:
+        """Проверить, оплачен ли счет"""
         payment = await self.check_invoice(invoice_id)
 
         if not payment:
@@ -89,22 +91,19 @@ class Platega:
 
         return payment.get('status') == 'CONFIRMED'
     
-    async def cancel_invoice(self, invoice_id: str):
+    async def cancel_invoice(self, invoice_id: str) -> bool:
         """Отменить платеж Platega"""
-        import logging
-        logger = logging.getLogger(__name__)
-        
         try:
-            logger.info(f"Platega Cancelling invoice: {invoice_id}")
+            logger.info(f"Platega Отмена счета: {invoice_id}")
             res = await self.client.post(f'/transaction/{invoice_id}/cancel')
-            logger.info(f"Platega Cancel Response Status: {res.status_code}")
-            logger.info(f"Platega Cancel Response Body: {res.text}")
+            logger.info(f"Platega Статус отмены: {res.status_code}")
+            logger.info(f"Platega Тело отмены: {res.text}")
             
             if res.status_code == 200:
                 return True
             return False
         except Exception as e:
-            logger.error(f"Platega Cancel Invoice Error: {e}", exc_info=True)
+            logger.error(f"Ошибка отмены счета Platega: {e}", exc_info=True)
             return False
 
 
@@ -115,12 +114,15 @@ platega_api = Platega(
 
 
 async def main():
+    # Тестовый запуск
+    # В продакшене этот код не вызывается
+    logging.basicConfig(level=logging.INFO)
     r = await platega_api.create_invoice(
         order_id=str(uuid.uuid4()),
         amount=10,
         description='123'
     )
-    print(r)
+    logger.info(f"Результат теста: {r}")
 
 
 if __name__ == '__main__':

@@ -19,7 +19,7 @@ from main_bot.utils.session_manager import SessionManager
 
 logger = logging.getLogger(__name__)
 
-# Constants
+# Константы
 TIMEZONE = "Europe/Moscow"
 HORIZONS = [24, 48, 72]
 ANOMALY_FACTOR = 10
@@ -59,32 +59,31 @@ class NovaStatService:
         return int(pts[-1][1])
 
     async def get_external_client(self) -> Optional[tuple]:
-        """Получить наименее используемого external MtClient и SessionManager (least-used алгоритм)"""
-        # Используем least-used алгоритм
+        """Получить наименее используемого внешнего MtClient и SessionManager (алгоритм least-used)"""
         client = await db.mt_client.get_next_external_client()
         
         if not client:
-            logger.warning("No active external clients found")
+            logger.warning("Нет активных внешних клиентов")
             return None
         
-        logger.info(f"🔄 Selected external client {client.id} ({client.alias}) with usage_count={client.usage_count}")
+        logger.info(f"🔄 Выбран внешний клиент {client.id} ({client.alias}) с использованием={client.usage_count}")
         
         session_path = Path(client.session_path)
         
         if not session_path.exists():
-            logger.error(f"Session file not found for external client {client.id}: {session_path}")
+            logger.error(f"Файл сессии не найден для внешнего клиента {client.id}: {session_path}")
             return None
         
         manager = SessionManager(session_path)
         await manager.init_client()
         
         if not manager.client:
-            logger.error(f"Failed to init client for external client {client.id}")
+            logger.error(f"Не удалось инициализировать клиент для внешнего клиента {client.id}")
             return None
         
         # Увеличить счетчик использования
         await db.mt_client.increment_usage(client.id)
-        logger.debug(f"Incremented usage_count for client {client.id}")
+        logger.debug(f"Увеличен счетчик использования для клиента {client.id}")
         
         return (client, manager)
 
@@ -134,7 +133,7 @@ class NovaStatService:
                 if views.get(24, 0) > 0:
                     return data
                 
-                logger.info(f"Cached views are 0 for {channel_identifier}, forcing refresh.")
+                logger.info(f"В кэше 0 просмотров для {channel_identifier}, принудительное обновление.")
         
         # 2. Проверить, идет ли обновление
         cache = await db.novastat_cache.get_cache(channel_identifier, horizon)
@@ -145,7 +144,7 @@ class NovaStatService:
             return None
         
         # 3. Если кэша нет или он устарел - обновить синхронно (ждать результата)
-        logger.info(f"Cache miss for {channel_identifier}, fetching fresh data...")
+        logger.info(f"Промах кэша для {channel_identifier}, получение свежих данных...")
         await self.async_refresh_stats(channel_identifier, days_limit, horizon, bot=bot)
         
         # 4. Получить обновленные данные из кэша
@@ -203,7 +202,7 @@ class NovaStatService:
                             channel_id = ch.chat_id
                             break
             except Exception as e:
-                logger.info(f"Could not determine if channel {channel_identifier} is ours: {e}")
+                logger.info(f"Не удалось определить, является ли канал {channel_identifier} нашим: {e}")
             
             # Шаг 2: Если канал "свой", использовать данные из БД (обновляемые ежечасно)
             if our_channel and channel_id:
@@ -212,7 +211,7 @@ class NovaStatService:
                 # Если подписчиков нет, пробуем получить их прямо сейчас
                 if subs <= 0:
                     try:
-                        logger.info(f"Subscribers count is 0 for {channel_id}, trying to fetch...")
+                        logger.info(f"Количество подписчиков 0 для {channel_id}, попытка получения...")
                         
                         updated_via_bot = False
                         
@@ -225,9 +224,9 @@ class NovaStatService:
                                     our_channel.subscribers_count = count
                                     subs = count
                                     updated_via_bot = True
-                                    logger.info(f"Updated initial subscribers count for {our_channel.chat_id} via Bot API: {subs}")
+                                    logger.info(f"Обновлено количество подписчиков для {our_channel.chat_id} через Bot API: {subs}")
                             except Exception as e_bot:
-                                logger.info(f"Bot API subs fetch failed for {channel_id}: {e_bot}")
+                                logger.info(f"Ошибка получения подписчиков через Bot API для {channel_id}: {e_bot}")
                         
                         # 2. Если Bot API не сработал - пробуем External Client
                         if not updated_via_bot:
@@ -252,20 +251,19 @@ class NovaStatService:
                                         await db.channel.update_channel_by_chat_id(our_channel.chat_id, subscribers_count=subs)
                                         # Обновляем объект в памяти для этого запуска
                                         our_channel.subscribers_count = subs
-                                        logger.info(f"Updated initial subscribers count for {our_channel.chat_id}: {subs}")
+                                        logger.info(f"Обновлено начальное количество подписчиков для {our_channel.chat_id}: {subs}")
                                         
                                 finally:
                                     # Обязательно закрываем сессию
                                     await manager.close()
                     except Exception as e:
-                        logger.warning(f"Failed to fetch initial subs count for {channel_id}: {e}")
+                        logger.warning(f"Не удалось получить начальное количество подписчиков для {channel_id}: {e}")
                 
                 # Если статистики нет (0 просмотров) и есть сессия - обновить через свой клиент
                 if our_channel.novastat_24h == 0 and our_channel.session_path:
                     try:
-                        logger.info(f"Views 0 for 'our' channel {channel_id}, trying internal client...")
-                        # SessionManager imports from utils (locally imported or available?)
-                        # SessionManager is imported at top of file (Step 1661)
+                        logger.info(f"Просмотры 0 для 'нашего' канала {channel_id}, пробуем внутренний клиент...")
+                        # SessionManager imports from utils
                         manager = SessionManager(our_channel.session_path)
                         await manager.init_client()
                         if manager.client:
@@ -285,13 +283,13 @@ class NovaStatService:
                                     our_channel.novastat_24h = v.get(24, 0)
                                     our_channel.novastat_48h = v.get(48, 0)
                                     our_channel.novastat_72h = v.get(72, 0)
-                                    logger.info(f"Updated views via internal client: {v}")
+                                    logger.info(f"Обновлены просмотры через внутренний клиент: {v}")
                             finally:
                                 await manager.close()
                     except Exception as e:
-                        logger.warning(f"Failed to fetch views via internal client: {e}")
+                        logger.warning(f"Не удалось получить просмотры через внутренний клиент: {e}")
                 
-                logger.info(f"Channel {channel_identifier} is our channel (id={channel_id}), using DB stats")
+                logger.info(f"Канал {channel_identifier} это наш канал (id={channel_id}), используем стат. из БД")
                 
                 # Формируем статистику из БД
                 views_res = {
@@ -321,7 +319,7 @@ class NovaStatService:
                 return
             
             # Шаг 3: Канал не "свой" или нет internal клиента - использовать external клиента
-            logger.info(f"Using external client for channel {channel_identifier}")
+            logger.info(f"Используем внешний клиент для канала {channel_identifier}")
             
             # Получить external клиента
             client_data = await self.get_external_client()
@@ -381,7 +379,7 @@ class NovaStatService:
         for attempt in range(3):
             try:
                 entity = await client.get_entity(channel_identifier)
-                logger.info(f"Successfully got entity for {channel_identifier} on attempt {attempt + 1}")
+                logger.info(f"Успешно получен entity для {channel_identifier} с попытки {attempt + 1}")
                 break  # Success
             except Exception as e:
                 last_error = e
@@ -389,14 +387,10 @@ class NovaStatService:
                 
                 # Если это ошибка доступа и мы еще не пытались join
                 if ("USER_NOT_PARTICIPANT" in error_str or "CHANNEL_PRIVATE" in error_str) and not join_attempted:
-                    logger.info(f"Channel {channel_identifier} requires join, attempting...")
+                    logger.info(f"Канал {channel_identifier} требует вступления, попытка join...")
                     
                     # Попытаться присоединиться через SessionManager
                     try:
-                        # Создать временный SessionManager для join
-                        from main_bot.utils.session_manager import SessionManager
-                        # Используем текущий client, оборачиваем в SessionManager-подобную логику
-                        # Но так как у нас уже есть client, используем его напрямую
                         
                         # Попытка join
                         if isinstance(channel_identifier, str):
@@ -417,29 +411,27 @@ class NovaStatService:
                                 # Assume username without @
                                 await client(functions.channels.JoinChannelRequest(channel=channel_identifier))
                         else:
-                             logger.warning(f"Cannot join channel by ID/Entity automatically: {channel_identifier}")
-                             # If we have an integer ID and access failed, we can't do much without an invite link.
-                             # But usually 'our' channel implies we are admin/member.
+                             logger.warning(f"Невозможно автоматически вступить в канал по ID/Entity: {channel_identifier}")
                         
                         join_attempted = True
-                        logger.info(f"Join attempt successful for {channel_identifier}, retrying get_entity...")
+                        logger.info(f"Попытка вступления успешна для {channel_identifier}, повтор get_entity...")
                         
                         # Подождать немного и попробовать снова
                         await asyncio.sleep(1)
                         continue
                         
                     except Exception as join_error:
-                        logger.error(f"Join failed for {channel_identifier}: {join_error}")
+                        logger.error(f"Ошибка вступления для {channel_identifier}: {join_error}")
                         join_attempted = True
                 
                 # Если не последняя попытка - ждем и пробуем снова
                 if attempt < 2:  # Not the last attempt
                     delay = attempt + 1  # 1s on first retry, 2s on second retry
-                    logger.warning(f"get_entity attempt {attempt + 1} failed for {channel_identifier}: {e}. Retrying in {delay}s...")
+                    logger.warning(f"Попытка get_entity {attempt + 1} не удалась для {channel_identifier}: {e}. Повтор через {delay}с...")
                     await asyncio.sleep(delay)
                 else:
                     # Last attempt failed
-                    logger.error(f"get_entity failed after 3 attempts for {channel_identifier}: {e}")
+                    logger.error(f"get_entity не удалось после 3 попыток для {channel_identifier}: {e}")
                     
                     # Проверить, стал ли клиент подписчиком (если join был выполнен)
                     if join_attempted and "USER_NOT_PARTICIPANT" in error_str:
@@ -484,30 +476,30 @@ class NovaStatService:
                     return None
         
         if not entity:
-            logger.error(f"Entity is None for {channel_identifier} after all attempts")
+            logger.error(f"Entity is None для {channel_identifier} после всех попыток")
             return None
 
         title = getattr(entity, "title", getattr(entity, "username", str(entity)))
         username = getattr(entity, "username", None)
-        logger.info(f"Got entity info: title={title}, username={username}")
+        logger.info(f"Получена информация о сущности: title={title}, username={username}")
         
         # Get subscribers
         try:
-            logger.debug(f"Getting full channel info for {channel_identifier}")
+            logger.debug(f"Получение полной информации о канале для {channel_identifier}")
             full = await client(functions.channels.GetFullChannelRequest(channel=entity))
             members = int(getattr(full.full_chat, "participants_count", 0) or 0)
-            logger.info(f"Got {members} subscribers for {channel_identifier}")
+            logger.info(f"Получено {members} подписчиков для {channel_identifier}")
         except RPCError as e:
-            logger.warning(f"Failed to get subscribers for {channel_identifier}: {e}")
+            logger.warning(f"Не удалось получить подписчиков для {channel_identifier}: {e}")
             members = 0
         except Exception as e:
-            logger.error(f"Unexpected error getting subscribers for {channel_identifier}: {e}")
+            logger.error(f"Неожиданная ошибка получения подписчиков для {channel_identifier}: {e}")
             members = 0
 
         # Get posts
         cutoff_utc = now_utc - timedelta(days=days_limit)
         raw_points: List[Tuple[float, int]] = []
-        logger.debug(f"Starting to iterate messages for {channel_identifier}, cutoff={cutoff_utc}")
+        logger.debug(f"Начало итерации сообщений для {channel_identifier}, cutoff={cutoff_utc}")
 
         try:
             async for m in client.iter_messages(entity, offset_date=cutoff_utc, reverse=True):
@@ -524,10 +516,10 @@ class NovaStatService:
                 views = int(m.views)
                 raw_points.append((age_hours, views))
         except Exception as iter_error:
-            logger.error(f"Error iterating messages for {channel_identifier}: {iter_error}")
+            logger.error(f"Ошибка итерации сообщений для {channel_identifier}: {iter_error}")
             # Продолжаем с тем что успели собрать
         
-        logger.info(f"Collected {len(raw_points)} data points for {channel_identifier}")
+        logger.info(f"Собрано {len(raw_points)} точек данных для {channel_identifier}")
 
         # Determine link
         link = None
@@ -588,4 +580,3 @@ class NovaStatService:
         }
 
 novastat_service = NovaStatService()
-

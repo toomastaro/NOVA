@@ -1,5 +1,5 @@
 """
-DEPRECATED: Этот файл устарел и будет удален в будущих версиях.
+УСТАРЕЛО: Этот файл устарел и будет удален в будущих версиях.
 
 Все функции перенесены в тематические модули:
 - main_bot.utils.file_utils - обработка файлов (изображения, видео)
@@ -38,7 +38,7 @@ from main_bot.utils.tg_utils import (
     background_join_channel
 )
 
-# Дубликаты функций из schedulers/bots.py (DEPRECATED)
+# Дубликаты функций из schedulers/bots.py (УСТАРЕЛО)
 # Эти функции уже есть в main_bot.utils.schedulers.bots
 # Оставлены для обратной совместимости, но рекомендуется использовать из schedulers.bots
 from main_bot.utils.schedulers.bots import (
@@ -47,29 +47,29 @@ from main_bot.utils.schedulers.bots import (
 )
 
 __all__ = [
-    # file_utils
+    # file_utils (утилиты файлов)
     'get_mode',
     'get_color',
     'get_path',
     'get_path_video',
     
-    # text_utils
+    # text_utils (утилиты текста)
     'get_protect_tag',
     
-    # message_utils
+    # message_utils (утилиты сообщений)
     'answer_bot_post',
     'answer_post',
     'answer_story',
     'answer_message_bot',
     'answer_message',
     
-    # tg_utils
+    # tg_utils (утилиты телеграм)
     'create_emoji',
     'get_editors',
     'set_channel_session',
     'background_join_channel',
     
-    # Deprecated (from schedulers.bots)
+    # Устарело (из schedulers.bots)
     'send_bot_messages',
     'process_bot',
 ]

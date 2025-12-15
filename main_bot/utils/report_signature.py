@@ -14,7 +14,7 @@ async def get_report_signatures(user: User, report_type: str, bot: Bot) -> str:
     """
     signatures = []
     
-    # 1. CPM / Exchange Signature
+    # 1. Подпись CPM / Обмена
     if report_type == 'cpm':
         if user.cpm_signature_active:
             sig_text = user.cpm_signature_text or text('default:cpm_signature')
@@ -25,7 +25,7 @@ async def get_report_signatures(user: User, report_type: str, bot: Bot) -> str:
             sig_text = user.exchange_signature_text or text('default:exchange_signature')
             signatures.append(sig_text)
             
-    # 2. Referral Signature (Common for both)
+    # 2. Реферальная подпись (общая для обоих типов)
     if user.referral_signature_active:
         ref_text = user.referral_signature_text or text('default:referral_signature')
         
@@ -35,12 +35,7 @@ async def get_report_signatures(user: User, report_type: str, bot: Bot) -> str:
         
         ref_link = f"https://t.me/{bot_username}?start={user.id}"
         
-        # Формируем ссылку
-        # Если текст уже содержит разметку ссылки - оставляем как есть? 
-        # Нет, ТЗ говорит "текст создается со ссылкой". Значит мы оборачиваем весь текст в ссылку?
-        # Или добавляем ссылку в конец? 
-        # "этот текст создается со ссылкой текущего юзера" -> Hyperlink the text.
-        
+        # Формируем ссылку - оборачиваем текст в HTML ссылку
         signatures.append(f"<a href='{ref_link}'>{ref_text}</a>")
         
     if not signatures:

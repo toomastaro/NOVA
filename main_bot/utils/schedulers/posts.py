@@ -11,20 +11,23 @@ import asyncio
 import logging
 import re
 import html
-import os
 import time
 from pathlib import Path
 
 from aiogram import Bot, types
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
+from sqlalchemy import select, update
+
 from config import Config
 from instance_bot import bot
 from main_bot.database.db import db
 from main_bot.database.post.model import Post
+from main_bot.database.published_post.model import PublishedPost
 from main_bot.keyboards import keyboards
 from main_bot.utils.functions import set_channel_session
 from main_bot.utils.lang.language import text
+from main_bot.utils.report_signature import get_report_signatures
 from main_bot.utils.schemas import MessageOptions
 from main_bot.utils.session_manager import SessionManager
 
@@ -71,29 +74,24 @@ async def send(post: Post):
         message_options.animation = message_options.animation.file_id
 
     options = message_options.model_dump()
+    
+    # Очистка опций
+    keys_to_remove = ["show_caption_above_media", "has_spoiler", "disable_web_page_preview", "caption", "text", "photo", "video", "animation"]
+    # Грубая очистка - удаляем все конфликтующие поля в зависимости от типа, заново формируем.
+    # Но лучше следовать логике оригинала, но чище.
+    
     if message_options.text:
-        options.pop("photo")
-        options.pop("video")
-        options.pop("animation")
-        options.pop("show_caption_above_media")
-        options.pop("has_spoiler")
-        options.pop("caption")
+        for k in ["photo", "video", "animation", "show_caption_above_media", "has_spoiler", "caption"]:
+            options.pop(k, None)
     elif message_options.photo:
-        options.pop("video")
-        options.pop("animation")
-        options.pop("text")
-        options.pop("disable_web_page_preview")
+        for k in ["video", "animation", "text", "disable_web_page_preview"]:
+            options.pop(k, None)
     elif message_options.video:
-        options.pop("photo")
-        options.pop("animation")
-        options.pop("text")
-        options.pop("disable_web_page_preview")
-    # animation
-    else:
-        options.pop("photo")
-        options.pop("video")
-        options.pop("text")
-        options.pop("disable_web_page_preview")
+        for k in ["photo", "animation", "text", "disable_web_page_preview"]:
+            options.pop(k, None)
+    else: # animation
+        for k in ["photo", "video", "text", "disable_web_page_preview"]:
+            options.pop(k, None)
 
     options['parse_mode'] = 'HTML'
 
@@ -119,14 +117,13 @@ async def send(post: Post):
                     backup_chat_id=Config.BACKUP_CHAT_ID,
                     backup_message_id=backup_message_id
                 )
-                logger.info(f"Created backup for post {post.id}: chat={Config.BACKUP_CHAT_ID}, msg={backup_message_id}")
+                logger.info(f"Создан бэкап для поста {post.id}: chat={Config.BACKUP_CHAT_ID}, msg={backup_message_id}")
             except Exception as e:
-                logger.error(f"Error creating backup for post {post.id}: {e}", exc_info=True)
-                pass
+                logger.error(f"Ошибка создания бэкапа для поста {post.id}: {e}", exc_info=True)
 
     for chat_id in post.chat_ids:
         channel = await db.channel.get_channel_by_chat_id(chat_id)
-        if not channel.subscribe:
+        if not channel or not channel.subscribe:
             continue
 
         try:
@@ -138,18 +135,18 @@ async def send(post: Post):
                     reply_markup=keyboards.post_kb(post=post),
                     parse_mode='HTML'
                 )
-                logger.info(f"Copied post {post.id} (backup {backup_message_id}) to {chat_id} (msg {post_message.message_id})")
+                logger.info(f"Скопирован пост {post.id} (бэкап {backup_message_id}) в {chat_id} (msg {post_message.message_id})")
             else:
                 options['chat_id'] = chat_id
                 post_message = await cor(
                     **options,
                     reply_markup=keyboards.post_kb(post=post)
                 )
-                logger.info(f"Directly sent post {post.id} to {chat_id} (msg {post_message.message_id})")
+                logger.info(f"Напрямую отправлен пост {post.id} в {chat_id} (msg {post_message.message_id})")
 
             await asyncio.sleep(0.25)
         except Exception as e:
-            logger.error(f"Error sending post {post.id} to {chat_id}: {e}", exc_info=True)
+            logger.error(f"Ошибка отправки поста {post.id} в {chat_id}: {e}", exc_info=True)
             error_send.append({"chat_id": chat_id, "error": str(e)})
             continue
 
@@ -161,7 +158,7 @@ async def send(post: Post):
                     disable_notification=message_options.disable_notification
                 )
             except Exception as e:
-                logger.error(f"Error pinning message {post_message.message_id} in {chat_id}: {e}", exc_info=True)
+                logger.error(f"Ошибка закрепления сообщения {post_message.message_id} в {chat_id}: {e}", exc_info=True)
 
         current_time = int(time.time())
         success_send.append(
@@ -196,13 +193,12 @@ async def send(post: Post):
     if not post.report:
         return
 
-    import html
     objects = await db.channel.get_user_channels(
         user_id=post.admin_id,
         from_array=post.chat_ids
     )
     
-    # Format Success List
+    # Форматирование списка успешных отправок
     success_str_inner = "\n".join(
         text("resource_title").format(
             html.escape(obj.title)
@@ -211,7 +207,7 @@ async def send(post: Post):
     )
     success_str = f"<blockquote expandable>{success_str_inner}</blockquote>" if success_str_inner else ""
 
-    # Format Error List
+    # Форматирование списка ошибок
     error_str_inner = "\n".join(
          text("resource_title").format(
             html.escape(obj.title)
@@ -235,7 +231,7 @@ async def send(post: Post):
             error_str,
         )
     else:
-        message_text = "Unknown Post Notification Message"
+        message_text = "Неизвестное сообщение уведомления о посте"
 
     try:
         await bot.send_message(
@@ -245,7 +241,7 @@ async def send(post: Post):
             link_preview_options=types.LinkPreviewOptions(is_disabled=True)
         )
     except Exception as e:
-        logger.error(f"Error sending report to admin {post.admin_id}: {e}", exc_info=True)
+        logger.error(f"Ошибка отправки отчета админу {post.admin_id}: {e}", exc_info=True)
 
 
 async def send_posts():
@@ -267,16 +263,11 @@ async def unpin_posts():
                 message_id=post.message_id
             )
         except Exception as e:
-            logger.error(f"Error unpinning message {post.message_id} in {post.chat_id}: {e}", exc_info=True)
+            logger.error(f"Ошибка открепления сообщения {post.message_id} в {post.chat_id}: {e}", exc_info=True)
 
 
 async def check_cpm_reports():
     """Периодическая задача: проверка и отправка CPM отчетов за 24/48/72 часа"""
-    from sqlalchemy import select, update
-    from main_bot.database.published_post.model import PublishedPost
-    from main_bot.utils.report_signature import get_report_signatures
-    import html
-    
     current_time = int(time.time())
     
     # Получаем посты с CPM ценой, которые еще не удалены
@@ -284,7 +275,9 @@ async def check_cpm_reports():
         PublishedPost.cpm_price.is_not(None),
         PublishedPost.deleted_at.is_(None)
     )
-    posts = await db.fetch(stmt)
+    posts = await db.fetch_all(stmt)
+    if not posts:
+        return
     
     for post in posts:
         try:
@@ -364,17 +357,12 @@ async def check_cpm_reports():
 
 async def delete_posts():
     """Периодическая задача: удаление постов по расписанию"""
-    from main_bot.utils.report_signature import get_report_signatures
-    import html
-
     db_posts = await db.published_post.get_posts_for_delete()
 
     row_ids = []
     posts = {}
     for post in db_posts:
         views, channel = await get_views_for_post(post)
-
-
 
         if post.post_id not in posts:
             posts[post.post_id] = []
@@ -392,7 +380,7 @@ async def delete_posts():
         try:
             await bot.delete_message(post.chat_id, post.message_id)
         except Exception as e:
-            logger.error(f"Error deleting message {post.message_id} in {post.chat_id}: {e}", exc_info=True)
+            logger.error(f"Ошибка удаления сообщения {post.message_id} в {post.chat_id}: {e}", exc_info=True)
             try:
                 await bot.send_message(
                     chat_id=post.admin_id,
@@ -404,11 +392,14 @@ async def delete_posts():
                     link_preview_options=types.LinkPreviewOptions(is_disabled=True)
                 )
             except Exception as e:
-                logger.error(f"Error sending delete error report to admin {post.admin_id}: {e}", exc_info=True)
+                logger.error(f"Ошибка отправки отчета об ошибке удаления админу {post.admin_id}: {e}", exc_info=True)
 
         row_ids.append(post.id)
 
     for post_id, message_objects in posts.items():
+        if not message_objects:
+             continue
+        
         cpm_price = message_objects[0]["cpm_price"]
         if not cpm_price:
             continue
@@ -504,7 +495,7 @@ async def delete_posts():
                 link_preview_options=types.LinkPreviewOptions(is_disabled=True)
             )
         except Exception as e:
-            logger.error(f"Error sending CPM report to admin {admin_id}: {e}", exc_info=True)
+            logger.error(f"Ошибка отправки CPM отчета админу {admin_id}: {e}", exc_info=True)
 
     await db.published_post.soft_delete_published_posts(
         row_ids=row_ids

@@ -1,3 +1,11 @@
+"""
+Pydantic схемы для валидации данных и типов API.
+
+Содержит модели для:
+- Опций сообщений и сторис
+- Кнопок (скрытие, реакции)
+- Приветствий и капчи
+"""
 from typing import Optional, List
 
 from aiogram.types import InlineKeyboardMarkup, ReplyKeyboardMarkup

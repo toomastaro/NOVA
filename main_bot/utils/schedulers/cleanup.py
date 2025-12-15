@@ -9,10 +9,14 @@ import logging
 import time
 from pathlib import Path
 
+from sqlalchemy import select
+
 from instance_bot import bot
 from main_bot.database.db import db
+from main_bot.database.mt_client.model import MtClient
 from main_bot.utils.lang.language import text
 from main_bot.utils.session_manager import SessionManager
+from main_bot.utils.support_log import SupportAlert, send_support_alert
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +24,7 @@ logger = logging.getLogger(__name__)
 _sent_notifications = set()
 
 
-def get_sub_status(expire_time: int) -> tuple[str | None, int | None]:
+def get_sub_status(expire_time: int | None) -> tuple[str | None, int | None]:
     """
     Получить статус подписки на основе времени истечения.
     
@@ -51,14 +55,13 @@ async def check_subscriptions():
     Проверяет все активные каналы на истечение подписки и отправляет
     уведомления пользователям за 3 дня, за 1 день и при истечении.
     """
-    import time as time_module
-    current_day = time_module.strftime("%Y-%m-%d", time_module.localtime())
+    current_day = time.strftime("%Y-%m-%d", time.localtime())
     
-    for channel in await db.channel.get_active_channels():
-        for field, text_prefix in [
-            ("subscribe", "post"),
-        ]:
-            expire_time = getattr(channel, field)
+    active_channels = await db.channel.get_active_channels()
+    
+    for channel in active_channels:
+        for field, text_prefix in [("subscribe", "post")]:
+            expire_time = getattr(channel, field, None)
             status, days = get_sub_status(expire_time)
             if not status:
                 continue
@@ -69,20 +72,19 @@ async def check_subscriptions():
                 continue
 
             if status == "expired":
-                msg = text(f"expire_off_sub").format(channel.title)
+                msg = text("expire_off_sub").format(channel.title)
+                # Сбрасываем поле подписки в БД
                 await db.channel.update_channel_by_id(channel.id, **{field: None})
             else:
-                msg = text(f"expire_sub").format(
-                    channel.title,
-                    time.strftime("%d.%m.%Y", time.localtime(expire_time)),
-                )
+                formatted_date = time.strftime("%d.%m.%Y", time.localtime(expire_time))
+                msg = text("expire_sub").format(channel.title, formatted_date)
 
             try:
                 await bot.send_message(channel.admin_id, msg, parse_mode="HTML")
                 # Добавляем в set отправленных уведомлений
                 _sent_notifications.add(notification_key)
             except Exception as e:
-                logger.error(f"[{text_prefix.upper()}_NOTIFY] {channel.title}: {e}", exc_info=True)
+                logger.error(f"Ошибка уведомления [{text_prefix.upper()}] для {channel.title}: {e}")
 
 
 async def mt_clients_self_check():
@@ -95,15 +97,13 @@ async def mt_clients_self_check():
     - Обработка ошибок (AUTH_KEY_UNREGISTERED, FLOOD_WAIT и т.д.)
     - Отправка алертов в поддержку при проблемах
     """
-    from sqlalchemy import select
-
-    from main_bot.database.mt_client.model import MtClient
-    from main_bot.utils.support_log import SupportAlert, send_support_alert
-
     logger.info("Запуск самопроверки MT клиентов")
 
     stmt = select(MtClient).where(MtClient.is_active == True)
-    active_clients = await db.fetch(stmt)
+    active_clients = await db.fetch_all(stmt)
+    
+    if not active_clients:
+        return
 
     for client in active_clients:
         try:
@@ -173,10 +173,11 @@ async def mt_clients_self_check():
                         try:
                             seconds = int(error_code.split("_")[-1])
                             updates["flood_wait_until"] = current_time + seconds
-                        except:
+                        except (ValueError, IndexError):
                             updates["flood_wait_until"] = current_time + 300
                         updates["is_active"] = True
 
+                        wait_time = updates['flood_wait_until'] - current_time
                         await send_support_alert(
                             bot,
                             SupportAlert(
@@ -185,7 +186,7 @@ async def mt_clients_self_check():
                                 client_alias=client.alias,
                                 pool_type=client.pool_type,
                                 error_code=error_code,
-                                manual_steps=f"Клиент временно заблокирован на {updates['flood_wait_until'] - current_time}с. Действий не требуется, просто подождите.",
+                                manual_steps=f"Клиент временно заблокирован на {wait_time}с. Действий не требуется.",
                             ),
                         )
                     else:
