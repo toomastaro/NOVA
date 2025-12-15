@@ -1,41 +1,46 @@
+"""
+Модуль меню закупов рекламы.
+Отображает списки закупов, проверяет статус технического аккаунта.
+"""
+import logging
+from pathlib import Path
+
 from aiogram import Router, F, types
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery
 
-import logging
 from main_bot.database.db import db
 from main_bot.keyboards import InlineAdPurchase
+from main_bot.utils.error_handler import safe_handler
+from main_bot.utils.session_manager import SessionManager
+
+logger = logging.getLogger(__name__)
 
 router = Router(name="AdPurchaseMenu")
 
 @router.message(F.text == "Рекламные закупы")
+@safe_handler("Show Ad Purchase Menu")
 async def show_ad_purchase_menu(message: types.Message):
+    """Показ меню закупов (сообщение)."""
     await show_ad_purchase_menu_internal(message, edit=False)
 
 
 @router.callback_query(F.data == "AdPurchase|menu")
+@safe_handler("Show Ad Purchase Menu Callback")
 async def show_ad_purchase_menu_callback(call: CallbackQuery):
+    """Показ меню закупов (callback)."""
     await show_ad_purchase_menu_internal(call.message, edit=True)
 
+@safe_handler("Show Ad Purchase Menu Internal")
 async def show_ad_purchase_menu_internal(message: types.Message, edit: bool = False):
-    # 1. Check user channels and MTClient status in each
-    # This involves logic to find if a client is present and has rights.
-    # The requirement is: "на экране вывести текущий статус прав нашего клиента ... имя: статус"
-    # And "добавить кнопку перепроверить статус".
-    
-    # We check rights for ALL user channels? Or just general readiness?
-    # "в канал добавлен наш подпищик ... и чтоб вся система работал его надо сделать администратором"
-    # This implies verifying specific channels. But the menu is general.
-    # Maybe we show a summary status? "Bot Client: Active" or "Inactive (Check Rights)"
-    
-    # Let's check if the user has ANY channels added to the bot first.
+    """Внутренняя функция отображения меню закупов."""
+.
     user_channels = await db.channel.get_user_channels(message.chat.id)
     
     status_text = ""
     client_name = "NovaClient" # Placeholder if no specific client logic exposed clearly
     
-    # We get the client name from one of the channels (assuming same client used or pool)
-    # If using pool, we might checking the "preferred" client for the first channel found.
+
     
     has_rights = False
     
@@ -49,20 +54,12 @@ async def show_ad_purchase_menu_internal(message: types.Message, edit: bool = Fa
         
         if client_model and client_model.client:
             client_name = client_model.client.alias or f"Client #{client_model.client.id}"
-            # Check rights? We can't check efficiently in real-time on every render without delay.
-            # We should store status or just assume Active until verified.
-            # User asked for "Check Status" button.
-            # Here we just display what we know. 
-            # Let's say we check if 'preferred_for_stats' is True, meaning we verified it before?
-            # Or use a new "is_admin_log_readable" flag? 
-            # For now, simplistic: if we have a linked client, we say "Connected".
-            # The "Check Status" button will do the actual RPC call to verify rights.
+
             status_text = f"🤖 Клиент: {client_name}\n✅ Статус: Подключен"
             has_rights = True
         else:
             status_text = "❌ Клиент не найден в каналах."
     
-    logger = logging.getLogger(__name__)
     logger.info(f"Rendering Ad Purchase Menu for user {message.chat.id}, channel count: {len(user_channels)}")
     
     # Determine text
@@ -83,7 +80,9 @@ async def show_ad_purchase_menu_internal(message: types.Message, edit: bool = Fa
         await message.answer(main_text, reply_markup=kb, parse_mode="HTML")
 
 @router.callback_query(F.data == "AdPurchase|check_client_status")
+@safe_handler("Check Client Status")
 async def check_client_status(call: CallbackQuery):
+    """Проверка статуса подключения технических аккаунтов."""
     await call.answer("⏳ Полная проверка всех каналов...", show_alert=False)
     
     user_channels = await db.channel.get_user_channels(call.message.chat.id)
@@ -117,8 +116,8 @@ async def check_client_status(call: CallbackQuery):
         results.append(f"❌ <b>{ch.title}</b>: Не назначен помощник")
         
     # 2. Check each client group
-    from pathlib import Path
-    from main_bot.utils.session_manager import SessionManager
+    # from pathlib import Path
+    # from main_bot.utils.session_manager import SessionManager
     
     for cid, group in client_groups.items():
         mt_client = group['client']
@@ -188,7 +187,9 @@ async def check_client_status(call: CallbackQuery):
 
 
 @router.callback_query(F.data == "AdPurchase|create_menu")
+@safe_handler("Show Creative Selection")
 async def show_creative_selection(call: CallbackQuery):
+    """Меню выбора креатива для создания закупа."""
     creatives = await db.ad_creative.get_user_creatives(call.from_user.id)
     if not creatives:
         await call.answer("У вас нет креативов. Сначала создайте креатив.", show_alert=True)
@@ -214,7 +215,9 @@ async def show_creative_selection(call: CallbackQuery):
 
 
 @router.callback_query(F.data == "AdPurchase|list")
+@safe_handler("Show Purchase List")
 async def show_purchase_list(call: CallbackQuery, send_new: bool = False):
+    """Список закупов пользователя."""
     purchases = await db.ad_purchase.get_user_purchases(call.from_user.id)
     if not purchases:
         if send_new:

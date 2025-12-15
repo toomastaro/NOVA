@@ -1,7 +1,20 @@
+"""
+Модуль обработки покупки рекламы.
+Управляет созданием закупов, маппингом ссылок и сбором статистики.
+"""
 import re
+import copy
+import logging
+from datetime import datetime
+from io import BytesIO
+
+import openpyxl
+from openpyxl import Workbook
+from sqlalchemy import update
+
 from aiogram import Router, F, types
 from aiogram.fsm.context import FSMContext
-from aiogram.types import Message, CallbackQuery
+from aiogram.types import Message, CallbackQuery, BufferedInputFile
 
 from main_bot.database.db import db
 from main_bot.database.db_types import AdPricingType, AdTargetType
@@ -9,13 +22,17 @@ from main_bot.database.ad_purchase.model import AdPurchase
 from main_bot.keyboards import keyboards, InlineAdPurchase, InlineAdCreative
 from main_bot.states.user import AdPurchaseStates
 from main_bot.utils.lang.language import text
+from main_bot.utils.error_handler import safe_handler
 
+logger = logging.getLogger(__name__)
 
 router = Router(name="AdPurchase")
 
 
 @router.callback_query(F.data.startswith("AdPurchase|create|"))
+@safe_handler("Create Purchase Start")
 async def create_purchase_start(call: CallbackQuery, state: FSMContext):
+    """Начало создания закупа."""
     creative_id = int(call.data.split("|")[2])
     await state.update_data(creative_id=creative_id)
     
@@ -27,7 +44,9 @@ async def create_purchase_start(call: CallbackQuery, state: FSMContext):
 
 
 @router.callback_query(F.data.startswith("AdPurchase|pricing|"))
+@safe_handler("Process Pricing Type")
 async def process_pricing_type(call: CallbackQuery, state: FSMContext):
+    """Обработка выбора типа оплаты."""
     pricing_type_str = call.data.split("|")[2]
     # Validate enum
     try:
@@ -46,7 +65,9 @@ async def process_pricing_type(call: CallbackQuery, state: FSMContext):
 
 
 @router.message(AdPurchaseStates.waiting_for_price)
+@safe_handler("Process Price")
 async def process_price(message: Message, state: FSMContext):
+    """Обработка ввода цены."""
     try:
         price = int(message.text.strip())
         if price < 0:
@@ -61,7 +82,9 @@ async def process_price(message: Message, state: FSMContext):
 
 
 @router.message(AdPurchaseStates.waiting_for_comment)
+@safe_handler("Process Comment")
 async def process_comment(message: Message, state: FSMContext):
+    """Обработка комментария и создание закупа."""
     comment = message.text.strip()
     data = await state.get_data()
     
@@ -81,7 +104,9 @@ async def process_comment(message: Message, state: FSMContext):
     await state.clear()
 
 
+@safe_handler("Start Mapping")
 async def start_mapping(message: Message, purchase_id: int, creative_id: int):
+    """Начало процесса маппинга ссылок."""
     slots = await db.ad_creative.get_slots(creative_id)
     user_channels = await db.channel.get_user_channels(message.chat.id)
     
@@ -134,7 +159,9 @@ async def start_mapping(message: Message, purchase_id: int, creative_id: int):
     await show_mapping_menu(message, purchase_id)
 
 
+@safe_handler("Show Mapping Menu")
 async def show_mapping_menu(message: Message, purchase_id: int):
+    """Отображение меню маппинга ссылок."""
     mappings = await db.ad_purchase.get_link_mappings(purchase_id)
     user_channels = await db.channel.get_user_channels(message.chat.id)
     channels_map = {ch.chat_id: ch.title for ch in user_channels}
@@ -161,7 +188,9 @@ async def show_mapping_menu(message: Message, purchase_id: int):
 
 
 @router.callback_query(F.data.startswith("AdPurchase|map_link|"))
+@safe_handler("Edit Link Mapping")
 async def edit_link_mapping(call: CallbackQuery):
+    """Редактирование привязки ссылки."""
     _, _, purchase_id, slot_id = call.data.split("|")
     purchase_id = int(purchase_id)
     slot_id = int(slot_id)
@@ -173,7 +202,9 @@ async def edit_link_mapping(call: CallbackQuery):
 
 
 @router.callback_query(F.data.startswith("AdPurchase|select_channel_list|"))
+@safe_handler("Show Channel List")
 async def show_channel_list(call: CallbackQuery):
+    """Показ списка каналов для привязки."""
     _, _, purchase_id, slot_id = call.data.split("|")
     purchase_id = int(purchase_id)
     slot_id = int(slot_id)
@@ -187,7 +218,9 @@ async def show_channel_list(call: CallbackQuery):
 
 
 @router.callback_query(F.data.startswith("AdPurchase|set_channel|"))
+@safe_handler("Save Mapping Channel")
 async def save_mapping_channel(call: CallbackQuery):
+    """Сохранение привязки к каналу."""
     _, _, purchase_id, slot_id, channel_id = call.data.split("|")
     purchase_id = int(purchase_id)
     slot_id = int(slot_id)
@@ -218,7 +251,9 @@ async def save_mapping_channel(call: CallbackQuery):
 
 
 @router.callback_query(F.data.startswith("AdPurchase|set_external|"))
+@safe_handler("Save Mapping External")
 async def save_mapping_external(call: CallbackQuery):
+    """Установка типа 'внешняя ссылка'."""
     _, _, purchase_id, slot_id = call.data.split("|")
     purchase_id = int(purchase_id)
     slot_id = int(slot_id)
@@ -237,14 +272,18 @@ async def save_mapping_external(call: CallbackQuery):
 
 
 @router.callback_query(F.data.startswith("AdPurchase|mapping|"))
+@safe_handler("Back To Mapping")
 async def back_to_mapping(call: CallbackQuery):
+    """Возврат к меню маппинга."""
     purchase_id = int(call.data.split("|")[2])
     await call.message.delete()
     await show_mapping_menu(call.message, purchase_id)
 
 
 @router.callback_query(F.data.startswith("AdPurchase|save_mapping|"))
+@safe_handler("Finish Mapping")
 async def finish_mapping(call: CallbackQuery):
+    """Завершение маппинга и сохранение."""
     purchase_id = int(call.data.split("|")[2])
     await call.answer("Мапинг сохранен")
     # Return to purchase view
@@ -252,19 +291,25 @@ async def finish_mapping(call: CallbackQuery):
 
 
 @router.callback_query(F.data == "AdPurchase|cancel")
+@safe_handler("Cancel Purchase")
 async def cancel_purchase(call: CallbackQuery, state: FSMContext):
+    """Отмена создания закупа."""
     await state.clear()
     await call.message.delete()
     await call.message.answer("Создание закупа отменено.")
 
 
 @router.callback_query(F.data.startswith("AdPurchase|view|"))
+@safe_handler("View Purchase Callback")
 async def view_purchase_callback(call: CallbackQuery):
+    """Callback для просмотра закупа."""
     purchase_id = int(call.data.split("|")[2])
     await view_purchase(call, purchase_id)
 
 
+@safe_handler("View Purchase")
 async def view_purchase(call: CallbackQuery, purchase_id: int):
+    """Отображение деталей закупа."""
     purchase = await db.ad_purchase.get_purchase(purchase_id)
     if not purchase:
         await call.answer("Закуп не найден", show_alert=True)
@@ -310,7 +355,9 @@ async def view_purchase(call: CallbackQuery, purchase_id: int):
 
 
 @router.callback_query(F.data.startswith("AdPurchase|delete|"))
+@safe_handler("Delete Purchase")
 async def delete_purchase(call: CallbackQuery):
+    """Удаление закупа."""
     purchase_id = int(call.data.split("|")[2])
     await db.ad_purchase.update_purchase_status(purchase_id, "deleted")
     await call.answer("Закуп удален")
@@ -331,21 +378,27 @@ async def delete_purchase(call: CallbackQuery):
 
 
 @router.callback_query(F.data.startswith("AdPurchase|stats|"))
+@safe_handler("Show Stats Default")
 async def show_stats_default(call: CallbackQuery):
+    """Показ статистики (по умолчанию за все время)."""
     # Default to all time view
     purchase_id = int(call.data.split("|")[2])
     await render_purchase_stats(call, purchase_id, "all")
 
 
 @router.callback_query(F.data.startswith("AdPurchase|stats_period|"))
+@safe_handler("Show Stats Period")
 async def show_stats_period(call: CallbackQuery):
+    """Показ статистики за выбранный период."""
     parts = call.data.split("|")
     purchase_id = int(parts[2])
     period = parts[3]
     await render_purchase_stats(call, purchase_id, period)
 
 
+@safe_handler("Render Purchase Stats")
 async def render_purchase_stats(call: CallbackQuery, purchase_id: int, period: str):
+    """Рендеринг сообщения со статистикой."""
     # Calculate time range
     import time
     now = int(time.time())
@@ -489,7 +542,9 @@ async def render_purchase_stats(call: CallbackQuery, purchase_id: int, period: s
 
 
 @router.callback_query(F.data == "AdPurchase|global_stats")
+@safe_handler("Show Global Stats Menu")
 async def show_global_stats_menu(call: CallbackQuery):
+    """Меню глобальной статистики пользователя."""
     # Show user's global statistics
     
     await call.message.edit_text(
@@ -499,7 +554,9 @@ async def show_global_stats_menu(call: CallbackQuery):
 
 
 @router.callback_query(F.data.startswith("AdPurchase|global_stats_period|"))
+@safe_handler("Show Global Stats")
 async def show_global_stats(call: CallbackQuery):
+    """Генерация и отправка общего отчета по закупам."""
     # Export Excel report
     
     period = call.data.split("|")[2]
@@ -541,10 +598,11 @@ async def show_global_stats(call: CallbackQuery):
     
     await call.answer("Генерация отчета...")
     
+    
     # 2. Build Excel
-    import openpyxl
-    from openpyxl import Workbook
-    from io import BytesIO
+    # import openpyxl
+    # from openpyxl import Workbook
+    # from io import BytesIO
     
     wb = Workbook()
     ws = wb.active
@@ -626,8 +684,9 @@ async def show_global_stats(call: CallbackQuery):
     wb.save(file_stream)
     file_stream.seek(0)
     
+    
     # Send file
-    from aiogram.types import BufferedInputFile
+    # from aiogram.types import BufferedInputFile
     input_file = BufferedInputFile(file_stream.getvalue(), filename=f"stats_{period_name}.xlsx")
     
     await call.message.answer_document(
@@ -641,7 +700,9 @@ async def show_global_stats(call: CallbackQuery):
 
 
 @router.callback_query(F.data.startswith("AdPurchase|gen_post|"))
+@safe_handler("Generate Post")
 async def generate_post(call: CallbackQuery):
+    """Генерация поста с замененными ссылками для публикации."""
     purchase_id = int(call.data.split("|")[2])
     
     # 1. Ensure invite links
@@ -661,9 +722,9 @@ async def generate_post(call: CallbackQuery):
         return
 
     # 3. Prepare message
-    import copy
-    import re
-    from main_bot.database.db_types import AdTargetType
+    # import copy
+    # import re
+    # from main_bot.database.db_types import AdTargetType
     
     message_data = copy.deepcopy(creative.raw_message)
     
