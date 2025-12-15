@@ -96,7 +96,7 @@ class VersionCheckMiddleware(BaseMiddleware):
                 if bot_version != Config.VERSION:
                     # Логируем только если была старая версия (не первый запуск)
                     if bot_version is not None:
-                        logger.info(
+                        logger.debug(
                             f"Обнаружена устаревшая версия бота у пользователя. "
                             f"Старая: {bot_version}, Новая: {Config.VERSION}. Сброс состояния."
                         )
