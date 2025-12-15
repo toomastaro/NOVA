@@ -1,8 +1,9 @@
 import time
-from sqlalchemy import BigInteger
-from sqlalchemy.orm import Mapped, mapped_column
+
 from main_bot.database import Base
 from main_bot.database.types import AdPricingType, AdTargetType
+from sqlalchemy import BigInteger
+from sqlalchemy.orm import Mapped, mapped_column
 
 
 class AdPurchase(Base):
@@ -53,5 +54,3 @@ class AdSubscription(Base):
     status: Mapped[str] = mapped_column(default="active")  # 'active', 'left', 'kicked'
     left_timestamp: Mapped[int | None] = mapped_column(default=None)
     created_timestamp: Mapped[int] = mapped_column(default=time.time)
-
-

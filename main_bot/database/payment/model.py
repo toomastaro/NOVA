@@ -1,14 +1,13 @@
 import time
 
+from main_bot.database import Base
+from main_bot.database.types import PaymentMethod
 from sqlalchemy import BigInteger
 from sqlalchemy.orm import Mapped, mapped_column
 
-from main_bot.database import Base
-from main_bot.database.types import PaymentMethod
-
 
 class Payment(Base):
-    __tablename__ = 'payments'
+    __tablename__ = "payments"
 
     # Data
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)

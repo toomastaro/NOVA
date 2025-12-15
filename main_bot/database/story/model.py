@@ -1,15 +1,14 @@
 import time
 
-from sqlalchemy import BigInteger, JSON
+from main_bot.database import Base
+from main_bot.database.types import Status
+from sqlalchemy import JSON, BigInteger
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import Mapped, mapped_column
 
-from main_bot.database import Base
-from main_bot.database.types import Status
-
 
 class Story(Base):
-    __tablename__ = 'stories'
+    __tablename__ = "stories"
 
     # Data
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)

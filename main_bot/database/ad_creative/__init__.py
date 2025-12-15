@@ -1,1 +1,1 @@
-from .crud import AdCreativeCrud
+from .crud import AdCreativeCrud as AdCreativeCrud

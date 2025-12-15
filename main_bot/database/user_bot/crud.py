@@ -1,9 +1,8 @@
-from typing import List, Optional
-
-from sqlalchemy import select, desc, update, insert, delete
+from typing import List
 
 from main_bot.database import DatabaseMixin
 from main_bot.database.user_bot.model import UserBot
+from sqlalchemy import delete, desc, insert, select, update
 
 
 class UserBotCrud(DatabaseMixin):
@@ -12,9 +11,7 @@ class UserBotCrud(DatabaseMixin):
         Добавляет нового юзербота.
         :param kwargs: Поля модели UserBot.
         """
-        await self.execute(
-            insert(UserBot).values(**kwargs)
-        )
+        await self.execute(insert(UserBot).values(**kwargs))
 
     async def get_active_bots(self) -> List[UserBot]:
         """
@@ -28,7 +25,9 @@ class UserBotCrud(DatabaseMixin):
         )
         return await self.fetch(stmt)
 
-    async def get_user_bots(self, user_id: int, limit: int = None, sort_by: bool = None) -> List[UserBot]:
+    async def get_user_bots(
+        self, user_id: int, limit: int = None, sort_by: bool = None
+    ) -> List[UserBot]:
         """
         Получает ботов конкретного пользователя.
         :param user_id: ID пользователя.
@@ -49,43 +48,29 @@ class UserBotCrud(DatabaseMixin):
         """
         Получает бота по токену.
         """
-        return await self.fetchrow(
-            select(UserBot).where(
-                UserBot.token == token
-            )
-        )
+        return await self.fetchrow(select(UserBot).where(UserBot.token == token))
 
     async def get_bot_by_id(self, row_id: int) -> UserBot | None:
         """
         Получает бота по ID (Primary Key).
         """
-        return await self.fetchrow(
-            select(UserBot).where(
-                UserBot.id == row_id
-            )
-        )
+        return await self.fetchrow(select(UserBot).where(UserBot.id == row_id))
 
     async def get_bots_by_ids(self, ids: List[int]) -> List[UserBot]:
         """
         Получает список ботов по списку ID.
         """
-        return await self.fetch(
-            select(UserBot).where(
-                UserBot.id.in_(ids)
-            )
-        )
+        return await self.fetch(select(UserBot).where(UserBot.id.in_(ids)))
 
     async def delete_bot_by_id(self, row_id: int) -> None:
         """
         Удаляет бота по ID.
         """
-        await self.execute(
-            delete(UserBot).where(
-                UserBot.id == row_id
-            )
-        )
+        await self.execute(delete(UserBot).where(UserBot.id == row_id))
 
-    async def update_bot_by_id(self, row_id: int, return_obj: bool = False, **kwargs) -> UserBot | None:
+    async def update_bot_by_id(
+        self, row_id: int, return_obj: bool = False, **kwargs
+    ) -> UserBot | None:
         """
         Обновляет бота по ID.
         :param row_id: ID бота.
@@ -100,4 +85,4 @@ class UserBotCrud(DatabaseMixin):
         else:
             operation = self.execute
 
-        return await operation(stmt, **{'commit': return_obj} if return_obj else {})
+        return await operation(stmt, **{"commit": return_obj} if return_obj else {})

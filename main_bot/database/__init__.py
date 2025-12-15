@@ -1,20 +1,20 @@
-from typing import AsyncGenerator, Any, Sequence, TypeVar
-from contextlib import asynccontextmanager
 import urllib.parse
-
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
-from sqlalchemy.ext.asyncio import create_async_engine
-from sqlalchemy.orm import declarative_base
-from sqlalchemy.engine.result import ScalarResult, Result
-from sqlalchemy.sql import Executable
+from contextlib import asynccontextmanager
+from typing import Any, AsyncGenerator, Sequence, TypeVar
 
 from config import Config
+from sqlalchemy.engine.result import Result
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.orm import declarative_base
+from sqlalchemy.sql import Executable
 
 # Кодируем пользователя и пароль, чтобы избежать проблем со спецсимволами
 pg_user = urllib.parse.quote_plus(Config.PG_USER)
 pg_pass = urllib.parse.quote_plus(Config.PG_PASS)
 
-DATABASE_URL = f"postgresql+asyncpg://{pg_user}:{pg_pass}@{Config.PG_HOST}/{Config.PG_DATABASE}"
+DATABASE_URL = (
+    f"postgresql+asyncpg://{pg_user}:{pg_pass}@{Config.PG_HOST}/{Config.PG_DATABASE}"
+)
 
 # Настройка движка базы данных
 engine = create_async_engine(
@@ -28,14 +28,13 @@ engine = create_async_engine(
 
 # Фабрика сессий
 async_session = async_sessionmaker(
-    bind=engine,
-    expire_on_commit=False,
-    class_=AsyncSession
+    bind=engine, expire_on_commit=False, class_=AsyncSession
 )
 
 Base = declarative_base()
 
 T = TypeVar("T")
+
 
 @asynccontextmanager
 async def get_session() -> AsyncGenerator[AsyncSession, None]:
@@ -51,6 +50,7 @@ class DatabaseMixin:
     Миксин, предоставляющий базовые методы для работы с базой данных.
     Все методы создают новую сессию для выполнения запроса.
     """
+
     @staticmethod
     async def execute(sql: Executable, commit: bool = True) -> None:
         """

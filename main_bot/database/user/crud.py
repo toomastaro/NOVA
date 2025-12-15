@@ -1,9 +1,8 @@
-from typing import List, Optional
-
-from sqlalchemy import select, insert, update, func
+from typing import List
 
 from main_bot.database import DatabaseMixin
 from main_bot.database.user.model import User
+from sqlalchemy import func, insert, select, update
 
 
 class UserCrud(DatabaseMixin):
@@ -12,9 +11,7 @@ class UserCrud(DatabaseMixin):
         Получает список всех пользователей.
         :return: Список объектов User.
         """
-        return await self.fetch(
-            select(User)
-        )
+        return await self.fetch(select(User))
 
     async def get_user(self, user_id: int) -> User | None:
         """
@@ -22,11 +19,7 @@ class UserCrud(DatabaseMixin):
         :param user_id: Telegram ID пользователя.
         :return: Объект User или None.
         """
-        return await self.fetchrow(
-            select(User).where(
-                User.id == user_id
-            )
-        )
+        return await self.fetchrow(select(User).where(User.id == user_id))
 
     async def get_count_user_referral(self, user_id: int) -> int:
         """
@@ -35,9 +28,7 @@ class UserCrud(DatabaseMixin):
         :return: Количество рефералов.
         """
         res = await self.fetchrow(
-            select(func.count(User.id)).where(
-                User.referral_id == user_id
-            )
+            select(func.count(User.id)).where(User.referral_id == user_id)
         )
         return res if res else 0
 
@@ -46,13 +37,11 @@ class UserCrud(DatabaseMixin):
         Добавляет нового пользователя.
         :param kwargs: Поля модели User.
         """
-        await self.execute(
-            insert(User).values(
-                **kwargs
-            )
-        )
+        await self.execute(insert(User).values(**kwargs))
 
-    async def update_user(self, user_id: int, return_obj: bool = False, **kwargs) -> User | None:
+    async def update_user(
+        self, user_id: int, return_obj: bool = False, **kwargs
+    ) -> User | None:
         """
         Обновляет данные пользователя.
         :param user_id: ID пользователя.
@@ -68,4 +57,4 @@ class UserCrud(DatabaseMixin):
         else:
             operation = self.execute
 
-        return await operation(stmt, **{'commit': return_obj} if return_obj else {})
+        return await operation(stmt, **{"commit": return_obj} if return_obj else {})

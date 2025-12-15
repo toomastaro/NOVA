@@ -1,12 +1,11 @@
+from main_bot.database import Base
 from sqlalchemy import BigInteger
 from sqlalchemy.dialects.postgresql import JSON
 from sqlalchemy.orm import Mapped, mapped_column
 
-from main_bot.database import Base
-
 
 class ChannelBotSetting(Base):
-    __tablename__ = 'channels_bot_settings'
+    __tablename__ = "channels_bot_settings"
 
     # Data
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)

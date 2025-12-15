@@ -1,1 +1,1 @@
-from .crud import AdPurchaseCrud
+from .crud import AdPurchaseCrud as AdPurchaseCrud

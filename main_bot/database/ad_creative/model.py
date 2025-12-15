@@ -1,7 +1,8 @@
 import time
-from sqlalchemy import BigInteger, JSON
-from sqlalchemy.orm import Mapped, mapped_column
+
 from main_bot.database import Base
+from sqlalchemy import JSON, BigInteger
+from sqlalchemy.orm import Mapped, mapped_column
 
 
 class AdCreative(Base):

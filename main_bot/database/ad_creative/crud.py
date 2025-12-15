@@ -1,6 +1,6 @@
-from sqlalchemy import select, insert
 from main_bot.database import DatabaseMixin
 from main_bot.database.ad_creative.model import AdCreative, AdCreativeLinkSlot
+from sqlalchemy import insert, select
 
 
 class AdCreativeCrud(DatabaseMixin):
@@ -14,12 +14,13 @@ class AdCreativeCrud(DatabaseMixin):
 
     async def get_user_creatives(self, owner_id: int) -> list[AdCreative]:
         query = select(AdCreative).where(
-            AdCreative.owner_id == owner_id,
-            AdCreative.status != "deleted"
+            AdCreative.owner_id == owner_id, AdCreative.status != "deleted"
         )
         return await self.fetch(query)
 
-    async def create_slots_for_creative(self, creative_id: int, slots: list[dict]) -> None:
+    async def create_slots_for_creative(
+        self, creative_id: int, slots: list[dict]
+    ) -> None:
         if not slots:
             return
         values = [{**slot, "creative_id": creative_id} for slot in slots]
@@ -27,10 +28,15 @@ class AdCreativeCrud(DatabaseMixin):
         await self.execute(query)
 
     async def get_slots(self, creative_id: int) -> list[AdCreativeLinkSlot]:
-        query = select(AdCreativeLinkSlot).where(AdCreativeLinkSlot.creative_id == creative_id)
+        query = select(AdCreativeLinkSlot).where(
+            AdCreativeLinkSlot.creative_id == creative_id
+        )
         return await self.fetch(query)
 
     async def update_creative_status(self, creative_id: int, status: str) -> None:
         from sqlalchemy import update
-        query = update(AdCreative).where(AdCreative.id == creative_id).values(status=status)
+
+        query = (
+            update(AdCreative).where(AdCreative.id == creative_id).values(status=status)
+        )
         await self.execute(query)

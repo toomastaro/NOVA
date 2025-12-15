@@ -1,10 +1,9 @@
-from sqlalchemy.orm import Mapped, mapped_column
-
 from main_bot.database import Base
+from sqlalchemy.orm import Mapped, mapped_column
 
 
 class Stats(Base):
-    __tablename__ = 'stats'
+    __tablename__ = "stats"
 
     # Data
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)

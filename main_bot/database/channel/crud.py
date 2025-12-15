@@ -1,9 +1,8 @@
-from typing import Literal, List, Optional
-
-from sqlalchemy import insert, select, desc, update, delete, or_
+from typing import List, Literal
 
 from main_bot.database import DatabaseMixin
 from main_bot.database.channel.model import Channel
+from sqlalchemy import delete, desc, select, update
 
 
 class ChannelCrud(DatabaseMixin):
@@ -15,17 +14,16 @@ class ChannelCrud(DatabaseMixin):
         """
         return await self.fetch(
             select(Channel).where(
-                Channel.admin_id == user_id,
-                Channel.subscribe.is_not(None)
+                Channel.admin_id == user_id, Channel.subscribe.is_not(None)
             )
         )
 
     async def get_user_channels(
-            self,
-            user_id: int,
-            limit: int = None,
-            sort_by: Literal['subscribe'] = None,
-            from_array: List[int] = None
+        self,
+        user_id: int,
+        limit: int = None,
+        sort_by: Literal["subscribe"] = None,
+        from_array: List[int] = None,
     ) -> List[Channel]:
         """
         Получает список каналов пользователя с опциональной фильтрацией и сортировкой.
@@ -51,11 +49,7 @@ class ChannelCrud(DatabaseMixin):
         """
         Получает канал по его первичному ключу (ID в БД).
         """
-        return await self.fetchrow(
-            select(Channel).where(
-                Channel.id == row_id
-            )
-        )
+        return await self.fetchrow(select(Channel).where(Channel.id == row_id))
 
     async def get_channel_admin_row(self, chat_id: int, user_id: int) -> Channel | None:
         """
@@ -64,8 +58,7 @@ class ChannelCrud(DatabaseMixin):
         """
         return await self.fetchrow(
             select(Channel).where(
-                Channel.chat_id == chat_id,
-                Channel.admin_id == user_id
+                Channel.chat_id == chat_id, Channel.admin_id == user_id
             )
         )
 
@@ -74,9 +67,7 @@ class ChannelCrud(DatabaseMixin):
         Получает канал по Telegram chat_id.
         """
         return await self.fetchrow(
-            select(Channel).where(
-                Channel.chat_id == chat_id
-            ).limit(1)
+            select(Channel).where(Channel.chat_id == chat_id).limit(1)
         )
 
     async def update_channel_by_chat_id(self, chat_id: int, **kwargs) -> None:
@@ -84,9 +75,7 @@ class ChannelCrud(DatabaseMixin):
         Обновляет данные канала по chat_id.
         """
         await self.execute(
-            update(Channel).where(
-                Channel.chat_id == chat_id
-            ).values(**kwargs)
+            update(Channel).where(Channel.chat_id == chat_id).values(**kwargs)
         )
 
     async def update_channel_by_id(self, channel_id: int, **kwargs) -> None:
@@ -94,9 +83,7 @@ class ChannelCrud(DatabaseMixin):
         Обновляет данные канала по ID (Primary Key).
         """
         await self.execute(
-            update(Channel).where(
-                Channel.id == channel_id
-            ).values(**kwargs)
+            update(Channel).where(Channel.id == channel_id).values(**kwargs)
         )
 
     async def add_channel(self, **kwargs) -> None:
@@ -104,11 +91,10 @@ class ChannelCrud(DatabaseMixin):
         Добавляет новый канал.
         """
         from sqlalchemy.dialects.postgresql import insert as pg_insert
-        
+
         stmt = pg_insert(Channel).values(**kwargs)
         stmt = stmt.on_conflict_do_update(
-            index_elements=['chat_id', 'admin_id'],
-            set_=kwargs
+            index_elements=["chat_id", "admin_id"], set_=kwargs
         )
         await self.execute(stmt)
 
@@ -141,34 +127,33 @@ class ChannelCrud(DatabaseMixin):
         """
         Получает каналы пользователя, которые НЕ находятся ни в одной папке.
         """
-        from main_bot.database.user_folder.model import UserFolder
         from main_bot.database.types import FolderType
+        from main_bot.database.user_folder.model import UserFolder
 
         # Получаем все chat_ids из папок пользователя
         stmt_folders = select(UserFolder.content).where(
-            UserFolder.user_id == user_id,
-            UserFolder.type == FolderType.CHANNEL
+            UserFolder.user_id == user_id, UserFolder.type == FolderType.CHANNEL
         )
         folders_content = await self.fetch(stmt_folders)
-        
+
         # Разворачиваем список списков
         excluded_chat_ids = []
         for content in folders_content:
             if content:
                 excluded_chat_ids.extend([int(c) for c in content])
-        
+
         # Получаем каналы, которых нет в исключенных
         stmt = select(Channel).where(Channel.admin_id == user_id)
-        
+
         if excluded_chat_ids:
             stmt = stmt.where(Channel.chat_id.notin_(excluded_chat_ids))
-            
+
         return await self.fetch(stmt)
-    
+
     async def update_last_client(self, channel_id: int, client_id: int) -> None:
         """
         Обновить last_client_id для канала (для round-robin распределения).
-        
+
         Args:
             channel_id: ID канала (row id, не chat_id)
             client_id: ID клиента
@@ -181,10 +166,8 @@ class ChannelCrud(DatabaseMixin):
 
     async def get_all_channels(self) -> List[Channel]:
         """Получить все каналы (для админ-панели и шедулера)"""
-        channels = await self.fetch(
-            select(Channel).order_by(Channel.id.desc())
-        )
-        
+        channels = await self.fetch(select(Channel).order_by(Channel.id.desc()))
+
         # Фильтруем дубликаты по chat_id, оставляя самые новые
         seen = set()
         unique_channels = []
@@ -192,7 +175,7 @@ class ChannelCrud(DatabaseMixin):
             if ch.chat_id not in seen:
                 unique_channels.append(ch)
                 seen.add(ch.chat_id)
-                
+
         return unique_channels
 
     async def get_channels(self) -> List[Channel]:
@@ -202,4 +185,3 @@ class ChannelCrud(DatabaseMixin):
     async def get_channel_by_id(self, channel_id: int) -> Channel | None:
         """Получить канал по ID (row_id)"""
         return await self.get_channel_by_row_id(channel_id)
-
