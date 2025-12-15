@@ -119,7 +119,7 @@ async def update_channel_stats(channel_id: int):
             )
         )
         
-        recent_posts = await db.fetch_all(query)
+        recent_posts = await db.fetch(query)
         if not recent_posts:
             # Преобразуем scalar result если надо, или fetch_all вернет список
             recent_posts = []

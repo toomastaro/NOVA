@@ -771,7 +771,14 @@ async def manage_published_post(call: types.CallbackQuery, state: FSMContext):
         if isinstance(post_message, types.Message):
             await post_message.delete()
         else:
-            await call.bot.delete_message(call.message.chat.id, post_message.message_id)
+            await call.bot.delete_message(
+                call.message.chat.id,
+                (
+                    post_message.get("message_id")
+                    if isinstance(post_message, dict)
+                    else post_message.message_id
+                ),
+            )
 
         # FIX: return to content list should look right
         days_with_posts = await get_days_with_posts(
@@ -812,7 +819,11 @@ async def manage_published_post(call: types.CallbackQuery, state: FSMContext):
         else:
             await call.bot.edit_message_reply_markup(
                 chat_id=call.message.chat.id,
-                message_id=post_message.message_id,
+                message_id=(
+                    post_message.get("message_id")
+                    if isinstance(post_message, dict)
+                    else post_message.message_id
+                ),
                 reply_markup=reply_markup,
             )
         return
