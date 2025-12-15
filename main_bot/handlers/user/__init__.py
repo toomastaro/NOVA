@@ -10,7 +10,7 @@ from .bots import get_router as bots_router
 def get_router():
     routers = [
         start.get_router(),
-        menu.hand_add(),
+        menu.get_router(),
         support.hand_add(),
         set_resource.hand_add(),
         commands.get_router(),

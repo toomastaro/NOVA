@@ -7,7 +7,7 @@ from .bot_settings import application, hello, bye, menu as hmenu, captcha, clone
 
 def get_router():
     routers = [
-        menu.hand_add(),
+        menu.get_router(),
         settings.hand_add(),
         create_post.hand_add(),
         content.get_router(),

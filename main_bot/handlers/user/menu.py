@@ -1,15 +1,29 @@
+import logging
 from aiogram import types, F, Router
 from aiogram.fsm.context import FSMContext
 
 from main_bot.keyboards import keyboards
 from main_bot.states.user import Support
 from main_bot.utils.lang.language import text
-from main_bot.utils.logger import logging
 from main_bot.utils.error_handler import safe_handler
 from main_bot.database.db import db
 from hello_bot.database.db import Database
 
 logger = logging.getLogger(__name__)
+
+
+def serialize_user_bot(bot):
+    if not bot:
+        return None
+    return {
+        'id': bot.id,
+        'user_id': bot.user_id,
+        'token': bot.token,
+        'username': bot.username,
+        'first_name': getattr(bot, 'first_name', None),
+        'schema': getattr(bot, 'schema', None),
+        'created_at': getattr(bot, 'created_at', None),
+    }
 
 
 @safe_handler("Menu Choice")
@@ -185,7 +199,7 @@ async def privetka_choice_channel(call: types.CallbackQuery, state: FSMContext):
         await state.update_data(bot_id=bot_id)
         user_bot = await db.user_bot.get_bot_by_id(bot_id)
         if user_bot:
-             await state.update_data(user_bot=user_bot)
+             await state.update_data(user_bot=serialize_user_bot(user_bot))
 
     db_obj = Database()
     if user_bot:
@@ -196,7 +210,7 @@ async def privetka_choice_channel(call: types.CallbackQuery, state: FSMContext):
     await show_channel_setting(call.message, db_obj, state)
 
 
-def hand_add():
+def get_router():
     router = Router()
     router.message.register(
         choice,
