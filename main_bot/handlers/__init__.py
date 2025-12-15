@@ -1,5 +1,3 @@
-
-
 import logging
 from aiogram import Dispatcher
 from aiogram.fsm.storage.redis import RedisStorage
@@ -10,7 +8,11 @@ from dotenv import load_dotenv
 
 
 from main_bot.database.db import db
-from main_bot.utils.middlewares import GetUserMiddleware, ErrorMiddleware, VersionCheckMiddleware
+from main_bot.utils.middlewares import (
+    GetUserMiddleware,
+    ErrorMiddleware,
+    VersionCheckMiddleware,
+)
 from main_bot.utils.state_reset_middleware import StateResetMiddleware
 from main_bot.utils.schedulers import init_scheduler, register_channel_jobs
 from .user import get_router as user_router
@@ -27,9 +29,7 @@ redis = Redis(
     password=Config.REDIS_PASS,
 )
 
-dp = Dispatcher(
-    storage=RedisStorage(redis=redis)
-)
+dp = Dispatcher(storage=RedisStorage(redis=redis))
 
 
 def set_main_routers():
@@ -38,19 +38,11 @@ def set_main_routers():
     Порядок регистрации middleware важен для корректной работы.
     """
     # Регистрируем StateResetMiddleware первым для сброса состояния при нажатии меню
-    dp.update.middleware.register(
-        StateResetMiddleware()
-    )
+    dp.update.middleware.register(StateResetMiddleware())
     # Регистрируем VersionCheckMiddleware для проверки версии
-    dp.update.middleware.register(
-        VersionCheckMiddleware()
-    )
-    dp.update.middleware.register(
-        GetUserMiddleware()
-    )
-    dp.update.middleware.register(
-        ErrorMiddleware()
-    )
+    dp.update.middleware.register(VersionCheckMiddleware())
+    dp.update.middleware.register(GetUserMiddleware())
+    dp.update.middleware.register(ErrorMiddleware())
     dp.include_routers(
         user_router(),
         admin_router(),
@@ -60,58 +52,53 @@ def set_main_routers():
 async def set_scheduler():
     """
     Инициализация планировщика задач.
-    
+
     Использует init_scheduler для регистрации всех системных задач
     с параметром replace_existing=True для предотвращения дублей при перезапуске.
-    
+
     Использует SQLAlchemyJobStore для персистентности задач в PostgreSQL,
     что позволяет восстанавливать все задачи после рестарта Docker контейнера.
     """
     from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
-    
+
     # Формирование URL подключения к PostgreSQL
     postgres_url = f"postgresql://{Config.PG_USER}:{Config.PG_PASS}@{Config.PG_HOST}/{Config.PG_DATABASE}"
-    
+
     # Настройка jobstore для персистентности задач в БД
-    jobstores = {
-        'default': SQLAlchemyJobStore(url=postgres_url)
-    }
-    
+    jobstores = {"default": SQLAlchemyJobStore(url=postgres_url)}
+
     # Создание планировщика с jobstore
-    sch = AsyncIOScheduler(
-        jobstores=jobstores,
-        timezone='Europe/Moscow'
-    )
-    
+    sch = AsyncIOScheduler(jobstores=jobstores, timezone="Europe/Moscow")
+
     # Регистрация задач очистки БД (выполняются в полночь)
     sch.add_job(
         func=db.bot_post.clear_empty_bot_posts,
-        trigger=CronTrigger(hour='0'),
+        trigger=CronTrigger(hour="0"),
         id="clear_empty_bot_posts_daily",
         replace_existing=True,
-        name="Очистка пустых постов ботов"
+        name="Очистка пустых постов ботов",
     )
     sch.add_job(
         func=db.post.clear_empty_posts,
-        trigger=CronTrigger(hour='0'),
+        trigger=CronTrigger(hour="0"),
         id="clear_empty_posts_daily",
         replace_existing=True,
-        name="Очистка пустых постов"
+        name="Очистка пустых постов",
     )
     sch.add_job(
         func=db.story.clear_empty_stories,
-        trigger=CronTrigger(hour='0'),
+        trigger=CronTrigger(hour="0"),
         id="clear_empty_stories_daily",
         replace_existing=True,
-        name="Очистка пустых сторис"
+        name="Очистка пустых сторис",
     )
-    
+
     # Регистрация всех системных задач через init_scheduler
     init_scheduler(sch)
-    
+
     # Регистрация задач для каналов
     await register_channel_jobs(sch)
-    
+
     sch.start()
     logger.info("Scheduler started")
     # sch.print_jobs() disabled to avoid console spam
