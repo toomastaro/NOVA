@@ -1,3 +1,11 @@
+"""Инициализация handlers для main_bot.
+
+Модуль отвечает за:
+- Настройку диспетчера Aiogram с Redis-хранилищем
+- Регистрацию middleware (StateReset, VersionCheck, GetUser, Error)
+- Регистрацию роутеров (user, admin)
+- Инициализацию планировщика задач с персистентностью в PostgreSQL
+"""
 import logging
 from aiogram import Dispatcher
 from aiogram.fsm.storage.redis import RedisStorage
@@ -100,5 +108,5 @@ async def set_scheduler():
     await register_channel_jobs(sch)
 
     sch.start()
-    logger.info("Scheduler started")
-    # sch.print_jobs() disabled to avoid console spam
+    logger.info("Планировщик задач запущен")
+    logger.debug("Зарегистрированные задачи планировщика: %s", [job.id for job in sch.get_jobs()])

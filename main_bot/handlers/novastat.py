@@ -1,3 +1,12 @@
+"""
+Обработчики функционала NOVAстат.
+
+Модуль предоставляет:
+- Быструю аналитику Telegram-каналов (просмотры, ER)
+- Управление коллекциями каналов
+- Расчет стоимости рекламы по CPM
+- Настройки глубины анализа
+"""
 import asyncio
 import logging
 from datetime import datetime
@@ -13,6 +22,12 @@ from main_bot.utils.lang.language import text
 
 logger = logging.getLogger(__name__)
 router = Router()
+
+# Константы
+MAX_CHANNELS_SYNC = 5  # Максимум каналов для синхронной обработки
+HOURS_TO_ANALYZE = [24, 48, 72]  # Временные интервалы для анализа
+MAX_PARALLEL_REQUESTS = 5  # Максимум параллельных запросов к Telegram API
+STATUS_UPDATE_INTERVAL = 3  # Минимальный интервал обновления статуса (секунды)
 
 
 class NovaStatStates(StatesGroup):
@@ -276,10 +291,15 @@ async def novastat_del_channel(call: types.CallbackQuery):
 
 # --- Analysis Logic ---
 async def process_analysis(message: types.Message, channels: list, state: FSMContext):
+    """
+    Запускает анализ каналов (синхронно или в фоне в зависимости от количества).
+    
+    Если каналов > MAX_CHANNELS_SYNC, запускается фоновая задача.
+    """
     settings = await db.novastat.get_novastat_settings(message.from_user.id)
     depth = settings.depth_days
 
-    if len(channels) > 5:
+    if len(channels) > MAX_CHANNELS_SYNC:
         await message.answer(
             f"⏳ Запущена фоновая обработка {len(channels)} каналов.\n"
             "Это займет некоторое время. Я пришлю отчет, когда закончу."
@@ -296,11 +316,17 @@ async def process_analysis(message: types.Message, channels: list, state: FSMCon
 async def run_analysis_background(
     message: types.Message, channels: list, depth: int, state: FSMContext
 ):
+    """
+    Фоновая обработка анализа большого количества каналов.
+    
+    Используется для >MAX_CHANNELS_SYNC каналов, чтобы не блокировать бота.
+    """
     try:
         await run_analysis_logic(message, channels, depth, state, None)
-    except Exception as e:
+    except Exception:
         logger.exception(
-            f"Background analysis failed for user {message.from_user.id}: {e}"
+            "Фоновый анализ завершился ошибкой для пользователя %s",
+            message.from_user.id
         )
         await message.answer(
             "❌ Произошла внутренняя ошибка при анализе. Попробуйте позже."
@@ -314,24 +340,40 @@ async def run_analysis_logic(
     state: FSMContext,
     status_msg: types.Message = None,
 ):
+    """
+    Основная логика анализа каналов.
+    
+    Этапы:
+    1. Проверка доступа к каналам (параллельно)
+    2. Сбор статистики (параллельно с ограничением)
+    3. Формирование и отправка отчета
+    """
     # Use a single client session for the entire analysis process
     async with novastat_service.get_client() as client:
-        # 1. Check Access
+        # 1. Check Access (параллельно)
         valid_entities = []
         failed = []
 
         total_channels = len(channels)
 
-        for i, ch in enumerate(channels, 1):
-            if status_msg:
-                await status_msg.edit_text(
-                    f"🔍 Проверяю доступ к каналу {i}/{total_channels}: {ch}...",
-                    link_preview_options=types.LinkPreviewOptions(is_disabled=True),
-                )
+        if status_msg:
+            await status_msg.edit_text(
+                f"🔍 Проверяю доступ к {total_channels} каналам...",
+                link_preview_options=types.LinkPreviewOptions(is_disabled=True),
+            )
 
-            entity = await novastat_service.check_access(ch, client=client)
-            if entity:
-                valid_entities.append((ch, entity))
+        # Параллельная проверка доступа
+        access_tasks = [
+            novastat_service.check_access(ch, client=client) for ch in channels
+        ]
+        access_results = await asyncio.gather(*access_tasks, return_exceptions=True)
+
+        for ch, result in zip(channels, access_results):
+            if isinstance(result, Exception):
+                logger.warning("Ошибка проверки доступа к каналу %s: %s", ch, result)
+                failed.append(ch)
+            elif result:
+                valid_entities.append((ch, result))
             else:
                 failed.append(ch)
 
@@ -358,20 +400,29 @@ async def run_analysis_logic(
                 link_preview_options=types.LinkPreviewOptions(is_disabled=True),
             )
 
-        # 2. Collect Stats
+        # 2. Collect Stats (параллельно с ограничением)
         results = []
 
-        for i, (ch_id, entity) in enumerate(valid_entities, 1):
-            if status_msg:
-                await status_msg.edit_text(
-                    f"📊 Собираю статистику: {ch_id} ({i}/{len(valid_entities)})...",
-                    link_preview_options=types.LinkPreviewOptions(is_disabled=True),
-                )
+        # Семафор для ограничения количества одновременных запросов
+        sem = asyncio.Semaphore(MAX_PARALLEL_REQUESTS)
 
-            # We pass ch_id to collect_stats as per our refactor
-            stats = await novastat_service.collect_stats(ch_id, depth, client=client)
-            if stats:
-                results.append(stats)
+        async def collect_with_limit(ch_id, entity):
+            """Сбор статистики с ограничением параллельных запросов."""
+            async with sem:
+                return await novastat_service.collect_stats(ch_id, depth, client=client)
+
+        # Параллельный сбор статистики
+        stats_tasks = [
+            collect_with_limit(ch_id, entity) for ch_id, entity in valid_entities
+        ]
+        stats_results = await asyncio.gather(*stats_tasks, return_exceptions=True)
+
+        for (ch_id, entity), result in zip(valid_entities, stats_results):
+            if isinstance(result, Exception):
+                logger.warning("Ошибка сбора статистики канала %s: %s", ch_id, result)
+                failed.append(ch_id)
+            elif result:
+                results.append(result)
             else:
                 failed.append(ch_id)
 
@@ -383,21 +434,21 @@ async def run_analysis_logic(
         )
 
     # Calculate totals for views and averages for ER
-    total_views = {24: 0, 48: 0, 72: 0}
-    total_er = {24: 0.0, 48: 0.0, 72: 0.0}
+    total_views = {h: 0 for h in HOURS_TO_ANALYZE}
+    total_er = {h: 0.0 for h in HOURS_TO_ANALYZE}
     count = len(results)
 
     for res in results:
-        for h in [24, 48, 72]:
+        for h in HOURS_TO_ANALYZE:
             total_views[h] += res["views"][h]
             total_er[h] += res["er"][h]
 
     # Views are summed (Total), ER is averaged
     final_views = total_views
     if count > 0:
-        avg_er = {h: round(total_er[h] / count, 2) for h in [24, 48, 72]}
+        avg_er = {h: round(total_er[h] / count, 2) for h in HOURS_TO_ANALYZE}
     else:
-        avg_er = {24: 0.0, 48: 0.0, 72: 0.0}
+        avg_er = {h: 0.0 for h in HOURS_TO_ANALYZE}
 
     # Store results for CPM calculation
     data_to_store = {"last_analysis_views": final_views}
@@ -435,8 +486,7 @@ async def run_analysis_logic(
     if failed:
         report += f"⚠️ Не удалось обработать: {len(failed)} каналов.\n"
 
-    if status_msg:
-        await status_msg.delete()
+    # Не удаляем status_msg, чтобы пользователь видел прогресс
 
     await message.answer(
         report,
@@ -487,6 +537,7 @@ async def novastat_cpm_start(call: types.CallbackQuery, state: FSMContext):
 async def calculate_and_show_price(
     message: types.Message, cpm: int, state: FSMContext, is_edit: bool = False
 ):
+    """Расчет и отображение стоимости рекламы на основе CPM и собранной статистики."""
     data = await state.get_data()
     views = data.get("last_analysis_views")
     single_info = data.get("single_channel_info")
@@ -502,7 +553,7 @@ async def calculate_and_show_price(
             )
         return
 
-    price = {h: int((views[h] / 1000) * cpm) for h in [24, 48, 72]}
+    price = {h: int((views[h] / 1000) * cpm) for h in HOURS_TO_ANALYZE}
 
     date_str = datetime.now().strftime("%d.%m.%Y %H:%M")
 
