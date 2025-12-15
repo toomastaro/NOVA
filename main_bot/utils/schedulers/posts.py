@@ -231,7 +231,7 @@ async def send(post: Post):
             error_str,
         )
     else:
-        message_text = "Неизвестное сообщение уведомления о посте"
+        message_text = text("error:post:unknown_notification")
 
     try:
         await bot.send_message(
@@ -275,7 +275,7 @@ async def check_cpm_reports():
         PublishedPost.cpm_price.is_not(None),
         PublishedPost.deleted_at.is_(None)
     )
-    posts = await db.fetch_all(stmt)
+    posts = await db.fetch(stmt)
     if not posts:
         return
     
@@ -328,7 +328,7 @@ async def check_cpm_reports():
             channels_text = f"<blockquote expandable>{channels_text}</blockquote>"
             
             opts = post.message_options or {}
-            raw_text = opts.get('text') or opts.get('caption') or "Без текста"
+            raw_text = opts.get('text') or opts.get('caption') or text("post:no_text")
             clean_text = re.sub(r'<[^>]+>', '', raw_text)
             preview_text_raw = clean_text[:50] + "..." if len(clean_text) > 50 else clean_text
             preview_text = f"«{html.escape(preview_text_raw)}»"
@@ -431,7 +431,7 @@ async def delete_posts():
             views_48 = representative_post.views_48h
             
             opts = representative_post.message_options or {}
-            raw_text = opts.get('text') or opts.get('caption') or "Без текста"
+            raw_text = opts.get('text') or opts.get('caption') or text("post:no_text")
             clean_text = re.sub(r'<[^>]+>', '', raw_text)
             preview_text_raw = clean_text[:50] + "..." if len(clean_text) > 50 else clean_text
             preview_text = f"«{html.escape(preview_text_raw)}»"
@@ -440,7 +440,7 @@ async def delete_posts():
                 lines = []
                 lines.append(text("cpm:report:header").format(preview_text, title_suffix))
                 lines.append(text("cpm:report:stats").format(
-                    "Финальный" if "Final" in title_suffix else title_suffix,
+                    text("cpm:report:final_en") if "Final" in title_suffix else title_suffix,
                     current_views,
                     rub_price,
                     round(rub_price / usd_rate, 2),
@@ -470,9 +470,9 @@ async def delete_posts():
                     exchange_rate_update_time.strftime("%H:%M %d.%m.%Y") if exchange_rate_update_time else "N/A"
                 )
             elif delete_duration <= 48 * 3600:
-                report_text = format_report(f"Final ({hours}ч)", total_views, views_24)
+                report_text = format_report(f"{text('cpm:report:final')} ({hours}ч)", total_views, views_24)
             else:
-                report_text = format_report(f"Final ({hours}ч)", total_views, views_24, views_48)
+                report_text = format_report(f"{text('cpm:report:final')} ({hours}ч)", total_views, views_24, views_48)
             
             if not report_text:
                  report_text = text("cpm:report").format(

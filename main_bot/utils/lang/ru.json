@@ -458,5 +458,9 @@
   "admin:promo:input": "Отправьте данные для промокода:\n\nИмя промокода\nСумма баланса (0, если не нужно)\nКоличество использований\nСумма скидки в % (0, если не нужно)",
   "admin:session:available": "Доступно сессий: {}",
   "start:terms:text": "Пользовательское соглашение",
-  "start:privacy:text": "Политика конфиденциальности"
+  "start:privacy:text": "Политика конфиденциальности",
+  "error:post:unknown_notification": "Неизвестное сообщение уведомления о посте",
+  "post:no_text": "Без текста",
+  "cpm:report:final": "Финальный",
+  "cpm:report:final_en": "Final"
 }
