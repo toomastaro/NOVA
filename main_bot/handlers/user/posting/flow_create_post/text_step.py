@@ -97,7 +97,13 @@ async def get_message(message: types.Message, state: FSMContext):
 
     # Обновление состояния
     await state.clear()
-    await state.update_data(show_more=False, post=post, chosen=chosen)
+    
+    post_dict = {
+        col.name: getattr(post, col.name)
+        for col in post.__table__.columns
+    }
+    
+    await state.update_data(show_more=False, post=post_dict, chosen=chosen)
 
     # Показываем превью поста с возможностью редактирования
     await answer_post(message, state)
