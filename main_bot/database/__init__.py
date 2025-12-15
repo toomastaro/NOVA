@@ -1,3 +1,5 @@
+import asyncio
+import logging
 import urllib.parse
 from contextlib import asynccontextmanager
 from typing import Any, AsyncGenerator, Sequence, TypeVar
@@ -7,6 +9,14 @@ from sqlalchemy.engine.result import Result
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import declarative_base
 from sqlalchemy.sql import Executable
+from tenacity import (
+    retry,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_exponential,
+)
+
+logger = logging.getLogger(__name__)
 
 # Кодируем пользователя и пароль, чтобы избежать проблем со спецсимволами
 pg_user = urllib.parse.quote_plus(Config.PG_USER)
@@ -35,6 +45,10 @@ Base = declarative_base()
 
 T = TypeVar("T")
 
+# Константы для retry и таймаутов
+DB_TIMEOUT_SECONDS = 30  # Таймаут для операций БД
+DB_MAX_RETRY_ATTEMPTS = 3  # Максимум попыток при сбое
+
 
 @asynccontextmanager
 async def get_session() -> AsyncGenerator[AsyncSession, None]:
@@ -52,34 +66,75 @@ class DatabaseMixin:
     """
 
     @staticmethod
+    @retry(
+        retry=retry_if_exception_type((Exception,)),  # Retry на любые исключения БД
+        stop=stop_after_attempt(DB_MAX_RETRY_ATTEMPTS),
+        wait=wait_exponential(multiplier=1, min=1, max=10),
+        reraise=True,
+    )
     async def execute(sql: Executable, commit: bool = True) -> None:
         """
         Выполняет SQL-запрос.
         :param sql: SQL-запрос (SQLAlchemy statement).
-        :param commit: Нужно ли делать коммит (по умолчанию True, если встроено в логику, но здесь вызывается commit всегда).
-        Прим.: Тут есть session.commit(), так что commit=True подразумевается.
+        :param commit: Нужно ли делать коммит (по умолчанию True).
         """
-        async with get_session() as session:
-            session: AsyncSession
-
-            await session.execute(sql)
-            await session.commit()
+        try:
+            async with asyncio.timeout(DB_TIMEOUT_SECONDS):
+                async with get_session() as session:
+                    session: AsyncSession
+                    logger.debug(f"Executing SQL: {sql}")
+                    await session.execute(sql)
+                    if commit:
+                        await session.commit()
+                        logger.debug("Transaction committed")
+        except asyncio.TimeoutError:
+            logger.error(f"Database timeout in execute() after {DB_TIMEOUT_SECONDS}s")
+            raise
+        except Exception as e:
+            logger.error(f"Database error in execute(): {e}", exc_info=True)
+            raise
 
     @staticmethod
+    @retry(
+        retry=retry_if_exception_type((Exception,)),
+        stop=stop_after_attempt(DB_MAX_RETRY_ATTEMPTS),
+        wait=wait_exponential(multiplier=1, min=1, max=10),
+        reraise=True,
+    )
     async def execute_many(list_sql: list[Executable]) -> None:
         """
         Выполняет список SQL-запросов в одной транзакции.
         :param list_sql: Список запросов.
         """
-        async with get_session() as session:
-            session: AsyncSession
-
-            for sql in list_sql:
-                await session.execute(sql)
-
-            await session.commit()
+        try:
+            async with asyncio.timeout(
+                DB_TIMEOUT_SECONDS * 2
+            ):  # Больше времени для множественных запросов
+                async with get_session() as session:
+                    session: AsyncSession
+                    logger.debug(
+                        f"Executing {len(list_sql)} SQL statements in transaction"
+                    )
+                    for sql in list_sql:
+                        await session.execute(sql)
+                    await session.commit()
+                    logger.debug("Transaction committed")
+        except asyncio.TimeoutError:
+            logger.error(
+                f"Database timeout in execute_many() after {DB_TIMEOUT_SECONDS * 2}s"
+            )
+            raise
+        except Exception as e:
+            logger.error(f"Database error in execute_many(): {e}", exc_info=True)
+            raise
 
     @staticmethod
+    @retry(
+        retry=retry_if_exception_type((Exception,)),
+        stop=stop_after_attempt(DB_MAX_RETRY_ATTEMPTS),
+        wait=wait_exponential(multiplier=1, min=1, max=10),
+        reraise=True,
+    )
     async def fetch(sql: Executable) -> Sequence[Any]:
         """
         Выполняет запрос и возвращает список скалярных значений (scalars().all()).
@@ -87,13 +142,29 @@ class DatabaseMixin:
         :param sql: SQL-запрос.
         :return: Список результатов.
         """
-        async with get_session() as session:
-            session: AsyncSession
-
-            res: Result = await session.execute(sql)
-            return res.scalars().all()
+        try:
+            async with asyncio.timeout(DB_TIMEOUT_SECONDS):
+                async with get_session() as session:
+                    session: AsyncSession
+                    logger.debug(f"Fetching data: {sql}")
+                    res: Result = await session.execute(sql)
+                    results = res.scalars().all()
+                    logger.debug(f"Fetched {len(results)} rows")
+                    return results
+        except asyncio.TimeoutError:
+            logger.error(f"Database timeout in fetch() after {DB_TIMEOUT_SECONDS}s")
+            raise
+        except Exception as e:
+            logger.error(f"Database error in fetch(): {e}", exc_info=True)
+            raise
 
     @staticmethod
+    @retry(
+        retry=retry_if_exception_type((Exception,)),
+        stop=stop_after_attempt(DB_MAX_RETRY_ATTEMPTS),
+        wait=wait_exponential(multiplier=1, min=1, max=10),
+        reraise=True,
+    )
     async def fetchrow(sql: Executable, commit: bool = False) -> Any | None:
         """
         Выполняет запрос и возвращает одну запись (scalar_one_or_none).
@@ -101,16 +172,32 @@ class DatabaseMixin:
         :param commit: Выполнить ли коммит после запроса (например, для RETURNING).
         :return: Один объект или None.
         """
-        async with get_session() as session:
-            session: AsyncSession
-
-            res: Result = await session.execute(sql)
-            if commit:
-                await session.commit()
-
-            return res.scalar_one_or_none()
+        try:
+            async with asyncio.timeout(DB_TIMEOUT_SECONDS):
+                async with get_session() as session:
+                    session: AsyncSession
+                    logger.debug(f"Fetching row: {sql}")
+                    res: Result = await session.execute(sql)
+                    if commit:
+                        await session.commit()
+                        logger.debug("Transaction committed")
+                    result = res.scalar_one_or_none()
+                    logger.debug(f"Fetched row: {result is not None}")
+                    return result
+        except asyncio.TimeoutError:
+            logger.error(f"Database timeout in fetchrow() after {DB_TIMEOUT_SECONDS}s")
+            raise
+        except Exception as e:
+            logger.error(f"Database error in fetchrow(): {e}", exc_info=True)
+            raise
 
     @staticmethod
+    @retry(
+        retry=retry_if_exception_type((Exception,)),
+        stop=stop_after_attempt(DB_MAX_RETRY_ATTEMPTS),
+        wait=wait_exponential(multiplier=1, min=1, max=10),
+        reraise=True,
+    )
     async def fetchall(sql: Executable) -> Sequence[Any]:
         """
         Выполняет запрос и возвращает все строки (res.all()).
@@ -118,13 +205,29 @@ class DatabaseMixin:
         :param sql: SQL-запрос.
         :return: Список строк.
         """
-        async with get_session() as session:
-            session: AsyncSession
-
-            res: Result = await session.execute(sql)
-            return res.all()
+        try:
+            async with asyncio.timeout(DB_TIMEOUT_SECONDS):
+                async with get_session() as session:
+                    session: AsyncSession
+                    logger.debug(f"Fetching all rows: {sql}")
+                    res: Result = await session.execute(sql)
+                    results = res.all()
+                    logger.debug(f"Fetched {len(results)} rows")
+                    return results
+        except asyncio.TimeoutError:
+            logger.error(f"Database timeout in fetchall() after {DB_TIMEOUT_SECONDS}s")
+            raise
+        except Exception as e:
+            logger.error(f"Database error in fetchall(): {e}", exc_info=True)
+            raise
 
     @staticmethod
+    @retry(
+        retry=retry_if_exception_type((Exception,)),
+        stop=stop_after_attempt(DB_MAX_RETRY_ATTEMPTS),
+        wait=wait_exponential(multiplier=1, min=1, max=10),
+        reraise=True,
+    )
     async def fetchone(sql: Executable) -> Any:
         """
         Выполняет запрос и возвращает ровно одну строку (res.one()).
@@ -132,13 +235,29 @@ class DatabaseMixin:
         :param sql: SQL-запрос.
         :return: Результат.
         """
-        async with get_session() as session:
-            session: AsyncSession
-
-            res: Result = await session.execute(sql)
-            return res.one()
+        try:
+            async with asyncio.timeout(DB_TIMEOUT_SECONDS):
+                async with get_session() as session:
+                    session: AsyncSession
+                    logger.debug(f"Fetching one row: {sql}")
+                    res: Result = await session.execute(sql)
+                    result = res.one()
+                    logger.debug("Fetched exactly one row")
+                    return result
+        except asyncio.TimeoutError:
+            logger.error(f"Database timeout in fetchone() after {DB_TIMEOUT_SECONDS}s")
+            raise
+        except Exception as e:
+            logger.error(f"Database error in fetchone(): {e}", exc_info=True)
+            raise
 
     @staticmethod
+    @retry(
+        retry=retry_if_exception_type((Exception,)),
+        stop=stop_after_attempt(DB_MAX_RETRY_ATTEMPTS),
+        wait=wait_exponential(multiplier=1, min=1, max=10),
+        reraise=True,
+    )
     async def add(obj: Any, commit: bool = True) -> Any:
         """
         Добавляет объект в сессию и сохраняет его.
@@ -146,10 +265,22 @@ class DatabaseMixin:
         :param commit: Делать ли коммит.
         :return: Добавленный объект (обновленный).
         """
-        async with get_session() as session:
-            session: AsyncSession
-            session.add(obj)
-            if commit:
-                await session.commit()
-                await session.refresh(obj)
-            return obj
+        try:
+            async with asyncio.timeout(DB_TIMEOUT_SECONDS):
+                async with get_session() as session:
+                    session: AsyncSession
+                    logger.debug(f"Adding object: {obj.__class__.__name__}")
+                    session.add(obj)
+                    if commit:
+                        await session.commit()
+                        await session.refresh(obj)
+                        logger.debug(
+                            f"Object added and committed: {obj.__class__.__name__}"
+                        )
+                    return obj
+        except asyncio.TimeoutError:
+            logger.error(f"Database timeout in add() after {DB_TIMEOUT_SECONDS}s")
+            raise
+        except Exception as e:
+            logger.error(f"Database error in add(): {e}", exc_info=True)
+            raise
