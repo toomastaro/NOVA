@@ -1,9 +1,12 @@
+import logging
 import time
 from typing import List, Optional
 
 from main_bot.database import DatabaseMixin
 from main_bot.database.mt_client.model import MtClient
 from sqlalchemy import insert, select, update
+
+logger = logging.getLogger(__name__)
 
 
 class MtClientCrud(DatabaseMixin):

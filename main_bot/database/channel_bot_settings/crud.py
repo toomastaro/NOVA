@@ -1,6 +1,9 @@
+import logging
 from main_bot.database import DatabaseMixin
 from main_bot.database.channel_bot_settings.model import ChannelBotSetting
 from sqlalchemy import insert, select, update
+
+logger = logging.getLogger(__name__)
 
 
 class ChannelBotSettingCrud(DatabaseMixin):

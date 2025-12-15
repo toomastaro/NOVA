@@ -1,6 +1,11 @@
+import logging
+
+
 from main_bot.database import DatabaseMixin
 from main_bot.database.ad_creative.model import AdCreative, AdCreativeLinkSlot
-from sqlalchemy import insert, select
+from sqlalchemy import insert, select, update
+
+logger = logging.getLogger(__name__)
 
 
 class AdCreativeCrud(DatabaseMixin):
@@ -34,7 +39,6 @@ class AdCreativeCrud(DatabaseMixin):
         return await self.fetch(query)
 
     async def update_creative_status(self, creative_id: int, status: str) -> None:
-        from sqlalchemy import update
 
         query = (
             update(AdCreative).where(AdCreative.id == creative_id).values(status=status)

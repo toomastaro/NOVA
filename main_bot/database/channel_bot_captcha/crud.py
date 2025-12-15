@@ -1,6 +1,9 @@
+import logging
 from main_bot.database import DatabaseMixin
 from main_bot.database.channel_bot_captcha.model import ChannelCaptcha
 from sqlalchemy import asc, delete, insert, select, update
+
+logger = logging.getLogger(__name__)
 
 
 class ChannelCaptchaMessageCrud(DatabaseMixin):

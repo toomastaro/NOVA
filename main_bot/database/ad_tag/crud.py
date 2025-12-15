@@ -1,6 +1,11 @@
+import logging
+
+
 from main_bot.database import DatabaseMixin
 from main_bot.database.ad_tag.model import AdTag
 from sqlalchemy import delete, insert, select, update
+
+logger = logging.getLogger(__name__)
 
 
 class AdTagCrud(DatabaseMixin):

@@ -1,4 +1,5 @@
 import time
+import logging
 from datetime import datetime
 from typing import List
 
@@ -6,6 +7,8 @@ from main_bot.database import DatabaseMixin
 from main_bot.database.story.model import Story
 from main_bot.database.types import Status
 from sqlalchemy import delete, func, insert, or_, select, update
+
+logger = logging.getLogger(__name__)
 
 
 class StoryCrud(DatabaseMixin):

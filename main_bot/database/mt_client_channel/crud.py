@@ -1,8 +1,11 @@
+import logging
 from typing import Optional
 
 from main_bot.database import DatabaseMixin
 from main_bot.database.mt_client_channel.model import MtClientChannel
 from sqlalchemy import insert, select, update
+
+logger = logging.getLogger(__name__)
 
 
 class MtClientChannelCrud(DatabaseMixin):

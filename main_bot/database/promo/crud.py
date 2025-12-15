@@ -1,6 +1,11 @@
+import logging
+
+
 from main_bot.database import DatabaseMixin
 from main_bot.database.promo.model import Promo
 from sqlalchemy import delete, insert, select, update
+
+logger = logging.getLogger(__name__)
 
 
 class PromoCrud(DatabaseMixin):

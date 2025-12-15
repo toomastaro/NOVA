@@ -1,8 +1,11 @@
+import logging
 from typing import List, Literal
 
 from main_bot.database import DatabaseMixin
 from main_bot.database.channel.model import Channel
 from sqlalchemy import delete, desc, select, update
+
+logger = logging.getLogger(__name__)
 
 
 class ChannelCrud(DatabaseMixin):

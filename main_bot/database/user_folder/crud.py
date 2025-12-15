@@ -1,7 +1,10 @@
+import logging
 from main_bot.database import DatabaseMixin
 from main_bot.database.types import FolderType
 from main_bot.database.user_folder.model import UserFolder
 from sqlalchemy import delete, insert, select, update
+
+logger = logging.getLogger(__name__)
 
 
 class UserFolderCrud(DatabaseMixin):

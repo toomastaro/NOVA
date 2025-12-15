@@ -1,11 +1,15 @@
+import logging
 import time
 from typing import Optional
 
+from main_bot.database import DatabaseMixin
 from main_bot.database.novastat_cache.model import NovaStatCache
 from sqlalchemy import select, update
 
+logger = logging.getLogger(__name__)
 
-class NovaStatCacheCrud:
+
+class NovaStatCacheCrud(DatabaseMixin):
     """CRUD операции для кэша NovaStat"""
 
     async def get_cache(

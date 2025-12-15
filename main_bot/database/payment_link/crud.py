@@ -1,6 +1,11 @@
+import logging
+
+
 from main_bot.database import DatabaseMixin
 from main_bot.database.payment_link.model import PaymentLink
 from sqlalchemy import select, update
+
+logger = logging.getLogger(__name__)
 
 
 class PaymentLinkCrud(DatabaseMixin):

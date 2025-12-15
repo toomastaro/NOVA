@@ -1,6 +1,11 @@
+import logging
+
+
 from main_bot.database import DatabaseMixin
 from main_bot.database.purchase.model import Purchase
 from sqlalchemy import insert, select
+
+logger = logging.getLogger(__name__)
 
 
 class PurchaseCrud(DatabaseMixin):

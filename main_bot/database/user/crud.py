@@ -1,8 +1,11 @@
+import logging
 from typing import List
 
 from main_bot.database import DatabaseMixin
 from main_bot.database.user.model import User
 from sqlalchemy import func, insert, select, update
+
+logger = logging.getLogger(__name__)
 
 
 class UserCrud(DatabaseMixin):
