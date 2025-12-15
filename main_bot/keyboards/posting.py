@@ -14,6 +14,20 @@ from main_bot.utils.schemas import Hide, React, MessageOptions, StoryOptions
 from main_bot.keyboards.base import _parse_button
 
 
+
+class ObjWrapper:
+    def __init__(self, data):
+        self._data = data
+    def __getattr__(self, name):
+        if name in self._data:
+            return self._data[name]
+        raise AttributeError(f"'dict' object has no attribute '{name}'")
+
+def ensure_obj(obj):
+    if isinstance(obj, dict):
+        return ObjWrapper(obj)
+    return obj
+
 class InlinePosting(InlineKeyboardBuilder):
     """Клавиатуры для постинга в каналы"""
     
@@ -43,9 +57,13 @@ class InlinePosting(InlineKeyboardBuilder):
 
     @classmethod
     def manage_post(cls, post: Post, show_more: bool = False, is_edit: bool = False):
+        post = ensure_obj(post)
         kb = cls()
         hide = Hide(hide=post.hide) if post.hide else None
-        reactions = React(rows=post.reaction.get("rows")) if post.reaction else None
+        
+        reaction_data = getattr(post, 'reaction', None)
+        reactions = React(rows=reaction_data.get("rows")) if reaction_data else None
+        
         options = MessageOptions(**post.message_options)
 
         if hide:
@@ -159,7 +177,7 @@ class InlinePosting(InlineKeyboardBuilder):
 
         # Для уже опубликованных постов кнопка Сохранить избыточна
         from main_bot.database.published_post.model import PublishedPost
-        is_published = isinstance(post, PublishedPost)
+        is_published = isinstance(post, PublishedPost) or getattr(post, 'is_published', False)
 
         if is_published:
              kb.row(
@@ -181,9 +199,10 @@ class InlinePosting(InlineKeyboardBuilder):
             )
 
         return kb.as_markup()
-
+    
     @classmethod
     def post_kb(cls, post: Post | PublishedPost | BotPost, is_bot: bool = False):
+        post = ensure_obj(post)
         kb = cls()
 
         if post.buttons:
@@ -198,7 +217,9 @@ class InlinePosting(InlineKeyboardBuilder):
 
         if not is_bot:
             hide = Hide(hide=post.hide) if post.hide else None
-            reactions = React(rows=post.reaction.get("rows")) if post.reaction else None
+            
+            reaction_data = getattr(post, 'reaction', None)
+            reactions = React(rows=reaction_data.get("rows")) if reaction_data else None
 
             if hide:
                 for row_hide in hide.hide:
@@ -445,6 +466,7 @@ class InlinePosting(InlineKeyboardBuilder):
 
     @classmethod
     def manage_remain_post(cls, post: Post, is_published: bool = False):
+        post = ensure_obj(post)
         kb = cls()
 
         # Check for deleted status
@@ -530,6 +552,7 @@ class InlinePosting(InlineKeyboardBuilder):
 
     @classmethod
     def manage_published_post(cls, post: PublishedPost):
+        post = ensure_obj(post)
         kb = cls()
         
         # Check for deleted status

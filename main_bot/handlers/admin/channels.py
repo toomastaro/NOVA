@@ -1,3 +1,4 @@
+import logging
 from aiogram import types, Router, F
 from aiogram.fsm.context import FSMContext
 
@@ -6,6 +7,8 @@ from main_bot.keyboards import keyboards
 from main_bot.states.admin import AdminChannels
 from main_bot.utils.lang.language import text
 from config import Config
+
+logger = logging.getLogger(__name__)
 
 router = Router()
 
@@ -100,19 +103,17 @@ async def view_channel_details(call: types.CallbackQuery):
         return
     
     # Получить администраторов через Bot API
-    from instance_bot import bot as main_bot_obj
-    
     chat_info = None
     username = "N/A"
     try:
-        chat_info = await main_bot_obj.get_chat(channel.chat_id)
+        chat_info = await call.bot.get_chat(channel.chat_id)
         if chat_info.username:
             username = chat_info.username
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning(f"Failed to get chat info for {channel.title} ({channel.id}): {e}")
 
     try:
-        admins = await main_bot_obj.get_chat_administrators(channel.chat_id)
+        admins = await call.bot.get_chat_administrators(channel.chat_id)
         admins_text = "\n".join([
             f"• {admin.user.full_name} (@{admin.user.username or 'N/A'}) - {admin.status}"
             for admin in admins[:10]  # Показать первых 10
@@ -121,6 +122,7 @@ async def view_channel_details(call: types.CallbackQuery):
         if len(admins) > 10:
             admins_text += f"\n\n... и еще {len(admins) - 10} администраторов"
     except Exception as e:
+        logger.error(f"Failed to get admins for {channel.title} ({channel.id}): {e}")
         admins_text = f"❌ Не удалось получить список: {str(e)[:100]}"
     
     # Формирование текста

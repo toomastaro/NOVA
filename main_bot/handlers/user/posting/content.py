@@ -20,6 +20,50 @@ from main_bot.utils.error_handler import safe_handler
 logger = logging.getLogger(__name__)
 
 
+
+def serialize_channel(channel):
+    if not channel: return None
+    return {
+        'id': channel.id,
+        'chat_id': channel.chat_id,
+        'title': channel.title,
+        'username': getattr(channel, 'username', None),
+        'subscribers_count': getattr(channel, 'subscribers_count', 0),
+        'posting': getattr(channel, 'posting', False)
+    }
+
+def serialize_post(post):
+    if not post: return None
+    data = {
+        'id': post.id,
+        'post_id': getattr(post, 'post_id', None),
+        'chat_id': post.chat_id,
+        'message_id': getattr(post, 'message_id', None),
+        'created_timestamp': post.created_timestamp,
+        'send_time': getattr(post, 'send_time', None),
+        'delete_time': getattr(post, 'delete_time', None),
+        'admin_id': post.admin_id,
+        'status': getattr(post, 'status', 'active'),
+        'deleted_at': getattr(post, 'deleted_at', None),
+        'chat_ids': getattr(post, 'chat_ids', []),
+        'message_options': getattr(post, 'message_options', {}),
+        'cpm_price': getattr(post, 'cpm_price', 0),
+        'views_24h': getattr(post, 'views_24h', 0),
+        'views_48h': getattr(post, 'views_48h', 0),
+        'views_72h': getattr(post, 'views_72h', 0),
+        
+        # Keyboard specific fields
+        'buttons': getattr(post, 'buttons', None),
+        'hide': getattr(post, 'hide', None),
+        'reaction': getattr(post, 'reaction', None),
+        'pin_time': getattr(post, 'pin_time', None),
+        'unpin_time': getattr(post, 'unpin_time', None),
+        'report': getattr(post, 'report', False), # Assuming default False
+        'is_published': isinstance(post, PublishedPost)
+    }
+    return data
+
+
 async def get_days_with_posts(channel_chat_id: int, year: int, month: int) -> set:
     """
     Получает множество дней месяца, в которые есть посты (включая удаленные).
@@ -136,7 +180,7 @@ async def generate_post_info_text(post_obj, is_published: bool = False) -> str:
             
             # Получаем каналы куда планировалось/было
             channels_text = "<blockquote>Пост должен был быть в:\n"
-            for chat_id in post_obj.chat_ids:
+            for chat_id in post_obj.get('chat_ids', []):
                 channel = await db.channel.get_channel_by_chat_id(chat_id)
                 if channel:
                     channels_text += f"📺 {channel.title}\n"
@@ -201,8 +245,8 @@ async def choice_channel(call: types.CallbackQuery, state: FSMContext):
     day_values = (day.day, text("month").get(str(day.month)), day.year,)
 
     await state.update_data(
-        channel=channel,
-        day=day,
+        channel=serialize_channel(channel),
+        day=day.isoformat(),
         day_values=day_values,
         show_more=False
     )
@@ -239,9 +283,10 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
         await call.message.delete()
         return await show_content(call.message)
 
-    channel: Channel = data.get("channel")
+    channel_data = data.get("channel")
     show_more: bool = data.get("show_more")
-    day: datetime = data.get("day") or datetime.today()
+    day_str = data.get("day")
+    day = datetime.fromisoformat(day_str) if isinstance(day_str, str) else (day_str or datetime.today())
 
     if temp[1] in ['next_day', 'next_month', 'back_day', 'back_month', "choice_day", "show_more"]:
         if temp[1] == "choice_day":
@@ -251,21 +296,21 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
         else:
             day = day - timedelta(days=int(temp[2]))
 
-        posts = await db.post.get_posts(channel.chat_id, day)
+        posts = await db.post.get_posts(channel_data['chat_id'], day)
         day_values = (day.day, text("month").get(str(day.month)), day.year,)
 
         await state.update_data(
-            day=day,
+            day=day.isoformat(),
             day_values=day_values,
             show_more=show_more
         )
         
         # Получаем дни с постами за месяц для индикаторов
-        days_with_posts = await get_days_with_posts(channel.chat_id, day.year, day.month)
+        days_with_posts = await get_days_with_posts(channel_data['chat_id'], day.year, day.month)
 
         return await call.message.edit_text(
             text("channel:content").format(
-                channel.title,
+                channel_data['title'],
                 *day_values,
                 text("no_content") if not posts else text("has_content").format(len(posts))
             ),
@@ -278,10 +323,10 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
         )
 
     if temp[1] == "show_all":
-        posts = await db.post.get_posts(channel.chat_id, only_scheduled=True)
+        posts = await db.post.get_posts(channel_data['chat_id'], only_scheduled=True)
         return await call.message.edit_text(
             text("channel:show_all:content").format(
-                channel.title,
+                channel_data['title'],
                 text("no_content") if not posts else text("has_content").format(len(posts))
             ),
             reply_markup=keyboards.choice_time_objects(
@@ -304,7 +349,7 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
         send_date_values = (dt.day, text("month").get(str(dt.month)), dt.year,)
         
         await state.update_data(
-            post=post,
+            post=serialize_post(post),
             send_date_values=send_date_values,
             is_edit=True, 
             is_published=True 
@@ -333,7 +378,7 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
     send_date = datetime.fromtimestamp(post.send_time)
     send_date_values = (send_date.day, text("month").get(str(send_date.month)), send_date.year,)
     await state.update_data(
-        post=post,
+        post=serialize_post(post),
         send_date_values=send_date_values,
         is_edit=True,
         is_published=False # Explicitly set false
@@ -365,10 +410,10 @@ async def choice_time_objects(call: types.CallbackQuery, state: FSMContext):
         await call.answer(text('keys_data_error'))
         return await call.message.delete()
 
-    channel: Channel = data.get("channel")
+    channel_data = data.get("channel")
 
     if temp[1] in ["next", "back"]:
-        posts = await db.post.get_posts(channel.chat_id)
+        posts = await db.post.get_posts(channel_data['chat_id'])
         return await call.message.edit_reply_markup(
             reply_markup=keyboards.choice_time_objects(
                 objects=posts
@@ -379,11 +424,14 @@ async def choice_time_objects(call: types.CallbackQuery, state: FSMContext):
     day: datetime = data.get("day")
 
     if temp[1] == "cancel":
-        posts = await db.post.get_posts(channel.chat_id, day)
-        days_with_posts = await get_days_with_posts(channel.chat_id, day.year, day.month)
+        day_str = data.get("day")
+        day = datetime.fromisoformat(day_str) if isinstance(day_str, str) else (day_str or datetime.today())
+        
+        posts = await db.post.get_posts(channel_data['chat_id'], day)
+        days_with_posts = await get_days_with_posts(channel_data['chat_id'], day.year, day.month)
         return await call.message.edit_text(
             text("channel:content").format(
-                channel.title,
+                channel_data['title'],
                 *data.get("day_values"),
                 text("no_content") if not posts else text("has_content").format(len(posts))
             ),
@@ -404,22 +452,23 @@ async def manage_remain_post(call: types.CallbackQuery, state: FSMContext):
         await call.answer(text('keys_data_error'))
         return await call.message.delete()
 
-    channel = data.get("channel")
-    day = data.get("day")
+    channel_data = data.get("channel")
+    day_str = data.get("day")
+    day = datetime.fromisoformat(day_str) if isinstance(day_str, str) else (day.today())
 
     if temp[1] == "cancel":
-        posts = await db.post.get_posts(channel.chat_id, day)
+        posts = await db.post.get_posts(channel_data['chat_id'], day)
 
         post_message = data.get("post_message")
         if isinstance(post_message, types.Message):
             await post_message.delete()
-        else:
-            await call.bot.delete_message(call.message.chat.id, post_message.message_id)
+        elif post_message: # Check if exists before using
+             await call.bot.delete_message(call.message.chat.id, post_message.get('message_id') if isinstance(post_message, dict) else post_message.message_id)
         
-        days_with_posts = await get_days_with_posts(channel.chat_id, day.year, day.month)
+        days_with_posts = await get_days_with_posts(channel_data['chat_id'], day.year, day.month)
         return await call.message.edit_text(
             text("channel:content").format(
-                channel.title,
+                channel_data['title'],
                 *data.get("day_values"),
                 text("no_content") if not posts else text("has_content").format(len(posts))
             ),
@@ -441,18 +490,23 @@ async def manage_remain_post(call: types.CallbackQuery, state: FSMContext):
     if temp[1] == "change":
         await call.message.delete()
         post_message = data.get("post_message")
+        
+        # Need object for keyboard, data['post'] is dict now
+        # Keyboard likely expects object. Check keyboard later.
+        # Ideally we refactor keyboard too, or reconstruct object.
+        # Quick fix: pass dict, check keyboard.
+        
         reply_markup = keyboards.manage_post(
-            post=data.get('post'),
+            post=data.get('post'), 
             is_edit=data.get('is_edit')
         )
         
         if isinstance(post_message, types.Message):
             await post_message.edit_reply_markup(reply_markup=reply_markup)
-        else:
-            # It's a MessageId object (from copyMessage)
+        elif post_message:
             await call.bot.edit_message_reply_markup(
                 chat_id=call.message.chat.id,
-                message_id=post_message.message_id,
+                message_id=post_message.get('message_id') if isinstance(post_message, dict) else post_message.message_id,
                 reply_markup=reply_markup
             )
         return
@@ -467,11 +521,12 @@ async def accept_delete_row_content(call: types.CallbackQuery, state: FSMContext
         await call.answer(text('keys_data_error'))
         return await call.message.delete()
 
-    day = data.get("day")
+    day_str = data.get("day")
+    day = datetime.fromisoformat(day_str) if isinstance(day_str, str) else (day_str or datetime.today())
     day_values = data.get("day_values")
     send_date_values = data.get("send_date_values")
-    channel = data.get("channel")
-    post = data.get("post")
+    channel_data = data.get("channel")
+    post_data = data.get("post")
 
     if temp[1] == "cancel":
         # New Text Generation
@@ -486,19 +541,19 @@ async def accept_delete_row_content(call: types.CallbackQuery, state: FSMContext
         )
 
     if temp[1] == "accept":
-        await db.post.delete_post(post.id)
-        posts = await db.post.get_posts(channel.chat_id, day)
+        await db.post.delete_post(post_data['id'])
+        posts = await db.post.get_posts(channel_data['chat_id'], day)
 
         post_message = data.get("post_message")
         if isinstance(post_message, types.Message):
             await post_message.delete()
-        else:
-            await call.bot.delete_message(call.message.chat.id, post_message.message_id)
+        elif post_message:
+            await call.bot.delete_message(call.message.chat.id, post_message.get('message_id') if isinstance(post_message, dict) else post_message.message_id)
 
-        days_with_posts = await get_days_with_posts(channel.chat_id, day.year, day.month)
+        days_with_posts = await get_days_with_posts(channel_data['chat_id'], day.year, day.month)
         return await call.message.edit_text(
             text("channel:content").format(
-                channel.title,
+                channel_data['title'],
                 *day_values,
                 text("no_content") if not posts else text("has_content").format(len(posts))
             ),
@@ -690,11 +745,12 @@ async def accept_delete_published_post(call: types.CallbackQuery, state: FSMCont
         await call.answer(text('keys_data_error'))
         return await call.message.delete()
 
-    day = data.get("day")
+    day_str = data.get("day")
+    day = datetime.fromisoformat(day_str) if isinstance(day_str, str) else (day_str or datetime.today())
     day_values = data.get("day_values")
     # send_date_values = data.get("send_date_values")
-    channel = data.get("channel")
-    post = data.get("post")
+    channel_data = data.get("channel")
+    post_data = data.get("post")
 
     if temp[1] == "cancel":
         # New Text Generation
@@ -709,10 +765,12 @@ async def accept_delete_published_post(call: types.CallbackQuery, state: FSMCont
 
     if temp[1] == "accept":
          # ... existing delete logic ...
-        logger.info(f"User {call.from_user.id} deleting published post {post.id} (message_id: {post.message_id}) and all related posts")
+    if temp[1] == "accept":
+         # ... existing delete logic ...
+        logger.info(f"User {call.from_user.id} deleting published post {post_data['id']} (message_id: {post_data.get('message_id')}) and all related posts")
         
         # Fetch all related published posts
-        related_posts = await db.published_post.get_published_posts_by_post_id(post.post_id)
+        related_posts = await db.published_post.get_published_posts_by_post_id(post_data['post_id'])
         
         # Delete from Telegram for all channels
         ids_to_delete = []
@@ -727,18 +785,18 @@ async def accept_delete_published_post(call: types.CallbackQuery, state: FSMCont
         if ids_to_delete:
             await db.published_post.soft_delete_published_posts(ids_to_delete)
         
-        posts = await db.post.get_posts(channel.chat_id, day)
+        posts = await db.post.get_posts(channel_data['chat_id'], day)
 
         post_message = data.get("post_message")
         if isinstance(post_message, types.Message):
             await post_message.delete()
-        else:
-            await call.bot.delete_message(call.message.chat.id, post_message.message_id)
+        elif post_message:
+            await call.bot.delete_message(call.message.chat.id, post_message.get('message_id') if isinstance(post_message, dict) else post_message.message_id)
         
-        days_with_posts = await get_days_with_posts(channel.chat_id, day.year, day.month)
+        days_with_posts = await get_days_with_posts(channel_data['chat_id'], day.year, day.month)
         return await call.message.edit_text(
             text("channel:content").format(
-                channel.title,
+                channel_data['title'],
                 *day_values,
                 text("no_content") if not posts else text("has_content").format(len(posts))
             ),
