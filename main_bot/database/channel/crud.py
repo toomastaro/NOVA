@@ -168,18 +168,15 @@ class ChannelCrud(DatabaseMixin):
         )
 
     async def get_all_channels(self) -> List[Channel]:
-        """Получить все каналы (для админ-панели и шедулера)"""
-        channels = await self.fetch(select(Channel).order_by(Channel.id.desc()))
-
-        # Фильтруем дубликаты по chat_id, оставляя самые новые
-        seen = set()
-        unique_channels = []
-        for ch in channels:
-            if ch.chat_id not in seen:
-                unique_channels.append(ch)
-                seen.add(ch.chat_id)
-
-        return unique_channels
+        """Получить все каналы (для админ-панели и шедулера), исключая дубликаты."""
+        # Используем DISTINCT ON (postgres only) для выбора уникальных каналов
+        # Сортировка по chat_id обязательна для distinct on
+        stmt = (
+            select(Channel)
+            .distinct(Channel.chat_id)
+            .order_by(Channel.chat_id, Channel.id.desc())
+        )
+        return await self.fetch(stmt)
 
     async def get_channels(self) -> List[Channel]:
         """Alias for get_all_channels"""

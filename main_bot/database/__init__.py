@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import time
 import urllib.parse
 from contextlib import asynccontextmanager
 from typing import Any, AsyncGenerator, Sequence, TypeVar
@@ -18,7 +19,7 @@ from tenacity import (
 
 logger = logging.getLogger(__name__)
 
-# Кодируем пользователя и пароль, чтобы избежать проблем со спецсимволами
+# Кодируем пользователя и пароль
 pg_user = urllib.parse.quote_plus(Config.PG_USER)
 pg_pass = urllib.parse.quote_plus(Config.PG_PASS)
 
@@ -29,10 +30,10 @@ DATABASE_URL = (
 # Настройка движка базы данных
 engine = create_async_engine(
     url=DATABASE_URL,
-    echo=False,  # Set True for debug
-    pool_size=30,
-    max_overflow=10,
-    pool_timeout=40,
+    echo=False,
+    pool_size=Config.DB_POOL_SIZE,
+    max_overflow=Config.DB_MAX_OVERFLOW,
+    pool_timeout=Config.DB_POOL_TIMEOUT,
     pool_pre_ping=True,
 )
 
@@ -46,8 +47,20 @@ Base = declarative_base()
 T = TypeVar("T")
 
 # Константы для retry и таймаутов
-DB_TIMEOUT_SECONDS = 30  # Таймаут для операций БД
-DB_MAX_RETRY_ATTEMPTS = 3  # Максимум попыток при сбое
+DB_TIMEOUT_SECONDS = Config.DB_TIMEOUT_SECONDS
+DB_MAX_RETRY_ATTEMPTS = Config.DB_MAX_RETRY_ATTEMPTS
+
+
+@asynccontextmanager
+async def log_slow_query(query_info: Any, threshold: float = 1.0):
+    """Логирует предупреждение, если выполнение блока занимает больше threshold секунд."""
+    start = time.perf_counter()
+    try:
+        yield
+    finally:
+        duration = time.perf_counter() - start
+        if duration > threshold:
+            logger.warning(f"SLOW QUERY ({duration:.3f}s): {query_info}")
 
 
 @asynccontextmanager
@@ -67,7 +80,7 @@ class DatabaseMixin:
 
     @staticmethod
     @retry(
-        retry=retry_if_exception_type((Exception,)),  # Retry на любые исключения БД
+        retry=retry_if_exception_type((Exception,)),
         stop=stop_after_attempt(DB_MAX_RETRY_ATTEMPTS),
         wait=wait_exponential(multiplier=1, min=1, max=10),
         reraise=True,
@@ -79,14 +92,15 @@ class DatabaseMixin:
         :param commit: Нужно ли делать коммит (по умолчанию True).
         """
         try:
-            async with asyncio.timeout(DB_TIMEOUT_SECONDS):
-                async with get_session() as session:
-                    session: AsyncSession
-                    logger.debug(f"Executing SQL: {sql}")
-                    await session.execute(sql)
-                    if commit:
-                        await session.commit()
-                        logger.debug("Transaction committed")
+            async with log_slow_query(sql):
+                async with asyncio.timeout(DB_TIMEOUT_SECONDS):
+                    async with get_session() as session:
+                        session: AsyncSession
+                        logger.debug(f"Executing SQL: {sql}")
+                        await session.execute(sql)
+                        if commit:
+                            await session.commit()
+                            logger.debug("Transaction committed")
         except asyncio.TimeoutError:
             logger.error(f"Database timeout in execute() after {DB_TIMEOUT_SECONDS}s")
             raise
@@ -107,18 +121,17 @@ class DatabaseMixin:
         :param list_sql: Список запросов.
         """
         try:
-            async with asyncio.timeout(
-                DB_TIMEOUT_SECONDS * 2
-            ):  # Больше времени для множественных запросов
-                async with get_session() as session:
-                    session: AsyncSession
-                    logger.debug(
-                        f"Executing {len(list_sql)} SQL statements in transaction"
-                    )
-                    for sql in list_sql:
-                        await session.execute(sql)
-                    await session.commit()
-                    logger.debug("Transaction committed")
+            async with log_slow_query(f"Batch ({len(list_sql)})"):
+                async with asyncio.timeout(DB_TIMEOUT_SECONDS * 2):
+                    async with get_session() as session:
+                        session: AsyncSession
+                        logger.debug(
+                            f"Executing {len(list_sql)} SQL statements in transaction"
+                        )
+                        for sql in list_sql:
+                            await session.execute(sql)
+                        await session.commit()
+                        logger.debug("Transaction committed")
         except asyncio.TimeoutError:
             logger.error(
                 f"Database timeout in execute_many() after {DB_TIMEOUT_SECONDS * 2}s"
@@ -143,14 +156,15 @@ class DatabaseMixin:
         :return: Список результатов.
         """
         try:
-            async with asyncio.timeout(DB_TIMEOUT_SECONDS):
-                async with get_session() as session:
-                    session: AsyncSession
-                    logger.debug(f"Fetching data: {sql}")
-                    res: Result = await session.execute(sql)
-                    results = res.scalars().all()
-                    logger.debug(f"Fetched {len(results)} rows")
-                    return results
+            async with log_slow_query(sql):
+                async with asyncio.timeout(DB_TIMEOUT_SECONDS):
+                    async with get_session() as session:
+                        session: AsyncSession
+                        logger.debug(f"Fetching data: {sql}")
+                        res: Result = await session.execute(sql)
+                        results = res.scalars().all()
+                        logger.debug(f"Fetched {len(results)} rows")
+                        return results
         except asyncio.TimeoutError:
             logger.error(f"Database timeout in fetch() after {DB_TIMEOUT_SECONDS}s")
             raise
@@ -173,17 +187,18 @@ class DatabaseMixin:
         :return: Один объект или None.
         """
         try:
-            async with asyncio.timeout(DB_TIMEOUT_SECONDS):
-                async with get_session() as session:
-                    session: AsyncSession
-                    logger.debug(f"Fetching row: {sql}")
-                    res: Result = await session.execute(sql)
-                    if commit:
-                        await session.commit()
-                        logger.debug("Transaction committed")
-                    result = res.scalar_one_or_none()
-                    logger.debug(f"Fetched row: {result is not None}")
-                    return result
+            async with log_slow_query(sql):
+                async with asyncio.timeout(DB_TIMEOUT_SECONDS):
+                    async with get_session() as session:
+                        session: AsyncSession
+                        logger.debug(f"Fetching row: {sql}")
+                        res: Result = await session.execute(sql)
+                        if commit:
+                            await session.commit()
+                            logger.debug("Transaction committed")
+                        result = res.scalar_one_or_none()
+                        logger.debug(f"Fetched row: {result is not None}")
+                        return result
         except asyncio.TimeoutError:
             logger.error(f"Database timeout in fetchrow() after {DB_TIMEOUT_SECONDS}s")
             raise
@@ -206,14 +221,15 @@ class DatabaseMixin:
         :return: Список строк.
         """
         try:
-            async with asyncio.timeout(DB_TIMEOUT_SECONDS):
-                async with get_session() as session:
-                    session: AsyncSession
-                    logger.debug(f"Fetching all rows: {sql}")
-                    res: Result = await session.execute(sql)
-                    results = res.all()
-                    logger.debug(f"Fetched {len(results)} rows")
-                    return results
+            async with log_slow_query(sql):
+                async with asyncio.timeout(DB_TIMEOUT_SECONDS):
+                    async with get_session() as session:
+                        session: AsyncSession
+                        logger.debug(f"Fetching all rows: {sql}")
+                        res: Result = await session.execute(sql)
+                        results = res.all()
+                        logger.debug(f"Fetched {len(results)} rows")
+                        return results
         except asyncio.TimeoutError:
             logger.error(f"Database timeout in fetchall() after {DB_TIMEOUT_SECONDS}s")
             raise
@@ -236,14 +252,15 @@ class DatabaseMixin:
         :return: Результат.
         """
         try:
-            async with asyncio.timeout(DB_TIMEOUT_SECONDS):
-                async with get_session() as session:
-                    session: AsyncSession
-                    logger.debug(f"Fetching one row: {sql}")
-                    res: Result = await session.execute(sql)
-                    result = res.one()
-                    logger.debug("Fetched exactly one row")
-                    return result
+            async with log_slow_query(sql):
+                async with asyncio.timeout(DB_TIMEOUT_SECONDS):
+                    async with get_session() as session:
+                        session: AsyncSession
+                        logger.debug(f"Fetching one row: {sql}")
+                        res: Result = await session.execute(sql)
+                        result = res.one()
+                        logger.debug("Fetched exactly one row")
+                        return result
         except asyncio.TimeoutError:
             logger.error(f"Database timeout in fetchone() after {DB_TIMEOUT_SECONDS}s")
             raise
@@ -266,18 +283,19 @@ class DatabaseMixin:
         :return: Добавленный объект (обновленный).
         """
         try:
-            async with asyncio.timeout(DB_TIMEOUT_SECONDS):
-                async with get_session() as session:
-                    session: AsyncSession
-                    logger.debug(f"Adding object: {obj.__class__.__name__}")
-                    session.add(obj)
-                    if commit:
-                        await session.commit()
-                        await session.refresh(obj)
-                        logger.debug(
-                            f"Object added and committed: {obj.__class__.__name__}"
-                        )
-                    return obj
+            async with log_slow_query(f"Add {obj.__class__.__name__}"):
+                async with asyncio.timeout(DB_TIMEOUT_SECONDS):
+                    async with get_session() as session:
+                        session: AsyncSession
+                        logger.debug(f"Adding object: {obj.__class__.__name__}")
+                        session.add(obj)
+                        if commit:
+                            await session.commit()
+                            await session.refresh(obj)
+                            logger.debug(
+                                f"Object added and committed: {obj.__class__.__name__}"
+                            )
+                        return obj
         except asyncio.TimeoutError:
             logger.error(f"Database timeout in add() after {DB_TIMEOUT_SECONDS}s")
             raise

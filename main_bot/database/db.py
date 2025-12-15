@@ -55,8 +55,16 @@ class Database(
     # Payments
     PaymentLinkCrud,
 ):
+    """
+    Основной класс базы данных, объединяющий все операции CRUD.
+    Использует множественное наследование для агрегации методов.
+    """
+
     @staticmethod
     async def create_tables():
+        """
+        Создает таблицы в базе данных, если они не существуют.
+        """
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
 

@@ -22,6 +22,13 @@ class Config:
     WEBHOOK_DOMAIN = os.getenv("WEBHOOK_DOMAIN")
     WEBHOOK_URL_BOT = os.getenv("WEBHOOK_URL_BOT")
 
+    # Database
+    DB_POOL_SIZE = int(os.getenv("DB_POOL_SIZE", 30))
+    DB_MAX_OVERFLOW = int(os.getenv("DB_MAX_OVERFLOW", 10))
+    DB_POOL_TIMEOUT = int(os.getenv("DB_POOL_TIMEOUT", 40))
+    DB_TIMEOUT_SECONDS = int(os.getenv("DB_TIMEOUT_SECONDS", 30))
+    DB_MAX_RETRY_ATTEMPTS = int(os.getenv("DB_MAX_RETRY_ATTEMPTS", 3))
+
     API_ID = int(os.getenv("API_ID"))
     API_HASH = os.getenv("API_HASH")
     
