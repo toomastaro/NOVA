@@ -36,7 +36,7 @@ class SetCrudMain(BaseMiddleware):
     async def __call__(self, handler, event, data):
         state: FSMContext = data.get("state")
         state_data = await state.get_data()
-        print(state_data)
+        logger.debug(f"Middleware state_data: {state_data}")
 
         bot_id: int = state_data.get("bot_id")
         if not bot_id:
@@ -81,7 +81,7 @@ class SetCrudMain(BaseMiddleware):
             "owner_id": db_bot.admin_id,
         }
 
-        print(created_db_objects)
+        logger.debug(f"Created db objects cache update: {created_db_objects.keys()}")
         return await handler(event, data)
 
 
@@ -113,7 +113,7 @@ class ErrorMiddleware(BaseMiddleware):
     async def __call__(self, handler, event: Update, data):
         try:
             return await handler(event, data)
-        except Exception as e:
+        except Exception:
             logger.error(
                 f"Ошибка в обработчике {handler}",
                 exc_info=True

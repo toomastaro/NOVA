@@ -1,34 +1,72 @@
-from typing import AsyncGenerator
+import asyncio
+import logging
+import time
+import urllib.parse
 from contextlib import asynccontextmanager
-
-from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from typing import Any, AsyncGenerator, Sequence
 
 from config import Config
+from sqlalchemy import text
+from sqlalchemy.engine.result import Result
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.sql import Executable
+from tenacity import (
+    retry,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_exponential,
+)
 
+logger = logging.getLogger(__name__)
 
-DATABASE_URL = f"postgresql+asyncpg://{Config.PG_USER}:{Config.PG_PASS}@{Config.PG_HOST}/{Config.PG_DATABASE}"
+# Кодируем пользователя и пароль
+pg_user = urllib.parse.quote_plus(Config.PG_USER)
+pg_pass = urllib.parse.quote_plus(Config.PG_PASS)
+
+DATABASE_URL = (
+    f"postgresql+asyncpg://{pg_user}:{pg_pass}@{Config.PG_HOST}/{Config.PG_DATABASE}"
+)
+
 engine = create_async_engine(
     url=DATABASE_URL,
     echo=False,
-    pool_size=30,
-    max_overflow=10,
-    pool_timeout=40,
+    pool_size=Config.DB_POOL_SIZE,
+    max_overflow=Config.DB_MAX_OVERFLOW,
+    pool_timeout=Config.DB_POOL_TIMEOUT,
     pool_pre_ping=True,
 )
+
 async_session = async_sessionmaker(
     bind=engine,
     expire_on_commit=False,
-    class_=AsyncSession
+    class_=AsyncSession,
 )
+
+
+@asynccontextmanager
+async def log_slow_query(query_info: Any, threshold: float = 1.0):
+    """Логирует предупреждение, если выполнение блока занимает больше threshold секунд."""
+    start = time.perf_counter()
+    try:
+        yield
+    finally:
+        duration = time.perf_counter() - start
+        if duration > threshold:
+            logger.warning(f"SLOW QUERY ({duration:.3f}s): {query_info}")
 
 
 @asynccontextmanager
 async def get_session(schema: str = None) -> AsyncGenerator[AsyncSession, None]:
     async with async_session() as session:
+        session: AsyncSession
         if schema:
             await session.execute(text(f'SET search_path TO "{schema}"'))
         yield session
+
+
+# Константы для retry и таймаутов
+DB_TIMEOUT_SECONDS = Config.DB_TIMEOUT_SECONDS
+DB_MAX_RETRY_ATTEMPTS = Config.DB_MAX_RETRY_ATTEMPTS
 
 
 class DatabaseMixin:
@@ -38,40 +76,127 @@ class DatabaseMixin:
     def set_schema(self, schema: str):
         self.schema = schema
 
-    async def execute(self, sql):
-        async with get_session(self.schema) as session:
-            session: AsyncSession
+    @retry(
+        retry=retry_if_exception_type((Exception,)),
+        stop=stop_after_attempt(DB_MAX_RETRY_ATTEMPTS),
+        wait=wait_exponential(multiplier=1, min=1, max=10),
+        reraise=True,
+    )
+    async def execute(self, sql: Executable, commit: bool = True) -> None:
+        try:
+            async with log_slow_query(sql):
+                async with asyncio.timeout(DB_TIMEOUT_SECONDS):
+                    async with get_session(self.schema) as session:
+                        session: AsyncSession
+                        logger.debug(f"Executing SQL (schema={self.schema}): {sql}")
+                        await session.execute(sql)
+                        if commit:
+                            await session.commit()
+                            logger.debug("Transaction committed")
+        except asyncio.TimeoutError:
+            logger.error(
+                f"Database timeout in execute() after {DB_TIMEOUT_SECONDS}s (schema={self.schema})"
+            )
+            raise
+        except Exception as e:
+            logger.error(
+                f"Database error in execute() (schema={self.schema}): {e}", exc_info=True
+            )
+            raise
 
-            await session.execute(sql)
-            await session.commit()
+    @retry(
+        retry=retry_if_exception_type((Exception,)),
+        stop=stop_after_attempt(DB_MAX_RETRY_ATTEMPTS),
+        wait=wait_exponential(multiplier=1, min=1, max=10),
+        reraise=True,
+    )
+    async def fetch(self, sql: Executable) -> Sequence[Any]:
+        try:
+            async with log_slow_query(sql):
+                async with asyncio.timeout(DB_TIMEOUT_SECONDS):
+                    async with get_session(self.schema) as session:
+                        session: AsyncSession
+                        logger.debug(f"Fetching data (schema={self.schema}): {sql}")
+                        res: Result = await session.execute(sql)
+                        results = res.scalars().all()
+                        logger.debug(f"Fetched {len(results)} rows")
+                        return results
+        except asyncio.TimeoutError:
+            logger.error(f"Database timeout in fetch() after {DB_TIMEOUT_SECONDS}s")
+            raise
+        except Exception as e:
+            logger.error(f"Database error in fetch(): {e}", exc_info=True)
+            raise
 
-    async def fetch(self, sql):
-        async with get_session(self.schema) as session:
-            session: AsyncSession
+    @retry(
+        retry=retry_if_exception_type((Exception,)),
+        stop=stop_after_attempt(DB_MAX_RETRY_ATTEMPTS),
+        wait=wait_exponential(multiplier=1, min=1, max=10),
+        reraise=True,
+    )
+    async def fetchrow(self, sql: Executable, commit: bool = False) -> Any | None:
+        try:
+            async with log_slow_query(sql):
+                async with asyncio.timeout(DB_TIMEOUT_SECONDS):
+                    async with get_session(self.schema) as session:
+                        session: AsyncSession
+                        logger.debug(f"Fetching row (schema={self.schema}): {sql}")
+                        res: Result = await session.execute(sql)
+                        if commit:
+                            await session.commit()
+                            logger.debug("Transaction committed")
+                        result = res.scalar_one_or_none()
+                        return result
+        except asyncio.TimeoutError:
+            logger.error(f"Database timeout in fetchrow() after {DB_TIMEOUT_SECONDS}s")
+            raise
+        except Exception as e:
+            logger.error(f"Database error in fetchrow(): {e}", exc_info=True)
+            raise
 
-            res = await session.execute(sql)
-            return res.scalars().all()
+    @retry(
+        retry=retry_if_exception_type((Exception,)),
+        stop=stop_after_attempt(DB_MAX_RETRY_ATTEMPTS),
+        wait=wait_exponential(multiplier=1, min=1, max=10),
+        reraise=True,
+    )
+    async def fetchall(self, sql: Executable) -> Sequence[Any]:
+        try:
+            async with log_slow_query(sql):
+                async with asyncio.timeout(DB_TIMEOUT_SECONDS):
+                    async with get_session(self.schema) as session:
+                        session: AsyncSession
+                        logger.debug(f"Fetching all rows (schema={self.schema}): {sql}")
+                        res: Result = await session.execute(sql)
+                        results = res.all()
+                        logger.debug(f"Fetched {len(results)} rows")
+                        return results
+        except asyncio.TimeoutError:
+            logger.error(f"Database timeout in fetchall() after {DB_TIMEOUT_SECONDS}s")
+            raise
+        except Exception as e:
+            logger.error(f"Database error in fetchall(): {e}", exc_info=True)
+            raise
 
-    async def fetchrow(self, sql, commit: bool = False):
-        async with get_session(self.schema) as session:
-            session: AsyncSession
-
-            res = await session.execute(sql)
-            if commit:
-                await session.commit()
-
-            return res.scalar_one_or_none()
-
-    async def fetchall(self, sql):
-        async with get_session(self.schema) as session:
-            session: AsyncSession
-
-            res = await session.execute(sql)
-            return res.all()
-
-    async def fetchone(self, sql):
-        async with get_session(self.schema) as session:
-            session: AsyncSession
-
-            res = await session.execute(sql)
-            return res.one_or_none()
+    @retry(
+        retry=retry_if_exception_type((Exception,)),
+        stop=stop_after_attempt(DB_MAX_RETRY_ATTEMPTS),
+        wait=wait_exponential(multiplier=1, min=1, max=10),
+        reraise=True,
+    )
+    async def fetchone(self, sql: Executable) -> Any:
+        try:
+            async with log_slow_query(sql):
+                async with asyncio.timeout(DB_TIMEOUT_SECONDS):
+                    async with get_session(self.schema) as session:
+                        session: AsyncSession
+                        logger.debug(f"Fetching one row (schema={self.schema}): {sql}")
+                        res: Result = await session.execute(sql)
+                        result = res.one()
+                        return result
+        except asyncio.TimeoutError:
+            logger.error(f"Database timeout in fetchone() after {DB_TIMEOUT_SECONDS}s")
+            raise
+        except Exception as e:
+            logger.error(f"Database error in fetchone(): {e}", exc_info=True)
+            raise
