@@ -14,6 +14,53 @@ from main_bot.utils.error_handler import safe_handler
 from main_bot.utils.backup_utils import send_to_backup
 
 
+class DictObj:
+    def __init__(self, in_dict: dict):
+        for key, val in in_dict.items():
+            setattr(self, key, val)
+
+def ensure_channel_obj(channel):
+    if isinstance(channel, dict):
+        return DictObj(channel)
+    return channel
+
+def ensure_story_obj(story):
+    if isinstance(story, dict):
+        return DictObj(story)
+    return story
+
+def serialize_channel(channel):
+    if not channel:
+        return None
+    return {
+        'id': channel.id,
+        'chat_id': channel.chat_id,
+        'title': channel.title,
+        'username': getattr(channel, 'username', None),
+        'subscribers_count': getattr(channel, 'subscribers_count', 0),
+        'posting': getattr(channel, 'posting', False)
+    }
+
+def serialize_story(story):
+    if not story:
+        return None
+    status = story.status
+    if hasattr(status, 'value'):
+        status = status.value
+        
+    return {
+        'id': story.id,
+        'chat_ids': story.chat_ids,
+        'story_options': story.story_options,
+        'send_time': story.send_time,
+        'backup_chat_id': story.backup_chat_id,
+        'backup_message_id': story.backup_message_id,
+        'status': status,
+        'delete_time': getattr(story, 'delete_time', None),
+        'admin_id': story.admin_id
+    }
+
+
 async def get_days_with_stories(channel_chat_id: int, year: int, month: int) -> set:
     """
     Получает множество дней месяца, в которые есть истории.
@@ -72,8 +119,8 @@ async def choice_channel(call: types.CallbackQuery, state: FSMContext):
     day_values = (day.day, text("month").get(str(day.month)), day.year,)
 
     await state.update_data(
-        channel=channel,
-        day=day,
+        channel=serialize_channel(channel),
+        day=day.isoformat(),
         day_values=day_values,
         show_more=False
     )
@@ -90,7 +137,8 @@ async def choice_channel(call: types.CallbackQuery, state: FSMContext):
         reply_markup=keyboards.choice_row_content(
             posts=posts,
             day=day,
-            data="ContentStories",days_with_posts=days_with_stories
+            data="ContentStories",
+            days_with_posts=days_with_stories
         )
     )
 
@@ -107,9 +155,10 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
         await call.message.delete()
         return await show_content(call.message)
 
-    channel: Channel = data.get("channel")
+    channel: Channel = ensure_channel_obj(data.get("channel"))
     show_more: bool = data.get("show_more")
-    day: datetime = data.get("day")
+    day_str = data.get("day")
+    day: datetime = datetime.fromisoformat(day_str) if isinstance(day_str, str) else day_str
 
     if temp[1] in ['next_day', 'next_month', 'back_day', 'back_month', "choice_day", "show_more"]:
         if temp[1] == "choice_day":
@@ -123,7 +172,7 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
         day_values = (day.day, text("month").get(str(day.month)), day.year,)
 
         await state.update_data(
-            day=day,
+            day=day.isoformat(),
             day_values=day_values,
             show_more=show_more
         )
@@ -140,7 +189,8 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
                 posts=posts,
                 day=day,
                 show_more=show_more,
-                data="ContentStories",days_with_posts=days_with_stories
+                data="ContentStories",
+                days_with_posts=days_with_stories
             )
         )
 
@@ -165,7 +215,7 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
     send_date = datetime.fromtimestamp(post.send_time)
     send_date_values = (send_date.day, text("month").get(str(send_date.month)), send_date.year,)
     await state.update_data(
-        post=post,
+        post=serialize_story(post),
         send_date_values=send_date_values,
         is_edit=True
     )
@@ -195,15 +245,15 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
                     is_edit=True
                 )
             )
-        except Exception as e:
+        except Exception:
              # Fallback если копирование не удалось
              post_message = await answer_story(call.message, state, from_edit=True)
     else:
          post_message = await answer_story(call.message, state, from_edit=True)
 
     await state.update_data(
-        post_message=post_message,
-        post=post # Обновляем объект в стейте с новыми ID
+        post_message=post_message.model_dump(mode='json'),
+        post=serialize_story(post) # Обновляем объект в стейте с новыми ID
     )
 
     await call.message.delete()
@@ -226,7 +276,7 @@ async def choice_time_objects(call: types.CallbackQuery, state: FSMContext):
         await call.answer(text('keys_data_error'))
         return await call.message.delete()
 
-    channel: Channel = data.get("channel")
+    channel: Channel = ensure_channel_obj(data.get("channel"))
 
     if temp[1] in ["next", "back"]:
         posts = await db.story.get_stories(channel.chat_id)
@@ -239,7 +289,8 @@ async def choice_time_objects(call: types.CallbackQuery, state: FSMContext):
         )
 
     show_more: bool = data.get("show_more")
-    day: datetime = data.get("day")
+    day_str = data.get("day")
+    day: datetime = datetime.fromisoformat(day_str) if isinstance(day_str, str) else day_str
 
     if temp[1] == "cancel":
         posts = await db.story.get_stories(channel.chat_id, day)
@@ -268,22 +319,32 @@ async def manage_remain_post(call: types.CallbackQuery, state: FSMContext):
         return await call.message.delete()
 
     if temp[1] == "cancel":
-        day = data.get('day')
-        posts = await db.story.get_stories(data.get("channel").chat_id, day)
+        day_str = data.get('day')
+        day = datetime.fromisoformat(day_str) if isinstance(day_str, str) else day_str
+        channel = ensure_channel_obj(data.get("channel"))
+        
+        posts = await db.story.get_stories(channel.chat_id, day)
 
-        days_with_stories = await get_days_with_stories(data.get("channel").chat_id, day.year, day.month)
+        days_with_stories = await get_days_with_stories(channel.chat_id, day.year, day.month)
 
-        await data.get("post_message").delete()
+        msg_data = data.get("post_message")
+        if msg_data:
+             try:
+                 await call.bot.delete_message(chat_id=msg_data['chat']['id'], message_id=msg_data['message_id'])
+             except Exception: 
+                 pass
+
         return await call.message.edit_text(
             text("channel:content").format(
                 *data.get("day_values"),
-                data.get("channel").title,
+                channel.title,
                 text("no_content:story") if not posts else text("has_content:story").format(len(posts))
             ),
             reply_markup=keyboards.choice_row_content(
                 posts=posts,
                 day=day,
-                data="ContentStories",days_with_posts=days_with_stories
+                data="ContentStories",
+                days_with_posts=days_with_stories
             )
         )
 
@@ -297,12 +358,20 @@ async def manage_remain_post(call: types.CallbackQuery, state: FSMContext):
 
     if temp[1] == "change":
         await call.message.delete()
-        await data.get("post_message").edit_reply_markup(
-            reply_markup=keyboards.manage_story(
-                post=data.get('post'),
-                is_edit=data.get('is_edit')
-            )
-        )
+        
+        msg_data = data.get("post_message")
+        if msg_data:
+             try:
+                 await call.bot.edit_message_reply_markup(
+                    chat_id=msg_data['chat']['id'],
+                    message_id=msg_data['message_id'],
+                    reply_markup=keyboards.manage_story(
+                        post=ensure_story_obj(data.get('post')),
+                        is_edit=data.get('is_edit')
+                    )
+                 )
+             except Exception: 
+                 pass
 
 
 @safe_handler("Stories Accept Delete Row Content")
@@ -313,11 +382,12 @@ async def accept_delete_row_content(call: types.CallbackQuery, state: FSMContext
         await call.answer(text('keys_data_error'))
         return await call.message.delete()
 
-    day = data.get("day")
+    day_str = data.get("day")
+    day = datetime.fromisoformat(day_str) if isinstance(day_str, str) else day_str
     day_values = data.get("day_values")
     send_date_values = data.get("send_date_values")
-    channel = data.get("channel")
-    post = data.get("post")
+    channel = ensure_channel_obj(data.get("channel"))
+    post = ensure_story_obj(data.get("post"))
 
     if temp[1] == "cancel":
         return await call.message.edit_text(
@@ -336,7 +406,13 @@ async def accept_delete_row_content(call: types.CallbackQuery, state: FSMContext
 
         days_with_stories = await get_days_with_stories(channel.chat_id, day.year, day.month)
 
-        await data.get("post_message").delete()
+        msg_data = data.get("post_message")
+        if msg_data:
+             try:
+                 await call.bot.delete_message(chat_id=msg_data['chat']['id'], message_id=msg_data['message_id'])
+             except Exception: 
+                 pass
+
         return await call.message.edit_text(
             text("channel:content").format(
                 *day_values,
@@ -346,12 +422,13 @@ async def accept_delete_row_content(call: types.CallbackQuery, state: FSMContext
             reply_markup=keyboards.choice_row_content(
                 posts=posts,
                 day=day,
-                data="ContentStories",days_with_posts=days_with_stories
+                data="ContentStories",
+                days_with_posts=days_with_stories
             )
         )
 
 
-def hand_add():
+def get_router():
     router = Router()
     router.callback_query.register(choice_channel, F.data.split("|")[0] == "ChoiceObjectContentStories")
     router.callback_query.register(choice_row_content, F.data.split("|")[0] == "ContentStories")
