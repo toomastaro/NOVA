@@ -4,10 +4,10 @@ from . import menu, channels, create_post, content
 
 def get_router():
     routers = [
-        menu.hand_add(),
-        channels.hand_add(),
-        create_post.hand_add(),
-        content.hand_add(),
+        menu.get_router(),
+        channels.get_router(),
+        create_post.get_router(),
+        content.get_router(),
     ]
 
     router = Router(name='Posting')

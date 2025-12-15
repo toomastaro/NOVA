@@ -197,7 +197,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext, db_obj: Database)
     )
 
 
-def hand_add():
+def get_router():
     router = Router()
     router.callback_query.register(choice_channel, F.data.split("|")[0] == "ChoiceClonerTarget")
     router.callback_query.register(choice, F.data.split("|")[0] == "ChoiceClonerSetting")

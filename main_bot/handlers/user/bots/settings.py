@@ -518,7 +518,7 @@ async def choice_export(call: types.CallbackQuery, state: FSMContext):
         os.remove(filepath)
 
 
-def hand_add():
+def get_router():
     router = Router()
     router.callback_query.register(choice, F.data.split("|")[0] == "ChoiceBots")
     router.callback_query.register(cancel, F.data.split("|")[0] == "BackAddBot")

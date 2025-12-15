@@ -392,7 +392,7 @@ async def cancel(call: types.CallbackQuery, state: FSMContext):
     await start_stories(call.message)
 
 
-def hand_add():
+def get_router():
     router = Router()
     router.callback_query.register(choice, F.data.split("|")[0] == "ChoiceStoriesChannel")
     router.callback_query.register(cancel, F.data.split("|")[0] == "BackAddChannelStories")

@@ -96,7 +96,7 @@ async def get_period(message: types.Message, state: FSMContext, db_obj: Database
     await show_channel_setting(message, db_obj, state)
 
 
-def hand_add():
+def get_router():
     router = Router()
     router.callback_query.register(choice, F.data.split("|")[0] == "ChoiceCleanerType")
     router.callback_query.register(back, F.data.split("|")[0] == "InputCleanerPeriod")

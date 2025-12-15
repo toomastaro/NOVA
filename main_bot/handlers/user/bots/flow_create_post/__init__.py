@@ -15,7 +15,7 @@ from .schedule_step import finish_params, choice_delete_time, send_time_inline, 
 from .save_step import accept
 
 
-def hand_add():
+def get_router():
     """
     Регистрация всех хендлеров для сценария создания постов для ботов.
     
@@ -51,4 +51,4 @@ def hand_add():
     return router
 
 
-__all__ = ['hand_add']
+__all__ = ['get_router']

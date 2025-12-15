@@ -291,7 +291,7 @@ async def get_buttons(message: types.Message, state: FSMContext):
     )
 
 
-def hand_add():
+def get_router():
     router = Router()
     router.callback_query.register(choice, F.data.split("|")[0] == "ChoiceHelloMessage")
     router.callback_query.register(manage_hello_message, F.data.split("|")[0] == "ManageHelloMessage")

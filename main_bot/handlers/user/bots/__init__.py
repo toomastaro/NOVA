@@ -8,17 +8,17 @@ from .bot_settings import application, hello, bye, menu as hmenu, captcha, clone
 def get_router():
     routers = [
         menu.get_router(),
-        settings.hand_add(),
-        create_post.hand_add(),
+        settings.get_router(),
+        create_post.get_router(),
         content.get_router(),
 
-        application.hand_add(),
-        hello.hand_add(),
-        captcha.hand_add(),
-        cloner.hand_add(),
-        cleaner.hand_add(),
-        bye.hand_add(),
-        hmenu.hand_add(),
+        application.get_router(),
+        hello.get_router(),
+        captcha.get_router(),
+        cloner.get_router(),
+        cleaner.get_router(),
+        bye.get_router(),
+        hmenu.get_router(),
     ]
 
     router = Router(name='Bots')

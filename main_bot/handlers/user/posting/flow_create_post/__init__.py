@@ -30,7 +30,7 @@ from .schedule_step import (
 from .save_step import accept
 
 
-def hand_add():
+def get_router():
     """
     Регистрация всех хендлеров для сценария создания поста.
     
@@ -76,4 +76,4 @@ def hand_add():
     return router
 
 
-__all__ = ['hand_add']
+__all__ = ['get_router']

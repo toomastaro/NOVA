@@ -112,7 +112,7 @@ async def get_message(message: types.Message, state: FSMContext, channel_setting
     await show_bye(message, setting)
 
 
-def hand_add():
+def get_router():
     router = Router()
     router.callback_query.register(choice, F.data.split("|")[0] == "ManageBye")
     router.callback_query.register(back, F.data.split("|")[0] == "AddByeBack")

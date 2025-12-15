@@ -130,7 +130,7 @@ async def back_to_main(message: types.Message):
     )
 
 
-def hand_add():
+def get_router():
     router = Router()
     router.callback_query.register(choice, F.data.split("|")[0] == "MenuStories")
     return router

@@ -387,7 +387,7 @@ async def manage_channel(call: types.CallbackQuery, state: FSMContext):
              await call.answer("⚠️ Не все права выданы. Проверьте настройки админа.", show_alert=True)
 
 
-def hand_add():
+def get_router():
     router = Router()
     router.callback_query.register(choice, F.data.split("|")[0] == "ChoicePostChannel")
     router.callback_query.register(cancel, F.data.split("|")[0] == "BackAddChannelPost")

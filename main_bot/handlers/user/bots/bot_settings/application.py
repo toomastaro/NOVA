@@ -239,7 +239,7 @@ async def choice_invite_url(
     await show_application(call.message, channel_settings, db_obj)
 
 
-def hand_add():
+def get_router():
     router = Router()
     router.callback_query.register(choice, F.data.split("|")[0] == "ManageApplication")
     router.callback_query.register(back, F.data.split("|")[0] == "AddDelayBack")

@@ -2,10 +2,10 @@
 DEPRECATED: Этот файл сохранен для обратной совместимости.
 
 Логика создания поста теперь находится в модуле flow_create_post.
-Используйте: from main_bot.handlers.user.posting.flow_create_post import hand_add
+Используйте: from main_bot.handlers.user.posting.flow_create_post import get_router
 """
 
 # Импортируем из нового модуля для обратной совместимости
-from main_bot.handlers.user.posting.flow_create_post import hand_add
+from main_bot.handlers.user.posting.flow_create_post import get_router
 
-__all__ = ['hand_add']
+__all__ = ['get_router']
