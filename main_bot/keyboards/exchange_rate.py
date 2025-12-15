@@ -29,9 +29,13 @@ class InlineExchangeRate(InlineKeyboardBuilder):
     def choose_exchange_rate(cls, source_list, chosen_exchange_rate_id):
         kb = cls()
         for s in source_list:
+            s_id = s.get('id') if isinstance(s, dict) else s.id
+            s_name = s.get('name') if isinstance(s, dict) else s.name
+            s_rate = s.get('rate') if isinstance(s, dict) else s.rate
+            
             kb.button(
-                text=f"{s.name}: {s.rate:.2f}₽{' ✅' if int(chosen_exchange_rate_id) == int(s.id) else ''}",
-                callback_data=f'MenuExchangeRate|settings|choose_exchange_rate|{s.id}'
+                text=f"{s_name}: {s_rate:.2f}₽{' ✅' if int(chosen_exchange_rate_id) == int(s_id) else ''}",
+                callback_data=f'MenuExchangeRate|settings|choose_exchange_rate|{s_id}'
             )
 
         kb.button(
