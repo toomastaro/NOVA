@@ -1,7 +1,7 @@
 import time
 
 from main_bot.database import Base
-from main_bot.database.types import AdPricingType, AdTargetType
+from main_bot.database.db_types import AdPricingType, AdTargetType
 from sqlalchemy import BigInteger
 from sqlalchemy.orm import Mapped, mapped_column
 

@@ -17,7 +17,7 @@ from main_bot.utils.functions import set_channel_session, get_path, get_path_vid
 from main_bot.utils.lang.language import text
 from main_bot.utils.schemas import StoryOptions
 from main_bot.utils.session_manager import SessionManager
-from main_bot.database.types import Status
+from main_bot.database.db_types import Status
 
 logger = logging.getLogger(__name__)
 

@@ -197,7 +197,7 @@ async def process_successful_payment(user_id: int, payload: dict, amount: float 
         user = await db.user.get_user(user_id=user_id)
         if user:
             await db.user.update_user(user_id=user.id, balance=user.balance + amount)
-            from main_bot.database.types import PaymentMethod
+            from main_bot.database.db_types import PaymentMethod
             # Determine method from payload or default?
             method_str = payload.get('method', 'UNKNOWN')
             
@@ -254,7 +254,7 @@ async def process_successful_payment(user_id: int, payload: dict, amount: float 
                     logger.error(f"Referral logic error: {e}")
 
         # Записываем покупку
-        from main_bot.database.types import Service, PaymentMethod
+        from main_bot.database.db_types import Service, PaymentMethod
         
         # Determine Method
         method_str = payload.get('method', 'PLATEGA') 

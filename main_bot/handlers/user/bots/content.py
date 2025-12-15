@@ -5,7 +5,7 @@ from aiogram.fsm.context import FSMContext
 
 from main_bot.database.channel.model import Channel
 from main_bot.database.db import db
-from main_bot.database.types import Status
+from main_bot.database.db_types import Status
 from main_bot.handlers.user.menu import start_bots
 from main_bot.handlers.user.bots.menu import show_content
 from main_bot.keyboards import keyboards

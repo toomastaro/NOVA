@@ -7,7 +7,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import LabeledPrice
 
 from main_bot.database.db import db
-from main_bot.database.types import PaymentMethod
+from main_bot.database.db_types import PaymentMethod
 from main_bot.database.user.model import User
 from main_bot.handlers.user.profile.balance import show_top_up
 from main_bot.handlers.user.profile.profile import show_balance

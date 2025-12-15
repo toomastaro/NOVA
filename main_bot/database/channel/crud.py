@@ -130,7 +130,7 @@ class ChannelCrud(DatabaseMixin):
         """
         Получает каналы пользователя, которые НЕ находятся ни в одной папке.
         """
-        from main_bot.database.types import FolderType
+        from main_bot.database.db_types import FolderType
         from main_bot.database.user_folder.model import UserFolder
 
         # Получаем все chat_ids из папок пользователя

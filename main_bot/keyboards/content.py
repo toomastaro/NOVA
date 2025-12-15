@@ -16,7 +16,7 @@ from main_bot.database.published_post.model import PublishedPost
 from main_bot.database.story.model import Story
 from main_bot.database.user_bot.model import UserBot
 from main_bot.database.user_folder.model import UserFolder
-from main_bot.database.types import Status
+from main_bot.database.db_types import Status
 from main_bot.utils.lang.language import text
 
 

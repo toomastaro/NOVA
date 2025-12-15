@@ -5,14 +5,17 @@ from sqlalchemy import insert, select, update
 
 class AdPurchaseCrud(DatabaseMixin):
     async def create_purchase(self, **kwargs) -> int:
+        """Создает новую рекламную закупку."""
         query = insert(AdPurchase).values(**kwargs).returning(AdPurchase.id)
         return await self.fetchrow(query, commit=True)
 
     async def get_purchase(self, purchase_id: int) -> AdPurchase | None:
+        """Получает рекламную закупку по ID."""
         query = select(AdPurchase).where(AdPurchase.id == purchase_id)
         return await self.fetchrow(query)
 
     async def get_user_purchases(self, owner_id: int) -> list[AdPurchase]:
+        """Получает список закупок пользователя."""
         query = select(AdPurchase).where(
             AdPurchase.owner_id == owner_id, AdPurchase.status != "deleted"
         )
@@ -21,6 +24,7 @@ class AdPurchaseCrud(DatabaseMixin):
     async def upsert_link_mapping(
         self, ad_purchase_id: int, slot_id: int, **kwargs
     ) -> None:
+        """Обновляет или создает привязку ссылки к слоту."""
         query = select(AdPurchaseLinkMapping).where(
             AdPurchaseLinkMapping.ad_purchase_id == ad_purchase_id,
             AdPurchaseLinkMapping.slot_id == slot_id,
@@ -42,12 +46,14 @@ class AdPurchaseCrud(DatabaseMixin):
     async def get_link_mappings(
         self, ad_purchase_id: int
     ) -> list[AdPurchaseLinkMapping]:
+        """Получает список привязок ссылок для закупки."""
         query = select(AdPurchaseLinkMapping).where(
             AdPurchaseLinkMapping.ad_purchase_id == ad_purchase_id
         )
         return await self.fetch(query)
 
     async def update_purchase_status(self, purchase_id: int, status: str) -> None:
+        """Обновляет статус закупки."""
         query = (
             update(AdPurchase).where(AdPurchase.id == purchase_id).values(status=status)
         )
@@ -57,12 +63,12 @@ class AdPurchaseCrud(DatabaseMixin):
         self, ad_purchase_id: int, bot
     ) -> tuple[list[AdPurchaseLinkMapping], list[str]]:
         """
-        Ensure invite links are created for all channel mappings.
-        Returns: (mappings, errors) - list of mappings and list of error messages
+        Обеспечивает создание пригласительных ссылок для всех сопоставлений каналов.
+        Возвращает: (mappings, errors) - список сопоставлений и список ошибок.
         """
         import logging
 
-        from main_bot.database.types import AdTargetType
+        from main_bot.database.db_types import AdTargetType
 
         logger = logging.getLogger(__name__)
         mappings = await self.get_link_mappings(ad_purchase_id)
@@ -113,7 +119,8 @@ class AdPurchaseCrud(DatabaseMixin):
         self, user_id: int, ad_purchase_id: int, slot_id: int, ref_param: str
     ) -> bool:
         """
-        Add a lead for an ad purchase. Returns True if lead was created, False if already exists.
+        Добавляет лид для рекламной закупки.
+        Возвращает True если лид создан, False если уже существует.
         """
         from main_bot.database.ad_purchase.model import AdLead
 
@@ -138,7 +145,7 @@ class AdPurchaseCrud(DatabaseMixin):
         return True
 
     async def get_leads_count(self, ad_purchase_id: int) -> int:
-        """Get total number of leads for an ad purchase."""
+        """Получает общее количество лидов для рекламной закупки."""
         from main_bot.database.ad_purchase.model import AdLead
         from sqlalchemy import func
 
@@ -149,7 +156,7 @@ class AdPurchaseCrud(DatabaseMixin):
         return result if result else 0
 
     async def get_leads_by_slot(self, ad_purchase_id: int, slot_id: int) -> list:
-        """Get all leads for a specific slot."""
+        """Получает всех лидов для конкретного слота."""
         from main_bot.database.ad_purchase.model import AdLead
 
         query = select(AdLead).where(
@@ -166,9 +173,9 @@ class AdPurchaseCrud(DatabaseMixin):
         invite_link: str,
     ) -> bool:
         """
-        Add a subscription for an ad purchase.
-        If user exists but status is 'left', reactivate (set active).
-        Returns True if subscription was created or activated, False if already active.
+        Добавляет подписку для рекламной закупки.
+        Если подписка существует, но статус 'left', активирует её заново.
+        Возвращает True если подписка создана или активирована, False если уже активна.
         """
 
         from main_bot.database.ad_purchase.model import AdSubscription
@@ -208,7 +215,7 @@ class AdPurchaseCrud(DatabaseMixin):
     async def update_subscription_status(
         self, user_id: int, channel_id: int, status: str
     ) -> None:
-        """Update subscription status (e.g. to 'left')."""
+        """Обновляет статус подписки (например, на 'left')."""
         import time
 
         from main_bot.database.ad_purchase.model import AdSubscription
@@ -230,7 +237,7 @@ class AdPurchaseCrud(DatabaseMixin):
     async def get_subscriptions_count(
         self, ad_purchase_id: int, from_ts: int = None, to_ts: int = None
     ) -> int:
-        """Get total number of subscriptions for an ad purchase within a time range."""
+        """Получает общее количество подписок для закупки за период."""
         from main_bot.database.ad_purchase.model import AdSubscription
         from sqlalchemy import func
 
@@ -253,7 +260,7 @@ class AdPurchaseCrud(DatabaseMixin):
         from_ts: int = None,
         to_ts: int = None,
     ) -> list:
-        """Get all subscriptions for a specific channel within a time range."""
+        """Получает все подписки для конкретного канала за период."""
         from main_bot.database.ad_purchase.model import AdSubscription
 
         query = select(AdSubscription).where(
@@ -271,7 +278,7 @@ class AdPurchaseCrud(DatabaseMixin):
     async def get_subscriptions_by_slot(
         self, ad_purchase_id: int, slot_id: int, from_ts: int = None, to_ts: int = None
     ) -> list:
-        """Get all subscriptions for a specific slot within a time range."""
+        """Получает все подписки для конкретного слота за период."""
         from main_bot.database.ad_purchase.model import AdSubscription
 
         query = select(AdSubscription).where(
@@ -290,8 +297,8 @@ class AdPurchaseCrud(DatabaseMixin):
         self, channel_id: int, user_id: int, invite_link: str
     ) -> bool:
         """
-        Process a join event and create a subscription if the invite link matches an ad purchase.
-        Returns True if subscription was created.
+        Обрабатывает событие вступления и создает подписку, если ссылка соответствует закупке.
+        Возвращает True, если подписка создана.
         """
         # Find mapping by invite_link
         query = select(AdPurchaseLinkMapping).where(
@@ -321,7 +328,7 @@ class AdPurchaseCrud(DatabaseMixin):
         )
 
     async def get_global_stats(self, from_ts: int = None, to_ts: int = None) -> dict:
-        """Get global statistics for all ad purchases."""
+        """Получает глобальную статистику по всем закупкам."""
         from main_bot.database.ad_purchase.model import AdLead, AdSubscription
         from sqlalchemy import func
 
@@ -354,7 +361,7 @@ class AdPurchaseCrud(DatabaseMixin):
     async def get_top_purchases(
         self, from_ts: int = None, to_ts: int = None, limit: int = 5
     ) -> list:
-        """Get top purchases by subscription count."""
+        """Получает топ закупок по количеству подписок."""
         from main_bot.database.ad_purchase.model import AdSubscription
         from sqlalchemy import func
 
@@ -380,7 +387,7 @@ class AdPurchaseCrud(DatabaseMixin):
     async def get_top_creatives(
         self, from_ts: int = None, to_ts: int = None, limit: int = 5
     ) -> list:
-        """Get top creatives by subscription count."""
+        """Получает топ креативов по количеству подписок."""
         from main_bot.database.ad_creative.model import AdCreative
         from main_bot.database.ad_purchase.model import AdSubscription
         from sqlalchemy import func
@@ -411,7 +418,7 @@ class AdPurchaseCrud(DatabaseMixin):
     async def get_top_channels(
         self, from_ts: int = None, to_ts: int = None, limit: int = 5
     ) -> list:
-        """Get top channels by subscription count."""
+        """Получает топ каналов по количеству подписок."""
         from main_bot.database.ad_purchase.model import AdSubscription
         from sqlalchemy import func
 
@@ -435,7 +442,7 @@ class AdPurchaseCrud(DatabaseMixin):
     async def get_user_global_stats(
         self, user_id: int, from_ts: int = None, to_ts: int = None
     ) -> dict:
-        """Get global statistics for user's ad purchases."""
+        """Получает глобальную статистику рекламных закупок пользователя."""
         from main_bot.database.ad_purchase.model import AdLead, AdSubscription
         from sqlalchemy import func
 
@@ -480,7 +487,7 @@ class AdPurchaseCrud(DatabaseMixin):
     async def get_user_top_purchases(
         self, user_id: int, from_ts: int = None, to_ts: int = None, limit: int = 5
     ) -> list:
-        """Get top purchases by subscription count for a specific user."""
+        """Получает топ закупок пользователя по количеству подписок."""
         from main_bot.database.ad_purchase.model import AdSubscription
         from sqlalchemy import func
 
@@ -510,7 +517,7 @@ class AdPurchaseCrud(DatabaseMixin):
     async def get_user_top_creatives(
         self, user_id: int, from_ts: int = None, to_ts: int = None, limit: int = 5
     ) -> list:
-        """Get top creatives by subscription count for a specific user."""
+        """Получает топ креативов пользователя по количеству подписок."""
         from main_bot.database.ad_creative.model import AdCreative
         from main_bot.database.ad_purchase.model import AdSubscription
         from sqlalchemy import func
@@ -542,7 +549,7 @@ class AdPurchaseCrud(DatabaseMixin):
     async def get_user_top_channels(
         self, user_id: int, from_ts: int = None, to_ts: int = None, limit: int = 5
     ) -> list:
-        """Get top channels by subscription count for a specific user."""
+        """Получает топ каналов пользователя по количеству подписок."""
         from main_bot.database.ad_purchase.model import AdSubscription
         from sqlalchemy import func
 

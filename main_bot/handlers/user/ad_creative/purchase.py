@@ -4,7 +4,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, CallbackQuery
 
 from main_bot.database.db import db
-from main_bot.database.types import AdPricingType, AdTargetType
+from main_bot.database.db_types import AdPricingType, AdTargetType
 from main_bot.database.ad_purchase.model import AdPurchase
 from main_bot.keyboards import keyboards, InlineAdPurchase, InlineAdCreative
 from main_bot.states.user import AdPurchaseStates
@@ -663,7 +663,7 @@ async def generate_post(call: CallbackQuery):
     # 3. Prepare message
     import copy
     import re
-    from main_bot.database.types import AdTargetType
+    from main_bot.database.db_types import AdTargetType
     
     message_data = copy.deepcopy(creative.raw_message)
     

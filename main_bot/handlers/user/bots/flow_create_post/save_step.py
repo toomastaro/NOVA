@@ -11,7 +11,7 @@ from aiogram.fsm.context import FSMContext
 
 from main_bot.database.db import db
 from main_bot.database.bot_post.model import BotPost
-from main_bot.database.types import Status
+from main_bot.database.db_types import Status
 from main_bot.utils.lang.language import text
 from main_bot.keyboards import keyboards
 from main_bot.states.user import Bots

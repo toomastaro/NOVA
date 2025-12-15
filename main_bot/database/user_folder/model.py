@@ -1,5 +1,5 @@
 from main_bot.database import Base
-from main_bot.database.types import FolderType
+from main_bot.database.db_types import FolderType
 from sqlalchemy import ARRAY, BigInteger, String
 from sqlalchemy.orm import Mapped, mapped_column
 

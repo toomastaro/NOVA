@@ -2,7 +2,7 @@ from aiogram import types, Router, F
 from aiogram.fsm.context import FSMContext
 
 from main_bot.database.db import db
-from main_bot.database.types import FolderType
+from main_bot.database.db_types import FolderType
 from main_bot.database.user.model import User
 from main_bot.handlers.user.profile.profile import show_setting
 from main_bot.handlers.user.profile.settings import show_folders

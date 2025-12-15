@@ -5,7 +5,7 @@ from typing import List
 
 from main_bot.database import DatabaseMixin
 from main_bot.database.story.model import Story
-from main_bot.database.types import Status
+from main_bot.database.db_types import Status
 from sqlalchemy import delete, func, insert, or_, select, update
 
 logger = logging.getLogger(__name__)

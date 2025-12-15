@@ -6,7 +6,7 @@ from sqlalchemy import select, and_
 from main_bot.database.db import db
 from main_bot.database.channel.model import Channel
 from main_bot.database.ad_purchase.model import AdPurchase, AdPurchaseLinkMapping
-from main_bot.database.types import AdTargetType
+from main_bot.database.db_types import AdTargetType
 from config import config
 from main_bot.database.mt_client_channel.crud import MtClientChannelCrud
 

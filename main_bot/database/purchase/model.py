@@ -1,7 +1,7 @@
 import time
 
 from main_bot.database import Base
-from main_bot.database.types import PaymentMethod, Service
+from main_bot.database.db_types import PaymentMethod, Service
 from sqlalchemy import BigInteger
 from sqlalchemy.orm import Mapped, mapped_column
 

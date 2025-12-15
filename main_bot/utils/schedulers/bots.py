@@ -15,7 +15,7 @@ from hello_bot.database.db import Database
 from instance_bot import bot
 from main_bot.database.bot_post.model import BotPost
 from main_bot.database.db import db
-from main_bot.database.types import Status
+from main_bot.database.db_types import Status
 from main_bot.database.user_bot.model import UserBot
 from main_bot.utils.bot_manager import BotManager
 from main_bot.utils.schemas import MessageOptionsHello
