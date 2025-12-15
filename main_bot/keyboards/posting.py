@@ -47,12 +47,8 @@ class InlinePosting(InlineKeyboardBuilder):
             text=text('channels:add:button'),
             callback_data='ChoicePostChannel|add'
         )
-        kb.button(
-            text=text('back:button'),
-            callback_data='MenuPosting|back'
-        )
 
-        kb.adjust(1, 1, 1, 1)
+        kb.adjust(1, 1, 1)
         return kb.as_markup()
 
     @classmethod

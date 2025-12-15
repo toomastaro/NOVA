@@ -65,7 +65,6 @@ class InlineAdPurchase(InlineKeyboardBuilder):
         kb = cls()
         kb.button(text="🎨 Рекламные креативы", callback_data="AdBuyMenu|creatives")
         kb.button(text="💰 Рекламные закупы", callback_data="AdBuyMenu|purchases")
-        kb.button(text="⬅️ Назад", callback_data="AdBuyMenu|back")
         kb.adjust(1)
         return kb.as_markup()
 

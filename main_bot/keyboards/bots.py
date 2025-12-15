@@ -33,12 +33,8 @@ class InlineBots(InlineKeyboardBuilder):
             text=text('bots:add:button'),
             callback_data='ChoiceBots|add'
         )
-        kb.button(
-            text=text('back:button'),
-            callback_data='MenuBots|back'
-        )
 
-        kb.adjust(1, 1, 1, 1)
+        kb.adjust(1, 1, 1)
         return kb.as_markup()
 
     @classmethod
