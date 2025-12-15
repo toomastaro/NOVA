@@ -64,7 +64,7 @@ async def get_user_message(message: types.Message, state: FSMContext):
 
     await state.clear()
     await message.answer(
-        text("success_msg_support"), reply_markup=keyboards.back(data="CancelSupport")
+        text("success_msg_support")
     )
 
 

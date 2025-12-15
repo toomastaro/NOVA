@@ -49,12 +49,9 @@ async def process_ad_stats():
         Channel.subscribe > current_time
     ).distinct()
     
-    paid_admin_ids = await db.fetch_all(query)
-    # db.fetch_all обычно возвращает список строк (или скаляров, если select одной колонки)
-    # Предполагаем, что это список Row или скаляров. Если список Row, нужно извлечь admin_id.
-    # В текущей реализации db.fetch/fetch_all может возвращать разные типы.
-    # Добавим проверку:
-    admin_ids = [row[0] if isinstance(row, (list, tuple)) else row for row in paid_admin_ids] if paid_admin_ids else []
+    paid_admin_ids = await db.fetch(query)
+    # db.fetch для одного поля возвращает список значений (scalars)
+    admin_ids = list(paid_admin_ids) if paid_admin_ids else []
     
     if not admin_ids:
         return
@@ -66,7 +63,7 @@ async def process_ad_stats():
         AdPurchase.owner_id.in_(admin_ids),
         AdPurchase.status == "active"
     )
-    active_purchases = await db.fetch_all(query)
+    active_purchases = await db.fetch(query)
     
     if not active_purchases:
         return
