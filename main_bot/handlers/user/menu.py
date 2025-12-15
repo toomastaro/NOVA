@@ -17,12 +17,14 @@ def serialize_user_bot(bot):
         return None
     return {
         'id': bot.id,
-        'user_id': bot.user_id,
+        'admin_id': bot.admin_id,
         'token': bot.token,
         'username': bot.username,
-        'first_name': getattr(bot, 'first_name', None),
+        'title': bot.title,
         'schema': getattr(bot, 'schema', None),
-        'created_at': getattr(bot, 'created_at', None),
+        'created_timestamp': getattr(bot, 'created_timestamp', None),
+        'emoji_id': getattr(bot, 'emoji_id', None),
+        'subscribe': getattr(bot, 'subscribe', None)
     }
 
 

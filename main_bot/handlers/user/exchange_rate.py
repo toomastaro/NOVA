@@ -3,10 +3,8 @@ from aiogram.fsm.context import FSMContext
 from datetime import datetime
 
 from main_bot.database.db import db
-from main_bot.database.user.model import User
 from main_bot.keyboards import keyboards, InlineExchangeRate
 from main_bot.states.user import ExchangeRate
-from main_bot.utils.exchange_rates import get_exchange_rates_from_json, format_exchange_rate_from_db
 from main_bot.utils.lang.language import text
 from main_bot.utils.schedulers import update_exchange_rates_in_db
 from main_bot.utils.report_signature import get_report_signatures
@@ -175,7 +173,7 @@ async def back_to_main_menu(call: types.CallbackQuery):
     )
 
 
-def hand_add():
+def get_router():
     router = Router()
     
     router.callback_query.register(back_to_main_menu,

@@ -14,7 +14,7 @@ def get_router():
         support.hand_add(),
         set_resource.hand_add(),
         commands.get_router(),
-        exchange_rate.hand_add(),
+        exchange_rate.get_router(),
         novastat.router,
         profile_router(),
         posting_router(),

@@ -22,8 +22,21 @@ from main_bot.utils.error_handler import safe_handler
 logger = logging.getLogger(__name__)
 
 
+class DictObj:
+    def __init__(self, in_dict: dict):
+        for key, val in in_dict.items():
+            setattr(self, key, val)
+
+def ensure_bot_obj(bot):
+    if isinstance(bot, dict):
+        return DictObj(bot)
+    return bot
+
+
 @safe_handler("Bots Show Bot Manage")
-async def show_bot_manage(message: types.Message, user_bot: UserBot):
+async def show_bot_manage(message: types.Message, user_bot: UserBot | dict):
+    user_bot = ensure_bot_obj(user_bot)
+    
     bot_database = Database()
     bot_database.schema = user_bot.schema
 
@@ -215,7 +228,7 @@ async def manage_bot(call: types.CallbackQuery, state: FSMContext):
             if user_bot:
                 await state.update_data(bot_id=bot_id, user_bot=user_bot)
                 data = await state.get_data()
-        except:
+        except Exception:
             pass
 
     if not data:
@@ -239,7 +252,7 @@ async def manage_bot(call: types.CallbackQuery, state: FSMContext):
         if temp[1] == "channel":
             message_text = text("delete_channel:bot")
         else:
-            async with BotManager(data.get('user_bot').token) as bot_manager:
+            async with BotManager(ensure_bot_obj(data.get('user_bot')).token) as bot_manager:
                 is_valid = await bot_manager.validate_token()
 
             message_text = text("token_{}valid".format("" if is_valid else "not_"))
@@ -256,7 +269,7 @@ async def manage_bot(call: types.CallbackQuery, state: FSMContext):
         return await state.set_state(AddBot.update_token)
 
     if temp[1] == "status":
-        async with BotManager(data.get("user_bot").token) as bot_manager:
+        async with BotManager(ensure_bot_obj(data.get("user_bot")).token) as bot_manager:
             status = await bot_manager.status()
             await bot_manager.set_webhook(delete=status)
 
@@ -300,7 +313,7 @@ async def manage_bot(call: types.CallbackQuery, state: FSMContext):
 async def update_token(message: types.Message, state: FSMContext):
     token = message.text
     data = await state.get_data()
-    user_bot: UserBot = data.get("user_bot")
+    user_bot: UserBot = ensure_bot_obj(data.get("user_bot"))
 
     async with BotManager(token) as bot_manager:
         me = await bot_manager.validate_token()
@@ -366,14 +379,15 @@ async def delete_bot(call: types.CallbackQuery, state: FSMContext):
     await call.message.delete()
 
     if len(temp) == 2 and temp[1] == "yes":
+        user_bot = ensure_bot_obj(data.get("user_bot"))
         await db.user_bot.delete_bot_by_id(
-            row_id=data.get("user_bot").id
+            row_id=user_bot.id
         )
         other_db = Database()
-        other_db.schema = data.get("user_bot").schema
+        other_db.schema = user_bot.schema
         await other_db.drop_schema()
 
-        async with BotManager(data.get("user_bot").token) as bot_manager:
+        async with BotManager(user_bot.token) as bot_manager:
             await bot_manager.set_webhook(delete=True)
 
         await state.clear()
@@ -416,7 +430,7 @@ async def get_import_file(message: types.Message, state: FSMContext):
 
         data = await state.get_data()
         other_db = Database()
-        other_db.schema = data.get("user_bot").schema
+        other_db.schema = ensure_bot_obj(data.get("user_bot")).schema
 
         await other_db.many_insert_user(users)
 
@@ -448,7 +462,7 @@ async def choice_export(call: types.CallbackQuery, state: FSMContext):
         return await show_bot_manage(call.message, data.get("user_bot"))
 
     other_db = Database()
-    other_db.schema = data.get("user_bot").schema
+    other_db.schema = ensure_bot_obj(data.get("user_bot")).schema
 
     users = await other_db.get_dump_users()
     if not users:
@@ -461,7 +475,7 @@ async def choice_export(call: types.CallbackQuery, state: FSMContext):
     await show_bot_manage(call.message, data.get("user_bot"))
 
     filepath = "main_bot/utils/temp/export_users_{}_{}.{}".format(
-        data.get("user_bot").username,
+        ensure_bot_obj(data.get("user_bot")).username,
         int(time.time()),
         temp[1] if temp[1] == "txt" else "csv"
     )
