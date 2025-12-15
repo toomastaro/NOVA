@@ -1,12 +1,14 @@
+import logging
+
 from aiogram import types, Router
 from aiogram.fsm.context import FSMContext
 from aiogram.filters import CommandStart
 
 from config import Config
+from main_bot.database.db import db
 from main_bot.keyboards import keyboards
 from main_bot.utils.lang.language import text
 from main_bot.utils.middlewares import StartMiddle
-import logging
 from main_bot.utils.error_handler import safe_handler
 
 logger = logging.getLogger(__name__)
@@ -32,7 +34,6 @@ async def start(message: types.Message, state: FSMContext):
                     slot_id = int(parts[1])
                     
                     # Add lead (silently, no user feedback)
-                    from main_bot.database.db import db
                     await db.ad_purchase.add_lead(
                         user_id=message.from_user.id,
                         ad_purchase_id=purchase_id,
@@ -47,15 +48,15 @@ async def start(message: types.Message, state: FSMContext):
 
     await message.answer(
         text("start_text") + f"\n\n{version_text}"
-        f"📄 <a href='{text('info:terms:url')}'>Пользовательское соглашение</a>\n"
-        f"🔒 <a href='{text('info:privacy:url')}'>Политика конфиденциальности</a>",
+        f"📄 <a href='{text('info:terms:url')}'>{text('start:terms:text')}</a>\n"
+        f"🔒 <a href='{text('info:privacy:url')}'>{text('start:privacy:text')}</a>",
         reply_markup=keyboards.menu(),
         parse_mode="HTML",
         disable_web_page_preview=True
     )
 
 
-def hand_add():
+def get_router():
     router = Router()
     router.message.middleware(StartMiddle())
     router.message.register(start, CommandStart())
