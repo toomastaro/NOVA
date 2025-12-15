@@ -153,7 +153,7 @@ async def channels_callback_handler(call: types.CallbackQuery, state: FSMContext
         await view_channel_details(call)
 
 
-def hand_add():
+def get_router():
     """Регистрация handlers"""
     router.callback_query.register(channels_callback_handler, F.data.split('|')[0] == "AdminChannels")
     router.message.register(search_channel_process, AdminChannels.searching)

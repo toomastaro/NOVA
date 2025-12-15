@@ -4,11 +4,12 @@ from . import start, promo, session, channels
 
 
 def get_router():
+    """Сборка и подключение всех роутеров админ-панели."""
     routers = [
-        start.hand_add(),
-        promo.hand_add(),
-        session.hand_add(),
-        channels.hand_add(),
+        start.get_router(),
+        promo.get_router(),
+        session.get_router(),
+        channels.get_router(),
     ]
 
     router = Router(name='Admin')

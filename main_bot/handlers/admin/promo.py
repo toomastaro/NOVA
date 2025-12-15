@@ -48,7 +48,7 @@ async def get_promo(message: types.Message, state: FSMContext):
     )
 
 
-def hand_add():
+def get_router():
     router = Router()
     router.message.register(get_promo, Promo.input, F.text)
     router.callback_query.register(back, F.data.split('|')[0] == "AdminPromoBack")

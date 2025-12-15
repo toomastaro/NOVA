@@ -86,7 +86,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
     #     )
 
 
-def hand_add():
+def get_router():
     router = Router()
     router.message.register(admin_menu, Command('admin'))
     router.callback_query.register(choice, F.data.split('|')[0] == "Admin")
