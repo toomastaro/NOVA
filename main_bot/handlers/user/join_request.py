@@ -21,41 +21,14 @@ async def on_join_request(request: types.ChatJoinRequest):
 
     logger.info(f"Received join request from {user_id} with link {invite_link}")
 
-    # Check if this invite link belongs to an Ad Purchase
-    # Use direct query to CRUD mixin or create specific method? CRUD mixin is better.
-    # But CRUD mixin is on 'db' object.
-    # We need to find mapping by invite_link.
-
-    # Assuming db object has access to crud methods or we can execute query
-    # db is instance of Database which inherits AdPurchaseCrud
-
     try:
-        # We need a method to get specific mapping by link.
-        # process_join_event logic uses select(AdPurchaseLinkMapping)
-        # Let's add a helper in crud or just query here if possible?
-        # Better to keep SQL in crud. But 'db' is main entry point.
-        # Let's use `process_lead_event` logic similar to `process_join_event`.
-
-        # Or just manually query since we are in handler and have access to db.
-        # Ideally we add `process_lead_event` to CRUD.
-        # But 'add_lead' exists.
-
-        # Let's inspect create_emoji/process_join_event usage.
-        # db.ad_purchase.process_join_event is used in set_resource. It queries mapping.
-
-        # I will inline the logic here using db.fetchrow or similar, or better yet, add a method to CRUD.
-        # But for now, let's query AdPurchaseLinkMapping directly.
-
-        # However, accessing ORM models directly here is fine.
-
-        # Find mapping
+        # Поиск маппинга ссылки к рекламной закупке
         query = select(AdPurchaseLinkMapping).where(
             AdPurchaseLinkMapping.invite_link == invite_link
         )
         mapping = await db.fetchrow(query)
 
         if mapping:
-            # It's an ad link! Track lead.
             logger.info(
                 f"Mapping found for link {invite_link}: Purchase {mapping.ad_purchase_id}, Slot {mapping.slot_id}"
             )
@@ -63,7 +36,7 @@ async def on_join_request(request: types.ChatJoinRequest):
                 user_id=user_id,
                 ad_purchase_id=mapping.ad_purchase_id,
                 slot_id=mapping.slot_id,
-                ref_param=f"req_{mapping.ad_purchase_id}_{mapping.slot_id}",  # Synthetic ref param
+                ref_param=f"req_{mapping.ad_purchase_id}_{mapping.slot_id}",
             )
             if result:
                 logger.info(f"Lead ADDED for user {user_id}")

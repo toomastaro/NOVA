@@ -1,7 +1,6 @@
 import asyncio
 import logging
-from aiogram import types, F, Router
-from aiogram import Bot
+from aiogram import types, F, Router, Bot
 from aiogram.enums import ChatMemberStatus
 from aiogram.fsm.context import FSMContext
 
@@ -154,7 +153,6 @@ async def set_admin(call: types.ChatMemberUpdated):
 
     chat_id = call.chat.id
 
-    # Track subscription for ad purchases if user joined via invite link
     # Track subscription for ad purchases if user joined via invite link
     if call.new_chat_member.status == ChatMemberStatus.MEMBER:
         if call.invite_link:

@@ -3,6 +3,7 @@ from aiogram import types, F, Router
 from aiogram.fsm.context import FSMContext
 
 from main_bot.keyboards import keyboards
+from main_bot.keyboards.common import Reply
 from main_bot.states.user import Support
 from main_bot.utils.lang.language import text
 from main_bot.utils.error_handler import safe_handler
@@ -16,15 +17,15 @@ def serialize_user_bot(bot):
     if not bot:
         return None
     return {
-        'id': bot.id,
-        'admin_id': bot.admin_id,
-        'token': bot.token,
-        'username': bot.username,
-        'title': bot.title,
-        'schema': getattr(bot, 'schema', None),
-        'created_timestamp': getattr(bot, 'created_timestamp', None),
-        'emoji_id': getattr(bot, 'emoji_id', None),
-        'subscribe': getattr(bot, 'subscribe', None)
+        "id": bot.id,
+        "admin_id": bot.admin_id,
+        "token": bot.token,
+        "username": bot.username,
+        "title": bot.title,
+        "schema": getattr(bot, "schema", None),
+        "created_timestamp": getattr(bot, "created_timestamp", None),
+        "emoji_id": getattr(bot, "emoji_id", None),
+        "subscribe": getattr(bot, "subscribe", None),
     }
 
 
@@ -33,78 +34,56 @@ async def choice(message: types.Message, state: FSMContext):
     await state.clear()
 
     menu = {
-        text('reply_menu:posting'): {
-            'cor': start_posting,
-            'args': (message,)
+        text("reply_menu:posting"): {"cor": start_posting, "args": (message,)},
+        text("reply_menu:story"): {"cor": start_stories, "args": (message,)},
+        text("reply_menu:bots"): {"cor": start_bots, "args": (message,)},
+        text("reply_menu:support"): {
+            "cor": support,
+            "args": (
+                message,
+                state,
+            ),
         },
-        text('reply_menu:story'): {
-            'cor': start_stories,
-            'args': (message,)
-        },
-        text('reply_menu:bots'): {
-            'cor': start_bots,
-            'args': (message,)
-        },
-        text('reply_menu:support'): {
-            'cor': support,
-            'args': (message, state,)
-        },
-        text('reply_menu:profile'): {
-            'cor': profile,
-            'args': (message,)
-        },
-        text('reply_menu:subscription'): {
-            'cor': subscription,
-            'args': (message,)
-        },
-        text('reply_menu:channels'): {
-            'cor': show_channels,
-            'args': (message,)
-        },
-        text('reply_menu:privetka'): {
-            'cor': start_privetka,
-            'args': (message, state,)
+        text("reply_menu:profile"): {"cor": profile, "args": (message,)},
+        text("reply_menu:subscription"): {"cor": subscription, "args": (message,)},
+        text("reply_menu:channels"): {"cor": show_channels, "args": (message,)},
+        text("reply_menu:privetka"): {
+            "cor": start_privetka,
+            "args": (
+                message,
+                state,
+            ),
         },
     }
 
     if message.text in menu:
-        cor, args = menu[message.text].values()
-        await cor(*args)
+        handler_data = menu[message.text]
+        await handler_data["cor"](*handler_data["args"])
     else:
         logger.warning(f"Unknown menu command: {message.text}")
 
 
 @safe_handler("Start Posting Menu")
 async def start_posting(message: types.Message):
-    await message.answer(
-        text('start_post_text'),
-        reply_markup=keyboards.posting_menu()
-    )
+    await message.answer(text("start_post_text"), reply_markup=keyboards.posting_menu())
 
 
 @safe_handler("Start Stories Menu")
 async def start_stories(message: types.Message):
     await message.answer(
-        text('start_stories_text'),
-        reply_markup=keyboards.stories_menu()
+        text("start_stories_text"), reply_markup=keyboards.stories_menu()
     )
 
 
 @safe_handler("Start Bots Menu")
 async def start_bots(message: types.Message):
-    await message.answer(
-        text('start_bots_text'),
-        reply_markup=keyboards.bots_menu()
-    )
+    await message.answer(text("start_bots_text"), reply_markup=keyboards.bots_menu())
 
 
 @safe_handler("Start Support")
 async def support(message: types.Message, state: FSMContext):
     await message.answer(
-        text('start_support_text'),
-        reply_markup=keyboards.cancel(
-            data="CancelSupport"
-        )
+        text("start_support_text"), reply_markup=keyboards.cancel(data="CancelSupport")
     )
     await state.set_state(Support.message)
 
@@ -112,45 +91,36 @@ async def support(message: types.Message, state: FSMContext):
 @safe_handler("Start Profile")
 async def profile(message: types.Message):
     await message.answer(
-        text('start_profile_text'),
-        reply_markup=keyboards.profile_menu()
+        text("start_profile_text"), reply_markup=keyboards.profile_menu()
     )
 
 
 @safe_handler("Start Subscription")
 async def subscription(message: types.Message):
     """Меню подписки с балансом, подпиской и реферальной системой"""
-    from main_bot.database.db import db
-    
     user = await db.user.get_user(user_id=message.chat.id)
     if not user:
         await db.user.add_user(
             id=message.from_user.id,
             username=message.from_user.username,
-            full_name=message.from_user.full_name
+            full_name=message.from_user.full_name,
         )
         user = await db.user.get_user(user_id=message.chat.id)
     await message.answer(
         text("balance_text").format(user.balance),
         reply_markup=keyboards.subscription_menu(),
-        parse_mode="HTML"
+        parse_mode="HTML",
     )
 
 
 @safe_handler("Show Channels")
 async def show_channels(message: types.Message):
     """Показать список каналов пользователя"""
-    from main_bot.database.db import db
-    
     channels = await db.channel.get_user_channels(
-        user_id=message.chat.id,
-        sort_by="posting"
+        user_id=message.chat.id, sort_by="posting"
     )
     await message.answer(
-        text('channels_text'),
-        reply_markup=keyboards.channels(
-            channels=channels
-        )
+        text("channels_text"), reply_markup=keyboards.channels(channels=channels)
     )
 
 
@@ -158,14 +128,15 @@ async def show_channels(message: types.Message):
 async def start_privetka(message: types.Message, state: FSMContext):
     await state.update_data(from_privetka=True)
     channels_raw = await db.channel_bot_settings.get_bot_channels(message.chat.id)
-    channels = await db.channel.get_user_channels(message.chat.id, from_array=[i.id for i in channels_raw])
+    channels = await db.channel.get_user_channels(
+        message.chat.id, from_array=[i.id for i in channels_raw]
+    )
 
     await message.answer(
-        text('privetka_text'),
+        text("privetka_text"),
         reply_markup=keyboards.choice_channel_for_setting(
-            channels=channels,
-            data="PrivetkaChannel"
-        )
+            channels=channels, data="PrivetkaChannel"
+        ),
     )
 
 
@@ -175,24 +146,25 @@ async def privetka_choice_channel(call: types.CallbackQuery, state: FSMContext):
 
     if temp[1] == "cancel":
         await call.message.delete()
-        from main_bot.keyboards.common import Reply
         await call.message.answer("Главное меню", reply_markup=Reply.menu())
         return
 
     if temp[1] in ["next", "back"]:
         channels_raw = await db.channel_bot_settings.get_bot_channels(call.from_user.id)
-        channels = await db.channel.get_user_channels(call.from_user.id, from_array=[i.id for i in channels_raw])
+        channels = await db.channel.get_user_channels(
+            call.from_user.id, from_array=[i.id for i in channels_raw]
+        )
 
         return await call.message.edit_reply_markup(
             reply_markup=keyboards.choice_channel_for_setting(
-                channels=channels,
-                data="PrivetkaChannel",
-                remover=int(temp[2])
+                channels=channels, data="PrivetkaChannel", remover=int(temp[2])
             )
         )
 
     chat_id = int(temp[1])
-    channel_setting = await db.channel_bot_settings.get_channel_bot_setting(chat_id=chat_id)
+    channel_setting = await db.channel_bot_settings.get_channel_bot_setting(
+        chat_id=chat_id
+    )
 
     bot_id = channel_setting.bot_id if channel_setting else None
 
@@ -201,7 +173,7 @@ async def privetka_choice_channel(call: types.CallbackQuery, state: FSMContext):
         await state.update_data(bot_id=bot_id)
         user_bot = await db.user_bot.get_bot_by_id(bot_id)
         if user_bot:
-             await state.update_data(user_bot=serialize_user_bot(user_bot))
+            await state.update_data(user_bot=serialize_user_bot(user_bot))
 
     db_obj = Database()
     if user_bot:
@@ -209,6 +181,7 @@ async def privetka_choice_channel(call: types.CallbackQuery, state: FSMContext):
 
     await call.message.delete()
     from main_bot.handlers.user.bots.bot_settings.menu import show_channel_setting
+
     await show_channel_setting(call.message, db_obj, state)
 
 
@@ -218,18 +191,18 @@ def get_router():
         choice,
         F.text.in_(
             {
-                # RU
-                text('reply_menu:posting'),
-                text('reply_menu:story'),
-                text('reply_menu:bots'),
-                text('reply_menu:support'),
-                text('reply_menu:profile'),
-                text('reply_menu:subscription'),
-                text('reply_menu:channels'),
-                text('reply_menu:privetka'),
+                text("reply_menu:posting"),
+                text("reply_menu:story"),
+                text("reply_menu:bots"),
+                text("reply_menu:support"),
+                text("reply_menu:profile"),
+                text("reply_menu:subscription"),
+                text("reply_menu:channels"),
+                text("reply_menu:privetka"),
             }
-        )
+        ),
     )
-    router.callback_query.register(privetka_choice_channel, F.data.startswith("PrivetkaChannel"))
-    # Registration fixed
+    router.callback_query.register(
+        privetka_choice_channel, F.data.startswith("PrivetkaChannel")
+    )
     return router
