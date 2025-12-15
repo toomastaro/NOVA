@@ -1,16 +1,25 @@
+import asyncio
+import logging
 import os
 import time
 from datetime import datetime
 from pathlib import Path
 
-from aiogram.fsm.context import FSMContext
 from aiogram import types, Router, F
 from aiogram.exceptions import TelegramBadRequest
+from aiogram.fsm.context import FSMContext
 
+from instance_bot import bot as main_bot_obj
+from main_bot.database.db import db
+from main_bot.database.mt_client.model import MtClient
 from main_bot.keyboards import keyboards
 from main_bot.states.admin import Session
+from main_bot.utils.lang.language import text
+from main_bot.utils.mt_client_utils import reset_client_task
 from main_bot.utils.session_manager import SessionManager
-from main_bot.database.db import db
+from main_bot.utils.support_log import send_support_alert, SupportAlert
+
+logger = logging.getLogger(__name__)
 
 apps = {}
 
@@ -21,7 +30,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
 
     if action == 'add':
         await call.message.edit_text(
-            'Выберите тип клиента:',
+            text('admin:session:select_type'),
             reply_markup=keyboards.admin_session_pool_select()
         )
         return await state.set_state(Session.pool_select)
@@ -31,7 +40,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
         await state.update_data(pool_type=pool_type)
         
         await call.message.edit_text(
-            f'Выбран тип: {pool_type}\nОтправьте номер телефона (цифры сессии):',
+            text('admin:session:selected_type').format(pool_type),
             reply_markup=keyboards.back(
                 data="AdminSessionNumberBack"
             )
@@ -44,12 +53,13 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
         
         try:
             await call.message.edit_text(
-                f"Управление MTProto клиентами\nВсего в базе: {len(all_clients)}",
+                text('admin:session:main_menu').format(len(all_clients)),
                 reply_markup=keyboards.admin_sessions()
             )
         except TelegramBadRequest as e:
             # Игнорируем ошибку если сообщение не изменилось
             if "message is not modified" not in str(e):
+                logger.error(f"Error editing message: {e}")
                 raise
         return
 
@@ -60,14 +70,8 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
         # Store pool type in state to return to list later if needed
         await state.update_data(current_pool=pool_type)
 
-        # Also scan for orphans to show them mixed or at top? 
-        # Requirement says: "if there are such that are not in the database... offer to add them"
-        # It seems better to show orphans on the main screen or mixed. 
-        # Let's keep orphans on the main screen (back_to_main) as implemented above.
-        # Here we just show the specific pool list.
-
         await call.message.edit_text(
-            f"Список {pool_type} клиентов:",
+            text('admin:session:list').format(pool_type),
             reply_markup=keyboards.admin_sessions(clients=clients)
         )
         return
@@ -77,7 +81,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
         pool_type = data.get("current_pool", "internal")
         clients = await db.mt_client.get_mt_clients_by_pool(pool_type)
         await call.message.edit_text(
-            f"Список {pool_type} клиентов:",
+            text('admin:session:list').format(pool_type),
             reply_markup=keyboards.admin_sessions(clients=clients)
         )
         return
@@ -97,18 +101,18 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
         
         if orphaned:
             await call.message.edit_text(
-                f"🔍 Найдено новых сессий: {len(orphaned)}\nВыберите сессию для добавления:",
+                text('admin:session:orphaned_found').format(len(orphaned)),
                 reply_markup=keyboards.admin_sessions(orphaned_sessions=orphaned)
             )
         else:
-            await call.answer("✅ Новых сессий не найдено", show_alert=True)
+            await call.answer(text('admin:session:no_orphaned'), show_alert=True)
         return
 
 
     if action == 'add_orphan':
         session_file = temp[2]
         await call.message.edit_text(
-            f"Добавление найденной сессии: {session_file}\nВыберите тип пула:",
+            text('admin:session:add_orphaned').format(session_file),
             reply_markup=keyboards.admin_orphan_pool_select(session_file)
         )
         return
@@ -119,13 +123,9 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
         session_path = Path(f"main_bot/utils/sessions/{session_file}")
         
         if not session_path.exists():
-             await call.answer("Файл сессии исчез!", show_alert=True)
+             await call.answer(text('admin:session:file_gone'), show_alert=True)
              return
 
-        # Create MtClient
-        import time
-        from main_bot.database.mt_client.model import MtClient
-        
         # Получить имя из профиля через SessionManager
         alias = None
         async with SessionManager(session_path) as manager:
@@ -140,7 +140,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
                         if full_name:
                             alias = f"👤 {full_name}"
                 except Exception as e:
-                    print(f"Error getting user info: {e}")
+                    logger.error(f"Error getting user info: {e}")
             
             # Fallback: если не удалось получить имя
             if not alias:
@@ -178,11 +178,9 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
         await db.mt_client.update_mt_client(client_id=new_client.id, **updates)
         
         await call.message.edit_text(
-            f"✅ Сессия {session_file} добавлена!\n\n"
-            f"🆔 ID: {new_client.id}\n"
-            f"👤 Псевдоним: {alias}\n"
-            f"🏊 Пул: {pool_type}\n"
-            f"📊 Результат: {result_text}",
+            text('admin:session:added_orphan').format(
+                session_file, new_client.id, alias, pool_type, result_text
+            ),
             reply_markup=keyboards.back(data="AdminSession|back_to_main")
         )
         return
@@ -191,7 +189,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
         client_id = int(temp[2])
         client = await db.mt_client.get_mt_client(client_id)
         if not client:
-            await call.answer("Клиент не найден", show_alert=True)
+            await call.answer(text('admin:session:not_found'), show_alert=True)
             return
 
         created_at = "N/A"
@@ -228,12 +226,12 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
         client_id = int(temp[2])
         client = await db.mt_client.get_mt_client(client_id)
         if not client:
-            await call.answer("Клиент не найден", show_alert=True)
+            await call.answer(text('admin:session:not_found'), show_alert=True)
             return
             
         session_path = Path(client.session_path)
         if not session_path.exists():
-             await call.answer("Файл сессии не найден!", show_alert=True)
+             await call.answer(text('admin:session:session_not_found'), show_alert=True)
              return
 
         # Защита от множественных вызовов (debounce)
@@ -243,12 +241,12 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
         current_time = int(time.time())
         
         if current_time - last_check < 5:  # 5 секунд между проверками
-            await call.answer("⏳ Подождите 5 секунд между проверками", show_alert=True)
+            await call.answer(text('admin:session:wait_check'), show_alert=True)
             return
         
         await state.update_data(**{last_check_key: current_time})
 
-        await call.answer("Проверка...", show_alert=False)
+        await call.answer(text('admin:session:checking'), show_alert=False)
         
         async with SessionManager(session_path) as manager:
             health = await manager.health_check()
@@ -261,20 +259,17 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
         if health["ok"]:
             updates["status"] = 'ACTIVE'
             updates["is_active"] = True
-            msg = "✅ Клиент активен"
+            msg = text('admin:session:active')
         else:
             updates["status"] = 'DISABLED'
             updates["is_active"] = False
             error_code = health.get("error_code", "UNKNOWN")
             updates["last_error_code"] = error_code
             updates["last_error_at"] = current_time
-            msg = f"❌ Ошибка: {error_code}"
+            msg = text('admin:session:error').format(error_code)
             
             # Send alert for critical errors
             if "DEACTIVATED" in error_code or "UNREGISTERED" in error_code or "BANNED" in error_code:
-                from main_bot.utils.support_log import send_support_alert, SupportAlert
-                from instance_bot import bot as main_bot_obj
-                
                 event_type = 'CLIENT_BANNED' if 'BANNED' in error_code or 'DEACTIVATED' in error_code else 'CLIENT_DISABLED'
                 
                 await send_support_alert(main_bot_obj, SupportAlert(
@@ -283,7 +278,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
                     client_alias=client.alias,
                     pool_type=client.pool_type,
                     error_code=error_code,
-                    error_text=f"Клиент не прошел проверку здоровья"
+                    error_text=text('admin:session:health_failed')
                 ))
             
         await db.mt_client.update_mt_client(client_id=client.id, **updates)
@@ -325,21 +320,18 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
     if action == 'reset_ask':
         client_id = int(temp[2])
         await call.message.edit_text(
-            f"⚠️ ВЫ УВЕРЕНЫ, что хотите сбросить клиента {client_id}?\n\n"
-            "Это приведет к выходу из всех каналов и очистке базы данных для этого клиента.",
+            text('admin:session:reset_confirm').format(client_id),
             reply_markup=keyboards.admin_client_reset_confirm(client_id)
         )
         return
 
     if action == 'reset_confirm':
         client_id = int(temp[2])
-        from main_bot.utils.mt_client_utils import reset_client_task
-        import asyncio
         
         # Trigger background task
         asyncio.create_task(reset_client_task(client_id))
         
-        await call.answer("Задача на сброс запущена", show_alert=True)
+        await call.answer(text('admin:session:reset_started'), show_alert=True)
         
         # Go back to client details (it will update status on next refresh)
         client = await db.mt_client.get_mt_client(client_id)
@@ -369,7 +361,7 @@ async def admin_session_back(call: types.CallbackQuery, state: FSMContext):
                 os.remove(app.session_path)
                 await app.close()
     except Exception as e:
-        print(e)
+        logger.error(f"Error removing session during back: {e}")
 
     await state.clear()
     
@@ -378,7 +370,7 @@ async def admin_session_back(call: types.CallbackQuery, state: FSMContext):
 
     await call.message.delete()
     await call.message.answer(
-        f"Управление MTProto клиентами\nВсего в базе: {len(all_clients)}",
+        text('admin:session:main_menu').format(len(all_clients)),
         reply_markup=keyboards.admin_sessions()
     )
 
@@ -397,14 +389,14 @@ async def get_number(message: types.Message, state: FSMContext):
         apps[number] = manager
 
     except Exception as e:
-        print(e)
+        logger.error(f"Error sending code request: {e}")
         await manager.close()
         try:
             os.remove(session_path)
-        except:
+        except Exception:
             pass
         return await message.answer(
-            '❌ Неверный номер или ошибка инициализации',
+            text('admin:session:init_error'),
             reply_markup=keyboards.cancel(
                 data="AdminSessionNumberBack"
             )
@@ -416,7 +408,7 @@ async def get_number(message: types.Message, state: FSMContext):
     )
 
     await message.answer(
-        "Дай цифры с уведомления:",
+        text('admin:session:enter_code'),
         reply_markup=keyboards.cancel(
             data="AdminSessionNumberBack"
         )
@@ -432,7 +424,7 @@ async def get_code(message: types.Message, state: FSMContext):
     
     app: SessionManager = apps.get(number)
     if not app:
-         return await message.answer("Ошибка: сессия не найдена. Начните заново.")
+         return await message.answer(text('admin:session:session_lost'))
 
     try:
         await app.client.sign_in(
@@ -443,24 +435,22 @@ async def get_code(message: types.Message, state: FSMContext):
         # Do not close app yet, we need it for health check
         
     except Exception as e:
-        print(e)
+        logger.error(f"Error signing in: {e}")
         await app.close()
         try:
             os.remove(app.session_path)
-        except:
+        except Exception:
             pass
 
         await state.clear()
         return await message.answer(
-            '❌ Неверный код или ошибка входа',
+            text('admin:session:auth_error'),
             reply_markup=keyboards.cancel(
                 data="AdminSessionNumberBack"
             )
         )
 
     # --- MtClient Creation Logic ---
-    import time
-    from main_bot.database.mt_client.model import MtClient
     
     # 1. Получить имя из профиля
     alias = None
@@ -474,7 +464,7 @@ async def get_code(message: types.Message, state: FSMContext):
             if full_name:
                 alias = f"👤 {full_name}"
     except Exception as e:
-        print(f"Error getting user info: {e}")
+        logger.error(f"Error getting user info: {e}")
     
     # Fallback: если не удалось получить имя
     if not alias:
@@ -517,17 +507,15 @@ async def get_code(message: types.Message, state: FSMContext):
     session_count = len(os.listdir("main_bot/utils/sessions/"))
     
     await message.answer(
-        f"✅ Сессия добавлена!\n\n"
-        f"🆔 ID: {new_client.id}\n"
-        f"👤 Псевдоним: {alias}\n"
-        f"🏊 Пул: {pool_type}\n"
-        f"📊 Результат: {result_text}\n\n"
-        f"Всего сессий: {session_count}",
+        text('admin:session:success_add').format(
+            new_client.id, alias, pool_type, result_text, session_count
+        ),
         reply_markup=keyboards.admin_sessions()
     )
 
 
 def get_router():
+    """Регистрация роутера для управления сессиями."""
     router = Router()
     router.callback_query.register(choice, F.data.split('|')[0] == "AdminSession")
     router.callback_query.register(admin_session_back, F.data.split('|')[0] == "AdminSessionNumberBack")

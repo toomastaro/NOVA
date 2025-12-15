@@ -764,9 +764,7 @@ async def accept_delete_published_post(call: types.CallbackQuery, state: FSMCont
         )
 
     if temp[1] == "accept":
-         # ... existing delete logic ...
-    if temp[1] == "accept":
-         # ... existing delete logic ...
+        # ... existing delete logic ...
         logger.info(f"User {call.from_user.id} deleting published post {post_data['id']} (message_id: {post_data.get('message_id')}) and all related posts")
         
         # Fetch all related published posts

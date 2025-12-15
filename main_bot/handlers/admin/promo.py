@@ -1,12 +1,17 @@
+import logging
 from aiogram import types, Router, F
 from aiogram.fsm.context import FSMContext
 
 from main_bot.database.db import db
 from main_bot.keyboards import keyboards
 from main_bot.states.admin import Promo
+from main_bot.utils.lang.language import text
+
+logger = logging.getLogger(__name__)
 
 
 async def back(call: types.CallbackQuery, state: FSMContext):
+    """Возврат в меню админа."""
     await state.clear()
     await call.message.edit_text(
         'Админ меню',
@@ -15,16 +20,20 @@ async def back(call: types.CallbackQuery, state: FSMContext):
 
 
 async def get_promo(message: types.Message, state: FSMContext):
+    """
+    Создание нового промокода.
+    Формат ввода: Название\nКоличество\nКол-во использований\nСкидка
+    """
     temp = message.text.split('\n')
     if len(temp) < 4:
         return await message.answer(
-            'Что-то забыл указать'
+            text('promo:error:args')
         )
 
     name = temp[0]
     exist = await db.promo.get_promo(name)
     if exist:
-        return await message.answer("Уже существует")
+        return await message.answer(text('promo:error:exist'))
 
     try:
         amount = int(temp[1]) if int(temp[1]) > 0 else None
@@ -32,7 +41,7 @@ async def get_promo(message: types.Message, state: FSMContext):
         discount = int(temp[3]) if int(temp[3]) > 0 else None
     except ValueError:
         return await message.answer(
-            '❌ Количественные значения должны быть цифрой или числом'
+            text('promo:error:digit')
         )
 
     await db.promo.add_promo(
@@ -41,14 +50,17 @@ async def get_promo(message: types.Message, state: FSMContext):
         use_count=count_use,
         discount=discount
     )
+    
+    logger.info(f"Admin {message.from_user.id} created promo '{name}' (amount={amount}, uses={count_use}, discount={discount})")
 
     await state.clear()
     await message.answer(
-        'Промокод был успешно добавлен'
+        text('promo:success:add')
     )
 
 
 def get_router():
+    """Регистрация роутера для управления промокодами."""
     router = Router()
     router.message.register(get_promo, Promo.input, F.text)
     router.callback_query.register(back, F.data.split('|')[0] == "AdminPromoBack")
