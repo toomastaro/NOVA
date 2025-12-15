@@ -34,7 +34,7 @@ async def show_ad_purchase_menu_callback(call: CallbackQuery):
 @safe_handler("Show Ad Purchase Menu Internal")
 async def show_ad_purchase_menu_internal(message: types.Message, edit: bool = False):
     """Внутренняя функция отображения меню закупов."""
-.
+
     user_channels = await db.channel.get_user_channels(message.chat.id)
     
     status_text = ""
