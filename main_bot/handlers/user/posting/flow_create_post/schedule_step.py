@@ -20,6 +20,7 @@ from main_bot.database.post.model import Post
 from main_bot.utils.message_utils import answer_post
 from main_bot.utils.lang.language import text
 from main_bot.keyboards import keyboards
+from main_bot.keyboards.posting import ensure_obj
 from main_bot.states.user import Posting
 from main_bot.utils.error_handler import safe_handler
 
@@ -246,7 +247,7 @@ async def finish_params(call: types.CallbackQuery, state: FSMContext):
         await call.answer(text("keys_data_error"))
         return await call.message.delete()
 
-    post: Post = data.get("post")
+    post = ensure_obj(data.get("post"))
     if not post:
         await call.answer(text("error_post_not_found"))
         return await call.message.delete()
