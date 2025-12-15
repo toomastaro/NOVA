@@ -1,3 +1,4 @@
+import logging
 import os
 
 from aiogram import types, Router, F
@@ -5,10 +6,11 @@ from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 
 from config import Config
-from main_bot.database.db import db
 from main_bot.keyboards import keyboards
 from main_bot.states.admin import Promo
 from main_bot.utils.lang.language import text
+
+logger = logging.getLogger(__name__)
 
 
 async def admin_menu(message: types.Message):
@@ -16,77 +18,67 @@ async def admin_menu(message: types.Message):
         return
 
     await message.answer(
-        'Админ меню',
+        text('admin:menu:title'),
         reply_markup=keyboards.admin()
     )
 
 
 async def choice(call: types.CallbackQuery, state: FSMContext):
+    """Обработка нажатий в админ-меню."""
     temp = call.data.split('|')
+    action = temp[1]
 
-    if temp[1] == 'session':
+    if action == 'session':
         session_count = len(os.listdir("main_bot/utils/sessions/"))
         try:
             await call.message.edit_text(
-                "Доступно сессий: {}".format(session_count),
+                text('admin:session:available').format(session_count),
                 reply_markup=keyboards.admin_sessions()
             )
         except Exception as e:
             if "message is not modified" not in str(e).lower():
+                logger.error(f"Error editing session message: {e}")
                 raise
 
-    if temp[1] == "promo":
+    elif action == "promo":
         await call.message.edit_text(
-            'Отправьте данные для промокода:\n\n'
-            'Имя промокода\n'
-            'Сумма баланса (0, если не нужно)\n'
-            'Количество использований\n'
-            'Сумма скидки в % (0, если не нужно)',
+            text('admin:promo:input'),
             reply_markup=keyboards.back(
                 data="AdminPromoBack"
             )
         )
         await state.set_state(Promo.input)
 
-    if temp[1] == "back":
+    elif action == "back":
         try:
             await call.message.edit_text(
-                'Админ меню',
+                text('admin:menu:title'),
                 reply_markup=keyboards.admin()
             )
         except Exception as e:
             if "message is not modified" not in str(e).lower():
+                logger.error(f"Error editing back message: {e}")
                 raise
 
+    elif action == "stats":
+         # TODO: Implement full stats logic
+         # Currently just a placeholder based on existing code structure
+        try:
+            # Need to implement data gathering for stats first
+             await call.answer("Stats not implemented yet", show_alert=True)
+            # await call.message.edit_text(
+            #     text("main:stats").format(...)
+            # )
+        except Exception as e:
+             logger.error(f"Error in stats: {e}")
+
+    # Dead code removed (mail, ads placeholders were empty or unreachable)
+    
     return await call.answer()
-
-    if temp[1] == "mail":
-        pass
-
-    if temp[1] == "stats":
-        await call.message.edit_text(
-            text("main:stats").format(
-
-            )
-        )
-
-    if temp[1] == "ads":
-        pass
-
-    # if temp[1] == 'mail':
-    #     await call.message.edit_text(
-    #         'Меню рассылки',
-    #         reply_markup=Keyboards.admin_mail()
-    #     )
-    #
-    # if temp[1] == 'ads':
-    #     await call.message.edit_text(
-    #         'Рекламные ссылки:',
-    #         reply_markup=Keyboards.admin_ads()
-    #     )
 
 
 def get_router():
+    """Регистрация роутера для админ-меню."""
     router = Router()
     router.message.register(admin_menu, Command('admin'))
     router.callback_query.register(choice, F.data.split('|')[0] == "Admin")

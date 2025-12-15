@@ -17,6 +17,7 @@ from main_bot.database.bot_post.model import BotPost
 from main_bot.database.post.model import Post
 from main_bot.database.story.model import Story
 from main_bot.keyboards import keyboards
+from main_bot.keyboards.posting import ensure_obj # Use existing helper
 from main_bot.utils.schemas import MessageOptions, StoryOptions, MessageOptionsHello, MessageOptionsCaptcha
 from instance_bot import bot as main_bot_obj
 
@@ -37,7 +38,7 @@ async def answer_bot_post(message: types.Message, state: FSMContext, from_edit: 
     """
     data = await state.get_data()
 
-    post: BotPost = data.get('post')
+    post = ensure_obj(data.get('post'))
     is_edit: bool = data.get('is_edit')
     message_options = MessageOptionsHello(**post.message)
 
@@ -86,7 +87,7 @@ async def answer_post(message: types.Message, state: FSMContext, from_edit: bool
     """
     data = await state.get_data()
 
-    post: Post = data.get('post')
+    post = ensure_obj(data.get('post'))
     is_edit: bool = data.get('is_edit')
     message_options = MessageOptions(**post.message_options)
 
@@ -115,16 +116,17 @@ async def answer_post(message: types.Message, state: FSMContext, from_edit: bool
         )
 
     # Логика загрузки превью из бэкапа
-    if post.backup_message_id and Config.BACKUP_CHAT_ID:
+    backup_msg_id = getattr(post, 'backup_message_id', None)
+    if backup_msg_id and Config.BACKUP_CHAT_ID:
         try:
             post_message = await message.bot.copy_message(
                 chat_id=message.chat.id,
                 from_chat_id=Config.BACKUP_CHAT_ID,
-                message_id=post.backup_message_id,
+                message_id=backup_msg_id,
                 reply_markup=reply_markup,
                 parse_mode='HTML'
             )
-            logger.info(f"Превью для поста {post.id} загружено из бэкапа (msg {post.backup_message_id})")
+            logger.info(f"Превью для поста {post.id} загружено из бэкапа (msg {backup_msg_id})")
             return post_message
         except Exception as e:
             logger.error(f"Не удалось загрузить превью из бэкапа для поста {post.id}: {e}", exc_info=True)
@@ -154,7 +156,7 @@ async def answer_story(message: types.Message, state: FSMContext, from_edit: boo
     """
     data = await state.get_data()
 
-    post: Story = data.get('post')
+    post = ensure_obj(data.get('post'))
     is_edit: bool = data.get('is_edit')
     story_options = StoryOptions(**post.story_options)
 
