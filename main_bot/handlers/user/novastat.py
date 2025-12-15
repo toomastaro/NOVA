@@ -1,5 +1,14 @@
-import asyncio
+"""
+Обработчики расширенного функционала NOVAстат.
+
+Модуль предоставляет:
+- Аналитику каналов (просмотры, ER)
+- Управление коллекциями и папками
+- Расчет стоимости рекламы (CPM)
+- Массовый выбор каналов
+"""
 import logging
+import asyncio
 import time
 from datetime import datetime
 import html
@@ -17,11 +26,17 @@ from main_bot.utils.report_signature import get_report_signatures
 
 logger = logging.getLogger(__name__)
 
+# Константы
+MAX_CHANNELS_SYNC = 5  # Максимум каналов для синхронной обработки
+MAX_PARALLEL_REQUESTS = 5  # Максимум параллельных запросов
+HOURS_TO_ANALYZE = [24, 48, 72]
+
 router = Router()
 
 
 @router.message(F.text == text("reply_menu:novastat"))
 async def novastat_main(message: types.Message, state: FSMContext):
+    """Главное меню аналитики."""
     subscribed_channels = await db.channel.get_subscribe_channels(message.from_user.id)
     has_active_sub = any(
         ch.subscribe and ch.subscribe > time.time() for ch in subscribed_channels
@@ -315,11 +330,12 @@ async def process_analysis(message: types.Message, channels: list, state: FSMCon
     settings = await db.novastat.get_novastat_settings(message.from_user.id)
     depth = settings.depth_days
 
-    if len(channels) > 5:
+    if len(channels) > MAX_CHANNELS_SYNC:
         await message.answer(
             f"⏳ Запущена фоновая обработка {len(channels)} каналов.\n"
             "Это займет некоторое время. Я пришлю отчет, когда закончу."
         )
+        # TODO: Добавить механизм отслеживания задач
         asyncio.create_task(run_analysis_background(message, channels, depth, state))
     else:
         status_msg = await message.answer(
@@ -332,10 +348,12 @@ async def process_analysis(message: types.Message, channels: list, state: FSMCon
 async def run_analysis_background(
     message: types.Message, channels: list, depth: int, state: FSMContext
 ):
+    """Фоновая задача анализа."""
     try:
         await run_analysis_logic(message, channels, depth, state, None)
-    except Exception as e:
-        await message.answer(f"❌ Произошла ошибка при фоновом анализе: {e}")
+    except Exception:
+        logger.exception("Ошибка фонового анализа для %s", message.from_user.id)
+        await message.answer("❌ Произошла внутренняя ошибка при анализе. Попробуйте позже.")
 
 
 def _format_stats_body(stats):
@@ -370,17 +388,31 @@ async def run_analysis_logic(
     valid_count = 0
     results = []
 
-    for i, ch in enumerate(channels, 1):
-        # Collect
-        stats = await novastat_service.collect_stats(
-            ch, depth, horizon=24, bot=message.bot
-        )
+    # Семафор для ограничения нагрузки
+    sem = asyncio.Semaphore(MAX_PARALLEL_REQUESTS)
 
+    async def _analyze_channel(idx, ch):
+        """Вспомогательная функция для одного канала."""
+        async with sem:
+            try:
+                stats = await novastat_service.collect_stats(
+                    ch, depth, horizon=24, bot=message.bot
+                )
+                return idx, ch, stats, None
+            except Exception as e:
+                return idx, ch, None, e
+
+    # Запускаем параллельно
+    tasks = [_analyze_channel(i, ch) for i, ch in enumerate(channels, 1)]
+    analysis_results = await asyncio.gather(*tasks)
+
+    # Обрабатываем результаты по порядку
+    for i, ch, stats, error in sorted(analysis_results, key=lambda x: x[0]):
         if stats:
             valid_count += 1
             results.append(stats)
 
-            # Если каналов больше 1, отправляем отчет по каждому сразу
+            # Отправка индивидуального отчета (если каналов > 1)
             if len(channels) > 1:
                 ind_report = f"📊 <b>Аналитика канала ({i}/{len(channels)})</b>\n\n"
                 ind_report += _format_stats_body(stats)
@@ -390,23 +422,20 @@ async def run_analysis_logic(
                         parse_mode="HTML",
                         link_preview_options=types.LinkPreviewOptions(is_disabled=True),
                     )
-                except Exception as e:
-                    logger.error(f"Failed to send individual report for {ch}: {e}")
-                    # Try simplified message
-                    await message.answer(
-                        f"📊 Аналитика ({ch}): получена (ошибка форматирования)",
-                        link_preview_options=types.LinkPreviewOptions(is_disabled=True),
-                    )
+                except Exception:
+                    logger.error("Не удалось отправить отчет для %s", ch)
 
-            # Accumulate
+            # Агрегация данных
             total_subs += stats.get("subscribers", 0)
-            for h in [24, 48, 72]:
-                total_views[h] = total_views.get(h, 0) + stats.get("views", {}).get(
-                    h, 0
-                )
+            for h in HOURS_TO_ANALYZE:
+                total_views[h] = total_views.get(h, 0) + stats.get("views", {}).get(h, 0)
                 total_er[h] = total_er.get(h, 0) + stats.get("er", {}).get(h, 0)
+        
         else:
-            # Error checks
+            # Обработка ошибки
+            error_msg = str(error) if error else "Неизвестная ошибка"
+            logger.warning("Ошибка анализа канала %s: %s", ch, error_msg)
+            
             error_text = f"❌ Не удалось получить статистику: {html.escape(str(ch))}"
             cache = await db.novastat_cache.get_cache(str(ch), 24)
             if cache and cache.error_message:
@@ -427,7 +456,7 @@ async def run_analysis_logic(
 
     # Prepare Summary
     summary_views = total_views
-    summary_er = {h: round(total_er[h] / valid_count, 2) for h in [24, 48, 72]}
+    summary_er = {h: round(total_er[h] / valid_count, 2) for h in HOURS_TO_ANALYZE}
 
     # Save for CPM
     await state.update_data(last_analysis_views=summary_views)
@@ -529,6 +558,7 @@ async def calculate_and_show_price(
     user_id: int,
     is_edit: bool = False,
 ):
+    """Расчет стоимости рекламы по CPM."""
     data = await state.get_data()
     views = data.get("last_analysis_views")
     single_info = data.get("single_channel_info")
@@ -554,8 +584,8 @@ async def calculate_and_show_price(
     else:
         rate = 100.0
 
-    price_rub = {h: int((views[h] / 1000) * cpm) for h in [24, 48, 72]}
-    price_usdt = {h: round(price_rub[h] / rate, 2) for h in [24, 48, 72]}
+    price_rub = {h: int((views[h] / 1000) * cpm) for h in HOURS_TO_ANALYZE}
+    price_usdt = {h: round(price_rub[h] / rate, 2) for h in HOURS_TO_ANALYZE}
 
     date_str = datetime.now().strftime("%d.%m.%Y %H:%M")
 

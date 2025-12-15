@@ -1,3 +1,11 @@
+"""
+Обработчик команд бота.
+
+Предоставляет быстрый доступ к функциям через slash-команды:
+- /create_posting, /create_stories, /create_bots - создание контента
+- /posting, /stories, /bots - переход в разделы
+- /profile, /support, /subscription, /settings - настройки и поддержка
+"""
 from aiogram import types, Router
 from aiogram.filters import Command, CommandObject
 from aiogram.fsm.context import FSMContext
@@ -21,6 +29,11 @@ logger = logging.getLogger(__name__)
 
 @safe_handler("Commands Handler")
 async def commands(message: types.Message, command: CommandObject, state: FSMContext):
+    """
+    Обработчик slash-команд.
+    
+    Маршрутизирует команду на соответствующий обработчик.
+    """
     variants = {
         # Post
         "create_posting": {
@@ -66,6 +79,7 @@ async def commands(message: types.Message, command: CommandObject, state: FSMCon
 
 
 def get_router():
+    """Создает роутер для обработки slash-команд."""
     router = Router()
     router.message.register(
         commands,

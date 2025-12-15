@@ -1,3 +1,11 @@
+"""
+Обработчики добавления каналов и управления правами.
+
+Модуль обрабатывает:
+- Добавление бота в каналы (автоматическое и ручное)
+- Изменение прав администраторов
+- Отслеживание статуса бота и пользователей
+"""
 import asyncio
 import logging
 from aiogram import types, F, Router, Bot
@@ -20,6 +28,27 @@ from main_bot.utils.error_handler import safe_handler
 logger = logging.getLogger(__name__)
 
 
+def _get_instruction_text(chat_title: str, username: str, first_name: str = "Assistant") -> str:
+    """Формирует текст инструкции по добавлению помощника."""
+    return (
+        f"✅ <b>Канал «{chat_title}» успешно добавлен!</b>\n\n"
+        f"⚠️ <b>ВАЖНО: Требуется настройка помощника</b>\n\n"
+        f"Для работы функций постинга и историй, вам необходимо вручную добавить нашего помощника в администраторы канала.\n\n"
+        f"👤 <b>Помощник:</b> {first_name} (@{username})\n\n"
+        f"📋 <b>Инструкция:</b>\n"
+        f"1. Зайдите в настройки канала -> Администраторы -> Добавить администратора.\n"
+        f"2. В поиске введите: @{username}\n"
+        f"3. Выберите этого пользователя и выдайте следующие права:\n"
+        f"   ✅ Публикация сообщений\n"
+        f"   ✅ Редактирование сообщений\n"
+        f"   ✅ Удаление сообщений\n"
+        f"   ✅ Публикация историй\n"
+        f"   ✅ Редактирование историй\n"
+        f"   ✅ Удаление историй\n\n"
+        f"После добавления и выдачи прав, перейдите в меню информации о канале и нажмите <b>«Проверить права помощника»</b>."
+    )
+
+
 @safe_handler("Set Admins")
 async def set_admins(
     bot: Bot, chat_id: int, chat_title: str, emoji_id: str, user_id: int = None
@@ -30,8 +59,8 @@ async def set_admins(
     """
     try:
         admins = await bot.get_chat_administrators(chat_id)
-    except Exception as e:
-        logger.error(f"Ошибка получения администраторов канала {chat_id}: {e}")
+    except Exception:
+        logger.error("Ошибка получения администраторов канала %s", chat_id)
         # Если не можем получить список админов, добавляем хотя бы того, кто добавил бота
         if user_id:
             await db.channel.add_channel(
@@ -62,6 +91,10 @@ async def set_admins(
 
 @safe_handler("Set Channel")
 async def set_channel(call: types.ChatMemberUpdated):
+    """
+    Обработчик события добавления/удаления бота в канале.
+    Автоматически регистрирует канал при добавлении бота в админы.
+    """
     chat_id = call.chat.id
     channel = await db.channel.get_channel_by_chat_id(chat_id=chat_id)
 
@@ -74,8 +107,8 @@ async def set_channel(call: types.ChatMemberUpdated):
             chat = await call.bot.get_chat(chat_id)
             chat_title = chat.title
             photo = chat.photo
-        except Exception as e:
-            logger.error(f"Ошибка получения информации о канале {chat_id}: {e}")
+        except Exception:
+            logger.error("Ошибка получения информации о канале %s", chat_id)
             chat_title = call.chat.title
             photo = None
 
@@ -83,8 +116,8 @@ async def set_channel(call: types.ChatMemberUpdated):
         if photo:
             try:
                 photo_bytes = await call.bot.download(photo.big_file_id)
-            except Exception as e:
-                logger.error(f"Ошибка загрузки фото канала {chat_id}: {e}")
+            except Exception:
+                logger.error("Ошибка загрузки фото канала %s", chat_id)
                 photo_bytes = None
         else:
             photo_bytes = None
@@ -105,25 +138,9 @@ async def set_channel(call: types.ChatMemberUpdated):
 
         if res.get("success"):
             client_info = res.get("client_info", {})
+            client_info = res.get("client_info", {})
             username = client_info.get("username", "username")
-
-            message_text = (
-                f"✅ <b>Канал «{chat_title}» успешно добавлен!</b>\n\n"
-                f"⚠️ <b>ВАЖНО: Требуется настройка помощника</b>\n\n"
-                f"Для работы функций постинга и историй, вам необходимо вручную добавить нашего помощника в администраторы канала.\n\n"
-                f"👤 <b>Помощник:</b> @{username}\n\n"
-                f"📋 <b>Инструкция:</b>\n"
-                f"1. Зайдите в настройки канала -> Администраторы -> Добавить администратора.\n"
-                f"2. В поиске введите: @{username}\n"
-                f"3. Выберите этого пользователя и выдайте следующие права:\n"
-                f"   ✅ Публикация сообщений\n"
-                f"   ✅ Редактирование сообщений\n"
-                f"   ✅ Удаление сообщений\n"
-                f"   ✅ Публикация историй\n"
-                f"   ✅ Редактирование историй\n"
-                f"   ✅ Удаление историй\n\n"
-                f"После добавления и выдачи прав, перейдите в меню информации о канале и нажмите <b>«Проверить права помощника»</b>."
-            )
+            message_text = _get_instruction_text(chat_title, username)
         else:
             message_text = (
                 text("success_add_channel").format(chat_title)
@@ -148,6 +165,10 @@ async def set_channel(call: types.ChatMemberUpdated):
 
 @safe_handler("Set Admin")
 async def set_admin(call: types.ChatMemberUpdated):
+    """
+    Обработчик изменения прав участников канала.
+    Отслеживает вступление по пригласительным ссылкам (для рекламы) и изменение списка админов.
+    """
     if call.new_chat_member.user.is_bot:
         return
 
@@ -209,6 +230,7 @@ async def set_admin(call: types.ChatMemberUpdated):
 
 @safe_handler("Set Active")
 async def set_active(call: types.ChatMemberUpdated):
+    """Обновляет статус активности пользователя (blocked/unblocked bot)."""
     await db.user.update_user(
         user_id=call.from_user.id,
         is_active=call.new_chat_member.status != ChatMemberStatus.KICKED,
@@ -217,6 +239,10 @@ async def set_active(call: types.ChatMemberUpdated):
 
 @safe_handler("Manual Add Channel")
 async def manual_add_channel(message: types.Message, state: FSMContext):
+    """
+    Ручное добавление канала через отправку ссылки или форвард.
+    Используется, если автоматическое добавление не сработало.
+    """
     chat_id = None
 
     if message.forward_from_chat and message.forward_from_chat.type == "channel":
@@ -257,7 +283,8 @@ async def manual_add_channel(message: types.Message, state: FSMContext):
             return
     except Exception as e:
         # Бот не является членом канала - не показываем сообщение пользователю
-        logger.error(f"Бот не является членом канала {chat_id}: {e}")
+        # Бот не является членом канала - не показываем сообщение пользователю
+        logger.error("Бот не является членом канала %s: %s", chat_id, e)
         return
 
     # Check if user is admin
@@ -274,8 +301,8 @@ async def manual_add_channel(message: types.Message, state: FSMContext):
         chat = await message.bot.get_chat(chat_id)
         chat_title = chat.title
         photo = chat.photo
-    except Exception as e:
-        logger.error(f"Ошибка получения информации о канале {chat_id}: {e}")
+    except Exception:
+        logger.error("Ошибка получения информации о канале %s", chat_id)
         # Получаем информацию из user_member
         try:
             chat_info = await message.bot.get_chat(chat_id)
@@ -289,8 +316,8 @@ async def manual_add_channel(message: types.Message, state: FSMContext):
     if photo:
         try:
             photo_bytes = await message.bot.download(photo.big_file_id)
-        except Exception as e:
-            logger.error(f"Ошибка загрузки фото канала {chat_id}: {e}")
+        except Exception:
+            logger.error("Ошибка загрузки фото канала %s", chat_id)
             photo_bytes = None
     else:
         photo_bytes = None
@@ -312,26 +339,11 @@ async def manual_add_channel(message: types.Message, state: FSMContext):
 
     if res.get("success"):
         client_info = res.get("client_info", {})
+        client_info = res.get("client_info", {})
         first_name = client_info.get("first_name", "Assistant")
         username = client_info.get("username", "username")
 
-        msg = (
-            f"✅ <b>Канал «{chat_title}» успешно добавлен!</b>\n\n"
-            f"⚠️ <b>ВАЖНО: Требуется настройка помощника</b>\n\n"
-            f"Для работы функций постинга и историй, вам необходимо вручную добавить нашего помощника в администраторы канала.\n\n"
-            f"👤 <b>Помощник:</b> {first_name} (@{username})\n\n"
-            f"📋 <b>Инструкция:</b>\n"
-            f"1. Зайдите в настройки канала -> Администраторы -> Добавить администратора.\n"
-            f"2. В поиске введите: @{username}\n"
-            f"3. Выберите этого пользователя и выдайте следующие права:\n"
-            f"   ✅ Публикация сообщений\n"
-            f"   ✅ Редактирование сообщений\n"
-            f"   ✅ Удаление сообщений\n"
-            f"   ✅ Публикация историй\n"
-            f"   ✅ Редактирование историй\n"
-            f"   ✅ Удаление историй\n\n"
-            f"После добавления и выдачи прав, перейдите в меню информации о канале и нажмите <b>«Проверить права помощника»</b>."
-        )
+        msg = _get_instruction_text(chat_title, username, first_name)
     else:
         msg = (
             text("success_add_channel").format(chat_title)
@@ -344,6 +356,7 @@ async def manual_add_channel(message: types.Message, state: FSMContext):
 
 
 def get_router():
+    """Регистрация роутеров для управления каналами."""
     router = Router()
     router.my_chat_member.register(set_channel, F.chat.type == "channel")
     router.my_chat_member.register(set_active, F.chat.type == "private")

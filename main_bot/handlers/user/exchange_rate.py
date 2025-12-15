@@ -1,3 +1,12 @@
+"""
+Обработчики функционала курса валют.
+
+Модуль предоставляет:
+- Просмотр актуального курса USDT/RUB
+- Расчет сумм по курсу
+- Выбор источника курса
+- Доступно только при наличии активной подписки
+"""
 import logging
 import time
 from datetime import datetime
@@ -16,7 +25,19 @@ from main_bot.utils.report_signature import get_report_signatures
 logger = logging.getLogger(__name__)
 
 
+async def _check_active_subscription(user_id: int) -> bool:
+    """
+    Проверяет наличие активной подписки у пользователя.
+    
+    Returns:
+        bool: True если есть хотя бы одна активная подписка
+    """
+    subscribed_channels = await db.channel.get_subscribe_channels(user_id)
+    return any(ch.subscribe and ch.subscribe > time.time() for ch in subscribed_channels)
+
+
 def serialize_rate(rate):
+    """Сериализует объект курса валюты в словарь."""
     if not rate:
         return None
     return {
@@ -31,8 +52,10 @@ async def _get_and_format_exchange_rate(
     user_id: int, state: FSMContext
 ) -> tuple[dict | None, str | None]:
     """
-    Helper function to fetch and format exchange rate data.
-    Returns tuple of (rate_data, formatted_text)
+    Получает и форматирует данные курса валюты.
+    
+    Returns:
+        tuple: (объект курса, форматированный текст)
     """
 
     user_data = await db.user.get_user(user_id=user_id)
@@ -59,10 +82,8 @@ async def _get_and_format_exchange_rate(
 
 
 async def start_exchange_rate(message: types.Message, state: FSMContext):
-    subscribed_channels = await db.channel.get_subscribe_channels(message.from_user.id)
-    has_active_sub = any(
-        ch.subscribe and ch.subscribe > time.time() for ch in subscribed_channels
-    )
+    """Отображает главное меню курса валют с возможностью расчета."""
+    has_active_sub = await _check_active_subscription(message.from_user.id)
 
     if not has_active_sub:
         await message.answer(
@@ -91,6 +112,7 @@ async def start_exchange_rate(message: types.Message, state: FSMContext):
 
 
 async def settings_of_exchange_rate(call: types.CallbackQuery, state: FSMContext):
+    """Отображает настройки выбора источника курса."""
     await call.message.delete()
     data = await state.get_data()
     await call.message.answer(
@@ -102,6 +124,7 @@ async def settings_of_exchange_rate(call: types.CallbackQuery, state: FSMContext
 
 
 async def choice_of_exchange_resources(call: types.CallbackQuery, state: FSMContext):
+    """Обрабатывает выбор источника курса валюты."""
     exchange_rate_id = call.data.split("|")[-1]
     data = await state.get_data()
 
@@ -119,10 +142,8 @@ async def choice_of_exchange_resources(call: types.CallbackQuery, state: FSMCont
 
 
 async def back_to_start_exchange_rate(call: types.CallbackQuery, state: FSMContext):
-    subscribed_channels = await db.channel.get_subscribe_channels(call.from_user.id)
-    has_active_sub = any(
-        ch.subscribe and ch.subscribe > time.time() for ch in subscribed_channels
-    )
+    """Возврат к главному экрану курса валют."""
+    has_active_sub = await _check_active_subscription(call.from_user.id)
 
     if not has_active_sub:
         await call.answer(
@@ -151,6 +172,7 @@ async def back_to_start_exchange_rate(call: types.CallbackQuery, state: FSMConte
 
 
 async def get_exchange_rate_of_custom_amount(message: types.Message, state: FSMContext):
+    """Рассчитывает сумму по введенному количеству валюты."""
     data = await state.get_data()
     exchange_rate = data["exchange_rate"]["rate"]
     amount = message.text
@@ -185,12 +207,13 @@ async def get_exchange_rate_of_custom_amount(message: types.Message, state: FSMC
 
 
 async def back_to_main_menu(call: types.CallbackQuery):
-    """Возврат в главное меню"""
+    """Возврат в главное меню."""
     await call.message.delete()
     await call.message.answer("Главное меню", reply_markup=Reply.menu())
 
 
 def get_router():
+    """Создает роутер для обработки курса валют."""
     router = Router()
 
     router.callback_query.register(back_to_main_menu, F.data == "MenuExchangeRate|back")

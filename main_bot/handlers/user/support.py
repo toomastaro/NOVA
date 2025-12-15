@@ -1,3 +1,11 @@
+"""
+Обработчики технической поддержки.
+
+Модуль реализует:
+- Прием сообщений от пользователей в поддержку
+- Пересылку сообщений админу
+- Ответ администратора пользователю через reply
+"""
 from aiogram import types, Router, F
 from aiogram.fsm.context import FSMContext
 
@@ -13,6 +21,7 @@ logger = logging.getLogger(__name__)
 
 @safe_handler("Support Back")
 async def support_back(call: types.CallbackQuery, state: FSMContext):
+    """Возврат из меню поддержки в профиль."""
     await state.clear()
 
     await call.message.delete()
@@ -27,6 +36,10 @@ async def support_back(call: types.CallbackQuery, state: FSMContext):
 
 @safe_handler("Get User Message")
 async def get_user_message(message: types.Message, state: FSMContext):
+    """
+    Принимает сообщение от пользователя и отправляет его админу поддержки.
+    Поддерживает текст и фото.
+    """
     if message.photo:
         await message.bot.send_photo(
             photo=message.photo[-1].file_id,
@@ -57,14 +70,20 @@ async def get_user_message(message: types.Message, state: FSMContext):
 
 @safe_handler("Get Support Message")
 async def get_support_message(message: types.Message):
+    """
+    Обработчик ответа администратора пользователю.
+    Работает через reply на сообщение, пересланное от пользователя.
+    """
     try:
+        # ВНИМАНИЕ: Парсинг ID зависит от формата сообщения в user_support_msg ("ID: 12345")
+        # Если формат текста изменится, этот код сломается.
         user_id = (
             message.reply_to_message.caption.split("ID: ")[1]
             if message.reply_to_message.caption
             else message.reply_to_message.text.split("ID: ")[1]
         )
-    except Exception as e:
-        logger.error(f"Ошибка парсинга ID пользователя из сообщения поддержки: {e}")
+    except Exception:
+        logger.error("Ошибка парсинга ID пользователя из сообщения поддержки")
         return
 
     # Импортируем Reply клавиатуру для главного меню
@@ -86,6 +105,7 @@ async def get_support_message(message: types.Message):
 
 
 def get_router():
+    """Регистрация роутеров поддержки."""
     router = Router()
     router.message.register(get_user_message, Support.message, F.text | F.photo)
     router.message.register(

@@ -1,3 +1,11 @@
+"""
+Обработчик команды /start.
+
+Модуль отвечает за:
+- Приветствие пользователя
+- Обработку реферальных параметров (deep linking) для отслеживания рекламы
+- Отображение версии бота (для администраторов)
+"""
 import logging
 
 from aiogram import types, Router
@@ -16,6 +24,10 @@ logger = logging.getLogger(__name__)
 
 @safe_handler("Start Command")
 async def start(message: types.Message, state: FSMContext):
+    """
+    Обработчик команды /start.
+    Парсит реферальные параметры (ref_...) для трекинга конверсий.
+    """
     await state.clear()
 
     if message.text and len(message.text.split()) > 1:
@@ -40,7 +52,7 @@ async def start(message: types.Message, state: FSMContext):
                 pass
 
     version_text = (
-        f"Version: {Config.VERSION}\n\n"
+        f"Версия: {Config.VERSION}\n\n"
         if message.from_user.id in getattr(Config, "ADMINS", [])
         else ""
     )
@@ -56,6 +68,7 @@ async def start(message: types.Message, state: FSMContext):
 
 
 def get_router():
+    """Регистрирует обработчик команды /start и middleware."""
     router = Router()
     router.message.middleware(StartMiddle())
     router.message.register(start, CommandStart())

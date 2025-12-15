@@ -1,3 +1,11 @@
+"""
+Обработчики главного меню и навигации.
+
+Модуль управляет:
+- Маршрутизацией по пунктам главного меню
+- Отображением разделов (Постинг, Сторис, Боты, Профиль)
+- Настройкой "Приветки"
+"""
 import logging
 from aiogram import types, F, Router
 from aiogram.fsm.context import FSMContext
@@ -31,6 +39,10 @@ def serialize_user_bot(bot):
 
 @safe_handler("Menu Choice")
 async def choice(message: types.Message, state: FSMContext):
+    """
+    Маршрутизатор главного меню.
+    Определяет нажатую кнопку и вызывает соответствующий обработчик.
+    """
     await state.clear()
 
     menu = {
@@ -60,7 +72,7 @@ async def choice(message: types.Message, state: FSMContext):
         handler_data = menu[message.text]
         await handler_data["cor"](*handler_data["args"])
     else:
-        logger.warning(f"Unknown menu command: {message.text}")
+        logger.warning("Неизвестная команда меню: %s", message.text)
 
 
 @safe_handler("Start Posting Menu")
@@ -100,12 +112,12 @@ async def subscription(message: types.Message):
     """Меню подписки с балансом, подпиской и реферальной системой"""
     user = await db.user.get_user(user_id=message.chat.id)
     if not user:
-        await db.user.add_user(
+        # Если пользователя нет, создаем и получаем объект
+        user = await db.user.add_user(
             id=message.from_user.id,
             username=message.from_user.username,
             full_name=message.from_user.full_name,
         )
-        user = await db.user.get_user(user_id=message.chat.id)
     await message.answer(
         text("balance_text").format(user.balance),
         reply_markup=keyboards.subscription_menu(),
@@ -142,6 +154,7 @@ async def start_privetka(message: types.Message, state: FSMContext):
 
 @safe_handler("Privetka Choice Channel")
 async def privetka_choice_channel(call: types.CallbackQuery, state: FSMContext):
+    """Обработчик выбора канала для настройки приветственного бота."""
     temp = call.data.split("|")
 
     if temp[1] == "cancel":
@@ -186,6 +199,7 @@ async def privetka_choice_channel(call: types.CallbackQuery, state: FSMContext):
 
 
 def get_router():
+    """Создает роутер для меню."""
     router = Router()
     router.message.register(
         choice,

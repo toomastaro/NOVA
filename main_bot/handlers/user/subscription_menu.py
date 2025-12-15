@@ -125,3 +125,8 @@ async def show_info_menu(call: types.CallbackQuery):
 async def back_to_main(message: types.Message):
     """Возврат в главное меню"""
     await message.answer("Главное меню", reply_markup=Reply.menu())
+
+
+def get_router():
+    """Возвращает роутер модуля."""
+    return router

@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 @safe_handler("Join Request Lead")
 async def on_join_request(request: types.ChatJoinRequest):
     """
-    Handle join requests to track Ad Leads.
+    Обработка заявок на вступление для отслеживания рекламных лидов.
     """
     if not request.invite_link:
         return
@@ -19,7 +19,7 @@ async def on_join_request(request: types.ChatJoinRequest):
     user_id = request.from_user.id
     invite_link = request.invite_link.invite_link
 
-    logger.info(f"Received join request from {user_id} with link {invite_link}")
+    logger.info("Получена заявка на вступление от %s по ссылке %s", user_id, invite_link)
 
     try:
         # Поиск маппинга ссылки к рекламной закупке
@@ -30,7 +30,10 @@ async def on_join_request(request: types.ChatJoinRequest):
 
         if mapping:
             logger.info(
-                f"Mapping found for link {invite_link}: Purchase {mapping.ad_purchase_id}, Slot {mapping.slot_id}"
+                "Найден маппинг для ссылки %s: Закупка %s, Слот %s",
+                invite_link,
+                mapping.ad_purchase_id,
+                mapping.slot_id,
             )
             result = await db.ad_purchase.add_lead(
                 user_id=user_id,
@@ -39,17 +42,18 @@ async def on_join_request(request: types.ChatJoinRequest):
                 ref_param=f"req_{mapping.ad_purchase_id}_{mapping.slot_id}",
             )
             if result:
-                logger.info(f"Lead ADDED for user {user_id}")
+                logger.info("Лид ДОБАВЛЕН для пользователя %s", user_id)
             else:
-                logger.info(f"Lead SKIPPED (Duplicate) for user {user_id}")
+                logger.info("Лид ПРОПУЩЕН (Дубликат) для пользователя %s", user_id)
         else:
-            logger.info(f"No mapping found for link {invite_link}")
+            logger.info("Не найден маппинг для ссылки %s", invite_link)
 
-    except Exception as e:
-        logger.error(f"Error processing join request for lead tracking: {e}")
+    except Exception:
+        logger.exception("Ошибка обработки заявки на вступление для трекинга лидов")
 
 
 def get_router():
+    """Регистрация роутера для обработки заявок на вступление"""
     router = Router()
     router.chat_join_request.register(on_join_request)
     return router
