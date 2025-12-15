@@ -22,6 +22,11 @@ class Config:
     WEBHOOK_DOMAIN = os.getenv("WEBHOOK_DOMAIN")
     WEBHOOK_URL_BOT = os.getenv("WEBHOOK_URL_BOT")
 
+    # Redis
+    REDIS_HOST = os.getenv('REDIS_HOST', 'redis')
+    REDIS_PORT = int(os.getenv('REDIS_PORT', 6379))
+    REDIS_PASS = os.getenv('REDIS_PASSWORD')
+
     # Database
     DB_POOL_SIZE = int(os.getenv("DB_POOL_SIZE", 30))
     DB_MAX_OVERFLOW = int(os.getenv("DB_MAX_OVERFLOW", 10))

@@ -1,7 +1,9 @@
 
 
+import logging
 from aiogram import Dispatcher
-from aiogram.fsm.storage.memory import MemoryStorage
+from aiogram.fsm.storage.redis import RedisStorage
+from redis.asyncio import Redis
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from dotenv import load_dotenv
@@ -13,17 +15,28 @@ from main_bot.utils.state_reset_middleware import StateResetMiddleware
 from main_bot.utils.schedulers import init_scheduler, register_channel_jobs
 from .user import get_router as user_router
 from .admin import get_router as admin_router
-
+from config import Config
 
 load_dotenv()
 
+logger = logging.getLogger(__name__)
+
+redis = Redis(
+    host=Config.REDIS_HOST,
+    port=Config.REDIS_PORT,
+    password=Config.REDIS_PASS,
+)
 
 dp = Dispatcher(
-    storage=MemoryStorage()
+    storage=RedisStorage(redis=redis)
 )
 
 
 def set_main_routers():
+    """
+    Регистрация глобальных middleware и роутеров (user, admin).
+    Порядок регистрации middleware важен для корректной работы.
+    """
     # Регистрируем StateResetMiddleware первым для сброса состояния при нажатии меню
     dp.update.middleware.register(
         StateResetMiddleware()
@@ -55,7 +68,6 @@ async def set_scheduler():
     что позволяет восстанавливать все задачи после рестарта Docker контейнера.
     """
     from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
-    from config import Config
     
     # Формирование URL подключения к PostgreSQL
     postgres_url = f"postgresql://{Config.PG_USER}:{Config.PG_PASS}@{Config.PG_HOST}/{Config.PG_DATABASE}"
@@ -101,4 +113,5 @@ async def set_scheduler():
     await register_channel_jobs(sch)
     
     sch.start()
-    sch.print_jobs()
+    logger.info("Scheduler started")
+    # sch.print_jobs() disabled to avoid console spam
