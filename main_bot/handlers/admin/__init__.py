@@ -12,7 +12,7 @@ def get_router():
         channels.get_router(),
     ]
 
-    router = Router(name='Admin')
+    router = Router(name="Admin")
     router.include_routers(*routers)
 
     return router

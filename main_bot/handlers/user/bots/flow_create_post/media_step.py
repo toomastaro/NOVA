@@ -6,6 +6,7 @@
 - Управление постами ботов
 - Редактирование параметров
 """
+
 import logging
 from aiogram import types
 from aiogram.fsm.context import FSMContext
@@ -28,27 +29,29 @@ def serialize_bot_post(post):
     if not post:
         return None
     return {
-        'id': post.id,
-        'bot_id': getattr(post, 'bot_id', None),
-        'channel_id': getattr(post, 'channel_id', None),
-        'message': getattr(post, 'message', {}),
-        'status': getattr(post, 'status', 'active'),
-        'start_timestamp': post.start_timestamp,
-        'end_timestamp': getattr(post, 'end_timestamp', None),
-        'send_time': getattr(post, 'send_time', None),
-        'delete_time': getattr(post, 'delete_time', None),
-        'admin_id': post.admin_id,
-        'backup_chat_id': getattr(post, 'backup_chat_id', None),
-        'backup_message_id': getattr(post, 'backup_message_id', None),
-        'success_send': getattr(post, 'success_send', 0),
-        'error_send': getattr(post, 'error_send', 0),
-        'created_at': getattr(post, 'created_at', None),
+        "id": post.id,
+        "bot_id": getattr(post, "bot_id", None),
+        "channel_id": getattr(post, "channel_id", None),
+        "message": getattr(post, "message", {}),
+        "status": getattr(post, "status", "active"),
+        "start_timestamp": post.start_timestamp,
+        "end_timestamp": getattr(post, "end_timestamp", None),
+        "send_time": getattr(post, "send_time", None),
+        "delete_time": getattr(post, "delete_time", None),
+        "admin_id": post.admin_id,
+        "backup_chat_id": getattr(post, "backup_chat_id", None),
+        "backup_message_id": getattr(post, "backup_message_id", None),
+        "success_send": getattr(post, "success_send", 0),
+        "error_send": getattr(post, "error_send", 0),
+        "created_at": getattr(post, "created_at", None),
     }
+
 
 class DictObj:
     def __init__(self, in_dict: dict):
         for key, val in in_dict.items():
             setattr(self, key, val)
+
 
 def ensure_bot_post_obj(post):
     if isinstance(post, dict):
@@ -72,9 +75,7 @@ async def get_message(message: types.Message, state: FSMContext):
     """Получение сообщения для создания поста для ботов."""
     message_text_length = len(message.caption or message.text or "")
     if message_text_length > 1024:
-        return await message.answer(
-            text('error_length_text')
-        )
+        return await message.answer(text("error_length_text"))
 
     dump_message = message.model_dump()
     if dump_message.get("photo"):
@@ -105,17 +106,17 @@ async def get_message(message: types.Message, state: FSMContext):
 @safe_handler("Bots Manage Post")
 async def manage_post(call: types.CallbackQuery, state: FSMContext):
     """Управление постом для ботов."""
-    temp = call.data.split('|')
+    temp = call.data.split("|")
     data = await state.get_data()
     if not data:
-        await call.answer(text('keys_data_error'))
+        await call.answer(text("keys_data_error"))
         return await call.message.delete()
 
-    post: BotPost = ensure_bot_post_obj(data.get('post'))
-    channel = ensure_bot_post_obj(data.get('channel'))
-    is_edit: bool = data.get('is_edit')
+    post: BotPost = ensure_bot_post_obj(data.get("post"))
+    channel = ensure_bot_post_obj(data.get("channel"))
+    is_edit: bool = data.get("is_edit")
 
-    if temp[1] == 'cancel':
+    if temp[1] == "cancel":
         if is_edit:
             post_message = await answer_bot_post(call.message, state, from_edit=True)
             await state.update_data(
@@ -124,13 +125,9 @@ async def manage_post(call: types.CallbackQuery, state: FSMContext):
             await call.message.delete()
             return await call.message.answer(
                 text("bot_post:content").format(
-                    *data.get("send_date_values"),
-                    channel.emoji_id,
-                    channel.title
+                    *data.get("send_date_values"), channel.emoji_id, channel.title
                 ),
-                reply_markup=keyboards.manage_remain_bot_post(
-                    post=post
-                )
+                reply_markup=keyboards.manage_remain_bot_post(post=post),
             )
 
         await db.bot_post.delete_bot_post(post.id)
@@ -146,40 +143,33 @@ async def manage_post(call: types.CallbackQuery, state: FSMContext):
             await call.message.delete()
             return await call.message.answer(
                 text("bot_post:content").format(
-                    *data.get("send_date_values"),
-                    channel.emoji_id,
-                    channel.title
+                    *data.get("send_date_values"), channel.emoji_id, channel.title
                 ),
-                reply_markup=keyboards.manage_remain_bot_post(
-                    post=post
-                )
+                reply_markup=keyboards.manage_remain_bot_post(post=post),
             )
 
         chosen: list = data.get("chosen")
         available: int = data.get("available")
         channels = await db.channel_bot_settings.get_bot_channels(call.from_user.id)
-        objects = await db.channel.get_user_channels(call.from_user.id, from_array=[i.id for i in channels])
+        objects = await db.channel.get_user_channels(
+            call.from_user.id, from_array=[i.id for i in channels]
+        )
 
         await call.message.delete()
         return await call.message.answer(
             text("manage:post_bot:finish_params").format(
                 len(chosen),
                 "\n".join(
-                    text("resource_title").format(
-                        obj.title
-                    ) for obj in objects
+                    text("resource_title").format(obj.title)
+                    for obj in objects
                     if obj.chat_id in chosen[:10]
                 ),
-                available
+                available,
             ),
-            reply_markup=keyboards.finish_bot_post_params(
-                obj=post
-            )
+            reply_markup=keyboards.finish_bot_post_params(obj=post),
         )
 
-    await state.update_data(
-        param=temp[1]
-    )
+    await state.update_data(param=temp[1])
 
     await call.message.delete()
     message_text = text("manage:post:new:{}".format(temp[1]))
@@ -188,28 +178,25 @@ async def manage_post(call: types.CallbackQuery, state: FSMContext):
         input_msg = await call.message.answer(
             message_text,
             reply_markup=keyboards.param_cancel(
-                param=temp[1],
-                data="ParamBotPostCancel"
-            )
+                param=temp[1], data="ParamBotPostCancel"
+            ),
         )
         await state.set_state(Bots.input_value)
-        await state.update_data(
-            input_msg_id=input_msg.message_id
-        )
+        await state.update_data(input_msg_id=input_msg.message_id)
 
 
 @safe_handler("Bots Cancel Value")
 async def cancel_value(call: types.CallbackQuery, state: FSMContext):
     """Отмена редактирования параметра."""
-    temp = call.data.split('|')
+    temp = call.data.split("|")
     data = await state.get_data()
     if not data:
-        await call.answer(text('keys_data_error'))
+        await call.answer(text("keys_data_error"))
         return await call.message.delete()
 
-    if temp[1] == 'delete':
-        param = data.get('param')
-        post = ensure_bot_post_obj(data.get('post'))
+    if temp[1] == "delete":
+        param = data.get("param")
+        post = ensure_bot_post_obj(data.get("post"))
 
         if param in ["text", "media", "buttons"]:
             message_options = MessageOptionsHello(**post.message)
@@ -217,7 +204,9 @@ async def cancel_value(call: types.CallbackQuery, state: FSMContext):
             if param == "text":
                 message_options.text = message_options.caption = None
             if param == "media":
-                message_options.photo = message_options.video = message_options.animation = None
+                message_options.photo = message_options.video = (
+                    message_options.animation
+                ) = None
 
                 if message_options.caption:
                     message_options.text = message_options.caption
@@ -245,13 +234,9 @@ async def cancel_value(call: types.CallbackQuery, state: FSMContext):
             kwargs = {param: None}
 
         post = await db.bot_post.update_bot_post(
-            post_id=post.id,
-            return_obj=True,
-            **kwargs
+            post_id=post.id, return_obj=True, **kwargs
         )
-        await state.update_data(
-            post=serialize_bot_post(post)
-        )
+        await state.update_data(post=serialize_bot_post(post))
         data = await state.get_data()
 
     await state.clear()
@@ -265,23 +250,23 @@ async def cancel_value(call: types.CallbackQuery, state: FSMContext):
 async def get_value(message: types.Message, state: FSMContext):
     """Получение нового значения параметра."""
     data = await state.get_data()
-    param = data.get('param')
+    param = data.get("param")
 
     if param == "media" and message.text:
-        return await message.answer(
-            text("error_value")
-        )
+        return await message.answer(text("error_value"))
     if param != "media" and not message.text:
-        return await message.answer(
-            text("error_value")
-        )
+        return await message.answer(text("error_value"))
 
     post: BotPost = ensure_bot_post_obj(data.get("post"))
     if param in ["text", "media", "buttons"]:
         message_options = MessageOptionsHello(**post.message)
 
         if param == "text":
-            if message_options.photo or message_options.video or message_options.animation:
+            if (
+                message_options.photo
+                or message_options.video
+                or message_options.animation
+            ):
                 message_options.caption = message.html_text
             else:
                 message_options.text = message.html_text
@@ -300,13 +285,11 @@ async def get_value(message: types.Message, state: FSMContext):
         if param == "buttons":
             try:
                 reply_markup = keyboards.hello_kb(message.text)
-                r = await message.answer('...', reply_markup=reply_markup)
+                r = await message.answer("...", reply_markup=reply_markup)
                 await r.delete()
             except Exception as e:
                 logger.error(f"Error creating buttons: {e}")
-                return await message.answer(
-                    text("error_input")
-                )
+                return await message.answer(text("error_input"))
 
             message_options.reply_markup = reply_markup
 
@@ -318,27 +301,20 @@ async def get_value(message: types.Message, state: FSMContext):
             post.buttons = value
 
             try:
-                check = await message.answer("...", reply_markup=keyboards.manage_bot_post(post))
+                check = await message.answer(
+                    "...", reply_markup=keyboards.manage_bot_post(post)
+                )
                 await check.delete()
             except (IndexError, TypeError):
-                return await message.answer(
-                    text("error_value")
-                )
+                return await message.answer(text("error_value"))
 
         kwargs = {param: value}
 
-    post = await db.bot_post.update_bot_post(
-        post_id=post.id,
-        return_obj=True,
-        **kwargs
-    )
+    post = await db.bot_post.update_bot_post(post_id=post.id, return_obj=True, **kwargs)
 
     await state.clear()
-    data['post'] = serialize_bot_post(post)
+    data["post"] = serialize_bot_post(post)
     await state.update_data(data)
 
-    await message.bot.delete_message(
-        message.chat.id,
-        data.get("input_msg_id")
-    )
+    await message.bot.delete_message(message.chat.id, data.get("input_msg_id"))
     await answer_bot_post(message, state)

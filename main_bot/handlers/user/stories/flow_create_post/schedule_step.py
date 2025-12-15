@@ -7,6 +7,7 @@
 - Выбор времени отправки
 - Вспомогательные функции для отображения лимитов stories
 """
+
 import time
 import logging
 from datetime import datetime
@@ -31,11 +32,11 @@ logger = logging.getLogger(__name__)
 async def get_story_report_text(chosen, objects):
     """
     Формирование текста отчета с лимитами stories для выбранных каналов.
-    
+
     Args:
         chosen: Список выбранных chat_id
         objects: Список объектов каналов
-        
+
     Returns:
         str: Форматированный текст с информацией о лимитах
     """
@@ -55,9 +56,7 @@ async def get_story_report_text(chosen, objects):
             except Exception:
                 pass
 
-        lines.append(
-            text("resource_title").format(obj.title) + f" ({posted}/{limit})"
-        )
+        lines.append(text("resource_title").format(obj.title) + f" ({posted}/{limit})")
 
     return "\n".join(lines)
 
@@ -65,18 +64,16 @@ async def get_story_report_text(chosen, objects):
 async def set_folder_content(resource_id, chosen, chosen_folders):
     """
     Добавление/удаление всех каналов из папки в список выбранных.
-    
+
     Args:
         resource_id: ID папки
         chosen: Список выбранных chat_id
         chosen_folders: Список выбранных folder_id
-        
+
     Returns:
         tuple: (chosen, chosen_folders) или ("subscribe", "") при ошибке
     """
-    folder = await db.user_folder.get_folder_by_id(
-        folder_id=resource_id
-    )
+    folder = await db.user_folder.get_folder_by_id(folder_id=resource_id)
     is_append = resource_id not in chosen_folders
 
     if is_append:
@@ -106,55 +103,51 @@ async def set_folder_content(resource_id, chosen, chosen_folders):
 @safe_handler("Stories Choice Channels")
 async def choice_channels(call: types.CallbackQuery, state: FSMContext):
     """Выбор каналов для публикации stories."""
-    temp = call.data.split('|')
+    temp = call.data.split("|")
     data = await state.get_data()
     if not data:
-        await call.answer(text('keys_data_error'))
+        await call.answer(text("keys_data_error"))
         return await call.message.delete()
 
     chosen: list = data.get("chosen")
     chosen_folders: list = data.get("chosen_folders")
 
     objects = await db.channel.get_user_channels(
-        user_id=call.from_user.id,
-        sort_by="stories"
+        user_id=call.from_user.id, sort_by="stories"
     )
 
     if temp[1] == "next_step":
         if not chosen:
-            return await call.answer(
-                text('error_min_choice')
-            )
+            return await call.answer(text("error_min_choice"))
 
         # Сохраняем выбранные каналы
         await state.update_data(chosen=chosen)
-        
+
         # Переходим к вводу медиа
         await call.message.edit_text(
-            text('input_stories'),
-            reply_markup=keyboards.cancel(data="InputStoryCancel")
+            text("input_stories"),
+            reply_markup=keyboards.cancel(data="InputStoryCancel"),
         )
         await state.set_state(Stories.input_message)
         return
 
-    folders = await db.user_folder.get_folders(
-        user_id=call.from_user.id
-    )
+    folders = await db.user_folder.get_folders(user_id=call.from_user.id)
 
     if temp[1] == "cancel":
         # Возврат в меню историй
         from main_bot.handlers.user.menu import start_stories
+
         await call.message.delete()
         return await start_stories(call.message)
 
-    if temp[1] in ['next', 'back']:
+    if temp[1] in ["next", "back"]:
         return await call.message.edit_reply_markup(
             reply_markup=keyboards.choice_objects(
                 resources=objects,
                 chosen=chosen,
                 folders=folders,
                 chosen_folders=chosen_folders,
-                data="ChoiceStoriesChannels"
+                data="ChoiceStoriesChannels",
             )
         )
 
@@ -168,21 +161,23 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
             for obj in objects:
                 if not obj.subscribe:
                     channels_without_sub.append(obj.title)
-            
+
             if channels_without_sub:
                 # Показываем список каналов без подписки
-                channels_list = "\n".join(f"• {title}" for title in channels_without_sub[:5])
+                channels_list = "\n".join(
+                    f"• {title}" for title in channels_without_sub[:5]
+                )
                 if len(channels_without_sub) > 5:
                     channels_list += f"\n... и ещё {len(channels_without_sub) - 5}"
-                
+
                 return await call.answer(
                     f"❌ Невозможно выбрать все каналы\n\n"
                     f"Следующие каналы не имеют активной подписки:\n{channels_list}\n\n"
                     f"Оплатите подписку через меню 💎 Подписка",
-                    show_alert=True
+                    show_alert=True,
                 )
-            
-            extend_list = [i.chat_id for i in objects if i.chat_id not in chosen]
+
+            _ = [i.chat_id for i in objects if i.chat_id not in chosen]
             if folders:
                 for folder in folders:
                     sub_channels = []
@@ -202,37 +197,28 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
     if temp[1].replace("-", "").isdigit():
         resource_id = int(temp[1])
 
-        if temp[3] == 'channel':
+        if temp[3] == "channel":
             if resource_id in chosen:
                 chosen.remove(resource_id)
             else:
                 channel = await db.channel.get_channel_by_chat_id(resource_id)
                 if not channel.subscribe:
                     return await call.answer(
-                        text("error_sub_channel").format(channel.title),
-                        show_alert=True
+                        text("error_sub_channel").format(channel.title), show_alert=True
                     )
 
                 chosen.append(resource_id)
         else:
             temp_chosen, temp_chosen_folders = await set_folder_content(
-                resource_id=resource_id,
-                chosen=chosen,
-                chosen_folders=chosen_folders
+                resource_id=resource_id, chosen=chosen, chosen_folders=chosen_folders
             )
             if temp_chosen == "subscribe":
-                return await call.answer(
-                    text("error_sub_channel_folder")
-                )
+                return await call.answer(text("error_sub_channel_folder"))
 
-    await state.update_data(
-        chosen=chosen,
-        chosen_folders=chosen_folders
-    )
+    await state.update_data(chosen=chosen, chosen_folders=chosen_folders)
     await call.message.edit_text(
         text("choice_channels:story").format(
-            len(chosen),
-            await get_story_report_text(chosen, objects)
+            len(chosen), await get_story_report_text(chosen, objects)
         ),
         reply_markup=keyboards.choice_objects(
             resources=objects,
@@ -240,18 +226,18 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
             folders=folders,
             chosen_folders=chosen_folders,
             remover=int(temp[2]),
-            data="ChoiceStoriesChannels"
-        )
+            data="ChoiceStoriesChannels",
+        ),
     )
 
 
 @safe_handler("Stories Finish Params")
 async def finish_params(call: types.CallbackQuery, state: FSMContext):
     """Настройка финальных параметров stories перед публикацией."""
-    temp = call.data.split('|')
+    temp = call.data.split("|")
     data = await state.get_data()
     if not data:
-        await call.answer(text('keys_data_error'))
+        await call.answer(text("keys_data_error"))
         return await call.message.delete()
 
     post: Story = data.get("post")
@@ -259,11 +245,10 @@ async def finish_params(call: types.CallbackQuery, state: FSMContext):
 
     chosen: list = data.get("chosen", post.chat_ids)
     objects = await db.channel.get_user_channels(
-        user_id=call.from_user.id,
-        sort_by="stories"
+        user_id=call.from_user.id, sort_by="stories"
     )
 
-    if temp[1] == 'cancel':
+    if temp[1] == "cancel":
         # Показываем превью сторис
         await call.message.delete()
         await answer_story(call.message, state)
@@ -271,30 +256,23 @@ async def finish_params(call: types.CallbackQuery, state: FSMContext):
 
     if temp[1] == "report":
         post = await db.story.update_story(
-            post_id=post.id,
-            return_obj=True,
-            report=not post.report
+            post_id=post.id, return_obj=True, report=not post.report
         )
-        await state.update_data(
-            post=post
-        )
+        await state.update_data(post=post)
         return await call.message.edit_reply_markup(
-            reply_markup=keyboards.finish_params(
-                obj=post,
-                data="FinishStoriesParams"
-            )
+            reply_markup=keyboards.finish_params(obj=post, data="FinishStoriesParams")
         )
 
     if temp[1] == "delete_time":
         return await call.message.edit_text(
             text("manage:story:new:delete_time"),
-            reply_markup=keyboards.choice_delete_time_story()
+            reply_markup=keyboards.choice_delete_time_story(),
         )
 
     if temp[1] == "send_time":
         await call.message.edit_text(
             text("manage:story:new:send_time"),
-            reply_markup=keyboards.back(data="BackSendTimeStories")
+            reply_markup=keyboards.back(data="BackSendTimeStories"),
         )
         await state.set_state(Stories.input_send_time)
         return
@@ -303,12 +281,13 @@ async def finish_params(call: types.CallbackQuery, state: FSMContext):
         return await call.message.edit_text(
             text("manage:story:accept:public").format(
                 await get_story_report_text(chosen, objects),
-                f"{int(options.period / 3600)} ч."  # type: ignore
-                if options.period else text("manage:post:del_time:not")
+                (
+                    f"{int(options.period / 3600)} ч."  # type: ignore
+                    if options.period
+                    else text("manage:post:del_time:not")
+                ),
             ),
-            reply_markup=keyboards.accept_public(
-                data="AcceptStories"
-            )
+            reply_markup=keyboards.accept_public(data="AcceptStories"),
         )
 
 
@@ -318,7 +297,7 @@ async def choice_delete_time(call: types.CallbackQuery, state: FSMContext):
     temp = call.data.split("|")
     data = await state.get_data()
     if not data:
-        await call.answer(text('keys_data_error'))
+        await call.answer(text("keys_data_error"))
         return await call.message.delete()
 
     post: Story = data.get("post")
@@ -330,13 +309,9 @@ async def choice_delete_time(call: types.CallbackQuery, state: FSMContext):
     if story_options.period != delete_time:
         story_options.period = delete_time
         post = await db.story.update_story(
-            post_id=post.id,
-            return_obj=True,
-            story_options=story_options.model_dump()
+            post_id=post.id, return_obj=True, story_options=story_options.model_dump()
         )
-        await state.update_data(
-            post=post
-        )
+        await state.update_data(post=post)
         data = await state.get_data()
 
     is_edit: bool = data.get("is_edit")
@@ -345,28 +320,23 @@ async def choice_delete_time(call: types.CallbackQuery, state: FSMContext):
             text("story:content").format(
                 *data.get("send_date_values"),
                 data.get("channel").emoji_id,
-                data.get("channel").title
+                data.get("channel").title,
             ),
-            reply_markup=keyboards.manage_remain_story(
-                post=post
-            )
+            reply_markup=keyboards.manage_remain_story(post=post),
         )
 
     chosen: list = data.get("chosen")
     objects = await db.channel.get_user_channels(
-        user_id=call.from_user.id,
-        sort_by="stories"
+        user_id=call.from_user.id, sort_by="stories"
     )
 
     await call.message.edit_text(
         text("manage:story:finish_params").format(
-            len(chosen),
-            await get_story_report_text(chosen, objects)
+            len(chosen), await get_story_report_text(chosen, objects)
         ),
         reply_markup=keyboards.finish_params(
-            obj=data.get('post'),
-            data="FinishStoriesParams"
-        )
+            obj=data.get("post"), data="FinishStoriesParams"
+        ),
     )
 
 
@@ -383,28 +353,23 @@ async def cancel_send_time(call: types.CallbackQuery, state: FSMContext):
             text("story:content").format(
                 *data.get("send_date_values"),
                 data.get("channel").emoji_id,
-                data.get("channel").title
+                data.get("channel").title,
             ),
-            reply_markup=keyboards.manage_remain_story(
-                post=data.get("post")
-            )
+            reply_markup=keyboards.manage_remain_story(post=data.get("post")),
         )
 
     chosen: list = data.get("chosen")
     objects = await db.channel.get_user_channels(
-        user_id=call.from_user.id,
-        sort_by="stories"
+        user_id=call.from_user.id, sort_by="stories"
     )
 
     await call.message.edit_text(
         text("manage:story:finish_params").format(
-            len(chosen),
-            await get_story_report_text(chosen, objects)
+            len(chosen), await get_story_report_text(chosen, objects)
         ),
         reply_markup=keyboards.finish_params(
-            obj=data.get('post'),
-            data="FinishStoriesParams"
-        )
+            obj=data.get("post"), data="FinishStoriesParams"
+        ),
     )
 
 
@@ -412,7 +377,7 @@ async def cancel_send_time(call: types.CallbackQuery, state: FSMContext):
 async def get_send_time(message: types.Message, state: FSMContext):
     """
     Получение времени отправки от пользователя.
-    
+
     Поддерживаемые форматы:
     - DD.MM.YYYY HH:MM
     - DD.MM HH:MM (текущий год)
@@ -422,10 +387,10 @@ async def get_send_time(message: types.Message, state: FSMContext):
     parts = input_date.split()
 
     try:
-        if len(parts) == 2 and len(parts[0].split('.')) == 3:
+        if len(parts) == 2 and len(parts[0].split(".")) == 3:
             date = datetime.strptime(input_date, "%d.%m.%Y %H:%M")
 
-        elif len(parts) == 2 and len(parts[0].split('.')) == 2:
+        elif len(parts) == 2 and len(parts[0].split(".")) == 2:
             year = datetime.now().year
             date = datetime.strptime(f"{parts[0]}.{year} {parts[1]}", "%d.%m.%Y %H:%M")
 
@@ -440,64 +405,62 @@ async def get_send_time(message: types.Message, state: FSMContext):
 
     except Exception as e:
         logger.error(f"Error parsing send time: {e}")
-        return await message.answer(
-            text("error_value")
-        )
+        return await message.answer(text("error_value"))
 
     if time.time() > send_time:
-        return await message.answer(
-            text("error_time_value")
-        )
+        return await message.answer(text("error_time_value"))
 
     data = await state.get_data()
     is_edit: bool = data.get("is_edit")
-    post: Story = data.get('post')
+    post: Story = data.get("post")
     options = StoryOptions(**post.story_options)
 
     if is_edit:
         post = await db.story.update_story(
-            post_id=post.id,
-            return_obj=True,
-            send_time=send_time
+            post_id=post.id, return_obj=True, send_time=send_time
         )
         send_date = datetime.fromtimestamp(post.send_time)
-        send_date_values = (send_date.day, text("month").get(str(send_date.month)), send_date.year,)
+        send_date_values = (
+            send_date.day,
+            text("month").get(str(send_date.month)),
+            send_date.year,
+        )
 
         await state.clear()
-        data['send_date_values'] = send_date_values
+        data["send_date_values"] = send_date_values
         await state.update_data(data)
 
         return await message.answer(
             text("story:content").format(
                 *send_date_values,
                 data.get("channel").emoji_id,
-                data.get("channel").title
+                data.get("channel").title,
             ),
-            reply_markup=keyboards.manage_remain_story(
-                post=post
-            )
+            reply_markup=keyboards.manage_remain_story(post=post),
         )
 
     weekday = text("weekdays")[str(date.weekday())]
     month = text("month")[str(date.month)]
     day = date.day
     year = date.year
-    _time = date.strftime('%H:%M')
-    date_values = (weekday, day, month, year, _time,)
-
-    await state.update_data(
-        send_time=send_time,
-        date_values=date_values
+    _time = date.strftime("%H:%M")
+    date_values = (
+        weekday,
+        day,
+        month,
+        year,
+        _time,
     )
+
+    await state.update_data(send_time=send_time, date_values=date_values)
     data = await state.get_data()
     await state.clear()
     await state.update_data(data)
 
-    chosen: list = data.get('chosen')
+    chosen: list = data.get("chosen")
 
     objects = await db.channel.get_user_channels(
-        user_id=message.from_user.id,
-        sort_by="stories"
+        user_id=message.from_user.id, sort_by="stories"
     )
 
     await message.answer(
@@ -505,10 +468,11 @@ async def get_send_time(message: types.Message, state: FSMContext):
             f"{day} {month} {year} {_time}",
             weekday,
             await get_story_report_text(chosen, objects),
-            f"{int(options.period / 3600)} ч."  # type: ignore
-            if options.period else text("manage:post:del_time:not")
+            (
+                f"{int(options.period / 3600)} ч."  # type: ignore
+                if options.period
+                else text("manage:post:del_time:not")
+            ),
         ),
-        reply_markup=keyboards.accept_date(
-            data="AcceptStories"
-        )
+        reply_markup=keyboards.accept_date(data="AcceptStories"),
     )

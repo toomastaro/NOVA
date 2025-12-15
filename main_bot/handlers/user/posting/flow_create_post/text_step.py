@@ -6,6 +6,7 @@
 - Отмена создания поста
 - Парсинг текста, медиа и кнопок из сообщения
 """
+
 import logging
 from aiogram import types
 from aiogram.fsm.context import FSMContext
@@ -15,7 +16,6 @@ from main_bot.handlers.user.menu import start_posting
 from main_bot.utils.message_utils import answer_post
 from main_bot.utils.lang.language import text
 from main_bot.utils.schemas import MessageOptions, Media
-from main_bot.keyboards import keyboards
 from main_bot.utils.error_handler import safe_handler
 
 logger = logging.getLogger(__name__)
@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 async def cancel_message(call: types.CallbackQuery, state: FSMContext):
     """
     Отмена создания поста - очистка состояния и возврат в меню постинга.
-    
+
     Args:
         call: Callback query от кнопки отмены
         state: FSM контекст
@@ -39,14 +39,14 @@ async def cancel_message(call: types.CallbackQuery, state: FSMContext):
 async def get_message(message: types.Message, state: FSMContext):
     """
     Получение первичного сообщения для создания поста.
-    
+
     Обрабатывает:
     - Текст сообщения (с проверкой длины)
     - Медиа (фото, видео, анимация)
     - Inline кнопки (парсинг в строковый формат)
-    
+
     Создает запись поста в БД и показывает финальные параметры.
-    
+
     Args:
         message: Сообщение от пользователя
         state: FSM контекст
@@ -54,13 +54,11 @@ async def get_message(message: types.Message, state: FSMContext):
     # Получаем выбранные каналы из state
     data = await state.get_data()
     chosen = data.get("chosen", [])
-    
+
     # Проверка длины текста
     message_text_length = len(message.caption or message.text or "")
     if message_text_length > 1024:
-        return await message.answer(
-            text('error_length_text')
-        )
+        return await message.answer(text("error_length_text"))
 
     # Парсинг сообщения в MessageOptions
     dump_message = message.model_dump()
@@ -94,18 +92,12 @@ async def get_message(message: types.Message, state: FSMContext):
         chat_ids=chosen,
         admin_id=message.from_user.id,
         message_options=message_options.model_dump(),
-        buttons=buttons_str
+        buttons=buttons_str,
     )
 
     # Обновление состояния
     await state.clear()
-    await state.update_data(
-        show_more=False,
-        post=post,
-        chosen=chosen
-    )
-
-
+    await state.update_data(show_more=False, post=post, chosen=chosen)
 
     # Показываем превью поста с возможностью редактирования
     await answer_post(message, state)

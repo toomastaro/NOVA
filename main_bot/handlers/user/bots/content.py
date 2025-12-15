@@ -12,63 +12,67 @@ from main_bot.keyboards import keyboards
 from main_bot.utils.functions import answer_bot_post
 from main_bot.utils.lang.language import text
 from main_bot.utils.backup_utils import send_to_backup
+from main_bot.utils.error_handler import safe_handler
 
 logger = logging.getLogger(__name__)
 
 
 def serialize_channel(channel):
-    if not channel: return None
+    if not channel:
+        return None
     return {
-        'id': channel.id,
-        'chat_id': channel.chat_id,
-        'title': channel.title,
-        'username': getattr(channel, 'username', None),
-        'subscribers_count': getattr(channel, 'subscribers_count', 0),
-        'posting': getattr(channel, 'posting', False)
+        "id": channel.id,
+        "chat_id": channel.chat_id,
+        "title": channel.title,
+        "username": getattr(channel, "username", None),
+        "subscribers_count": getattr(channel, "subscribers_count", 0),
+        "posting": getattr(channel, "posting", False),
     }
 
 
 def serialize_bot_post(post):
-    if not post: return None
+    if not post:
+        return None
     return {
-        'id': post.id,
-        'bot_id': getattr(post, 'bot_id', None),
-        'channel_id': getattr(post, 'channel_id', None),
-        'message': getattr(post, 'message', {}),
-        'status': getattr(post, 'status', 'active'),
-        'start_timestamp': post.start_timestamp,
-        'end_timestamp': getattr(post, 'end_timestamp', None),
-        'send_time': getattr(post, 'send_time', None),
-        'delete_time': getattr(post, 'delete_time', None),
-        'admin_id': post.admin_id,
-        'backup_chat_id': getattr(post, 'backup_chat_id', None),
-        'backup_message_id': getattr(post, 'backup_message_id', None),
-        'success_send': getattr(post, 'success_send', 0),
-        'error_send': getattr(post, 'error_send', 0),
-        'created_at': getattr(post, 'created_at', None),
+        "id": post.id,
+        "bot_id": getattr(post, "bot_id", None),
+        "channel_id": getattr(post, "channel_id", None),
+        "message": getattr(post, "message", {}),
+        "status": getattr(post, "status", "active"),
+        "start_timestamp": post.start_timestamp,
+        "end_timestamp": getattr(post, "end_timestamp", None),
+        "send_time": getattr(post, "send_time", None),
+        "delete_time": getattr(post, "delete_time", None),
+        "admin_id": post.admin_id,
+        "backup_chat_id": getattr(post, "backup_chat_id", None),
+        "backup_message_id": getattr(post, "backup_message_id", None),
+        "success_send": getattr(post, "success_send", 0),
+        "error_send": getattr(post, "error_send", 0),
+        "created_at": getattr(post, "created_at", None),
     }
 
 
 async def get_days_with_bot_posts(bot_id: int, year: int, month: int) -> dict:
     """
     Получает информацию о днях месяца с рассылками и их статусах.
-    
+
     Args:
         bot_id: ID бота
         year: Год
         month: Месяц
-        
+
     Returns:
         dict: Словарь {день: {"has_finished": bool, "has_pending": bool}}
     """
     from calendar import monthrange
+
     _, last_day = monthrange(year, month)
     month_start = datetime(year, month, 1)
     month_end = datetime(year, month, last_day, 23, 59, 59)
-    
+
     # Получаем все рассылки
     all_month_posts = await db.bot_post.get_bot_posts(bot_id)
-    
+
     days_info = {}
     for post in all_month_posts:
         timestamp = post.start_timestamp or post.send_time
@@ -79,28 +83,30 @@ async def get_days_with_bot_posts(bot_id: int, year: int, month: int) -> dict:
             day = post_date.day
             if day not in days_info:
                 days_info[day] = {"has_finished": False, "has_pending": False}
-            
+
             # Определяем статус
             if post.status == Status.FINISH:
                 days_info[day]["has_finished"] = True
             elif post.status == Status.PENDING:
                 days_info[day]["has_pending"] = True
-    
+
     return days_info
 
 
+@safe_handler("Bots Content Choice Channel")
 async def choice_channel(call: types.CallbackQuery, state: FSMContext):
-    temp = call.data.split('|')
+    """Выбор канала для просмотра контент-плана бота."""
+    temp = call.data.split("|")
 
     if temp[1] in ["next", "back"]:
         channels = await db.channel_bot_settings.get_bot_channels(call.from_user.id)
-        objects = await db.channel.get_user_channels(call.from_user.id, from_array=[i.id for i in channels])
+        objects = await db.channel.get_user_channels(
+            call.from_user.id, from_array=[i.id for i in channels]
+        )
 
         return await call.message.edit_reply_markup(
             reply_markup=keyboards.choice_object_content(
-                channels=objects,
-                remover=int(temp[2]),
-                data="ChoiceObjectContentBots"
+                channels=objects, remover=int(temp[2]), data="ChoiceObjectContentBots"
             )
         )
 
@@ -113,14 +119,20 @@ async def choice_channel(call: types.CallbackQuery, state: FSMContext):
 
     day = datetime.today()
     posts = await db.bot_post.get_bot_posts(channel.chat_id, day)
-    days_with_posts = await get_days_with_bot_posts(channel.chat_id, day.year, day.month)
-    day_values = (day.day, text("month").get(str(day.month)), day.year,)
+    days_with_posts = await get_days_with_bot_posts(
+        channel.chat_id, day.year, day.month
+    )
+    day_values = (
+        day.day,
+        text("month").get(str(day.month)),
+        day.year,
+    )
 
     await state.update_data(
         channel=serialize_channel(channel),
         day=day.isoformat(),
         day_values=day_values,
-        show_more=False
+        show_more=False,
     )
 
     await call.message.delete()
@@ -128,21 +140,21 @@ async def choice_channel(call: types.CallbackQuery, state: FSMContext):
         text("bot:content").format(
             channel.title,
             *day_values,
-            text("no_content") if not posts else text("has_content").format(len(posts))
+            text("no_content") if not posts else text("has_content").format(len(posts)),
         ),
         reply_markup=keyboards.choice_row_content(
-            posts=posts,
-            day=day,
-            data="ContentBotPost",days_with_posts=days_with_posts
-        )
+            posts=posts, day=day, data="ContentBotPost", days_with_posts=days_with_posts
+        ),
     )
 
 
+@safe_handler("Bots Content Choice Row")
 async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
+    """Выбор дня или навигация по календарю контента."""
     temp = call.data.split("|")
     data = await state.get_data()
     if not data:
-        await call.answer(text('keys_data_error'))
+        await call.answer(text("keys_data_error"))
         return await call.message.delete()
 
     if temp[1] == "cancel":
@@ -151,55 +163,78 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
 
     channel_data = data.get("channel")
     show_more: bool = data.get("show_more")
-    
-    day_str = data.get("day")
-    day = datetime.fromisoformat(day_str) if isinstance(day_str, str) else (day_str or datetime.today())
 
-    if temp[1] in ['next_day', 'next_month', 'back_day', 'back_month', "choice_day", "show_more"]:
+    day_str = data.get("day")
+    day = (
+        datetime.fromisoformat(day_str)
+        if isinstance(day_str, str)
+        else (day_str or datetime.today())
+    )
+
+    if temp[1] in [
+        "next_day",
+        "next_month",
+        "back_day",
+        "back_month",
+        "choice_day",
+        "show_more",
+    ]:
         if temp[1] == "choice_day":
-            day = datetime.strptime(temp[2], '%Y-%m-%d')
+            day = datetime.strptime(temp[2], "%Y-%m-%d")
         elif temp[1] == "show_more":
             show_more = not show_more
         else:
             day = day - timedelta(days=int(temp[2]))
 
-        posts = await db.bot_post.get_bot_posts(channel_data['chat_id'], day)
-        days_with_posts = await get_days_with_bot_posts(channel_data['chat_id'], day.year, day.month)
-        day_values = (day.day, text("month").get(str(day.month)), day.year,)
+        posts = await db.bot_post.get_bot_posts(channel_data["chat_id"], day)
+        days_with_posts = await get_days_with_bot_posts(
+            channel_data["chat_id"], day.year, day.month
+        )
+        day_values = (
+            day.day,
+            text("month").get(str(day.month)),
+            day.year,
+        )
 
         await state.update_data(
-            day=day.isoformat(),
-            day_values=day_values,
-            show_more=show_more
+            day=day.isoformat(), day_values=day_values, show_more=show_more
         )
 
         return await call.message.edit_text(
             text("bot:content").format(
                 *day_values,
-                channel_data['title'],
-                text("no_content") if not posts else text("has_content").format(len(posts))
+                channel_data["title"],
+                (
+                    text("no_content")
+                    if not posts
+                    else text("has_content").format(len(posts))
+                ),
             ),
             reply_markup=keyboards.choice_row_content(
                 posts=posts,
                 day=day,
                 show_more=show_more,
-                data="ContentBotPost",days_with_posts=days_with_posts
-            )
+                data="ContentBotPost",
+                days_with_posts=days_with_posts,
+            ),
         )
 
     if temp[1] == "show_all":
-        all_posts = await db.bot_post.get_bot_posts(channel_data['chat_id'])
+        all_posts = await db.bot_post.get_bot_posts(channel_data["chat_id"])
         # Показываем только запланированные рассылки
         posts = [post for post in all_posts if post.status == Status.PENDING]
         return await call.message.edit_text(
             text("bot:show_all:content").format(
-                channel_data['title'],
-                text("no_content") if not posts else text("has_content").format(len(posts))
+                channel_data["title"],
+                (
+                    text("no_content")
+                    if not posts
+                    else text("has_content").format(len(posts))
+                ),
             ),
             reply_markup=keyboards.choice_time_objects(
-                objects=posts,
-                data="ContentBotPost"
-            )
+                objects=posts, data="ContentBotPost"
+            ),
         )
 
     if temp[1] == "...":
@@ -209,11 +244,13 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
     post = await db.bot_post.get_bot_post(post_id)
 
     send_date = datetime.fromtimestamp(post.send_time or post.start_timestamp)
-    send_date_values = (send_date.day, text("month").get(str(send_date.month)), send_date.year,)
+    send_date_values = (
+        send_date.day,
+        text("month").get(str(send_date.month)),
+        send_date.year,
+    )
     await state.update_data(
-        post=serialize_bot_post(post),
-        send_date_values=send_date_values,
-        is_edit=True
+        post=serialize_bot_post(post), send_date_values=send_date_values, is_edit=True
     )
 
     # Если нет бэкапа - создаем
@@ -223,7 +260,7 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
             await db.bot_post.update_bot_post(
                 post_id=post.id,
                 backup_chat_id=backup_chat_id,
-                backup_message_id=backup_message_id
+                backup_message_id=backup_message_id,
             )
             post.backup_chat_id = backup_chat_id
             post.backup_message_id = backup_message_id
@@ -235,19 +272,19 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
             post_message = await call.bot.copy_message(
                 chat_id=call.from_user.id,
                 from_chat_id=post.backup_chat_id,
-                message_id=post.backup_message_id
+                message_id=post.backup_message_id,
                 # Без reply_markup - показываем только контент поста
             )
-        except Exception as e:
-             # Fallback если копирование не удалось
-             post_message = await answer_bot_post(call.message, state, from_edit=True)
+        except Exception:
+            # Fallback если копирование не удалось
+            post_message = await answer_bot_post(call.message, state, from_edit=True)
     else:
-         post_message = await answer_bot_post(call.message, state, from_edit=True)
+        post_message = await answer_bot_post(call.message, state, from_edit=True)
 
     if post_message:
         await state.update_data(
-            post_message=post_message.model_dump(mode='json'),
-            post=serialize_bot_post(post) # Обновляем объект
+            post_message=post_message.model_dump(mode="json"),
+            post=serialize_bot_post(post),  # Обновляем объект
         )
 
     if post.status in [Status.FINISH, Status.ERROR]:
@@ -257,120 +294,142 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
                 post.success_send,
                 post.error_send,
                 "Нет" if not post.delete_time else f"{int(post.delete_time / 3600)} ч.",
-                datetime.fromtimestamp(post.start_timestamp).strftime(
-                    "%d.%m.%Y %H:%M"
-                ),
-                datetime.fromtimestamp(post.end_timestamp).strftime(
-                    "%d.%m.%Y %H:%M"
-                ),
-                (await call.bot.get_chat(post.admin_id)).username
+                datetime.fromtimestamp(post.start_timestamp).strftime("%d.%m.%Y %H:%M"),
+                datetime.fromtimestamp(post.end_timestamp).strftime("%d.%m.%Y %H:%M"),
+                (await call.bot.get_chat(post.admin_id)).username,
             ),
-            reply_markup=keyboards.back(
-                data="ManageRemainBotPost|cancel"
-            )
+            reply_markup=keyboards.back(data="ManageRemainBotPost|cancel"),
         )
 
     await call.message.delete()
-    
+
     # Получаем username автора
     try:
         author = (await call.bot.get_chat(post.admin_id)).username or "Unknown"
-    except:
+    except Exception:
         author = "Unknown"
-    
+
     await call.message.answer(
         text("bot_post:content").format(
             "Нет" if not post.delete_time else f"{int(post.delete_time / 3600)} час.",
             send_date.day,
             text("month").get(str(send_date.month)),
             send_date.year,
-            author
+            author,
         ),
-        reply_markup=keyboards.manage_remain_bot_post(
-            post=post
-        )
+        reply_markup=keyboards.manage_remain_bot_post(post=post),
     )
 
 
+@safe_handler("Bots Content Choice Time Objects")
 async def choice_time_objects(call: types.CallbackQuery, state: FSMContext):
+    """Выбор конкретного поста из списка."""
     temp = call.data.split("|")
     data = await state.get_data()
     if not data:
-        await call.answer(text('keys_data_error'))
+        await call.answer(text("keys_data_error"))
         return await call.message.delete()
 
     channel_data = data.get("channel")
 
     if temp[1] in ["next", "back"]:
-        posts = await db.bot_post.get_bot_posts(channel_data['chat_id'])
+        posts = await db.bot_post.get_bot_posts(channel_data["chat_id"])
         return await call.message.edit_reply_markup(
             reply_markup=keyboards.choice_time_objects(
-                objects=posts,
-                remover=int(temp[2]),
-                data="ChoiceTimeObjectContentBots"
+                objects=posts, remover=int(temp[2]), data="ChoiceTimeObjectContentBots"
             )
         )
 
     show_more: bool = data.get("show_more")
     day_str = data.get("day")
-    day = datetime.fromisoformat(day_str) if isinstance(day_str, str) else (datetime.today())
+    day = (
+        datetime.fromisoformat(day_str)
+        if isinstance(day_str, str)
+        else (datetime.today())
+    )
 
     if temp[1] == "cancel":
-        posts = await db.bot_post.get_bot_posts(channel_data['chat_id'], day)
+        posts = await db.bot_post.get_bot_posts(channel_data["chat_id"], day)
         return await call.message.edit_text(
             text("bot:content").format(
                 *data.get("day_values"),
-                channel_data['title'],
-                text("no_content") if not posts else text("has_content").format(len(posts))
+                channel_data["title"],
+                (
+                    text("no_content")
+                    if not posts
+                    else text("has_content").format(len(posts))
+                ),
             ),
-
             reply_markup=keyboards.choice_row_content(
                 posts=posts,
                 day=day,
                 show_more=show_more,
-                data="ContentBotPost",days_with_posts=await get_days_with_bot_posts(channel_data['chat_id'], day.year, day.month)
-            )
+                data="ContentBotPost",
+                days_with_posts=await get_days_with_bot_posts(
+                    channel_data["chat_id"], day.year, day.month
+                ),
+            ),
         )
 
 
+@safe_handler("Bots Manage Remain Post")
 async def manage_remain_post(call: types.CallbackQuery, state: FSMContext):
-    temp = call.data.split('|')
+    """Управление запланированным постом (изменить/удалить)."""
+    temp = call.data.split("|")
     data = await state.get_data()
     if not data:
-        await call.answer(text('keys_data_error'))
+        await call.answer(text("keys_data_error"))
         return await call.message.delete()
 
     channel_data = data.get("channel")
     day_str = data.get("day")
-    day = datetime.fromisoformat(day_str) if isinstance(day_str, str) else (datetime.today())
-    
+    day = (
+        datetime.fromisoformat(day_str)
+        if isinstance(day_str, str)
+        else (datetime.today())
+    )
+
     if temp[1] == "cancel":
-        posts = await db.bot_post.get_bot_posts(channel_data['chat_id'], day)
+        posts = await db.bot_post.get_bot_posts(channel_data["chat_id"], day)
 
         # Удаляем превью поста
         post_message = data.get("post_message")
         if post_message:
             try:
-                msg_id = post_message.get('message_id') if isinstance(post_message, dict) else (post_message.message_id if hasattr(post_message, 'message_id') else None)
+                msg_id = (
+                    post_message.get("message_id")
+                    if isinstance(post_message, dict)
+                    else (
+                        post_message.message_id
+                        if hasattr(post_message, "message_id")
+                        else None
+                    )
+                )
                 if msg_id:
                     await call.bot.delete_message(
-                        chat_id=call.from_user.id,
-                        message_id=msg_id
+                        chat_id=call.from_user.id, message_id=msg_id
                     )
-            except:
+            except Exception:
                 pass
-        
+
         return await call.message.edit_text(
             text("bot:content").format(
-                channel_data['title'],
+                channel_data["title"],
                 *data.get("day_values"),
-                text("no_content") if not posts else text("has_content").format(len(posts))
+                (
+                    text("no_content")
+                    if not posts
+                    else text("has_content").format(len(posts))
+                ),
             ),
             reply_markup=keyboards.choice_row_content(
                 posts=posts,
                 day=day,
-                data="ContentBotPost",days_with_posts=await get_days_with_bot_posts(channel_data['chat_id'], day.year, day.month)
-            )
+                data="ContentBotPost",
+                days_with_posts=await get_days_with_bot_posts(
+                    channel_data["chat_id"], day.year, day.month
+                ),
+            ),
         )
 
     if temp[1] == "delete":
@@ -378,7 +437,7 @@ async def manage_remain_post(call: types.CallbackQuery, state: FSMContext):
             text("accept:delete:post"),
             reply_markup=keyboards.accept_delete_row_content(
                 data="AcceptDeleteBotPost"
-            )
+            ),
         )
 
     if temp[1] == "change":
@@ -386,97 +445,136 @@ async def manage_remain_post(call: types.CallbackQuery, state: FSMContext):
         post_message = data.get("post_message")
         if post_message:
             try:
-                msg_id = post_message.get('message_id') if isinstance(post_message, dict) else (post_message.message_id if hasattr(post_message, 'message_id') else None)
+                msg_id = (
+                    post_message.get("message_id")
+                    if isinstance(post_message, dict)
+                    else (
+                        post_message.message_id
+                        if hasattr(post_message, "message_id")
+                        else None
+                    )
+                )
                 if msg_id:
                     await call.bot.edit_message_reply_markup(
                         chat_id=call.from_user.id,
                         message_id=msg_id,
                         reply_markup=keyboards.manage_bot_post(
-                            post=data.get('post'),
-                            is_edit=data.get('is_edit')
-                        )
+                            post=data.get("post"), is_edit=data.get("is_edit")
+                        ),
                     )
             except Exception as e:
                 logger.error(f"Ошибка редактирования клавиатуры: {e}")
 
 
+@safe_handler("Bots Accept Delete Post")
 async def accept_delete_row_content(call: types.CallbackQuery, state: FSMContext):
+    """Подтверждение удаления поста."""
     temp = call.data.split("|")
     data = await state.get_data()
     if not data:
-        await call.answer(text('keys_data_error'))
+        await call.answer(text("keys_data_error"))
         return await call.message.delete()
 
     day = data.get("day")
     day_values = data.get("day_values")
-    send_date_values = data.get("send_date_values")
+    # send_date_values = data.get("send_date_values")
     channel_data = data.get("channel")
     post = data.get("post")
 
     if temp[1] == "cancel":
         # Получаем username автора
         try:
-            admin_id = post.get('admin_id') if isinstance(post, dict) else post.admin_id
+            admin_id = post.get("admin_id") if isinstance(post, dict) else post.admin_id
             author = (await call.bot.get_chat(admin_id)).username or "Unknown"
-        except:
+        except Exception:
             author = "Unknown"
-        
-        send_timestamp = post.get('send_time') if isinstance(post, dict) else post.send_time
-        start_timestamp = post.get('start_timestamp') if isinstance(post, dict) else post.start_timestamp
-        delete_time = post.get('delete_time') if isinstance(post, dict) else post.delete_time
-        
+
+        send_timestamp = (
+            post.get("send_time") if isinstance(post, dict) else post.send_time
+        )
+        start_timestamp = (
+            post.get("start_timestamp")
+            if isinstance(post, dict)
+            else post.start_timestamp
+        )
+        delete_time = (
+            post.get("delete_time") if isinstance(post, dict) else post.delete_time
+        )
+
         send_date = datetime.fromtimestamp(send_timestamp or start_timestamp)
-        
+
         return await call.message.edit_text(
             text("bot_post:content").format(
                 "Нет" if not delete_time else f"{int(delete_time / 3600)} час.",
                 send_date.day,
                 text("month").get(str(send_date.month)),
                 send_date.year,
-                author
+                author,
             ),
-            reply_markup=keyboards.manage_remain_bot_post(
-                post=post
-            )
+            reply_markup=keyboards.manage_remain_bot_post(post=post),
         )
 
     if temp[1] == "accept":
-        post_id = post.get('id') if isinstance(post, dict) else post.id
+        post_id = post.get("id") if isinstance(post, dict) else post.id
         await db.bot_post.delete_bot_post(post_id)
-        posts = await db.bot_post.get_bot_posts(channel_data['chat_id'], day)
+        posts = await db.bot_post.get_bot_posts(channel_data["chat_id"], day)
 
         # Удаляем превью поста
         post_message = data.get("post_message")
         if post_message:
             try:
-                msg_id = post_message.get('message_id') if isinstance(post_message, dict) else (post_message.message_id if hasattr(post_message, 'message_id') else None)
+                msg_id = (
+                    post_message.get("message_id")
+                    if isinstance(post_message, dict)
+                    else (
+                        post_message.message_id
+                        if hasattr(post_message, "message_id")
+                        else None
+                    )
+                )
                 if msg_id:
                     await call.bot.delete_message(
-                        chat_id=call.from_user.id,
-                        message_id=msg_id
+                        chat_id=call.from_user.id, message_id=msg_id
                     )
-            except:
+            except Exception:
                 pass
-        
+
         return await call.message.edit_text(
             text("bot:content").format(
-                channel_data['title'],
+                channel_data["title"],
                 *day_values,
-                text("no_content") if not posts else text("has_content").format(len(posts))
+                (
+                    text("no_content")
+                    if not posts
+                    else text("has_content").format(len(posts))
+                ),
             ),
             reply_markup=keyboards.choice_row_content(
                 posts=posts,
                 day=day,
-                data="ContentBotPost",days_with_posts=await get_days_with_bot_posts(channel_data['chat_id'], day.year, day.month)
-            )
+                data="ContentBotPost",
+                days_with_posts=await get_days_with_bot_posts(
+                    channel_data["chat_id"], day.year, day.month
+                ),
+            ),
         )
 
 
 def get_router():
     router = Router()
-    router.callback_query.register(choice_channel, F.data.split("|")[0] == "ChoiceObjectContentBots")
-    router.callback_query.register(choice_row_content, F.data.split("|")[0] == "ContentBotPost")
-    router.callback_query.register(choice_time_objects, F.data.split("|")[0] == "ChoiceTimeObjectContentBots")
-    router.callback_query.register(manage_remain_post, F.data.split("|")[0] == "ManageRemainBotPost")
-    router.callback_query.register(accept_delete_row_content, F.data.split("|")[0] == "AcceptDeleteBotPost")
+    router.callback_query.register(
+        choice_channel, F.data.split("|")[0] == "ChoiceObjectContentBots"
+    )
+    router.callback_query.register(
+        choice_row_content, F.data.split("|")[0] == "ContentBotPost"
+    )
+    router.callback_query.register(
+        choice_time_objects, F.data.split("|")[0] == "ChoiceTimeObjectContentBots"
+    )
+    router.callback_query.register(
+        manage_remain_post, F.data.split("|")[0] == "ManageRemainBotPost"
+    )
+    router.callback_query.register(
+        accept_delete_row_content, F.data.split("|")[0] == "AcceptDeleteBotPost"
+    )
     return router

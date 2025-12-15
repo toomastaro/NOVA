@@ -1,3 +1,14 @@
+"""
+Модуль управления сессиями (MtClient).
+
+Содержит:
+- Просмотр списка сессий (внутренние/внешние)
+- Добавление новых сессий через номер телефона/код
+- Сканирование "сиротских" файлов сессий
+- Управление состоянием сессий (сброс, проверка здоровья)
+- Ручное добавление найденных файлов сессий
+"""
+
 import asyncio
 import logging
 import os
@@ -11,50 +22,64 @@ from aiogram.fsm.context import FSMContext
 
 from instance_bot import bot as main_bot_obj
 from main_bot.database.db import db
-from main_bot.database.mt_client.model import MtClient
 from main_bot.keyboards import keyboards
 from main_bot.states.admin import Session
 from main_bot.utils.lang.language import text
 from main_bot.utils.mt_client_utils import reset_client_task
 from main_bot.utils.session_manager import SessionManager
 from main_bot.utils.support_log import send_support_alert, SupportAlert
+from main_bot.utils.error_handler import safe_handler
 
 logger = logging.getLogger(__name__)
 
 apps = {}
 
 
+@safe_handler("Admin Session Choice")
 async def choice(call: types.CallbackQuery, state: FSMContext):
-    temp = call.data.split('|')
+    """
+    Обработчик действий с сессиями.
+
+    Поддерживает:
+    - add: выбор типа пула для добавления
+    - pool_select: выбор пула
+    - cancel/back_to_main: возврат в главное меню
+    - internal/external: просмотр списка сессий по типу
+    - scan: поиск неучтенных файлов сессий
+    - manage: управление конкретной сессией
+    - check_health: принудительная проверка статуса
+    - reset_ask/reset_confirm: сброс сессии
+    """
+    temp = call.data.split("|")
     action = temp[1]
 
-    if action == 'add':
+    if action == "add":
         await call.message.edit_text(
-            text('admin:session:select_type'),
-            reply_markup=keyboards.admin_session_pool_select()
+            text("admin:session:select_type"),
+            reply_markup=keyboards.admin_session_pool_select(),
         )
         return await state.set_state(Session.pool_select)
 
-    if action == 'pool_select':
+    if action == "pool_select":
         pool_type = temp[2]
         await state.update_data(pool_type=pool_type)
-        
+
         await call.message.edit_text(
-            text('admin:session:selected_type').format(pool_type),
-            reply_markup=keyboards.back(
-                data="AdminSessionNumberBack"
-            )
+            text("admin:session:selected_type").format(pool_type),
+            reply_markup=keyboards.back(data="AdminSessionNumberBack"),
         )
         return await state.set_state(Session.phone)
 
-    if action == 'cancel' or action == 'back_to_main':
+    if action == "cancel" or action == "back_to_main":
         # Показываем только клиенты из БД (без автосканирования)
-        all_clients = await db.mt_client.get_mt_clients_by_pool('internal') + await db.mt_client.get_mt_clients_by_pool('external')
-        
+        all_clients = await db.mt_client.get_mt_clients_by_pool(
+            "internal"
+        ) + await db.mt_client.get_mt_clients_by_pool("external")
+
         try:
             await call.message.edit_text(
-                text('admin:session:main_menu').format(len(all_clients)),
-                reply_markup=keyboards.admin_sessions()
+                text("admin:session:main_menu").format(len(all_clients)),
+                reply_markup=keyboards.admin_sessions(),
             )
         except TelegramBadRequest as e:
             # Игнорируем ошибку если сообщение не изменилось
@@ -63,34 +88,36 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
                 raise
         return
 
-    if action in ['internal', 'external']:
+    if action in ["internal", "external"]:
         pool_type = action
         clients = await db.mt_client.get_mt_clients_by_pool(pool_type)
-        
+
         # Store pool type in state to return to list later if needed
         await state.update_data(current_pool=pool_type)
 
         await call.message.edit_text(
-            text('admin:session:list').format(pool_type),
-            reply_markup=keyboards.admin_sessions(clients=clients)
+            text("admin:session:list").format(pool_type),
+            reply_markup=keyboards.admin_sessions(clients=clients),
         )
         return
 
-    if action == 'back_to_list':
+    if action == "back_to_list":
         data = await state.get_data()
         pool_type = data.get("current_pool", "internal")
         clients = await db.mt_client.get_mt_clients_by_pool(pool_type)
         await call.message.edit_text(
-            text('admin:session:list').format(pool_type),
-            reply_markup=keyboards.admin_sessions(clients=clients)
+            text("admin:session:list").format(pool_type),
+            reply_markup=keyboards.admin_sessions(clients=clients),
         )
         return
 
-    if action == 'scan':
+    if action == "scan":
         # Ручное сканирование orphaned сессий
-        all_clients = await db.mt_client.get_mt_clients_by_pool('internal') + await db.mt_client.get_mt_clients_by_pool('external')
+        all_clients = await db.mt_client.get_mt_clients_by_pool(
+            "internal"
+        ) + await db.mt_client.get_mt_clients_by_pool("external")
         db_session_paths = {Path(c.session_path).name for c in all_clients}
-        
+
         # Сканируем директорию
         session_dir = Path("main_bot/utils/sessions/")
         orphaned = []
@@ -98,33 +125,32 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
             for file in session_dir.glob("*.session"):
                 if file.name not in db_session_paths:
                     orphaned.append(file.name)
-        
+
         if orphaned:
             await call.message.edit_text(
-                text('admin:session:orphaned_found').format(len(orphaned)),
-                reply_markup=keyboards.admin_sessions(orphaned_sessions=orphaned)
+                text("admin:session:orphaned_found").format(len(orphaned)),
+                reply_markup=keyboards.admin_sessions(orphaned_sessions=orphaned),
             )
         else:
-            await call.answer(text('admin:session:no_orphaned'), show_alert=True)
+            await call.answer(text("admin:session:no_orphaned"), show_alert=True)
         return
 
-
-    if action == 'add_orphan':
+    if action == "add_orphan":
         session_file = temp[2]
         await call.message.edit_text(
-            text('admin:session:add_orphaned').format(session_file),
-            reply_markup=keyboards.admin_orphan_pool_select(session_file)
+            text("admin:session:add_orphaned").format(session_file),
+            reply_markup=keyboards.admin_orphan_pool_select(session_file),
         )
         return
 
-    if action == 'orphan_pool':
+    if action == "orphan_pool":
         pool_type = temp[2]
         session_file = temp[3]
         session_path = Path(f"main_bot/utils/sessions/{session_file}")
-        
+
         if not session_path.exists():
-             await call.answer(text('admin:session:file_gone'), show_alert=True)
-             return
+            await call.answer(text("admin:session:file_gone"), show_alert=True)
+            return
 
         # Получить имя из профиля через SessionManager
         alias = None
@@ -141,64 +167,66 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
                             alias = f"👤 {full_name}"
                 except Exception as e:
                     logger.error(f"Error getting user info: {e}")
-            
+
             # Fallback: если не удалось получить имя
             if not alias:
                 existing_clients = await db.mt_client.get_mt_clients_by_pool(pool_type)
                 alias = f"{pool_type}-{len(existing_clients) + 1}"
-        
+
         new_client = await db.mt_client.create_mt_client(
             alias=alias,
             pool_type=pool_type,
             session_path=str(session_path),
-            status='NEW',
-            is_active=False
+            status="NEW",
+            is_active=False,
         )
-        
+
         # Health Check
         async with SessionManager(session_path) as manager:
             health = await manager.health_check()
-            
+
         current_time = int(time.time())
-        updates = {
-            "last_self_check_at": current_time
-        }
-        
+        updates = {"last_self_check_at": current_time}
+
         if health["ok"]:
-            updates["status"] = 'ACTIVE'
+            updates["status"] = "ACTIVE"
             updates["is_active"] = True
             result_text = "✅ ACTIVE"
         else:
-            updates["status"] = 'DISABLED'
+            updates["status"] = "DISABLED"
             updates["is_active"] = False
             updates["last_error_code"] = health.get("error_code", "UNKNOWN")
             updates["last_error_at"] = current_time
             result_text = f"❌ ERROR: {health.get('error_code')}"
-            
+
         await db.mt_client.update_mt_client(client_id=new_client.id, **updates)
-        
+
         await call.message.edit_text(
-            text('admin:session:added_orphan').format(
+            text("admin:session:added_orphan").format(
                 session_file, new_client.id, alias, pool_type, result_text
             ),
-            reply_markup=keyboards.back(data="AdminSession|back_to_main")
+            reply_markup=keyboards.back(data="AdminSession|back_to_main"),
         )
         return
 
-    if action == 'manage':
+    if action == "manage":
         client_id = int(temp[2])
         client = await db.mt_client.get_mt_client(client_id)
         if not client:
-            await call.answer(text('admin:session:not_found'), show_alert=True)
+            await call.answer(text("admin:session:not_found"), show_alert=True)
             return
 
         created_at = "N/A"
         if client.created_at:
-             created_at = datetime.fromtimestamp(client.created_at).strftime("%d.%m.%Y %H:%M")
-             
+            created_at = datetime.fromtimestamp(client.created_at).strftime(
+                "%d.%m.%Y %H:%M"
+            )
+
         last_check = "N/A"
         if client.last_self_check_at:
-            last_check = datetime.fromtimestamp(client.last_self_check_at).strftime("%d.%m.%Y %H:%M")
+            last_check = datetime.fromtimestamp(client.last_self_check_at).strftime(
+                "%d.%m.%Y %H:%M"
+            )
 
         info = (
             f"🆔 ID: {client.id}\n"
@@ -210,89 +238,109 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
             f"🕒 Последняя проверка: {last_check}\n"
         )
         if client.last_error_code:
-            error_time = datetime.fromtimestamp(client.last_error_at).strftime("%d.%m.%Y %H:%M") if client.last_error_at else "N/A"
+            error_time = (
+                datetime.fromtimestamp(client.last_error_at).strftime("%d.%m.%Y %H:%M")
+                if client.last_error_at
+                else "N/A"
+            )
             info += f"❌ Последняя ошибка: {client.last_error_code} ({error_time})\n"
         if client.flood_wait_until:
-            flood_time = datetime.fromtimestamp(client.flood_wait_until).strftime("%d.%m.%Y %H:%M")
+            flood_time = datetime.fromtimestamp(client.flood_wait_until).strftime(
+                "%d.%m.%Y %H:%M"
+            )
             info += f"⏳ Флуд до: {flood_time}\n"
 
         await call.message.edit_text(
-            info,
-            reply_markup=keyboards.admin_client_manage(client_id)
+            info, reply_markup=keyboards.admin_client_manage(client_id)
         )
         return
 
-    if action == 'check_health':
+    if action == "check_health":
         client_id = int(temp[2])
         client = await db.mt_client.get_mt_client(client_id)
         if not client:
-            await call.answer(text('admin:session:not_found'), show_alert=True)
+            await call.answer(text("admin:session:not_found"), show_alert=True)
             return
-            
+
         session_path = Path(client.session_path)
         if not session_path.exists():
-             await call.answer(text('admin:session:session_not_found'), show_alert=True)
-             return
+            await call.answer(text("admin:session:session_not_found"), show_alert=True)
+            return
 
         # Защита от множественных вызовов (debounce)
         data = await state.get_data()
         last_check_key = f"last_health_check_{client_id}"
         last_check = data.get(last_check_key, 0)
         current_time = int(time.time())
-        
+
         if current_time - last_check < 5:  # 5 секунд между проверками
-            await call.answer(text('admin:session:wait_check'), show_alert=True)
+            await call.answer(text("admin:session:wait_check"), show_alert=True)
             return
-        
+
         await state.update_data(**{last_check_key: current_time})
 
-        await call.answer(text('admin:session:checking'), show_alert=False)
-        
+        await call.answer(text("admin:session:checking"), show_alert=False)
+
         async with SessionManager(session_path) as manager:
             health = await manager.health_check()
-            
+
         current_time = int(time.time())
-        updates = {
-            "last_self_check_at": current_time
-        }
-        
+        updates = {"last_self_check_at": current_time}
+
         if health["ok"]:
-            updates["status"] = 'ACTIVE'
+            updates["status"] = "ACTIVE"
             updates["is_active"] = True
-            msg = text('admin:session:active')
+            msg = text("admin:session:active")
         else:
-            updates["status"] = 'DISABLED'
+            updates["status"] = "DISABLED"
             updates["is_active"] = False
             error_code = health.get("error_code", "UNKNOWN")
             updates["last_error_code"] = error_code
             updates["last_error_at"] = current_time
-            msg = text('admin:session:error').format(error_code)
-            
+            msg = text("admin:session:error").format(error_code)
+
             # Send alert for critical errors
-            if "DEACTIVATED" in error_code or "UNREGISTERED" in error_code or "BANNED" in error_code:
-                event_type = 'CLIENT_BANNED' if 'BANNED' in error_code or 'DEACTIVATED' in error_code else 'CLIENT_DISABLED'
-                
-                await send_support_alert(main_bot_obj, SupportAlert(
-                    event_type=event_type,
-                    client_id=client.id,
-                    client_alias=client.alias,
-                    pool_type=client.pool_type,
-                    error_code=error_code,
-                    error_text=text('admin:session:health_failed')
-                ))
-            
+            if (
+                "DEACTIVATED" in error_code
+                or "UNREGISTERED" in error_code
+                or "BANNED" in error_code
+            ):
+                event_type = (
+                    "CLIENT_BANNED"
+                    if "BANNED" in error_code or "DEACTIVATED" in error_code
+                    else "CLIENT_DISABLED"
+                )
+
+                await send_support_alert(
+                    main_bot_obj,
+                    SupportAlert(
+                        event_type=event_type,
+                        client_id=client.id,
+                        client_alias=client.alias,
+                        pool_type=client.pool_type,
+                        error_code=error_code,
+                        error_text=text("admin:session:health_failed"),
+                    ),
+                )
+
         await db.mt_client.update_mt_client(client_id=client.id, **updates)
-        
+
         # Refresh view with updated data
-        client = await db.mt_client.get_mt_client(client_id)  # Получаем обновленные данные
-        
+        client = await db.mt_client.get_mt_client(
+            client_id
+        )  # Получаем обновленные данные
+
         created_at = "N/A"
         if client.created_at:
-             created_at = datetime.fromtimestamp(client.created_at).strftime("%d.%m.%Y %H:%M")
-             
+            created_at = datetime.fromtimestamp(client.created_at).strftime(
+                "%d.%m.%Y %H:%M"
+            )
+
         last_check = "N/A"
         if client.last_self_check_at:
-            last_check = datetime.fromtimestamp(client.last_self_check_at).strftime("%d.%m.%Y %H:%M")
+            last_check = datetime.fromtimestamp(client.last_self_check_at).strftime(
+                "%d.%m.%Y %H:%M"
+            )
 
         info = (
             f"🆔 ID: {client.id}\n"
@@ -304,35 +352,40 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
             f"🕒 Последняя проверка: {last_check}\n"
         )
         if client.last_error_code:
-            error_time = datetime.fromtimestamp(client.last_error_at).strftime("%d.%m.%Y %H:%M") if client.last_error_at else "N/A"
+            error_time = (
+                datetime.fromtimestamp(client.last_error_at).strftime("%d.%m.%Y %H:%M")
+                if client.last_error_at
+                else "N/A"
+            )
             info += f"❌ Последняя ошибка: {client.last_error_code} ({error_time})\n"
         if client.flood_wait_until:
-            flood_time = datetime.fromtimestamp(client.flood_wait_until).strftime("%d.%m.%Y %H:%M")
+            flood_time = datetime.fromtimestamp(client.flood_wait_until).strftime(
+                "%d.%m.%Y %H:%M"
+            )
             info += f"⏳ Флуд до: {flood_time}\n"
 
         await call.message.edit_text(
-            info,
-            reply_markup=keyboards.admin_client_manage(client_id)
+            info, reply_markup=keyboards.admin_client_manage(client_id)
         )
         await call.answer(msg, show_alert=True)
         return
 
-    if action == 'reset_ask':
+    if action == "reset_ask":
         client_id = int(temp[2])
         await call.message.edit_text(
-            text('admin:session:reset_confirm').format(client_id),
-            reply_markup=keyboards.admin_client_reset_confirm(client_id)
+            text("admin:session:reset_confirm").format(client_id),
+            reply_markup=keyboards.admin_client_reset_confirm(client_id),
         )
         return
 
-    if action == 'reset_confirm':
+    if action == "reset_confirm":
         client_id = int(temp[2])
-        
+
         # Trigger background task
         asyncio.create_task(reset_client_task(client_id))
-        
-        await call.answer(text('admin:session:reset_started'), show_alert=True)
-        
+
+        await call.answer(text("admin:session:reset_started"), show_alert=True)
+
         # Go back to client details (it will update status on next refresh)
         client = await db.mt_client.get_mt_client(client_id)
         # Manually set status for immediate feedback in UI
@@ -344,13 +397,14 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
             f"🔛 Активен: False\n"
         )
         await call.message.edit_text(
-            info,
-            reply_markup=keyboards.admin_client_manage(client_id)
+            info, reply_markup=keyboards.admin_client_manage(client_id)
         )
         return
 
 
+@safe_handler("Admin Session Back")
 async def admin_session_back(call: types.CallbackQuery, state: FSMContext):
+    """Возврат назад из процесса добавления сессии."""
     data = await state.get_data()
 
     try:
@@ -364,18 +418,25 @@ async def admin_session_back(call: types.CallbackQuery, state: FSMContext):
         logger.error(f"Error removing session during back: {e}")
 
     await state.clear()
-    
+
     # Получаем все сессии из базы данных (без автосканирования)
-    all_clients = await db.mt_client.get_mt_clients_by_pool('internal') + await db.mt_client.get_mt_clients_by_pool('external')
+    all_clients = await db.mt_client.get_mt_clients_by_pool(
+        "internal"
+    ) + await db.mt_client.get_mt_clients_by_pool("external")
 
     await call.message.delete()
     await call.message.answer(
-        text('admin:session:main_menu').format(len(all_clients)),
-        reply_markup=keyboards.admin_sessions()
+        text("admin:session:main_menu").format(len(all_clients)),
+        reply_markup=keyboards.admin_sessions(),
     )
 
 
+@safe_handler("Admin Session Get Number")
 async def get_number(message: types.Message, state: FSMContext):
+    """
+    Получение номера телефона для новой сессии.
+    Инициализирует SessionManager и запрашивает код подтверждения.
+    """
     number = message.text
     session_path = Path("main_bot/utils/sessions/{}.session".format(number))
     manager = SessionManager(session_path)
@@ -396,10 +457,8 @@ async def get_number(message: types.Message, state: FSMContext):
         except Exception:
             pass
         return await message.answer(
-            text('admin:session:init_error'),
-            reply_markup=keyboards.cancel(
-                data="AdminSessionNumberBack"
-            )
+            text("admin:session:init_error"),
+            reply_markup=keyboards.cancel(data="AdminSessionNumberBack"),
         )
 
     await state.update_data(
@@ -408,32 +467,31 @@ async def get_number(message: types.Message, state: FSMContext):
     )
 
     await message.answer(
-        text('admin:session:enter_code'),
-        reply_markup=keyboards.cancel(
-            data="AdminSessionNumberBack"
-        )
+        text("admin:session:enter_code"),
+        reply_markup=keyboards.cancel(data="AdminSessionNumberBack"),
     )
     await state.set_state(Session.code)
 
 
+@safe_handler("Admin Session Get Code")
 async def get_code(message: types.Message, state: FSMContext):
+    """
+    Получение кода подтверждения и завершение авторизации.
+    Создает запись MtClient в БД.
+    """
     data = await state.get_data()
     number = data.get("number")
     hash_code = data.get("hash_code")
-    pool_type = data.get("pool_type", "internal") # Default to internal if missing
-    
+    pool_type = data.get("pool_type", "internal")  # Default to internal if missing
+
     app: SessionManager = apps.get(number)
     if not app:
-         return await message.answer(text('admin:session:session_lost'))
+        return await message.answer(text("admin:session:session_lost"))
 
     try:
-        await app.client.sign_in(
-            number,
-            message.text,
-            phone_code_hash=hash_code
-        )
+        await app.client.sign_in(number, message.text, phone_code_hash=hash_code)
         # Do not close app yet, we need it for health check
-        
+
     except Exception as e:
         logger.error(f"Error signing in: {e}")
         await app.close()
@@ -444,14 +502,12 @@ async def get_code(message: types.Message, state: FSMContext):
 
         await state.clear()
         return await message.answer(
-            text('admin:session:auth_error'),
-            reply_markup=keyboards.cancel(
-                data="AdminSessionNumberBack"
-            )
+            text("admin:session:auth_error"),
+            reply_markup=keyboards.cancel(data="AdminSessionNumberBack"),
         )
 
     # --- MtClient Creation Logic ---
-    
+
     # 1. Получить имя из профиля
     alias = None
     try:
@@ -465,60 +521,60 @@ async def get_code(message: types.Message, state: FSMContext):
                 alias = f"👤 {full_name}"
     except Exception as e:
         logger.error(f"Error getting user info: {e}")
-    
+
     # Fallback: если не удалось получить имя
     if not alias:
         existing_clients = await db.mt_client.get_mt_clients_by_pool(pool_type)
         alias = f"{pool_type}-{len(existing_clients) + 1}"
-    
+
     # 2. Create MtClient
     new_client = await db.mt_client.create_mt_client(
         alias=alias,
         pool_type=pool_type,
         session_path=str(app.session_path),
-        status='NEW',
-        is_active=False
+        status="NEW",
+        is_active=False,
     )
-    
+
     # 3. Health Check
     health = await app.health_check()
     current_time = int(time.time())
-    
-    updates = {
-        "last_self_check_at": current_time
-    }
-    
+
+    updates = {"last_self_check_at": current_time}
+
     if health["ok"]:
-        updates["status"] = 'ACTIVE'
+        updates["status"] = "ACTIVE"
         updates["is_active"] = True
         result_text = "✅ ACTIVE"
     else:
-        updates["status"] = 'DISABLED'
+        updates["status"] = "DISABLED"
         updates["is_active"] = False
         updates["last_error_code"] = health.get("error_code", "UNKNOWN")
         updates["last_error_at"] = current_time
         result_text = f"❌ ERROR: {health.get('error_code')}"
-        
+
     await db.mt_client.update_mt_client(client_id=new_client.id, **updates)
-    
+
     await app.close()
     await state.clear()
-    
+
     session_count = len(os.listdir("main_bot/utils/sessions/"))
-    
+
     await message.answer(
-        text('admin:session:success_add').format(
+        text("admin:session:success_add").format(
             new_client.id, alias, pool_type, result_text, session_count
         ),
-        reply_markup=keyboards.admin_sessions()
+        reply_markup=keyboards.admin_sessions(),
     )
 
 
 def get_router():
     """Регистрация роутера для управления сессиями."""
     router = Router()
-    router.callback_query.register(choice, F.data.split('|')[0] == "AdminSession")
-    router.callback_query.register(admin_session_back, F.data.split('|')[0] == "AdminSessionNumberBack")
+    router.callback_query.register(choice, F.data.split("|")[0] == "AdminSession")
+    router.callback_query.register(
+        admin_session_back, F.data.split("|")[0] == "AdminSessionNumberBack"
+    )
     router.message.register(get_number, Session.phone, F.text)
     router.message.register(get_code, Session.code, F.text)
     return router

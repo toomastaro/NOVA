@@ -3,41 +3,36 @@ from aiogram.fsm.context import FSMContext
 
 from main_bot.database.db import db
 from main_bot.keyboards import keyboards
-from main_bot.states.user import Stories
 from main_bot.utils.lang.language import text
 import logging
 from main_bot.utils.error_handler import safe_handler
 
 logger = logging.getLogger(__name__)
 
+
 @safe_handler("Stories Menu Choice")
 async def choice(call: types.CallbackQuery, state: FSMContext):
+    """Главное меню историй (создать, каналы, контент-план)."""
     await state.clear()
-    temp = call.data.split('|')
+    temp = call.data.split("|")
 
     menu = {
-        'create_post': {
-            'cor': show_create_post,
-            'args': (call.message, state,)
+        "create_post": {
+            "cor": show_create_post,
+            "args": (
+                call.message,
+                state,
+            ),
         },
-        'channels': {
-            'cor': show_settings,
-            'args': (call.message,)
-        },
-        'content_plan': {
-            'cor': show_content,
-            'args': (call.message,)
-        },
-        'back': {
-            'cor': back_to_main,
-            'args': (call.message,)
-        },
+        "channels": {"cor": show_settings, "args": (call.message,)},
+        "content_plan": {"cor": show_content, "args": (call.message,)},
+        "back": {"cor": back_to_main, "args": (call.message,)},
     }
 
     if temp[1] not in menu:
         logger.warning(f"Unknown menu option: {temp[1]}")
         return await call.answer("Unknown option")
-        
+
     cor, args = menu[temp[1]].values()
 
     await call.message.delete()
@@ -48,7 +43,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
 async def show_create_post(message: types.Message, state: FSMContext):
     """
     Начало создания истории.
-    
+
     Новая логика:
     1. Проверка наличия каналов с активной подпиской
     2. Если нет - показ ошибки
@@ -56,28 +51,21 @@ async def show_create_post(message: types.Message, state: FSMContext):
     """
     # Получаем каналы пользователя с сортировкой по stories
     channels = await db.channel.get_user_channels(
-        user_id=message.chat.id,
-        sort_by="stories"
+        user_id=message.chat.id, sort_by="stories"
     )
-    
+
     # Проверяем наличие каналов с активной подпиской
     channels_with_sub = [ch for ch in channels if ch.subscribe]
-    
+
     if not channels_with_sub:
-        return await message.answer(
-            text('error_no_subscription_stories')
-        )
-    
+        return await message.answer(text("error_no_subscription_stories"))
+
     # Получаем папки
     folders = await db.user_folder.get_folders(user_id=message.chat.id)
-    
+
     # Инициализируем состояние
-    await state.update_data(
-        chosen=[],
-        chosen_folders=[],
-        current_folder_id=None
-    )
-    
+    await state.update_data(chosen=[], chosen_folders=[], current_folder_id=None)
+
     # Показываем выбор каналов
     await message.answer(
         text("choice_channels:story").format(0, ""),
@@ -85,38 +73,32 @@ async def show_create_post(message: types.Message, state: FSMContext):
             resources=channels_with_sub,
             chosen=[],
             folders=folders,
-            data="ChoiceStoriesChannels"
-        )
+            data="ChoiceStoriesChannels",
+        ),
     )
-
 
 
 @safe_handler("Stories Show Settings")
 async def show_settings(message: types.Message):
+    """Показывает меню управления каналами для историй."""
     channels = await db.channel.get_user_channels(
-        user_id=message.chat.id,
-        sort_by="stories"
+        user_id=message.chat.id, sort_by="stories"
     )
     await message.answer(
-        text('channels_text'),
-        reply_markup=keyboards.channels(
-            channels=channels,
-            data="ChoiceStoriesChannel"
-        )
+        text("channels_text"),
+        reply_markup=keyboards.channels(channels=channels, data="ChoiceStoriesChannel"),
     )
 
 
 @safe_handler("Stories Show Content")
 async def show_content(message: types.Message):
-    channels = await db.channel.get_user_channels(
-        user_id=message.chat.id
-    )
+    """Показывает меню выбора канала для контент-плана историй."""
+    channels = await db.channel.get_user_channels(user_id=message.chat.id)
     await message.answer(
-        text('choice_channel:content:story'),
+        text("choice_channel:content:story"),
         reply_markup=keyboards.choice_object_content(
-            channels=channels,
-            data="ChoiceObjectContentStories"
-        )
+            channels=channels, data="ChoiceObjectContentStories"
+        ),
     )
 
 
@@ -124,10 +106,8 @@ async def show_content(message: types.Message):
 async def back_to_main(message: types.Message):
     """Возврат в главное меню"""
     from main_bot.keyboards.common import Reply
-    await message.answer(
-        "Главное меню",
-        reply_markup=Reply.menu()
-    )
+
+    await message.answer("Главное меню", reply_markup=Reply.menu())
 
 
 def get_router():

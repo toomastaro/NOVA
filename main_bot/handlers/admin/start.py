@@ -1,3 +1,12 @@
+"""
+Модуль стартового меню администратора.
+
+Содержит:
+- Обработку команды /admin
+- Главное меню панели администратора
+- Навигацию по разделам (сессии, промокоды)
+"""
+
 import logging
 import os
 
@@ -9,31 +18,34 @@ from config import Config
 from main_bot.keyboards import keyboards
 from main_bot.states.admin import Promo
 from main_bot.utils.lang.language import text
+from main_bot.utils.error_handler import safe_handler
 
 logger = logging.getLogger(__name__)
 
 
+@safe_handler("Admin Menu Command")
 async def admin_menu(message: types.Message):
+    """
+    Показать главное меню администратора.
+    Доступно только пользователям из списка Config.ADMINS.
+    """
     if message.from_user.id not in Config.ADMINS:
         return
 
-    await message.answer(
-        text('admin:menu:title'),
-        reply_markup=keyboards.admin()
-    )
+    await message.answer(text("admin:menu:title"), reply_markup=keyboards.admin())
 
 
 async def choice(call: types.CallbackQuery, state: FSMContext):
     """Обработка нажатий в админ-меню."""
-    temp = call.data.split('|')
+    temp = call.data.split("|")
     action = temp[1]
 
-    if action == 'session':
+    if action == "session":
         session_count = len(os.listdir("main_bot/utils/sessions/"))
         try:
             await call.message.edit_text(
-                text('admin:session:available').format(session_count),
-                reply_markup=keyboards.admin_sessions()
+                text("admin:session:available").format(session_count),
+                reply_markup=keyboards.admin_sessions(),
             )
         except Exception as e:
             if "message is not modified" not in str(e).lower():
@@ -42,18 +54,15 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
 
     elif action == "promo":
         await call.message.edit_text(
-            text('admin:promo:input'),
-            reply_markup=keyboards.back(
-                data="AdminPromoBack"
-            )
+            text("admin:promo:input"),
+            reply_markup=keyboards.back(data="AdminPromoBack"),
         )
         await state.set_state(Promo.input)
 
     elif action == "back":
         try:
             await call.message.edit_text(
-                text('admin:menu:title'),
-                reply_markup=keyboards.admin()
+                text("admin:menu:title"), reply_markup=keyboards.admin()
             )
         except Exception as e:
             if "message is not modified" not in str(e).lower():
@@ -61,25 +70,25 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
                 raise
 
     elif action == "stats":
-         # TODO: Implement full stats logic
-         # Currently just a placeholder based on existing code structure
+        # TODO: Implement full stats logic
+        # Currently just a placeholder based on existing code structure
         try:
             # Need to implement data gathering for stats first
-             await call.answer("Stats not implemented yet", show_alert=True)
-            # await call.message.edit_text(
-            #     text("main:stats").format(...)
-            # )
+            await call.answer("Stats not implemented yet", show_alert=True)
+        # await call.message.edit_text(
+        #     text("main:stats").format(...)
+        # )
         except Exception as e:
-             logger.error(f"Error in stats: {e}")
+            logger.error(f"Error in stats: {e}")
 
     # Dead code removed (mail, ads placeholders were empty or unreachable)
-    
+
     return await call.answer()
 
 
 def get_router():
     """Регистрация роутера для админ-меню."""
     router = Router()
-    router.message.register(admin_menu, Command('admin'))
-    router.callback_query.register(choice, F.data.split('|')[0] == "Admin")
+    router.message.register(admin_menu, Command("admin"))
+    router.callback_query.register(choice, F.data.split("|")[0] == "Admin")
     return router

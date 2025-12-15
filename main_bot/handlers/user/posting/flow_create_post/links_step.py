@@ -6,6 +6,7 @@
 - Обработка кликов на hide кнопки
 - Обработка кликов на реакции
 """
+
 import logging
 from aiogram import types
 from aiogram.fsm.context import FSMContext
@@ -25,15 +26,15 @@ logger = logging.getLogger(__name__)
 async def add_hide_value(call: types.CallbackQuery, state: FSMContext):
     """
     Начало добавления hide кнопки.
-    
+
     Args:
         call: Callback query с действием
         state: FSM контекст
     """
-    temp = call.data.split('|')
+    temp = call.data.split("|")
     data = await state.get_data()
     if not data:
-        await call.answer(text('keys_data_error'))
+        await call.answer(text("keys_data_error"))
         return await call.message.delete()
 
     await call.message.delete()
@@ -42,12 +43,10 @@ async def add_hide_value(call: types.CallbackQuery, state: FSMContext):
         return await call.answer()
 
     if temp[1] == "add":
-        await state.update_data(
-            hide_step="button_name"
-        )
+        await state.update_data(hide_step="button_name")
         await call.message.answer(
             text("manage:post:add:param:hide:button_name"),
-            reply_markup=keyboards.back(data="BackButtonHide")
+            reply_markup=keyboards.back(data="BackButtonHide"),
         )
         await state.set_state(AddHide.button_name)
 
@@ -56,14 +55,14 @@ async def add_hide_value(call: types.CallbackQuery, state: FSMContext):
 async def back_input_button_name(call: types.CallbackQuery, state: FSMContext):
     """
     Возврат назад при добавлении hide кнопки.
-    
+
     Args:
         call: Callback query
         state: FSM контекст
     """
     data = await state.get_data()
     if not data:
-        await call.answer(text('keys_data_error'))
+        await call.answer(text("keys_data_error"))
         return await call.message.delete()
 
     await state.clear()
@@ -77,16 +76,14 @@ async def back_input_button_name(call: types.CallbackQuery, state: FSMContext):
     if len(temp) == 1 or hide_step == "button_name" or temp[1] == "cancel":
         return await call.message.answer(
             text("manage:post:new:hide"),
-            reply_markup=keyboards.param_hide(
-                post=data.get('post')
-            )
+            reply_markup=keyboards.param_hide(post=data.get("post")),
         )
-    
+
     # Возврат к вводу имени кнопки
     if hide_step == "not_member":
         await call.message.answer(
             text("manage:post:add:param:hide:button_name"),
-            reply_markup=keyboards.back(data="BackButtonHide")
+            reply_markup=keyboards.back(data="BackButtonHide"),
         )
         return await state.set_state(AddHide.button_name)
 
@@ -94,7 +91,7 @@ async def back_input_button_name(call: types.CallbackQuery, state: FSMContext):
     if hide_step == "for_member":
         await call.message.answer(
             text("manage:post:add:param:hide:not_member"),
-            reply_markup=keyboards.param_hide_back()
+            reply_markup=keyboards.param_hide_back(),
         )
         return await state.set_state(AddHide.not_member_text)
 
@@ -103,19 +100,16 @@ async def back_input_button_name(call: types.CallbackQuery, state: FSMContext):
 async def get_button_name(message: types.Message, state: FSMContext):
     """
     Получение имени hide кнопки.
-    
+
     Args:
         message: Сообщение с именем кнопки
         state: FSM контекст
     """
-    await state.update_data(
-        hide_button_name=message.text,
-        hide_step="not_member"
-    )
+    await state.update_data(hide_button_name=message.text, hide_step="not_member")
 
     await message.answer(
         text("manage:post:add:param:hide:not_member"),
-        reply_markup=keyboards.param_hide_back()
+        reply_markup=keyboards.param_hide_back(),
     )
     await state.set_state(AddHide.not_member_text)
 
@@ -124,24 +118,19 @@ async def get_button_name(message: types.Message, state: FSMContext):
 async def get_not_member_text(message: types.Message, state: FSMContext):
     """
     Получение текста для неподписчиков.
-    
+
     Args:
         message: Сообщение с текстом
         state: FSM контекст
     """
     if len(message.text) > 200:
-        return await message.answer(
-            text("error_200_length_text")
-        )
+        return await message.answer(text("error_200_length_text"))
 
-    await state.update_data(
-        hide_not_member_text=message.text,
-        hide_step="for_member"
-    )
+    await state.update_data(hide_not_member_text=message.text, hide_step="for_member")
 
     await message.answer(
         text("manage:post:add:param:hide:for_member"),
-        reply_markup=keyboards.param_hide_back()
+        reply_markup=keyboards.param_hide_back(),
     )
     await state.set_state(AddHide.for_member_text)
 
@@ -150,52 +139,37 @@ async def get_not_member_text(message: types.Message, state: FSMContext):
 async def get_for_member_text(message: types.Message, state: FSMContext):
     """
     Получение текста для подписчиков и сохранение hide кнопки.
-    
+
     Args:
         message: Сообщение с текстом
         state: FSM контекст
     """
     if len(message.text) > 200:
-        return await message.answer(
-            text("error_200_length_text")
-        )
+        return await message.answer(text("error_200_length_text"))
 
-    await state.update_data(
-        hide_for_member_text=message.text
-    )
+    await state.update_data(hide_for_member_text=message.text)
     data = await state.get_data()
-    post: Post = data.get('post')
+    post: Post = data.get("post")
 
     if post.hide is None:
         post.hide = []
 
     post.hide.append(
         {
-            'id': len(post.hide) + 1,
-            'button_name': data.get("hide_button_name"),
-            'for_member': data.get("hide_for_member_text"),
-            'not_member': data.get("hide_not_member_text"),
+            "id": len(post.hide) + 1,
+            "button_name": data.get("hide_button_name"),
+            "for_member": data.get("hide_for_member_text"),
+            "not_member": data.get("hide_not_member_text"),
         }
     )
 
-    post = await db.post.update_post(
-        post_id=post.id,
-        return_obj=True,
-        hide=post.hide
-    )
+    post = await db.post.update_post(post_id=post.id, return_obj=True, hide=post.hide)
 
     await state.clear()
-    await state.update_data(
-        post=post,
-        show_more=data.get("show_more"),
-        param="hide"
-    )
+    await state.update_data(post=post, show_more=data.get("show_more"), param="hide")
 
     await message.answer(
-        text("manage:post:new:hide"),
-        reply_markup=keyboards.param_hide(
-            post=post
-        )
+        text("manage:post:new:hide"), reply_markup=keyboards.param_hide(post=post)
     )
 
 
@@ -203,13 +177,13 @@ async def get_for_member_text(message: types.Message, state: FSMContext):
 async def click_hide(call: types.CallbackQuery):
     """
     Обработка клика на hide кнопку в опубликованном посте.
-    
+
     Показывает разный текст для подписчиков и неподписчиков канала.
-    
+
     Args:
         call: Callback query от hide кнопки
     """
-    temp = call.data.split('|')
+    temp = call.data.split("|")
 
     published_post = await db.published_post.get_published_post(
         chat_id=call.message.sender_chat.id,
@@ -219,8 +193,7 @@ async def click_hide(call: types.CallbackQuery):
         return
 
     user = await call.bot.get_chat_member(
-        chat_id=call.message.sender_chat.id,
-        user_id=call.from_user.id
+        chat_id=call.message.sender_chat.id, user_id=call.from_user.id
     )
 
     hide_model = Hide(hide=published_post.hide)
@@ -230,7 +203,7 @@ async def click_hide(call: types.CallbackQuery):
 
         await call.answer(
             row_hide.for_member if user.status != "left" else row_hide.not_member,
-            show_alert=True
+            show_alert=True,
         )
 
 
@@ -238,13 +211,13 @@ async def click_hide(call: types.CallbackQuery):
 async def click_react(call: types.CallbackQuery):
     """
     Обработка клика на реакцию в опубликованном посте.
-    
+
     Добавляет/убирает пользователя из списка реакций и обновляет кнопки.
-    
+
     Args:
         call: Callback query от кнопки реакции
     """
-    temp = call.data.split('|')
+    temp = call.data.split("|")
 
     published_post = await db.published_post.get_published_post(
         chat_id=call.message.sender_chat.id,
@@ -263,21 +236,15 @@ async def click_react(call: types.CallbackQuery):
             # Убираем пользователя из других реакций
             if call.from_user.id in react.users:
                 react.users.remove(call.from_user.id)
-            
+
             # Добавляем пользователя к выбранной реакции
             if int(temp[1]) == react.id:
                 react.users.append(call.from_user.id)
 
     # Обновляем пост в БД
     post = await db.published_post.update_published_post(
-        post_id=published_post.id,
-        return_obj=True,
-        reaction=react_model.model_dump()
+        post_id=published_post.id, return_obj=True, reaction=react_model.model_dump()
     )
-    
+
     # Обновляем кнопки с новыми счетчиками
-    await call.message.edit_reply_markup(
-        reply_markup=keyboards.post_kb(
-            post=post
-        )
-    )
+    await call.message.edit_reply_markup(reply_markup=keyboards.post_kb(post=post))

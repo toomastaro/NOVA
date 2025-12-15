@@ -5,6 +5,7 @@
 - Подтверждение публикации stories
 - Сохранение stories в БД с выбранными каналами и временем
 """
+
 import logging
 from aiogram import types
 from aiogram.fsm.context import FSMContext
@@ -25,7 +26,7 @@ logger = logging.getLogger(__name__)
 async def accept(call: types.CallbackQuery, state: FSMContext):
     """
     Подтверждение и сохранение stories.
-    
+
     Действия:
     - cancel: возврат к предыдущему шагу
     - send_time: сохранение с отложенной публикацией
@@ -34,7 +35,7 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
     temp = call.data.split("|")
     data = await state.get_data()
     if not data:
-        await call.answer(text('keys_data_error'))
+        await call.answer(text("keys_data_error"))
         return await call.message.delete()
 
     post: Story = data.get("post")
@@ -42,8 +43,7 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
     send_time: int = data.get("send_time")
     is_edit: bool = data.get("is_edit")
     objects = await db.channel.get_user_channels(
-        user_id=call.from_user.id,
-        sort_by="stories"
+        user_id=call.from_user.id, sort_by="stories"
     )
 
     if temp[1] == "cancel":
@@ -56,29 +56,22 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
             message_text = text("manage:story:finish_params").format(
                 len(chosen),
                 "\n".join(
-                    text("resource_title").format(obj.title) for obj in objects
+                    text("resource_title").format(obj.title)
+                    for obj in objects
                     if obj.chat_id in chosen[:10]
-                )
+                ),
             )
-            reply_markup = keyboards.finish_params(
-                obj=post,
-                data="FinishStoriesParams"
-            )
+            reply_markup = keyboards.finish_params(obj=post, data="FinishStoriesParams")
 
         if is_edit:
             message_text = text("story:content").format(
                 *data.get("send_date_values"),
                 data.get("channel").emoji_id,
-                data.get("channel").title
+                data.get("channel").title,
             )
-            reply_markup = keyboards.manage_remain_story(
-                post=data.get("post")
-            )
+            reply_markup = keyboards.manage_remain_story(post=data.get("post"))
 
-        return await call.message.edit_text(
-            message_text,
-            reply_markup=reply_markup
-        )
+        return await call.message.edit_text(message_text, reply_markup=reply_markup)
 
     date_values: tuple = data.get("date_values")
     kwargs = {"chat_ids": chosen}
@@ -89,10 +82,7 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
         kwargs["send_time"] = None
 
     # Обновляем историю в БД
-    await db.story.update_story(
-        post_id=post.id,
-        **kwargs
-    )
+    await db.story.update_story(post_id=post.id, **kwargs)
 
     # Отправляем в backup если еще не отправлено
     if not post.backup_message_id:
@@ -101,7 +91,7 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
             await db.story.update_story(
                 post_id=post.id,
                 backup_chat_id=backup_chat_id,
-                backup_message_id=backup_message_id
+                backup_message_id=backup_message_id,
             )
             # Обновляем локальный объект
             post.backup_chat_id = backup_chat_id
@@ -121,7 +111,7 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
             await call.bot.copy_message(
                 chat_id=call.from_user.id,
                 from_chat_id=backup_chat_id,
-                message_id=backup_message_id
+                message_id=backup_message_id,
             )
         except Exception as e:
             logger.error(f"Не удалось скопировать превью из бэкапа: {e}")
@@ -134,12 +124,13 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
         weekday, day, month, year, _time = date_values
         message_text = text("manage:story:success:date").format(
             f"{day} {month} {year} {_time} ({weekday})",
-            await get_story_report_text(chosen, objects)
+            await get_story_report_text(chosen, objects),
         )
     else:
         message_text = text("manage:story:success:public").format(
             "\n".join(
-                text("resource_title").format(obj.title) for obj in objects
+                text("resource_title").format(obj.title)
+                for obj in objects
                 if obj.chat_id in chosen[:10]
             )
         )
@@ -147,8 +138,5 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
     await state.clear()
     await call.message.delete()
     await call.message.answer(
-        message_text,
-        reply_markup=keyboards.create_finish(
-            data="MenuStories"
-        )
+        message_text, reply_markup=keyboards.create_finish(data="MenuStories")
     )

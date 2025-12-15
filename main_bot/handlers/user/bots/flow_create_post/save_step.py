@@ -5,6 +5,7 @@
 - Подтверждение публикации поста
 - Сохранение поста в БД с выбранными ботами и временем
 """
+
 import logging
 from aiogram import types
 from aiogram.fsm.context import FSMContext
@@ -16,16 +17,17 @@ from main_bot.utils.lang.language import text
 from main_bot.keyboards import keyboards
 from main_bot.states.user import Bots
 
-logger = logging.getLogger(__name__)
 from main_bot.utils.error_handler import safe_handler
 from main_bot.utils.backup_utils import send_to_backup, edit_backup_message
+
+logger = logging.getLogger(__name__)
 
 
 @safe_handler("Bots Accept")
 async def accept(call: types.CallbackQuery, state: FSMContext):
     """
     Confirms and saves the post for bots.
-    
+
     Actions:
     - cancel: returns to the previous step
     - send_time: saves with delayed publication
@@ -34,20 +36,22 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
     temp = call.data.split("|")
     data = await state.get_data()
     if not data:
-        await call.answer(text('keys_data_error'))
+        await call.answer(text("keys_data_error"))
         return await call.message.delete()
 
     post: BotPost = data.get("post")
 
     if not post:
-        await call.answer(text('keys_data_error'))
+        await call.answer(text("keys_data_error"))
         return await call.message.delete()
 
     chosen: list = data.get("chosen", post.chat_ids)
     send_time: int = data.get("send_time")
     is_edit: bool = data.get("is_edit")
     channels = await db.channel_bot_settings.get_bot_channels(call.from_user.id)
-    objects = await db.channel.get_user_channels(call.from_user.id, from_array=[i.id for i in channels])
+    objects = await db.channel.get_user_channels(
+        call.from_user.id, from_array=[i.id for i in channels]
+    )
 
     if temp[1] == "cancel":
         if send_time:
@@ -59,16 +63,13 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
             message_text = text("manage:post_bot:finish_params").format(
                 len(chosen),
                 "\n".join(
-                    text("resource_title").format(
-                        obj.title
-                    ) for obj in objects
+                    text("resource_title").format(obj.title)
+                    for obj in objects
                     if obj.chat_id in chosen[:10]
                 ),
-                data.get("available")
+                data.get("available"),
             )
-            reply_markup = keyboards.finish_bot_post_params(
-                obj=post
-            )
+            reply_markup = keyboards.finish_bot_post_params(obj=post)
 
         if is_edit:
             message_text = text("bot:content").format(
@@ -76,20 +77,14 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
                 data.get("channel").emoji_id,
                 data.get("channel").title
             )
-            reply_markup = keyboards.manage_remain_bot_post(
-                post=data.get("post")
-            )
+            reply_markup = keyboards.manage_remain_bot_post(post=data.get("post"))
 
-        return await call.message.edit_text(
-            message_text,
-            reply_markup=reply_markup
-        )
-    
+        return await call.message.edit_text(message_text, reply_markup=reply_markup)
+
     # Обработка кнопки "Изменить дату/время"
     if temp[1] == "change_time":
         await call.message.edit_text(
-            text("manage:post_bot:new:send_time"),
-            reply_markup=None
+            text("manage:post_bot:new:send_time"), reply_markup=None
         )
         await state.set_state(Bots.input_send_time)
         return
@@ -107,10 +102,7 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
         return
 
     # Update bot post in DB
-    await db.bot_post.update_bot_post(
-        post_id=post.id,
-        **kwargs
-    )
+    await db.bot_post.update_bot_post(post_id=post.id, **kwargs)
 
     # Отправляем в backup если еще не отправлено
     if not post.backup_message_id:
@@ -119,7 +111,7 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
             await db.bot_post.update_bot_post(
                 post_id=post.id,
                 backup_chat_id=backup_chat_id,
-                backup_message_id=backup_message_id
+                backup_message_id=backup_message_id,
             )
             # Обновляем локальный объект
             post.backup_chat_id = backup_chat_id
@@ -130,26 +122,22 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
 
     # После нажатия "Запланировать" показываем сообщение об успехе
     await state.clear()
-    
+
     if send_time:
         weekday, day, month, year, _time = date_values
         message_text = text("manage:post_bot:success:date").format(
-            weekday,
-            day,
-            month,
-            year,
-            _time
+            weekday, day, month, year, _time
         )
     else:
         message_text = text("manage:post_bot:success:public").format(
             "\n".join(
-                text("resource_title").format(obj.title) for obj in objects
+                text("resource_title").format(obj.title)
+                for obj in objects
                 if obj.chat_id in chosen[:10]
             )
         )
-    
+
     await call.message.delete()
     await call.message.answer(
-        message_text,
-        reply_markup=keyboards.create_finish(data="MenuBots")
+        message_text, reply_markup=keyboards.create_finish(data="MenuBots")
     )

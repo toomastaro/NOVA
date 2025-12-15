@@ -10,7 +10,7 @@ def get_router():
         content.get_router(),
     ]
 
-    router = Router(name='Posting')
+    router = Router(name="Posting")
     router.include_routers(*routers)
 
     return router
