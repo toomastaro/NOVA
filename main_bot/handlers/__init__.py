@@ -1,4 +1,4 @@
-import os
+
 
 from aiogram import Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 
 from main_bot.database.db import db
 from main_bot.utils.middlewares import GetUserMiddleware, ErrorMiddleware, VersionCheckMiddleware
+from main_bot.utils.state_reset_middleware import StateResetMiddleware
 from main_bot.utils.schedulers import init_scheduler, register_channel_jobs
 from .user import get_router as user_router
 from .admin import get_router as admin_router
@@ -23,7 +24,11 @@ dp = Dispatcher(
 
 
 def set_main_routers():
-    # Регистрируем VersionCheckMiddleware первым для проверки версии
+    # Регистрируем StateResetMiddleware первым для сброса состояния при нажатии меню
+    dp.update.middleware.register(
+        StateResetMiddleware()
+    )
+    # Регистрируем VersionCheckMiddleware для проверки версии
     dp.update.middleware.register(
         VersionCheckMiddleware()
     )

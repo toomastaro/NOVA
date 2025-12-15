@@ -39,6 +39,7 @@ class Reply:
             
         return kb.as_markup(
             resize_keyboard=True,
+            is_persistent=True
         )
         
 

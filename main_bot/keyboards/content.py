@@ -1,7 +1,6 @@
 """
 Клавиатуры для выбора каналов, контент-плана и управления объектами.
 """
-import re
 from calendar import monthrange, monthcalendar
 from datetime import datetime
 from typing import List
@@ -18,6 +17,7 @@ from main_bot.database.user_bot.model import UserBot
 from main_bot.database.user_folder.model import UserFolder
 from main_bot.database.db_types import Status
 from main_bot.utils.lang.language import text
+from main_bot.utils.text_utils import clean_html_text
 
 
 class InlineContent(InlineKeyboardBuilder):
@@ -317,8 +317,7 @@ class InlineContent(InlineKeyboardBuilder):
                 callback = f"{data}|{post.id}"
 
             if message_text:
-                message_text = message_text.replace('tg-emoji emoji-id', '').replace('</tg-emoji>', '')
-                message_text = re.sub(r'<[^>]+>', '', message_text)
+                message_text = clean_html_text(message_text)
 
             kb.row(
                 InlineKeyboardButton(
@@ -500,8 +499,7 @@ class InlineContent(InlineKeyboardBuilder):
                     obj_data = "ContentStories"
 
                 if message_text:
-                    message_text = message_text.replace('tg-emoji emoji-id', '').replace('</tg-emoji>', '')
-                    message_text = re.sub(r'<[^>]+>', '', message_text)
+                    message_text = clean_html_text(message_text)
 
 
                 # Пропускаем посты без времени (не должно быть, но на всякий случай)
