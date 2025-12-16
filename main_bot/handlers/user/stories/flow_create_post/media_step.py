@@ -83,8 +83,10 @@ async def get_message(message: types.Message, state: FSMContext):
     except Exception as e:
         logger.error(f"Ошибка при отправке сторис в бэкап: {e}", exc_info=True)
 
+    # Преобразуем объект post в dict для сохранения в FSM
+    post_dict = {col.name: getattr(post, col.name) for col in post.__table__.columns}
     await state.clear()
-    await state.update_data(post=post, chosen=chosen)
+    await state.update_data(post=post_dict, chosen=chosen)
 
     # Показываем превью истории с возможностью редактирования
     await answer_story(message, state)
@@ -99,7 +101,9 @@ async def manage_post(call: types.CallbackQuery, state: FSMContext):
         await call.answer(text("keys_data_error"))
         return await call.message.delete()
 
-    post: Story = data.get("post")
+    
+    from main_bot.keyboards.posting import ensure_obj
+    post: Story = ensure_obj(data.get("post"))
     is_edit: bool = data.get("is_edit")
 
     if temp[1] == "cancel":
@@ -116,7 +120,7 @@ async def manage_post(call: types.CallbackQuery, state: FSMContext):
                 reply_markup=keyboards.manage_remain_story(post=post),
             )
 
-        await db.story.delete_story(data.get("post").id)
+        await db.story.delete_story(post.id)
         await call.message.delete()
         return await show_create_post(call.message, state)
 
@@ -153,7 +157,7 @@ async def manage_post(call: types.CallbackQuery, state: FSMContext):
         )
 
     if temp[1] in ["noforwards", "pinned"]:
-        story_options = StoryOptions(**data.get("post").story_options)
+        story_options = StoryOptions(**post.story_options)
 
         if temp[1] == "noforwards":
             story_options.noforwards = not story_options.noforwards
@@ -161,11 +165,13 @@ async def manage_post(call: types.CallbackQuery, state: FSMContext):
             story_options.pinned = not story_options.pinned
 
         post = await db.story.update_story(
-            post_id=data.get("post").id,
+            post_id=post.id,
             return_obj=True,
             story_options=story_options.model_dump(),
         )
-        await state.update_data(post=post)
+        # Преобразуем в dict перед сохранением
+        post_dict = {col.name: getattr(post, col.name) for col in post.__table__.columns}
+        await state.update_data(post=post_dict)
 
         await call.message.delete()
         return await answer_story(call.message, state)
@@ -197,7 +203,9 @@ async def cancel_value(call: types.CallbackQuery, state: FSMContext):
 
     if temp[1] == "delete":
         param = data.get("param")
-        message_options = StoryOptions(**data.get("post").story_options)
+        from main_bot.keyboards.posting import ensure_obj
+        post = ensure_obj(data.get("post"))
+        message_options = StoryOptions(**post.story_options)
 
         if param == "text":
             message_options.caption = None
@@ -213,15 +221,17 @@ async def cancel_value(call: types.CallbackQuery, state: FSMContext):
             # Если (каким-то чудом) медиа нет - удаляем сторис
             await state.clear()
             await call.message.delete()
-            await db.story.delete_story(data.get("post").id)
+            await db.story.delete_story(post.id)
             return await show_create_post(call.message, state)
 
         kwargs = {"story_options": message_options.model_dump()}
 
         post = await db.story.update_story(
-            post_id=data.get("post").id, return_obj=True, **kwargs
+            post_id=post.id, return_obj=True, **kwargs
         )
-        await state.update_data(post=post)
+        # Преобразуем в dict
+        post_dict = {col.name: getattr(post, col.name) for col in post.__table__.columns}
+        await state.update_data(post=post_dict)
         data = await state.get_data()
 
     await state.clear()
@@ -242,12 +252,14 @@ async def get_value(message: types.Message, state: FSMContext):
     if param != "media" and not message.text:
         return await message.answer(text("error_value"))
 
-    post: Story = data.get("post")
+    from main_bot.keyboards.posting import ensure_obj
+    post = ensure_obj(data.get("post"))
     message_options = StoryOptions(**post.story_options)
 
     if param == "text":
         if message_options.photo or message_options.video:
             message_options.caption = message.html_text
+
 
     if param == "media":
         if message.photo:
@@ -259,8 +271,11 @@ async def get_value(message: types.Message, state: FSMContext):
 
     post = await db.story.update_story(post_id=post.id, return_obj=True, **kwargs)
 
+    # Преобразуем объект post в dict для сохранения в FSM
+    post_dict = {col.name: getattr(post, col.name) for col in post.__table__.columns}
+    
     await state.clear()
-    data["post"] = post
+    data["post"] = post_dict
     await state.update_data(data)
 
     await message.bot.delete_message(message.chat.id, data.get("input_msg_id"))
