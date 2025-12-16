@@ -125,6 +125,7 @@ class InlineContent(InlineKeyboardBuilder):
         data: str = "ChoicePostChannels",
         remover: int = 0,
         view_mode: str = "folders",
+        is_inside_folder: bool = False,
     ):
         kb = cls()
         count_rows = 7
@@ -132,14 +133,15 @@ class InlineContent(InlineKeyboardBuilder):
         folders_text = "✅ Папки" if view_mode == "folders" else "📁 Папки"
         channels_text = "✅ Все каналы" if view_mode == "channels" else "📢 Все каналы"
 
-        kb.row(
-            InlineKeyboardButton(
-                text=folders_text, callback_data=f"{data}|switch_view|folders"
-            ),
-            InlineKeyboardButton(
-                text=channels_text, callback_data=f"{data}|switch_view|channels"
-            ),
-        )
+        if not is_inside_folder:
+            kb.row(
+                InlineKeyboardButton(
+                    text=folders_text, callback_data=f"{data}|switch_view|folders"
+                ),
+                InlineKeyboardButton(
+                    text=channels_text, callback_data=f"{data}|switch_view|channels"
+                ),
+            )
 
         objects = []
         if view_mode == "folders":
@@ -210,14 +212,21 @@ class InlineContent(InlineKeyboardBuilder):
                 )
             )
 
-        kb.row(
-            InlineKeyboardButton(
-                text=text("back:button"), callback_data=f"{data}|cancel"
-            ),
-            InlineKeyboardButton(
-                text=text("next:button"), callback_data=f"{data}|next_step"
-            ),
-        )
+        if is_inside_folder:
+            kb.row(
+                InlineKeyboardButton(
+                    text=text("back:button"), callback_data=f"{data}|cancel"
+                )
+            )
+        else:
+            kb.row(
+                InlineKeyboardButton(
+                    text=text("back:button"), callback_data=f"{data}|cancel"
+                ),
+                InlineKeyboardButton(
+                    text=text("next:button"), callback_data=f"{data}|next_step"
+                ),
+            )
 
         return kb.as_markup()
 

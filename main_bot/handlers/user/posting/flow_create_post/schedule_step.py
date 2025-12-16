@@ -73,12 +73,11 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
         else:
             # Fallback (shouldn't happen with new buttons)
             view_mode = "channels" if view_mode == "folders" else "folders"
-            
+
         await set_user_view_mode(call.from_user.id, view_mode)
         if view_mode == "channels":
             await state.update_data(current_folder_id=None)
             current_folder_id = None
-        
 
         pass
 
@@ -95,19 +94,19 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
             else:
                 objects = []
             folders = []
-            
+
         elif view_mode == "channels":
             # Режим "Все каналы": показываем плоский список всех каналов
             objects = await db.channel.get_user_channels(
                 user_id=call.from_user.id, sort_by="posting", limit=500
             )
             folders = []
-            
-        else: # view_mode == "folders"
+
+        else:  # view_mode == "folders"
             # Режим "Папки": показываем ТОЛЬКО папки
-            objects = [] # Каналы не показываем
+            objects = []  # Каналы не показываем
             folders = await db.user_folder.get_folders(user_id=call.from_user.id)
-            
+
     except Exception as e:
         logger.error(
             "Ошибка загрузки каналов для пользователя %s: %s",
@@ -327,14 +326,23 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
                 resources=objects,
                 chosen=chosen,
                 folders=folders,
-            remover=(
-                int(temp[2])
-                if (len(temp) > 2 and temp[1] in ["choice_all", "next", "back"] and temp[2].isdigit())
-                or (len(temp) > 2 and temp[1].replace("-", "").isdigit() and temp[2].isdigit()) # temp[1] is id, temp[2] is remover
-                else 0
+                remover=(
+                    int(temp[2])
+                    if (
+                        len(temp) > 2
+                        and temp[1] in ["choice_all", "next", "back"]
+                        and temp[2].isdigit()
+                    )
+                    or (
+                        len(temp) > 2
+                        and temp[1].replace("-", "").isdigit()
+                        and temp[2].isdigit()
+                    )  # temp[1] is id, temp[2] is remover
+                    else 0
+                ),
+                view_mode=view_mode,
+                is_inside_folder=bool(current_folder_id),
             ),
-            view_mode=view_mode,
-        ),
         )
     except TelegramBadRequest:
         logger.debug("Message is not modified, skipping update")
@@ -385,7 +393,9 @@ async def finish_params(call: types.CallbackQuery, state: FSMContext):
         post = await db.post.update_post(
             post_id=post.id, return_obj=True, report=not post.report
         )
-        post_dict = {col.name: getattr(post, col.name) for col in post.__table__.columns}
+        post_dict = {
+            col.name: getattr(post, col.name) for col in post.__table__.columns
+        }
         await state.update_data(post=post_dict)
         return await call.message.edit_reply_markup(
             reply_markup=keyboards.finish_params(obj=post)
@@ -423,8 +433,6 @@ async def finish_params(call: types.CallbackQuery, state: FSMContext):
                 show_alert=True,
             )
 
-
-
         await state.update_data(param=temp[1])
         await call.message.delete()
         message_text = text("manage:post:new:{}".format(temp[1]))
@@ -446,7 +454,6 @@ async def finish_params(call: types.CallbackQuery, state: FSMContext):
     # Выбор времени отправки
     if temp[1] == "send_time":
 
-
         await call.message.edit_text(
             text("manage:post:new:send_time"),
             reply_markup=keyboards.back(data="BackSendTimePost"),
@@ -456,7 +463,6 @@ async def finish_params(call: types.CallbackQuery, state: FSMContext):
 
     # Немедленная публикация
     if temp[1] == "public":
-
 
         display_objects = await db.channel.get_user_channels(
             user_id=call.from_user.id, from_array=chosen[:10]
@@ -520,7 +526,9 @@ async def choice_delete_time(call: types.CallbackQuery, state: FSMContext):
                 post_id=post.id, return_obj=True, delete_time=delete_time
             )
 
-        post_dict = {col.name: getattr(post, col.name) for col in post.__table__.columns}
+        post_dict = {
+            col.name: getattr(post, col.name) for col in post.__table__.columns
+        }
         await state.update_data(post=post_dict)
         data = await state.get_data()
 
