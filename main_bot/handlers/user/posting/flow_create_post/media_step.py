@@ -12,13 +12,13 @@ from aiogram import types
 from aiogram.fsm.context import FSMContext
 
 from main_bot.database.db import db
-from main_bot.database.post.model import Post
 from main_bot.handlers.user.posting.menu import show_create_post
 from main_bot.utils.message_utils import answer_post
 from main_bot.utils.lang.language import text
 from main_bot.utils.schemas import MessageOptions, Media
 from main_bot.utils.backup_utils import edit_backup_message, update_live_messages
 from main_bot.keyboards import keyboards
+from main_bot.keyboards.posting import ensure_obj
 from main_bot.states.user import Posting
 from main_bot.utils.error_handler import safe_handler
 
@@ -47,7 +47,7 @@ async def manage_post(call: types.CallbackQuery, state: FSMContext):
         await call.answer(text("keys_data_error"))
         return await call.message.delete()
 
-    post: Post = data.get("post")
+    post = ensure_obj(data.get("post"))
     is_edit: bool = data.get("is_edit")
 
     # Отмена создания/редактирования
@@ -293,7 +293,7 @@ async def cancel_value(call: types.CallbackQuery, state: FSMContext):
 
     # Для cpm_price возвращаемся к выбору каналов
     if data.get("param") == "cpm_price":
-        post: Post = data.get("post")
+        post = ensure_obj(data.get("post"))
         chosen = data.get("chosen", post.chat_ids)
         display_objects = await db.channel.get_user_channels(
             user_id=call.from_user.id, from_array=chosen[:10]
@@ -336,7 +336,7 @@ async def get_value(message: types.Message, state: FSMContext):
     if param != "media" and not message.text:
         return await message.answer(text("error_value"))
 
-    post: Post = data.get("post")
+    post = ensure_obj(data.get("post"))
 
     # Проверка наличия поста
     if not post:
