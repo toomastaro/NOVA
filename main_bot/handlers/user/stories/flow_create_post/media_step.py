@@ -64,6 +64,21 @@ async def get_message(message: types.Message, state: FSMContext):
         story_options=story_options.model_dump(),
     )
 
+    # Отправляем в бэкап канал
+    try:
+        from main_bot.utils.backup_utils import send_to_backup
+        backup_chat_id, backup_message_id = await send_to_backup(post)
+        
+        if backup_chat_id and backup_message_id:
+            post = await db.story.update_story(
+                post_id=post.id,
+                return_obj=True,
+                backup_chat_id=backup_chat_id,
+                backup_message_id=backup_message_id
+            )
+    except Exception as e:
+        logger.error(f"Ошибка при отправке сторис в бэкап: {e}", exc_info=True)
+
     await state.clear()
     await state.update_data(post=post, chosen=chosen)
 

@@ -14,9 +14,6 @@ from aiogram import types, Bot
 from aiogram.fsm.context import FSMContext
 
 from config import Config
-from main_bot.database.bot_post.model import BotPost
-from main_bot.database.post.model import Post
-from main_bot.database.story.model import Story
 from main_bot.keyboards import keyboards
 from main_bot.keyboards.posting import ensure_obj # Use existing helper
 from main_bot.utils.schemas import MessageOptions, StoryOptions, MessageOptionsHello, MessageOptionsCaptcha
@@ -177,6 +174,23 @@ async def answer_story(message: types.Message, state: FSMContext, from_edit: boo
             post=post,
             is_edit=is_edit
         )
+
+    # Логика загрузки превью из бэкапа
+    backup_msg_id = getattr(post, 'backup_message_id', None)
+    if backup_msg_id and Config.BACKUP_CHAT_ID:
+        try:
+            post_message = await message.bot.copy_message(
+                chat_id=message.chat.id,
+                from_chat_id=Config.BACKUP_CHAT_ID,
+                message_id=backup_msg_id,
+                reply_markup=reply_markup,
+                parse_mode='HTML'
+            )
+            logger.info(f"Превью для сторис {post.id} загружено из бэкапа (msg {backup_msg_id})")
+            return post_message
+        except Exception as e:
+            logger.error(f"Не удалось загрузить превью из бэкапа для сторис {post.id}: {e}", exc_info=True)
+            # Fallback к локальной генерации
 
     post_message = await cor(
         **story_options.model_dump(),

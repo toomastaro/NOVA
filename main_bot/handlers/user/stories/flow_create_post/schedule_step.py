@@ -61,7 +61,9 @@ async def get_story_report_text(chosen, objects):
     return "\n".join(lines)
 
 
-async def set_folder_content(resource_id, chosen, chosen_folders):
+async def set_folder_content(
+    resource_id, chosen, chosen_folders, user_channels: list = None
+):
     """
     Добавление/удаление всех каналов из папки в список выбранных.
 
@@ -69,6 +71,7 @@ async def set_folder_content(resource_id, chosen, chosen_folders):
         resource_id: ID папки
         chosen: Список выбранных chat_id
         chosen_folders: Список выбранных folder_id
+        user_channels: Список загруженных каналов пользователя (опционально) для оптимизации
 
     Returns:
         tuple: (chosen, chosen_folders) или ("subscribe", "") при ошибке
@@ -81,12 +84,21 @@ async def set_folder_content(resource_id, chosen, chosen_folders):
     else:
         chosen_folders.remove(resource_id)
 
-    for chat_id in folder.content:
-        chat_id = int(chat_id)
+    # Создаем карту каналов для быстрого поиска: {chat_id: channel_obj}
+    channels_map = {obj.chat_id: obj for obj in user_channels} if user_channels else {}
 
-        channel = await db.channel.get_channel_by_chat_id(chat_id)
-        if not channel.subscribe:
-            return "subscribe", ""
+    channel_ids = [int(cid) for cid in folder.content]
+
+    for chat_id in channel_ids:
+        # Оптимизация: Берем из переданного списка (O(1))
+        channel = channels_map.get(chat_id)
+        
+        # Если канала нет в списке пользователя (редкий кейс, но возможен), грузим из БД
+        if not channel:
+            channel = await db.channel.get_channel_by_chat_id(chat_id)
+        
+        if not channel or not channel.subscribe:
+             return "subscribe", ""
 
         if is_append:
             if chat_id in chosen:
@@ -210,7 +222,10 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
                 chosen.append(resource_id)
         else:
             temp_chosen, temp_chosen_folders = await set_folder_content(
-                resource_id=resource_id, chosen=chosen, chosen_folders=chosen_folders
+                resource_id=resource_id, 
+                chosen=chosen, 
+                chosen_folders=chosen_folders,
+                user_channels=objects # Passing already loaded channels to avoid N+1
             )
             if temp_chosen == "subscribe":
                 return await call.answer(text("error_sub_channel_folder"))
