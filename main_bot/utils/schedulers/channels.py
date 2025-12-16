@@ -1,4 +1,3 @@
-import asyncio
 import logging
 import time
 from datetime import datetime
@@ -12,7 +11,6 @@ from main_bot.database.db import db
 from main_bot.database.published_post.model import PublishedPost
 from main_bot.utils.novastat import novastat_service
 from main_bot.utils.session_manager import SessionManager
-from instance_bot import bot
 
 logger = logging.getLogger(__name__)
 
@@ -29,10 +27,10 @@ async def update_channel_stats(channel_id: int):
         logger.warning(f"Канал {channel_id} не найден во время обновления статистики")
         return
 
-    # Проверка подписки
-    if not channel.subscribe or channel.subscribe < int(time.time()):
-        logger.info(f"Канал {channel.title} ({channel.chat_id}) не имеет активной подписки. Пропуск обновления.")
-        return
+    # Проверка подписки - УБРАНА по требованию (статистика нужна всегда)
+    # if not channel.subscribe or channel.subscribe < int(time.time()):
+    #     logger.info(f"Канал {channel.title} ({channel.chat_id}) не имеет активной подписки. Пропуск обновления.")
+    #     return
 
     # 2. Инициализируем клиент (Internal)
     # Ищем клиент, привязанный к каналу (preferred_for_stats или любой активный)
@@ -168,10 +166,12 @@ async def update_channel_stats(channel_id: int):
                     update_data['views_72h'] = views
                 
                 if update_data:
+                    # TODO: Можно оптимизировать через bulk update в будущем при высокой нагрузке
                     await db.published_post.update_published_post(post_obj.id, **update_data)
                     updated_count += 1
                     
-            logger.info(f"Обновлены просмотры для {updated_count} постов в {channel.title}")
+            if updated_count > 0:
+                logger.info(f"Обновлены просмотры для {updated_count} постов в {channel.title}")
             
         except Exception as e:
             logger.error(f"Не удалось обновить просмотры постов: {e}")

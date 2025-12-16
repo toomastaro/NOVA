@@ -366,6 +366,18 @@ async def delete_posts():
     for post in db_posts:
         views, channel = await get_views_for_post(post)
 
+        # Fallback: Если не удалось получить просмотры (0) или ошибка, берем из БД
+        if views == 0:
+            # Берем максимальное из сохраненных значений
+            saved_views = [
+                post.views_24h or 0,
+                post.views_48h or 0,
+                post.views_72h or 0
+            ]
+            views = max(saved_views)
+            if views > 0:
+                logger.warning(f"Использованы сохраненные просмотры ({views}) для поста {post.id} (Live=0)")
+
         if post.post_id not in posts:
             posts[post.post_id] = []
 
@@ -410,7 +422,7 @@ async def delete_posts():
         
         user = await db.user.get_user(admin_id)
         usd_rate = 1.0
-        exchange_rate_update_time = None
+
         if user and user.default_exchange_rate_id is not None:
             exchange_rate = await db.exchange_rate.get_exchange_rate(user.default_exchange_rate_id)
             if exchange_rate and exchange_rate.rate > 0:
