@@ -14,7 +14,7 @@ import html
 import time
 from pathlib import Path
 
-from aiogram import Bot, types
+from aiogram import types
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from sqlalchemy import select, update
@@ -76,7 +76,7 @@ async def send(post: Post):
     options = message_options.model_dump()
     
     # Очистка опций
-    keys_to_remove = ["show_caption_above_media", "has_spoiler", "disable_web_page_preview", "caption", "text", "photo", "video", "animation"]
+    # keys_to_remove = ["show_caption_above_media", "has_spoiler", "disable_web_page_preview", "caption", "text", "photo", "video", "animation"]
     # Грубая очистка - удаляем все конфликтующие поля в зависимости от типа, заново формируем.
     # Но лучше следовать логике оригинала, но чище.
     
@@ -415,7 +415,7 @@ async def delete_posts():
             exchange_rate = await db.exchange_rate.get_exchange_rate(user.default_exchange_rate_id)
             if exchange_rate and exchange_rate.rate > 0:
                 usd_rate = exchange_rate.rate
-                exchange_rate_update_time = exchange_rate.last_update
+                # exchange_rate_update_time = exchange_rate.last_update
 
         total_views = sum(obj["views"] for obj in message_objects)
         rub_price = round(float(cpm_price * float(total_views / 1000)), 2)
@@ -457,36 +457,27 @@ async def delete_posts():
                 lines.append("\n" + channels_text)
                 return "\n".join(lines)
 
-            report_text = ""
+            # Определяем, какие исторические данные показывать
+            # Используем буфер 30 минут (1800 сек), чтобы избежать дублей, 
+            # если удаление происходит примерно в то же время, что и отсечка.
+            tolerance = 1800
+            
+            show_v24 = delete_duration > (24 * 3600 + tolerance)
+            show_v48 = delete_duration > (48 * 3600 + tolerance)
+
+            # Формируем аргументы для format_report
+            # Если show_vXX False, передаем None, даже если данные есть
+            args_v24 = views_24 if show_v24 else None
+            args_v48 = views_48 if show_v48 else None
+            
             hours = int(delete_duration / 3600)
+            title = f"{text('cpm:report:final')} ({hours}ч)"
             
-            if delete_duration < 24 * 3600:
-                 report_text = text("cpm:report").format(
-                    preview_text,
-                    channels_text,
-                    cpm_price,
-                    total_views,
-                    rub_price,
-                    round(rub_price / usd_rate, 2),
-                    round(usd_rate, 2),
-                    exchange_rate_update_time.strftime("%H:%M %d.%m.%Y") if exchange_rate_update_time else "N/A"
-                )
-            elif delete_duration <= 48 * 3600:
-                report_text = format_report(f"{text('cpm:report:final')} ({hours}ч)", total_views, views_24)
-            else:
-                report_text = format_report(f"{text('cpm:report:final')} ({hours}ч)", total_views, views_24, views_48)
+            # Если меньше суточной толерантности, просто Финальный без часов (или с часами)
+            # Но по ТЗ: "до 24 часов включительно одна цифра".
+            # Если мы передаем None в v24/v48, format_report сам построит одну цифру.
             
-            if not report_text:
-                 report_text = text("cpm:report").format(
-                    preview_text,
-                    channels_text,
-                    cpm_price,
-                    total_views,
-                    rub_price,
-                    round(rub_price / usd_rate, 2),
-                    round(usd_rate, 2),
-                    exchange_rate_update_time.strftime("%H:%M %d.%m.%Y") if exchange_rate_update_time else "N/A"
-                )
+            report_text = format_report(title, total_views, args_v24, args_v48)
 
             # Добавляем подпись
             report_text += await get_report_signatures(user, 'cpm', bot)
