@@ -23,6 +23,7 @@ setup_logging()
 dispatchers = {}
 
 
+
 def set_dispatcher(db_bot: UserBot):
     if db_bot.token in dispatchers:
         return dispatchers[db_bot.token]
