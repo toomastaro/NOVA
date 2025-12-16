@@ -19,13 +19,17 @@ from aiogram.fsm.context import FSMContext
 
 from main_bot.database.db import db
 from main_bot.database.post.model import Post
+from main_bot.database.channel.model import Channel
 from main_bot.utils.message_utils import answer_post
 from main_bot.utils.lang.language import text
 from main_bot.keyboards import keyboards
 from main_bot.keyboards.posting import ensure_obj
 from main_bot.states.user import Posting
 from main_bot.utils.error_handler import safe_handler
+from main_bot.utils.error_handler import safe_handler
 from main_bot.utils.user_settings import get_user_view_mode, set_user_view_mode
+from main_bot.utils.redis_client import redis_client
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +48,7 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
     Производительность:
     - Параллельная загрузка каналов и папок (asyncio.gather)
     - Батчинг запросов для папок (вместо N+1)
-    - TODO: кеширование списка каналов/папок в Redis (TTL 1-5 мин)
+    - Кеширование списка каналов в Redis (60 сек)
 
     Args:
         call: Callback query с данными действия
@@ -66,12 +70,13 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
 
     # Переключение вида
     # Переключение вида
+    # Переключение вида
     if temp[1] == "switch_view":
-        # temp[2] is now the target mode (folders/channels)
+        # temp[2] теперь целевой режим (folders/channels)
         if len(temp) > 2:
             view_mode = temp[2]
         else:
-            # Fallback (shouldn't happen with new buttons)
+            # Fallback (не должно происходить с новыми кнопками)
             view_mode = "channels" if view_mode == "folders" else "folders"
 
         await set_user_view_mode(call.from_user.id, view_mode)
@@ -97,9 +102,44 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
 
         elif view_mode == "channels":
             # Режим "Все каналы": показываем плоский список всех каналов
-            objects = await db.channel.get_user_channels(
-                user_id=call.from_user.id, sort_by="posting", limit=500
-            )
+            # Пытаемся получить из кеша
+            cache_key = f"user_channels:{call.from_user.id}"
+            cached_data = await redis_client.get(cache_key)
+
+            if cached_data:
+                try:
+                    objects = [Channel(**item) for item in json.loads(cached_data)]
+                    # Восстанавливаем типы
+                    for obj in objects:
+                        if isinstance(obj.subscribe, int):
+                            pass  # уже ок
+                except Exception as e:
+                    logger.error(f"Ошибка десериализации кеша каналов: {e}")
+                    objects = []
+            else:
+                objects = None
+
+            if objects is None:
+                objects = await db.channel.get_user_channels(
+                    user_id=call.from_user.id, sort_by="posting", limit=500
+                )
+                # Кешируем
+                try:
+                    to_cache = [
+                        {
+                            "id": c.id,
+                            "chat_id": c.chat_id,
+                            "title": c.title,
+                            "subscribe": c.subscribe,
+                            "emoji_id": c.emoji_id,
+                            "admin_id": c.admin_id,
+                        }
+                        for c in objects
+                    ]
+                    await redis_client.setex(cache_key, 60, json.dumps(to_cache))
+                except Exception as e:
+                    logger.error(f"Ошибка сериализации кеша каналов: {e}")
+
             folders = []
 
         else:  # view_mode == "folders"
@@ -238,6 +278,10 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
                 if len(channels_without_sub) > 5:
                     channels_list += f"\n... и ещё {len(channels_without_sub) - 5}"
 
+                logger.warning(
+                    f"Пользователь {call.from_user.id} заблокирован по подписке: {len(channels_without_sub)} каналов"
+                )
+
                 return await call.answer(
                     f"❌ Невозможно выбрать все каналы\n\n"
                     f"Следующие каналы не имеют активной подписки:\n{channels_list}\n\n"
@@ -341,7 +385,7 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
                         len(temp) > 2
                         and temp[1].replace("-", "").isdigit()
                         and temp[2].isdigit()
-                    )  # temp[1] is id, temp[2] is remover
+                    )  # temp[1] это id, temp[2] это remover
                     else 0
                 ),
                 view_mode=view_mode,
@@ -349,7 +393,7 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
             ),
         )
     except TelegramBadRequest:
-        logger.debug("Message is not modified, skipping update")
+        logger.debug("Сообщение не изменено, пропускаем обновление")
         await call.answer()
 
 
