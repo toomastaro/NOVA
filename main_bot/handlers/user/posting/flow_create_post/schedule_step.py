@@ -195,6 +195,9 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
         if current_folder_id:
             # Возврат к корневому уровню
             await state.update_data(current_folder_id=None)
+            # Обновляем локальную переменную
+            current_folder_id = None
+            
             # Перезагружаем данные корневого уровня
             try:
                 if view_mode == "folders":
