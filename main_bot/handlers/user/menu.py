@@ -84,6 +84,7 @@ async def start_posting(message: types.Message):
 
 @safe_handler("Меню сторис")
 async def start_stories(message: types.Message):
+    logger.info("Пользователь %s открыл меню сторис", message.from_user.id)
     await message.answer(
         text("start_stories_text"), reply_markup=keyboards.stories_menu()
     )
