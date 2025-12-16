@@ -218,12 +218,14 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
                     "❌ Ошибка загрузки. Попробуйте позже.", show_alert=True
                 )
                 return
-            # Сбрасываем remover при переключении видов
-            temp = list(temp)
-            if len(temp) > 2:
-                temp[2] = "0"
-            else:
-                temp.append("0")
+            # Сбрасываем remover при выходе из папки
+            remover_value = 0
+            
+            # Подтверждаем действие для снятия спиннера
+            try:
+                await call.answer()
+            except Exception:
+                pass
         else:
             # Выход - возврат в меню постинга
             from main_bot.handlers.user.menu import start_posting
@@ -404,18 +406,22 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
                 chosen=chosen,
                 folders=folders,
                 remover=(
-                    int(temp[2])
-                    if (
-                        len(temp) > 2
-                        and temp[1] in ["choice_all", "next", "back"]
-                        and temp[2].isdigit()
+                    remover_value
+                    if "remover_value" in locals()
+                    else (
+                        int(temp[2])
+                        if (
+                            len(temp) > 2
+                            and temp[1] in ["choice_all", "next", "back"]
+                            and temp[2].isdigit()
+                        )
+                        or (
+                            len(temp) > 2
+                            and temp[1].replace("-", "").isdigit()
+                            and temp[2].isdigit()
+                        )  # temp[1] это id, temp[2] это remover
+                        else 0
                     )
-                    or (
-                        len(temp) > 2
-                        and temp[1].replace("-", "").isdigit()
-                        and temp[2].isdigit()
-                    )  # temp[1] это id, temp[2] это remover
-                    else 0
                 ),
                 view_mode=view_mode,
                 is_inside_folder=bool(current_folder_id),
