@@ -72,7 +72,7 @@ async def choice_bots(call: types.CallbackQuery, state: FSMContext):
     if temp[1] == "switch_view":
         view_mode = "channels" if view_mode == "folders" else "folders"
         await set_user_view_mode(call.from_user.id, view_mode)
-        
+
         # Сбрасываем пагинацию
         temp = list(temp)
         if len(temp) > 2:

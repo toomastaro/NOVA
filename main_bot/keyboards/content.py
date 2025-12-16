@@ -1,6 +1,7 @@
 """
 Клавиатуры для выбора каналов, контент-плана и управления объектами.
 """
+
 from calendar import monthrange, monthcalendar
 from datetime import datetime
 from typing import List
@@ -22,9 +23,11 @@ from main_bot.utils.text_utils import clean_html_text
 
 class InlineContent(InlineKeyboardBuilder):
     """Клавиатуры для выбора каналов, контент-плана и управления объектами"""
-    
+
     @classmethod
-    def channels(cls, channels: List[Channel], data: str = "ChoicePostChannel", remover: int = 0):
+    def channels(
+        cls, channels: List[Channel], data: str = "ChoicePostChannel", remover: int = 0
+    ):
         kb = cls()
         count_rows = 3
 
@@ -33,7 +36,7 @@ class InlineContent(InlineKeyboardBuilder):
                 kb.add(
                     InlineKeyboardButton(
                         text=channels[idx].title,
-                        callback_data=f'{data}|{channels[idx].chat_id}|{remover}'
+                        callback_data=f"{data}|{channels[idx].chat_id}|{remover}",
                     )
                 )
 
@@ -45,39 +48,33 @@ class InlineContent(InlineKeyboardBuilder):
         elif len(channels) > count_rows > remover:
             kb.row(
                 InlineKeyboardButton(
-                    text='➡️',
-                    callback_data=f'{data}|next|{remover + count_rows}'
+                    text="➡️", callback_data=f"{data}|next|{remover + count_rows}"
                 )
             )
         elif remover + count_rows >= len(channels):
             kb.row(
                 InlineKeyboardButton(
-                    text='⬅️',
-                    callback_data=f'{data}|back|{remover - count_rows}'
+                    text="⬅️", callback_data=f"{data}|back|{remover - count_rows}"
                 )
             )
         else:
             kb.row(
                 InlineKeyboardButton(
-                    text='⬅️',
-                    callback_data=f'{data}|back|{remover - count_rows}'
+                    text="⬅️", callback_data=f"{data}|back|{remover - count_rows}"
                 ),
                 InlineKeyboardButton(
-                    text='➡️',
-                    callback_data=f'{data}|next|{remover + count_rows}'
-                )
+                    text="➡️", callback_data=f"{data}|next|{remover + count_rows}"
+                ),
             )
 
         kb.row(
             InlineKeyboardButton(
-                text=text('channels:add:button'),
-                callback_data=f'{data}|add'
+                text=text("channels:add:button"), callback_data=f"{data}|add"
             )
         )
         kb.row(
             InlineKeyboardButton(
-                text=text('back:button'),
-                callback_data=f'{data}|cancel'
+                text=text("back:button"), callback_data=f"{data}|cancel"
             )
         )
 
@@ -88,13 +85,10 @@ class InlineContent(InlineKeyboardBuilder):
         kb = cls()
 
         kb.button(
-            text=text('channels:add:button'),
-            url=f't.me/{bot_username}?startchannel&admin=change_info+post_messages+edit_messages+delete_messages+post_stories+edit_stories+delete_stories+promote_members+invite_users'
+            text=text("channels:add:button"),
+            url=f"t.me/{bot_username}?startchannel&admin=change_info+post_messages+edit_messages+delete_messages+post_stories+edit_stories+delete_stories+promote_members+invite_users",
         )
-        kb.button(
-            text=text('back:button'),
-            callback_data=f'{data}|cancel'
-        )
+        kb.button(text=text("back:button"), callback_data=f"{data}|cancel")
 
         kb.adjust(1)
         return kb.as_markup()
@@ -104,52 +98,47 @@ class InlineContent(InlineKeyboardBuilder):
         kb = cls()
 
         kb.button(
-            text=text('channel:check_permissions:button') if text('channel:check_permissions:button') != 'channel:check_permissions:button' else '🔄 Проверить права помощника',
-            callback_data=f"{data}|check_permissions"
+            text=(
+                text("channel:check_permissions:button")
+                if text("channel:check_permissions:button")
+                != "channel:check_permissions:button"
+                else "🔄 Проверить права помощника"
+            ),
+            callback_data=f"{data}|check_permissions",
         )
         kb.button(
-            text="➕ Пригласить помощника",
-            callback_data=f"{data}|invite_assistant"
+            text="➕ Пригласить помощника", callback_data=f"{data}|invite_assistant"
         )
-        kb.button(
-            text=text('channel:delete:button'),
-            callback_data=f"{data}|delete"
-        )
-        kb.button(
-            text=text('back:button'),
-            callback_data=f"{data}|cancel"
-        )
+        kb.button(text=text("channel:delete:button"), callback_data=f"{data}|delete")
+        kb.button(text=text("back:button"), callback_data=f"{data}|cancel")
 
         kb.adjust(1)
         return kb.as_markup()
 
     @classmethod
     def choice_objects(
-            cls,
-            resources: List[Channel],
-            chosen: List[int],
-            folders: List[UserFolder],
-            chosen_folders: List[int] = [],
-            data: str = "ChoicePostChannels",
-            remover: int = 0,
-            view_mode: str = "folders",
+        cls,
+        resources: List[Channel],
+        chosen: List[int],
+        folders: List[UserFolder],
+        chosen_folders: List[int] = [],
+        data: str = "ChoicePostChannels",
+        remover: int = 0,
+        view_mode: str = "folders",
     ):
         kb = cls()
         count_rows = 7
 
-
         folders_text = "✅ Папки" if view_mode == "folders" else "📁 Папки"
         channels_text = "✅ Все каналы" if view_mode == "channels" else "📢 Все каналы"
-        
+
         kb.row(
             InlineKeyboardButton(
-                text=folders_text,
-                callback_data=f'{data}|switch_view|folders'
+                text=folders_text, callback_data=f"{data}|switch_view|folders"
             ),
             InlineKeyboardButton(
-                text=channels_text,
-                callback_data=f'{data}|switch_view|channels'
-            )
+                text=channels_text, callback_data=f"{data}|switch_view|channels"
+            ),
         )
 
         objects = []
@@ -179,7 +168,7 @@ class InlineContent(InlineKeyboardBuilder):
                 kb.row(
                     InlineKeyboardButton(
                         text=button_text,
-                        callback_data=f'{data}|{resource_id}|{remover}|{resource_type}'
+                        callback_data=f"{data}|{resource_id}|{remover}|{resource_type}",
                     )
                 )
 
@@ -189,59 +178,55 @@ class InlineContent(InlineKeyboardBuilder):
         elif len(objects) > count_rows > remover:
             kb.row(
                 InlineKeyboardButton(
-                    text='➡️',
-                    callback_data=f'{data}|next|{remover + count_rows}'
+                    text="➡️", callback_data=f"{data}|next|{remover + count_rows}"
                 )
             )
         elif remover + count_rows >= len(objects):
             kb.row(
                 InlineKeyboardButton(
-                    text='⬅️',
-                    callback_data=f'{data}|back|{remover - count_rows}'
+                    text="⬅️", callback_data=f"{data}|back|{remover - count_rows}"
                 )
             )
         else:
             kb.row(
                 InlineKeyboardButton(
-                    text='⬅️',
-                    callback_data=f'{data}|back|{remover - count_rows}'
+                    text="⬅️", callback_data=f"{data}|back|{remover - count_rows}"
                 ),
                 InlineKeyboardButton(
-                    text='➡️',
-                    callback_data=f'{data}|next|{remover + count_rows}'
-                )
+                    text="➡️", callback_data=f"{data}|next|{remover + count_rows}"
+                ),
             )
 
         # Show "Select All" only if there are channels (resources)
         if resources:
             kb.row(
                 InlineKeyboardButton(
-                    text=text('chosen:cancel_all')
-                    if all(r.chat_id in chosen for r in resources)
-                    else text('chosen:choice_all'),
-                    callback_data=f'{data}|choice_all|{remover}'
+                    text=(
+                        text("chosen:cancel_all")
+                        if all(r.chat_id in chosen for r in resources)
+                        else text("chosen:choice_all")
+                    ),
+                    callback_data=f"{data}|choice_all|{remover}",
                 )
             )
 
         kb.row(
             InlineKeyboardButton(
-                text=text('back:button'),
-                callback_data=f'{data}|cancel'
+                text=text("back:button"), callback_data=f"{data}|cancel"
             ),
             InlineKeyboardButton(
-                text=text('next:button'),
-                callback_data=f'{data}|next_step'
-            )
+                text=text("next:button"), callback_data=f"{data}|next_step"
+            ),
         )
 
         return kb.as_markup()
 
     @classmethod
     def choice_object_content(
-            cls,
-            channels: List[Channel | UserBot],
-            data: str = "ChoiceObjectContentPost",
-            remover: int = 0
+        cls,
+        channels: List[Channel | UserBot],
+        data: str = "ChoiceObjectContentPost",
+        remover: int = 0,
     ):
         kb = cls()
         count_rows = 6
@@ -255,8 +240,7 @@ class InlineContent(InlineKeyboardBuilder):
             if a < count_rows:
                 kb.add(
                     InlineKeyboardButton(
-                        text=channels[idx].title,
-                        callback_data=f'{data}|{resource_id}'
+                        text=channels[idx].title, callback_data=f"{data}|{resource_id}"
                     )
                 )
 
@@ -268,33 +252,28 @@ class InlineContent(InlineKeyboardBuilder):
         elif len(channels) > count_rows > remover:
             kb.row(
                 InlineKeyboardButton(
-                    text='➡️',
-                    callback_data=f'{data}|next|{remover + count_rows}'
+                    text="➡️", callback_data=f"{data}|next|{remover + count_rows}"
                 )
             )
         elif remover + count_rows >= len(channels):
             kb.row(
                 InlineKeyboardButton(
-                    text='⬅️',
-                    callback_data=f'{data}|back|{remover - count_rows}'
+                    text="⬅️", callback_data=f"{data}|back|{remover - count_rows}"
                 )
             )
         else:
             kb.row(
                 InlineKeyboardButton(
-                    text='⬅️',
-                    callback_data=f'{data}|back|{remover - count_rows}'
+                    text="⬅️", callback_data=f"{data}|back|{remover - count_rows}"
                 ),
                 InlineKeyboardButton(
-                    text='➡️',
-                    callback_data=f'{data}|next|{remover + count_rows}'
-                )
+                    text="➡️", callback_data=f"{data}|next|{remover + count_rows}"
+                ),
             )
 
         kb.row(
             InlineKeyboardButton(
-                text=text('back:button'),
-                callback_data=f'{data}|cancel'
+                text=text("back:button"), callback_data=f"{data}|cancel"
             )
         )
 
@@ -302,12 +281,12 @@ class InlineContent(InlineKeyboardBuilder):
 
     @classmethod
     def choice_row_content(
-            cls,
-            posts: List[Post | Story | BotPost],
-            day: datetime,
-            show_more: bool = False,
-            data: str = "ContentPost",
-            days_with_posts: dict = None  # Словарь {день: {"has_finished": bool, "has_pending": bool}}
+        cls,
+        posts: List[Post | Story | BotPost],
+        day: datetime,
+        show_more: bool = False,
+        data: str = "ContentPost",
+        days_with_posts: dict = None,  # Словарь {день: {"has_finished": bool, "has_pending": bool}}
     ):
         kb = cls()
 
@@ -321,8 +300,8 @@ class InlineContent(InlineKeyboardBuilder):
             elif isinstance(post, PublishedPost):
                 options = post.message_options
                 message_text = options.get("text") or options.get("caption")
-                
-                if getattr(post, 'status', 'active') == 'deleted':
+
+                if getattr(post, "status", "active") == "deleted":
                     emoji = "🗑"
                 else:
                     emoji = "✅"
@@ -344,58 +323,51 @@ class InlineContent(InlineKeyboardBuilder):
             kb.row(
                 InlineKeyboardButton(
                     text="{} {} {}".format(
-                        datetime.fromtimestamp(post.send_time or post.start_timestamp).strftime(
-                            "%H:%M"
-                        ),
+                        datetime.fromtimestamp(
+                            post.send_time or post.start_timestamp
+                        ).strftime("%H:%M"),
                         emoji,
-                        message_text or "Медиа"
+                        message_text or "Медиа",
                     ),
-                    callback_data=callback
+                    callback_data=callback,
                 )
             )
 
         if not show_more:
             kb.row(
-                InlineKeyboardButton(
-                    text='⬅️',
-                    callback_data=f'{data}|back_day|1'
-                ),
+                InlineKeyboardButton(text="⬅️", callback_data=f"{data}|back_day|1"),
                 InlineKeyboardButton(
                     text=f'{day.day} {text("month").get(str(day.month))}',
-                    callback_data=f'{data}|...'
+                    callback_data=f"{data}|...",
                 ),
-                InlineKeyboardButton(
-                    text='➡️',
-                    callback_data=f'{data}|next_day|-1'
-                )
+                InlineKeyboardButton(text="➡️", callback_data=f"{data}|next_day|-1"),
             )
             kb.row(
                 InlineKeyboardButton(
                     text=text("expand:content:button"),
-                    callback_data=f'{data}|show_more'
+                    callback_data=f"{data}|show_more",
                 )
             )
 
         else:
             kb.row(
                 InlineKeyboardButton(
-                    text=text("short:content:button"),
-                    callback_data=f'{data}|show_more'
+                    text=text("short:content:button"), callback_data=f"{data}|show_more"
                 )
             )
             kb.row(
                 InlineKeyboardButton(
-                    text='⬅️',
-                    callback_data=f'{data}|back_month|{monthrange(day.year, day.month)[1]}'
+                    text="⬅️",
+                    callback_data=f"{data}|back_month|{monthrange(day.year, day.month)[1]}",
                 ),
                 InlineKeyboardButton(
                     text=f'{text("other_month").get(str(day.month))} {day.year}',
-                    callback_data=f'{data}|...'
+                    callback_data=f"{data}|...",
                 ),
                 InlineKeyboardButton(
-                    text='➡️',
-                    callback_data=f'{data}|next_month|{-monthrange(day.year, day.month)[1]}'
-                )
+                    text="➡️",
+                    callback_data=f"{data}|next_month|{-monthrange(day.year, day.month)[1]}",
+                ),
             )
 
             month = monthcalendar(day.year, day.month)
@@ -410,7 +382,7 @@ class InlineContent(InlineKeyboardBuilder):
                             prev_year = day.year if day.month > 1 else day.year - 1
                             prev_month_days = monthrange(prev_year, prev_month)[1]
                             actual_day = prev_month_days - (6 - day_idx)
-                            date_str = f'{prev_year}-{prev_month}-{actual_day}'
+                            date_str = f"{prev_year}-{prev_month}-{actual_day}"
                         else:
                             # Последняя неделя - дни из следующего месяца
                             next_month = day.month + 1 if day.month < 12 else 1
@@ -418,61 +390,58 @@ class InlineContent(InlineKeyboardBuilder):
                             # Считаем сколько нулей уже было в этой неделе
                             zeros_before = sum(1 for d in week[:day_idx] if d == 0)
                             actual_day = zeros_before + 1
-                            date_str = f'{next_year}-{next_month}-{actual_day}'
-                        
+                            date_str = f"{next_year}-{next_month}-{actual_day}"
+
                         days.append(
                             InlineKeyboardButton(
                                 text=str(actual_day),
-                                callback_data=f'{data}|choice_day|{date_str}'
+                                callback_data=f"{data}|choice_day|{date_str}",
                             )
                         )
                     else:
                         # Проверяем статус постов в этот день
-                        day_info = days_with_posts.get(week_day) if days_with_posts else None
-                        day_text = str(week_day) if week_day != day.day else '🔸'
-                        
+                        day_info = (
+                            days_with_posts.get(week_day) if days_with_posts else None
+                        )
+                        day_text = str(week_day) if week_day != day.day else "🔸"
+
                         if day_info and week_day != day.day:
                             # Приоритет: если есть запланированные - показываем ⏰, иначе ✅
                             if day_info.get("has_pending"):
-                                day_text = f'{week_day}⏰'
+                                day_text = f"{week_day}⏰"
                             elif day_info.get("has_finished"):
-                                day_text = f'{week_day}✅'
-                        
+                                day_text = f"{week_day}✅"
+
                         days.append(
                             InlineKeyboardButton(
                                 text=day_text,
-                                callback_data=f'{data}|choice_day|{day.year}-{day.month}-{week_day}'
+                                callback_data=f"{data}|choice_day|{day.year}-{day.month}-{week_day}",
                             )
                         )
                 kb.row(*days)
 
             kb.row(
-                InlineKeyboardButton(
-                    text='⬅️',
-                    callback_data=f'{data}|back_day|1'
-                ),
+                InlineKeyboardButton(text="⬅️", callback_data=f"{data}|back_day|1"),
                 InlineKeyboardButton(
                     text=f'{day.day} {text("month").get(str(day.month))}',
-                    callback_data=f'{data}|...'
+                    callback_data=f"{data}|...",
                 ),
-                InlineKeyboardButton(
-                    text='➡️',
-                    callback_data=f'{data}|next_day|-1'
-                )
+                InlineKeyboardButton(text="➡️", callback_data=f"{data}|next_day|-1"),
             )
 
         kb.row(
             InlineKeyboardButton(
-                text=text("show_all:content{}:button".format(
-                    ":story" if data == "ContentStories" else ""
-                )),
-                callback_data=f'{data}|show_all'
+                text=text(
+                    "show_all:content{}:button".format(
+                        ":story" if data == "ContentStories" else ""
+                    )
+                ),
+                callback_data=f"{data}|show_all",
             )
         )
         kb.row(
             InlineKeyboardButton(
-                text=text("back:button"),
-                callback_data=f'{data}|cancel'
+                text=text("back:button"), callback_data=f"{data}|cancel"
             )
         )
 
@@ -480,10 +449,10 @@ class InlineContent(InlineKeyboardBuilder):
 
     @classmethod
     def choice_time_objects(
-            cls,
-            objects: List[Post | Story | BotPost],
-            data: str = "ChoiceTimeObjectContentPost",
-            remover: int = 0
+        cls,
+        objects: List[Post | Story | BotPost],
+        data: str = "ChoiceTimeObjectContentPost",
+        remover: int = 0,
     ):
         kb = cls()
         count_rows = 8
@@ -523,23 +492,21 @@ class InlineContent(InlineKeyboardBuilder):
                 if message_text:
                     message_text = clean_html_text(message_text)
 
-
                 # Пропускаем посты без времени (не должно быть, но на всякий случай)
-                timestamp = getattr(objects[idx], "send_time") or getattr(objects[idx], "start_timestamp")
+                timestamp = getattr(objects[idx], "send_time") or getattr(
+                    objects[idx], "start_timestamp"
+                )
                 if not timestamp:
                     continue
-                    
+
                 kb.row(
                     InlineKeyboardButton(
                         text="{} | {} | {}".format(
                             datetime.fromtimestamp(timestamp).strftime("%H:%M"),
                             emoji,
-                            message_text or "Медиа"
+                            message_text or "Медиа",
                         ),
-                        callback_data="{}|{}".format(
-                            obj_data,
-                            objects[idx].id
-                        )
+                        callback_data="{}|{}".format(obj_data, objects[idx].id),
                     )
                 )
 
@@ -551,33 +518,28 @@ class InlineContent(InlineKeyboardBuilder):
         elif len(objects) > count_rows > remover:
             kb.row(
                 InlineKeyboardButton(
-                    text='➡️',
-                    callback_data=f'{data}|next|{remover + count_rows}'
+                    text="➡️", callback_data=f"{data}|next|{remover + count_rows}"
                 )
             )
         elif remover + count_rows >= len(objects):
             kb.row(
                 InlineKeyboardButton(
-                    text='⬅️',
-                    callback_data=f'{data}|back|{remover - count_rows}'
+                    text="⬅️", callback_data=f"{data}|back|{remover - count_rows}"
                 )
             )
         else:
             kb.row(
                 InlineKeyboardButton(
-                    text='⬅️',
-                    callback_data=f'{data}|back|{remover - count_rows}'
+                    text="⬅️", callback_data=f"{data}|back|{remover - count_rows}"
                 ),
                 InlineKeyboardButton(
-                    text='➡️',
-                    callback_data=f'{data}|next|{remover + count_rows}'
-                )
+                    text="➡️", callback_data=f"{data}|next|{remover + count_rows}"
+                ),
             )
 
         kb.row(
             InlineKeyboardButton(
-                text=text('back:button'),
-                callback_data=f'{data}|cancel'
+                text=text("back:button"), callback_data=f"{data}|cancel"
             )
         )
 
@@ -588,13 +550,9 @@ class InlineContent(InlineKeyboardBuilder):
         kb = cls()
 
         kb.button(
-            text=text("manage:post:delete:button"),
-            callback_data=f"{data}|accept"
+            text=text("manage:post:delete:button"), callback_data=f"{data}|accept"
         )
-        kb.button(
-            text=text("back:button"),
-            callback_data=f"{data}|cancel"
-        )
+        kb.button(text=text("back:button"), callback_data=f"{data}|cancel")
 
         kb.adjust(1)
         return kb.as_markup()

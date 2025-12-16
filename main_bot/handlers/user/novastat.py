@@ -7,6 +7,7 @@
 - Расчет стоимости рекламы (CPM)
 - Массовый выбор каналов
 """
+
 import logging
 import asyncio
 import time
@@ -355,7 +356,9 @@ async def run_analysis_background(
         await run_analysis_logic(message, channels, depth, state, None)
     except Exception:
         logger.exception("Ошибка фонового анализа для %s", message.from_user.id)
-        await message.answer("❌ Произошла внутренняя ошибка при анализе. Попробуйте позже.")
+        await message.answer(
+            "❌ Произошла внутренняя ошибка при анализе. Попробуйте позже."
+        )
 
 
 def _format_stats_body(stats):
@@ -430,14 +433,16 @@ async def run_analysis_logic(
             # Агрегация данных
             total_subs += stats.get("subscribers", 0)
             for h in HOURS_TO_ANALYZE:
-                total_views[h] = total_views.get(h, 0) + stats.get("views", {}).get(h, 0)
+                total_views[h] = total_views.get(h, 0) + stats.get("views", {}).get(
+                    h, 0
+                )
                 total_er[h] = total_er.get(h, 0) + stats.get("er", {}).get(h, 0)
-        
+
         else:
             # Обработка ошибки
             error_msg = str(error) if error else "Неизвестная ошибка"
             logger.warning("Ошибка анализа канала %s: %s", ch, error_msg)
-            
+
             error_text = f"❌ Не удалось получить статистику: {html.escape(str(ch))}"
             cache = await db.novastat_cache.get_cache(str(ch), 24)
             if cache and cache.error_message:
@@ -711,7 +716,7 @@ async def novastat_choice_channels(call: types.CallbackQuery, state: FSMContext)
         if view_mode == "channels":
             await state.update_data(current_folder_id=None)
             current_folder_id = None
-        
+
         # Сбрасываем пагинацию
         temp = list(temp)
         if len(temp) > 2:
@@ -851,12 +856,14 @@ async def novastat_choice_channels(call: types.CallbackQuery, state: FSMContext)
         await call.message.edit_text(
             text("choice_channels:novastat").format(len(chosen), channels_list),
             reply_markup=keyboards.choice_objects(
-                resources=display_objects if view_mode == "channels" else objects, # If generic logic, resources should be passed correctly
+                resources=(
+                    display_objects if view_mode == "channels" else objects
+                ),  # If generic logic, resources should be passed correctly
                 chosen=chosen,
                 folders=folders,
                 remover=remover_val,
                 data="ChoiceNovaStatChannels",
-                view_mode=view_mode, 
+                view_mode=view_mode,
             ),
         )
     except TelegramBadRequest:
