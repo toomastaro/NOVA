@@ -6,6 +6,7 @@
 - Отображением разделов (Постинг, Сторис, Боты, Профиль)
 - Настройкой "Приветки"
 """
+
 import logging
 from aiogram import types, F, Router
 from aiogram.fsm.context import FSMContext
@@ -37,7 +38,7 @@ def serialize_user_bot(bot):
     }
 
 
-@safe_handler("Menu Choice")
+@safe_handler("Выбор меню")
 async def choice(message: types.Message, state: FSMContext):
     """
     Маршрутизатор главного меню.
@@ -75,24 +76,25 @@ async def choice(message: types.Message, state: FSMContext):
         logger.warning("Неизвестная команда меню: %s", message.text)
 
 
-@safe_handler("Start Posting Menu")
+@safe_handler("Меню постинга")
 async def start_posting(message: types.Message):
+    logger.info("Пользователь %s открыл меню постинга", message.from_user.id)
     await message.answer(text("start_post_text"), reply_markup=keyboards.posting_menu())
 
 
-@safe_handler("Start Stories Menu")
+@safe_handler("Меню сторис")
 async def start_stories(message: types.Message):
     await message.answer(
         text("start_stories_text"), reply_markup=keyboards.stories_menu()
     )
 
 
-@safe_handler("Start Bots Menu")
+@safe_handler("Меню ботов")
 async def start_bots(message: types.Message):
     await message.answer(text("start_bots_text"), reply_markup=keyboards.bots_menu())
 
 
-@safe_handler("Start Support")
+@safe_handler("Поддержка")
 async def support(message: types.Message, state: FSMContext):
     await message.answer(
         text("start_support_text"), reply_markup=keyboards.cancel(data="CancelSupport")
@@ -100,14 +102,14 @@ async def support(message: types.Message, state: FSMContext):
     await state.set_state(Support.message)
 
 
-@safe_handler("Start Profile")
+@safe_handler("Профиль")
 async def profile(message: types.Message):
     await message.answer(
         text("start_profile_text"), reply_markup=keyboards.profile_menu()
     )
 
 
-@safe_handler("Start Subscription")
+@safe_handler("Подписка")
 async def subscription(message: types.Message):
     """Меню подписки с балансом, подпиской и реферальной системой"""
     user = await db.user.get_user(user_id=message.chat.id)
@@ -125,7 +127,7 @@ async def subscription(message: types.Message):
     )
 
 
-@safe_handler("Show Channels")
+@safe_handler("Показать каналы")
 async def show_channels(message: types.Message):
     """Показать список каналов пользователя"""
     channels = await db.channel.get_user_channels(
@@ -136,7 +138,7 @@ async def show_channels(message: types.Message):
     )
 
 
-@safe_handler("Start Privetka")
+@safe_handler("Приветка")
 async def start_privetka(message: types.Message, state: FSMContext):
     await state.update_data(from_privetka=True)
     channels_raw = await db.channel_bot_settings.get_bot_channels(message.chat.id)
@@ -152,7 +154,7 @@ async def start_privetka(message: types.Message, state: FSMContext):
     )
 
 
-@safe_handler("Privetka Choice Channel")
+@safe_handler("Выбор канала для приветки")
 async def privetka_choice_channel(call: types.CallbackQuery, state: FSMContext):
     """Обработчик выбора канала для настройки приветственного бота."""
     temp = call.data.split("|")
