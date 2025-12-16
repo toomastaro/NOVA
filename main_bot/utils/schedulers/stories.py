@@ -143,9 +143,9 @@ async def send_story(story: Story):
                 )
     
                 if options.photo:
-                    filepath = get_path(media_bytes, chat_id)
+                    filepath = await get_path(media_bytes, chat_id)
                 else:
-                    filepath = get_path_video(input_file, chat_id)
+                    filepath = await get_path_video(input_file, chat_id)
                 logger.info(f"Медиафайл сохранен: {filepath}")
             except Exception as e:
                 logger.error(f"❌ Ошибка скачивания медиа: {e}", exc_info=True)
