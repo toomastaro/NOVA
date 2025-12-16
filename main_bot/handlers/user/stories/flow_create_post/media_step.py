@@ -71,14 +71,15 @@ async def get_message(message: types.Message, state: FSMContext):
     # Отправляем в бэкап канал
     try:
         from main_bot.utils.backup_utils import send_to_backup
+
         backup_chat_id, backup_message_id = await send_to_backup(post)
-        
+
         if backup_chat_id and backup_message_id:
             post = await db.story.update_story(
                 post_id=post.id,
                 return_obj=True,
                 backup_chat_id=backup_chat_id,
-                backup_message_id=backup_message_id
+                backup_message_id=backup_message_id,
             )
     except Exception as e:
         logger.error(f"Ошибка при отправке сторис в бэкап: {e}", exc_info=True)
@@ -101,8 +102,8 @@ async def manage_post(call: types.CallbackQuery, state: FSMContext):
         await call.answer(text("keys_data_error"))
         return await call.message.delete()
 
-    
     from main_bot.keyboards.posting import ensure_obj
+
     post: Story = ensure_obj(data.get("post"))
     is_edit: bool = data.get("is_edit")
 
@@ -115,7 +116,7 @@ async def manage_post(call: types.CallbackQuery, state: FSMContext):
                 text("story:content").format(
                     *data.get("send_date_values"),
                     data.get("channel").emoji_id,
-                    data.get("channel").title
+                    data.get("channel").title,
                 ),
                 reply_markup=keyboards.manage_remain_story(post=post),
             )
@@ -133,7 +134,7 @@ async def manage_post(call: types.CallbackQuery, state: FSMContext):
                 text("story:content").format(
                     *data.get("send_date_values"),
                     data.get("channel").emoji_id,
-                    data.get("channel").title
+                    data.get("channel").title,
                 ),
                 reply_markup=keyboards.manage_remain_story(post=post),
             )
@@ -170,7 +171,9 @@ async def manage_post(call: types.CallbackQuery, state: FSMContext):
             story_options=story_options.model_dump(),
         )
         # Преобразуем в dict перед сохранением
-        post_dict = {col.name: getattr(post, col.name) for col in post.__table__.columns}
+        post_dict = {
+            col.name: getattr(post, col.name) for col in post.__table__.columns
+        }
         await state.update_data(post=post_dict)
 
         await call.message.delete()
@@ -204,6 +207,7 @@ async def cancel_value(call: types.CallbackQuery, state: FSMContext):
     if temp[1] == "delete":
         param = data.get("param")
         from main_bot.keyboards.posting import ensure_obj
+
         post = ensure_obj(data.get("post"))
         message_options = StoryOptions(**post.story_options)
 
@@ -226,11 +230,11 @@ async def cancel_value(call: types.CallbackQuery, state: FSMContext):
 
         kwargs = {"story_options": message_options.model_dump()}
 
-        post = await db.story.update_story(
-            post_id=post.id, return_obj=True, **kwargs
-        )
+        post = await db.story.update_story(post_id=post.id, return_obj=True, **kwargs)
         # Преобразуем в dict
-        post_dict = {col.name: getattr(post, col.name) for col in post.__table__.columns}
+        post_dict = {
+            col.name: getattr(post, col.name) for col in post.__table__.columns
+        }
         await state.update_data(post=post_dict)
         data = await state.get_data()
 
@@ -253,13 +257,13 @@ async def get_value(message: types.Message, state: FSMContext):
         return await message.answer(text("error_value"))
 
     from main_bot.keyboards.posting import ensure_obj
+
     post = ensure_obj(data.get("post"))
     message_options = StoryOptions(**post.story_options)
 
     if param == "text":
         if message_options.photo or message_options.video:
             message_options.caption = message.html_text
-
 
     if param == "media":
         if message.photo:
@@ -273,7 +277,7 @@ async def get_value(message: types.Message, state: FSMContext):
 
     # Преобразуем объект post в dict для сохранения в FSM
     post_dict = {col.name: getattr(post, col.name) for col in post.__table__.columns}
-    
+
     await state.clear()
     data["post"] = post_dict
     await state.update_data(data)

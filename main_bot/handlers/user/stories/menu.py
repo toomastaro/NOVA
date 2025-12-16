@@ -49,6 +49,8 @@ async def show_create_post(message: types.Message, state: FSMContext):
     2. Если нет - показ ошибки
     3. Если есть - показ выбора каналов
     """
+    logger.info(f"User {message.from_user.id} start story creation flow")
+
     # Получаем каналы пользователя с сортировкой по stories
     channels = await db.channel.get_user_channels(
         user_id=message.chat.id, sort_by="stories"

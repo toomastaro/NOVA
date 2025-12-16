@@ -11,17 +11,14 @@
 import time
 import logging
 from datetime import datetime
-from pathlib import Path
 
 from aiogram import types
 from aiogram.fsm.context import FSMContext
 
 from main_bot.database.db import db
-from main_bot.database.story.model import Story
 from main_bot.utils.message_utils import answer_story
 from main_bot.utils.lang.language import text
 from main_bot.utils.schemas import StoryOptions
-from main_bot.utils.session_manager import SessionManager
 from main_bot.keyboards import keyboards
 from main_bot.states.user import Stories
 from main_bot.utils.error_handler import safe_handler
@@ -81,16 +78,16 @@ async def set_folder_content(
     for chat_id in channel_ids:
         # Оптимизация: Берем из переданного списка (O(1))
         channel = channels_map.get(chat_id)
-        
+
         # Если канала нет в списке пользователя (редкий кейс, но возможен), грузим из БД
         if not channel:
             channel = await db.channel.get_channel_by_chat_id(chat_id)
-        
+
         if not channel or not channel.subscribe:
-             return "subscribe", ""
+            return "subscribe", ""
 
         if not channel.session_path:
-             return "session_path", ""
+            return "session_path", ""
 
         if is_append:
             if chat_id in chosen:
@@ -210,20 +207,21 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
                     return await call.answer(
                         text("error_sub_channel").format(channel.title), show_alert=True
                     )
-                
+
                 # Проверка на наличие MTProto сессии для сторис
                 if not channel.session_path:
                     return await call.answer(
-                        text("error_story_session").format(channel.title), show_alert=True
+                        text("error_story_session").format(channel.title),
+                        show_alert=True,
                     )
 
                 chosen.append(resource_id)
         else:
             temp_chosen, temp_chosen_folders = await set_folder_content(
-                resource_id=resource_id, 
-                chosen=chosen, 
+                resource_id=resource_id,
+                chosen=chosen,
                 chosen_folders=chosen_folders,
-                user_channels=objects # Passing already loaded channels to avoid N+1
+                user_channels=objects,  # Passing already loaded channels to avoid N+1
             )
             if temp_chosen == "subscribe":
                 return await call.answer(text("error_sub_channel_folder"))
@@ -274,10 +272,14 @@ async def finish_params(call: types.CallbackQuery, state: FSMContext):
             post_id=post["id"], return_obj=True, report=not post["report"]
         )
         # Преобразуем объект post в dict для сохранения в FSM
-        post_dict = {col.name: getattr(post_obj, col.name) for col in post_obj.__table__.columns}
+        post_dict = {
+            col.name: getattr(post_obj, col.name) for col in post_obj.__table__.columns
+        }
         await state.update_data(post=post_dict)
         return await call.message.edit_reply_markup(
-            reply_markup=keyboards.finish_params(obj=post_dict, data="FinishStoriesParams")
+            reply_markup=keyboards.finish_params(
+                obj=post_dict, data="FinishStoriesParams"
+            )
         )
 
     if temp[1] == "delete_time":
@@ -326,10 +328,14 @@ async def choice_delete_time(call: types.CallbackQuery, state: FSMContext):
     if story_options.period != delete_time:
         story_options.period = delete_time
         post_obj = await db.story.update_story(
-            post_id=post["id"], return_obj=True, story_options=story_options.model_dump()
+            post_id=post["id"],
+            return_obj=True,
+            story_options=story_options.model_dump(),
         )
         # Преобразуем объект post в dict для сохранения в FSM
-        post_dict = {col.name: getattr(post_obj, col.name) for col in post_obj.__table__.columns}
+        post_dict = {
+            col.name: getattr(post_obj, col.name) for col in post_obj.__table__.columns
+        }
         await state.update_data(post=post_dict)
         data = await state.get_data()
 
@@ -447,7 +453,9 @@ async def get_send_time(message: types.Message, state: FSMContext):
 
         await state.clear()
         # Преобразуем объект post в dict для сохранения в FSM
-        post_dict = {col.name: getattr(post_obj, col.name) for col in post_obj.__table__.columns}
+        post_dict = {
+            col.name: getattr(post_obj, col.name) for col in post_obj.__table__.columns
+        }
         data["post"] = post_dict
         data["send_date_values"] = send_date_values
         await state.update_data(data)
