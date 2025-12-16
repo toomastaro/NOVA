@@ -100,6 +100,9 @@ async def set_folder_content(
         if not channel or not channel.subscribe:
              return "subscribe", ""
 
+        if not channel.session_path:
+             return "session_path", ""
+
         if is_append:
             if chat_id in chosen:
                 continue
@@ -218,6 +221,12 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
                     return await call.answer(
                         text("error_sub_channel").format(channel.title), show_alert=True
                     )
+                
+                # Проверка на наличие MTProto сессии для сторис
+                if not channel.session_path:
+                    return await call.answer(
+                        text("error_story_session").format(channel.title), show_alert=True
+                    )
 
                 chosen.append(resource_id)
         else:
@@ -229,6 +238,8 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
             )
             if temp_chosen == "subscribe":
                 return await call.answer(text("error_sub_channel_folder"))
+            if temp_chosen == "session_path":
+                return await call.answer(text("error_story_session_folder"))
 
     await state.update_data(chosen=chosen, chosen_folders=chosen_folders)
     await call.message.edit_text(
