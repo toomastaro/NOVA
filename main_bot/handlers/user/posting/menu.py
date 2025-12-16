@@ -94,13 +94,20 @@ async def show_create_post(message: types.Message, state: FSMContext):
         # Инициализируем состояние
         await state.update_data(chosen=[], chosen_folders=[], current_folder_id=None)
 
+        if view_mode == "folders":
+            display_channels = []
+            display_folders = folders
+        else:
+            display_channels = channels_with_sub
+            display_folders = []
+
         # Показываем выбор каналов
         await message.answer(
             text("choice_channels:post").format(0, ""),
             reply_markup=keyboards.choice_objects(
-                resources=channels_with_sub,
+                resources=display_channels,
                 chosen=[],
-                folders=folders,
+                folders=display_folders,
                 data="ChoicePostChannels",
                 view_mode=view_mode,
             ),
