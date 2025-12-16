@@ -176,14 +176,12 @@ class InlineContent(InlineKeyboardBuilder):
                     resource_type = "folder"
                     button_text = f'{"✅" if resource_id in chosen_folders else "📁"} {idx + 1}. {objects[idx].title}'
 
-                kb.add(
+                kb.row(
                     InlineKeyboardButton(
                         text=button_text,
                         callback_data=f'{data}|{resource_id}|{remover}|{resource_type}'
                     )
                 )
-
-        kb.adjust(1)
 
         if len(objects) <= count_rows:
             pass

@@ -86,9 +86,7 @@ async def choice_bots(call: types.CallbackQuery, state: FSMContext):
         )
         folders = []
     else:
-        objects = await db.channel.get_user_channels(
-            call.from_user.id, from_array=[i.id for i in channels]
-        )
+        objects = []
         folders = await db.user_folder.get_folders(
             user_id=call.from_user.id,
         )

@@ -300,7 +300,7 @@ async def choice_object_subscribe(call: types.CallbackQuery, state: FSMContext, 
                folders = [] # Don't show folders when inside a folder
             else:
                # Root of folders view
-               objects = await db.channel.get_user_channels_without_folders(user_id=user.id)
+               objects = []
 
     # SELECT ITEM/FOLDER
     if temp[1].replace("-", "").isdigit(): # Check for digit (ID)

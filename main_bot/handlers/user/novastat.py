@@ -669,9 +669,8 @@ async def novastat_my_channels(call: types.CallbackQuery, state: FSMContext):
         folders = []
     else:
         folders = await db.user_folder.get_folders(user_id=call.from_user.id)
-        channels = await db.channel.get_user_channels_without_folders(
-            user_id=call.from_user.id
-        )
+        # В режиме папок скрываем каналы без папок (как в постинге)
+        channels = []
 
     await state.update_data(chosen=[], chosen_folders=[], current_folder_id=None)
 
