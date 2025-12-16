@@ -10,6 +10,7 @@
 import time
 import logging
 import html
+import asyncio
 from datetime import datetime
 
 from aiogram import types
@@ -27,7 +28,7 @@ from main_bot.utils.error_handler import safe_handler
 logger = logging.getLogger(__name__)
 
 
-@safe_handler("Posting Choice Channels")
+@safe_handler("Выбор каналов для постинга")
 async def choice_channels(call: types.CallbackQuery, state: FSMContext):
     """
     Выбор каналов для публикации поста.
@@ -38,11 +39,19 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
     - Выбор/отмену всех видимых каналов
     - Пагинацию списка каналов
 
+    Производительность:
+    - Параллельная загрузка каналов и папок (asyncio.gather)
+    - Батчинг запросов для папок (вместо N+1)
+    - TODO: кеширование списка каналов/папок в Redis (TTL 1-5 мин)
+
     Args:
         call: Callback query с данными действия
         state: FSM контекст
     """
     temp = call.data.split("|")
+    logger.info(
+        "Пользователь %s: действие выбора каналов: %s", call.from_user.id, temp[1]
+    )
     data = await state.get_data()
     if not data:
         await call.answer(text("keys_data_error"))
@@ -52,27 +61,55 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
     current_folder_id = data.get("current_folder_id")
 
     # Определяем что показывать
-    if current_folder_id:
-        # Внутри папки
-        folder = await db.user_folder.get_folder_by_id(current_folder_id)
-        objects = []
-        if folder and folder.content:
-            for chat_id in folder.content:
-                channel = await db.channel.get_channel_by_chat_id(int(chat_id))
-                if channel:
-                    objects.append(channel)
-        folders = []
-    else:
-        # Корневой уровень
-        objects = await db.channel.get_user_channels_without_folders(
-            user_id=call.from_user.id
+    try:
+        if current_folder_id:
+            # Внутри папки
+            folder = await db.user_folder.get_folder_by_id(current_folder_id)
+            if folder and folder.content:
+                # Батчинг: один запрос вместо N запросов (N+1 fix)
+                objects = await db.channel.get_user_channels(
+                    user_id=call.from_user.id,
+                    from_array=[int(cid) for cid in folder.content],
+                )
+                logger.debug(
+                    "Папка %s: загружено %d каналов", current_folder_id, len(objects)
+                )
+            else:
+                objects = []
+            folders = []
+        else:
+            # Корневой уровень: параллельная загрузка каналов и папок
+            objects, folders = await asyncio.gather(
+                db.channel.get_user_channels_without_folders(user_id=call.from_user.id),
+                db.user_folder.get_folders(user_id=call.from_user.id),
+            )
+            logger.debug(
+                "Корневой уровень: загружено %d каналов, %d папок",
+                len(objects),
+                len(folders),
+            )
+    except Exception as e:
+        logger.error(
+            "Ошибка загрузки каналов для пользователя %s: %s",
+            call.from_user.id,
+            str(e),
+            exc_info=True,
         )
-        folders = await db.user_folder.get_folders(user_id=call.from_user.id)
+        await call.answer(
+            "❌ Ошибка загрузки каналов. Попробуйте позже.", show_alert=True
+        )
+        return
 
     # Переход к следующему шагу
     if temp[1] == "next_step":
         if not chosen:
             return await call.answer(text("error_min_choice"))
+
+        logger.info(
+            "Пользователь %s выбрал %d каналов для постинга",
+            call.from_user.id,
+            len(chosen),
+        )
 
         # Сохраняем выбранные каналы
         await state.update_data(chosen=chosen)
@@ -89,11 +126,22 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
         if current_folder_id:
             # Возврат к корневому уровню
             await state.update_data(current_folder_id=None)
-            # Перезагружаем данные корневого уровня
-            objects = await db.channel.get_user_channels_without_folders(
-                user_id=call.from_user.id
-            )
-            folders = await db.user_folder.get_folders(user_id=call.from_user.id)
+            # Перезагружаем данные корневого уровня (параллельно)
+            try:
+                objects, folders = await asyncio.gather(
+                    db.channel.get_user_channels_without_folders(
+                        user_id=call.from_user.id
+                    ),
+                    db.user_folder.get_folders(user_id=call.from_user.id),
+                )
+            except Exception as e:
+                logger.error(
+                    "Ошибка при возврате к корневому уровню: %s", str(e), exc_info=True
+                )
+                await call.answer(
+                    "❌ Ошибка загрузки. Попробуйте позже.", show_alert=True
+                )
+                return
             # Сбрасываем remover при переключении видов
             temp = list(temp)
             if len(temp) > 2:
@@ -118,6 +166,11 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
     # Выбрать/отменить все видимые каналы
     if temp[1] == "choice_all":
         current_ids = [i.chat_id for i in objects]
+        logger.debug(
+            "Попытка выбрать все каналы: видимых=%d, выбрано=%d",
+            len(objects),
+            len(chosen),
+        )
 
         # Проверяем, все ли выбраны
         all_selected = all(cid in chosen for cid in current_ids)
@@ -135,6 +188,11 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
                     channels_without_sub.append(obj.title)
 
             if channels_without_sub:
+                logger.warning(
+                    "Пользователь %s: попытка выбрать %d каналов без подписки",
+                    call.from_user.id,
+                    len(channels_without_sub),
+                )
                 # Показываем список каналов без подписки
                 channels_list = "\n".join(
                     f"• {title}" for title in channels_without_sub[:5]
@@ -161,16 +219,30 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
 
         if resource_type == "folder":
             # Вход в папку
+            logger.debug(
+                "Пользователь %s вошел в папку %s", call.from_user.id, resource_id
+            )
             await state.update_data(current_folder_id=resource_id)
-            # Перезагружаем данные папки
-            folder = await db.user_folder.get_folder_by_id(resource_id)
-            objects = []
-            if folder and folder.content:
-                for chat_id in folder.content:
-                    channel = await db.channel.get_channel_by_chat_id(int(chat_id))
-                    if channel:
-                        objects.append(channel)
-            folders = []
+            # Перезагружаем данные папки (батчинг)
+            try:
+                folder = await db.user_folder.get_folder_by_id(resource_id)
+                if folder and folder.content:
+                    # Батчинг: один запрос вместо N запросов (N+1 fix)
+                    objects = await db.channel.get_user_channels(
+                        user_id=call.from_user.id,
+                        from_array=[int(cid) for cid in folder.content],
+                    )
+                else:
+                    objects = []
+                folders = []
+            except Exception as e:
+                logger.error(
+                    "Ошибка загрузки папки %s: %s", resource_id, str(e), exc_info=True
+                )
+                await call.answer(
+                    "❌ Ошибка загрузки папки. Попробуйте позже.", show_alert=True
+                )
+                return
             # Сбрасываем remover
             temp = list(temp)
             if len(temp) > 2:
@@ -184,6 +256,11 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
             else:
                 channel = await db.channel.get_channel_by_chat_id(resource_id)
                 if not channel.subscribe:
+                    logger.warning(
+                        "Пользователь %s: попытка выбрать канал без подписки: %s",
+                        call.from_user.id,
+                        channel.title,
+                    )
                     return await call.answer(
                         text("error_sub_channel").format(channel.title), show_alert=True
                     )
@@ -224,7 +301,7 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
     )
 
 
-@safe_handler("Posting Finish Params")
+@safe_handler("Финальные параметры постинга")
 async def finish_params(call: types.CallbackQuery, state: FSMContext):
     """
     Настройка финальных параметров поста перед публикацией.
@@ -370,7 +447,7 @@ async def finish_params(call: types.CallbackQuery, state: FSMContext):
         return
 
 
-@safe_handler("Posting Choice Delete Time")
+@safe_handler("Выбор времени удаления")
 async def choice_delete_time(call: types.CallbackQuery, state: FSMContext):
     """
     Выбор времени автоудаления поста.
@@ -442,7 +519,7 @@ async def choice_delete_time(call: types.CallbackQuery, state: FSMContext):
     )
 
 
-@safe_handler("Posting Cancel Send Time")
+@safe_handler("Отмена ввода времени")
 async def cancel_send_time(call: types.CallbackQuery, state: FSMContext):
     """
     Отмена ввода времени отправки.
@@ -488,7 +565,7 @@ async def cancel_send_time(call: types.CallbackQuery, state: FSMContext):
     )
 
 
-@safe_handler("Posting Get Send Time")
+@safe_handler("Получение времени отправки")
 async def get_send_time(message: types.Message, state: FSMContext):
     """
     Получение времени отправки от пользователя.
@@ -525,7 +602,7 @@ async def get_send_time(message: types.Message, state: FSMContext):
         send_time = time.mktime(date.timetuple())
 
     except Exception as e:
-        logger.error(f"Ошибка парсинга времени отправки: {e}")
+        logger.error("Ошибка парсинга времени отправки: %s", str(e), exc_info=True)
         return await message.answer(text("error_value"))
 
     # Проверка что время в будущем
