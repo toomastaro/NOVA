@@ -156,14 +156,18 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
         if current_folder_id:
             # Возврат к корневому уровню
             await state.update_data(current_folder_id=None)
-            # Перезагружаем данные корневого уровня (параллельно)
+            # Перезагружаем данные корневого уровня
             try:
-                objects, folders = await asyncio.gather(
-                    db.channel.get_user_channels_without_folders(
-                        user_id=call.from_user.id
-                    ),
-                    db.user_folder.get_folders(user_id=call.from_user.id),
-                )
+                if view_mode == "folders":
+                    objects = []
+                    folders = await db.user_folder.get_folders(user_id=call.from_user.id)
+                else:
+                    objects, folders = await asyncio.gather(
+                        db.channel.get_user_channels_without_folders(
+                            user_id=call.from_user.id
+                        ),
+                        db.user_folder.get_folders(user_id=call.from_user.id),
+                    )
             except Exception as e:
                 logger.error(
                     "Ошибка при возврате к корневому уровню: %s", str(e), exc_info=True
@@ -304,7 +308,7 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
 
     # Пересчитываем список для отображения (показываем выбранные каналы)
     display_objects = await db.channel.get_user_channels(
-        user_id=call.from_user.id, from_array=chosen[:10]
+        user_id=call.from_user.id, from_array=[int(x) for x in chosen[:10]]
     )
 
     # Форматируем список выбранных каналов
