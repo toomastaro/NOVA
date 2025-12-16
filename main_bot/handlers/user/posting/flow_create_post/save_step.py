@@ -146,10 +146,14 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
     preview_sent = False
     if backup_chat_id and backup_message_id:
         try:
+            # Генерируем клавиатуру для превью, чтобы кнопки точно были
+            reply_markup = keyboards.post_kb(post=post)
+            
             await call.bot.copy_message(
                 chat_id=call.from_user.id,
                 from_chat_id=backup_chat_id,
                 message_id=backup_message_id,
+                reply_markup=reply_markup
             )
             preview_sent = True
         except Exception as e:
