@@ -5,6 +5,7 @@
 - Получение первичного сообщения от пользователя
 - Отмена создания поста
 - Парсинг текста, медиа и кнопок из сообщения
+- Создание бекапа поста в резервном канале
 """
 
 import logging
@@ -132,6 +133,40 @@ async def get_message(message: types.Message, state: FSMContext):
         )
         return await message.answer("❌ Ошибка создания поста. Попробуйте позже.")
 
+    # Создание бекапа поста в резервном канале (для превью и редактирования)
+    from main_bot.utils.backup_utils import send_to_backup
+
+    try:
+        backup_chat_id, backup_message_id = await send_to_backup(post)
+        if backup_chat_id and backup_message_id:
+            # Обновляем пост с backup_message_id
+            post = await db.post.update_post(
+                post_id=post.id,
+                return_obj=True,
+                backup_chat_id=backup_chat_id,
+                backup_message_id=backup_message_id,
+            )
+            logger.info(
+                "Пользователь %s: создан бекап поста ID=%s (канал %s, msg %s)",
+                message.from_user.id,
+                post.id,
+                backup_chat_id,
+                backup_message_id,
+            )
+        else:
+            logger.warning(
+                "Пользователь %s: бекап поста ID=%s не создан (возможно, BACKUP_CHAT_ID не настроен)",
+                message.from_user.id,
+                post.id,
+            )
+    except Exception as e:
+        logger.error(
+            "Ошибка создания бекапа для поста ID=%s: %s",
+            post.id,
+            str(e),
+            exc_info=True,
+        )
+        # Продолжаем работу даже если бекап не удался
     # Обновление состояния
     await state.clear()
 
