@@ -42,6 +42,7 @@ async def get_message(message: types.Message, state: FSMContext):
     # Получаем выбранные каналы из state
     data = await state.get_data()
     chosen = data.get("chosen", [])
+    logger.info(f"Получено сообщение для сторис от {message.from_user.id}")
 
     message_text_length = len(message.caption or "")
     if message_text_length > 1024:

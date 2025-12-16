@@ -30,8 +30,8 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
     }
 
     if temp[1] not in menu:
-        logger.warning(f"Unknown menu option: {temp[1]}")
-        return await call.answer("Unknown option")
+        logger.warning(f"Неизвестная опция меню: {temp[1]}")
+        return await call.answer("Неизвестная опция")
 
     cor, args = menu[temp[1]].values()
 
@@ -49,7 +49,7 @@ async def show_create_post(message: types.Message, state: FSMContext):
     2. Если нет - показ ошибки
     3. Если есть - показ выбора каналов
     """
-    logger.info(f"User {message.from_user.id} start story creation flow")
+    logger.info(f"Пользователь {message.from_user.id} начал процесс создания сторис")
 
     # Получаем каналы пользователя с сортировкой по stories
     channels = await db.channel.get_user_channels(

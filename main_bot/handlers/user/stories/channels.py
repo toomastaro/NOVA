@@ -147,11 +147,11 @@ async def render_channel_info(
 @safe_handler("Stories Channel Choice")
 async def choice(call: types.CallbackQuery, state: FSMContext):
     """Выбор канала для управления или добавления."""
-    logger.info(f"Stories choice handler called. Data: {call.data}")
+    logger.info(f"Вызван хендлер выбора каналов сторис. Data: {call.data}")
     temp = call.data.split("|")
 
     if temp[1] in ["next", "back"]:
-        logger.info(f"Stories processing navigation: {temp[1]}")
+        logger.info(f"Обработка навигации сторис: {temp[1]}")
         channels = await db.channel.get_user_channels(
             user_id=call.from_user.id, sort_by="stories"
         )
@@ -162,12 +162,12 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
         )
 
     if temp[1] == "cancel":
-        logger.info("Stories cancelling choice")
+        logger.info("Отмена выбора сторис")
         await call.message.delete()
         return await start_stories(call.message)
 
     if temp[1] == "add":
-        logger.info("Stories adding new channel")
+        logger.info("Добавление нового канала сторис")
         await state.set_state(AddChannel.waiting_for_channel)
 
         # Удаляем старое сообщение
@@ -184,7 +184,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
 
     # Store channel_id to state or pass through callback
     channel_id = int(temp[1])
-    logger.info(f"Stories selected channel_id: {channel_id}")
+    logger.info(f"Выбран канал сторис: {channel_id}")
 
     # Store in FSM for refresh
     await state.update_data(current_channel_id=channel_id)
@@ -207,7 +207,9 @@ async def cancel(call: types.CallbackQuery):
 @safe_handler("Stories Manage Channel")
 async def manage_channel(call: types.CallbackQuery, state: FSMContext):
     """Управление настройками канала (удаление, права, добавление помощника)."""
-    logger.info(f"Stories manage_channel called. Data: {call.data}")
+    logger.info(
+        f"Вызван хендлер управления каналом (manage_channel). Data: {call.data}"
+    )
     temp = call.data.split("|")
 
     if temp[1] == "delete":
@@ -411,7 +413,7 @@ async def manage_channel(call: types.CallbackQuery, state: FSMContext):
 @safe_handler("Stories Cancel Add Channel")
 async def cancel_add_channel(call: types.CallbackQuery, state: FSMContext):
     """Возврат в меню сториз при отмене добавления канала."""
-    """Возврат в меню сториз при отмене добавления канала"""
+
     await state.clear()
     await call.message.delete()
     await start_stories(call.message)

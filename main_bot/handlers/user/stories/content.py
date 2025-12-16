@@ -12,6 +12,9 @@ from main_bot.utils.functions import answer_story
 from main_bot.utils.lang.language import text
 from main_bot.utils.error_handler import safe_handler
 from main_bot.utils.backup_utils import send_to_backup
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class DictObj:
@@ -98,6 +101,7 @@ async def get_days_with_stories(channel_chat_id: int, year: int, month: int) -> 
 @safe_handler("Stories Choice Channel")
 async def choice_channel(call: types.CallbackQuery, state: FSMContext):
     """Выбор канала для просмотра контент-плана историй."""
+    logger.info(f"Выбор канала для контента сторис: {call.data}")
     temp = call.data.split("|")
 
     if temp[1] in ["next", "back"]:
@@ -147,7 +151,7 @@ async def choice_channel(call: types.CallbackQuery, state: FSMContext):
                 text("no_content:story")
                 if not posts
                 else text("has_content:story").format(len(posts))
-            )
+            ),
         ),
         reply_markup=keyboards.choice_row_content(
             posts=posts,
@@ -161,6 +165,7 @@ async def choice_channel(call: types.CallbackQuery, state: FSMContext):
 @safe_handler("Stories Choice Row Content")
 async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
     """Навигация по контент-плану (выбор дня, истории)."""
+    logger.info(f"Навигация по контенту сторис: {call.data}")
     temp = call.data.split("|")
     data = await state.get_data()
     if not data:
@@ -216,7 +221,7 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
                     text("no_content:story")
                     if not posts
                     else text("has_content:story").format(len(posts))
-                )
+                ),
             ),
             reply_markup=keyboards.choice_row_content(
                 posts=posts,
@@ -338,7 +343,7 @@ async def choice_time_objects(call: types.CallbackQuery, state: FSMContext):
                     text("no_content:story")
                     if not posts
                     else text("has_content:story").format(len(posts))
-                )
+                ),
             ),
             reply_markup=keyboards.choice_row_content(
                 posts=posts,
@@ -387,7 +392,7 @@ async def manage_remain_post(call: types.CallbackQuery, state: FSMContext):
                     text("no_content:story")
                     if not posts
                     else text("has_content:story").format(len(posts))
-                )
+                ),
             ),
             reply_markup=keyboards.choice_row_content(
                 posts=posts,
@@ -470,7 +475,7 @@ async def accept_delete_row_content(call: types.CallbackQuery, state: FSMContext
                     text("no_content:story")
                     if not posts
                     else text("has_content:story").format(len(posts))
-                )
+                ),
             ),
             reply_markup=keyboards.choice_row_content(
                 posts=posts,
