@@ -25,6 +25,7 @@ from main_bot.database.db import db
 from main_bot.database.post.model import Post
 from main_bot.database.published_post.model import PublishedPost
 from main_bot.keyboards import keyboards
+from main_bot.keyboards.common import Reply
 from main_bot.utils.functions import set_channel_session
 from main_bot.utils.lang.language import text
 from main_bot.utils.report_signature import get_report_signatures
@@ -497,7 +498,8 @@ async def delete_posts():
             await bot.send_message(
                 chat_id=admin_id,
                 text=report_text,
-                link_preview_options=types.LinkPreviewOptions(is_disabled=True)
+                link_preview_options=types.LinkPreviewOptions(is_disabled=True),
+                reply_markup=Reply.menu()
             )
         except Exception as e:
             logger.error(f"Ошибка отправки CPM отчета админу {admin_id}: {e}", exc_info=True)
