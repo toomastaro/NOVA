@@ -98,7 +98,7 @@ async def show_create_post(message: types.Message, state: FSMContext):
             display_channels = []
             display_folders = folders
         else:
-            display_channels = channels_with_sub
+            display_channels = channels
             display_folders = []
 
         # Показываем выбор каналов
