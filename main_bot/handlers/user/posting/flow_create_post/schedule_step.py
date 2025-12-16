@@ -462,7 +462,7 @@ async def choice_delete_time(call: types.CallbackQuery, state: FSMContext):
         await call.answer(text("keys_data_error"))
         return await call.message.delete()
 
-    post: Post = data.get("post")
+    post = ensure_obj(data.get("post"))
 
     delete_time = post.delete_time
     if temp[1].isdigit():
@@ -515,7 +515,7 @@ async def choice_delete_time(call: types.CallbackQuery, state: FSMContext):
                 if obj.chat_id in chosen[:10]
             ),
         ),
-        reply_markup=keyboards.finish_params(obj=data.get("post")),
+        reply_markup=keyboards.finish_params(obj=ensure_obj(data.get("post"))),
     )
 
 
@@ -542,7 +542,7 @@ async def cancel_send_time(call: types.CallbackQuery, state: FSMContext):
                 data.get("channel").title,
             ),
             reply_markup=keyboards.manage_remain_post(
-                post=data.get("post"), is_published=data.get("is_published")
+                post=ensure_obj(data.get("post")), is_published=data.get("is_published")
             ),
         )
 
@@ -561,7 +561,7 @@ async def cancel_send_time(call: types.CallbackQuery, state: FSMContext):
                 if obj.chat_id in chosen[:10]
             ),
         ),
-        reply_markup=keyboards.finish_params(obj=data.get("post")),
+        reply_markup=keyboards.finish_params(obj=ensure_obj(data.get("post"))),
     )
 
 
@@ -611,7 +611,7 @@ async def get_send_time(message: types.Message, state: FSMContext):
 
     data = await state.get_data()
     is_edit: bool = data.get("is_edit")
-    post: Post = data.get("post")
+    post: Post = ensure_obj(data.get("post"))
 
     # Если редактируем опубликованный пост
     if is_edit:
