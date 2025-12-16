@@ -462,5 +462,12 @@
   "error:post:unknown_notification": "Неизвестное сообщение уведомления о посте",
   "post:no_text": "Без текста",
   "cpm:report:final": "Финальный",
-  "cpm:report:final_en": "Final"
+  "cpm:report:final_en": "Final",
+  "post:report:title": "📊 <b>Отчет о публикации</b>",
+  "post:report:status:scheduled": "🟡 <b>Запланировано</b>",
+  "post:report:status:published": "🟢 <b>Опубликовано</b>",
+  "post:report:date": "📅 <b>Дата:</b> {}",
+  "post:report:delete_in": "🗑 <b>Удаление через:</b> {}",
+  "post:report:cpm": "💸 <b>CPM:</b> {}",
+  "post:report:channels": "📢 <b>Каналы:</b>\n{}"
 }

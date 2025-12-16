@@ -13,7 +13,6 @@ from aiogram import types
 from aiogram.fsm.context import FSMContext
 
 from main_bot.database.db import db
-from main_bot.database.post.model import Post
 from main_bot.utils.lang.language import text
 from main_bot.utils.backup_utils import send_to_backup
 from main_bot.keyboards import keyboards
@@ -24,7 +23,7 @@ from main_bot.utils.error_handler import safe_handler
 logger = logging.getLogger(__name__)
 
 
-@safe_handler("Posting Accept")
+@safe_handler("Подтверждение публикации")
 async def accept(call: types.CallbackQuery, state: FSMContext):
     """
     Подтверждение и сохранение поста.
@@ -57,6 +56,9 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
 
     # Отмена - возврат к предыдущему шагу
     if temp[1] == "cancel":
+        logger.info(
+            "Пользователь %s отменил подтверждение публикации", call.from_user.id
+        )
         if send_time:
             # Возврат к вводу времени
             await state.update_data(send_time=None)
@@ -89,27 +91,46 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
         return await call.message.edit_text(message_text, reply_markup=reply_markup)
 
     # Подготовка данных для сохранения
-    date_values: tuple = data.get("date_values")
     kwargs = {"chat_ids": chosen}
+
+    post_type_log = (
+        "scheduled"
+        if temp[1] == "send_time" or (send_time and send_time > time.time())
+        else "public"
+    )
 
     if temp[1] == "send_time":
         kwargs["send_time"] = send_time or post.send_time
     if temp[1] == "public":
         kwargs["send_time"] = int(time.time()) - 1
 
-    logger.info(f"Accepting post {post.id}. Chosen channels: {chosen}")
+    logger.info(
+        "Пользователь %s: сохранение поста ID=%s, тип=%s, каналов=%d",
+        call.from_user.id,
+        post.id,
+        post_type_log,
+        len(chosen),
+    )
 
     # Обновляем пост в БД
     await db.post.update_post(post_id=post.id, **kwargs)
 
     # Отправляем в backup если еще не отправлено
     if not post.backup_message_id:
-        backup_chat_id, backup_message_id = await send_to_backup(post)
-        if backup_chat_id and backup_message_id:
-            await db.post.update_post(
-                post_id=post.id,
-                backup_chat_id=backup_chat_id,
-                backup_message_id=backup_message_id,
+        try:
+            backup_chat_id, backup_message_id = await send_to_backup(post)
+            if backup_chat_id and backup_message_id:
+                await db.post.update_post(
+                    post_id=post.id,
+                    backup_chat_id=backup_chat_id,
+                    backup_message_id=backup_message_id,
+                )
+        except Exception as e:
+            logger.error(
+                "Ошибка создания fallback-бекапа для поста %s: %s",
+                post.id,
+                e,
+                exc_info=True,
             )
 
     # --- OTLOG IMPLEMENTATION ---
@@ -117,18 +138,12 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
     import html
 
     # 1. Preview (Copy from Backup)
-    backup_chat_id = post.backup_chat_id or (
-        kwargs.get("backup_chat_id") if "kwargs" in locals() else None
-    )
-    backup_message_id = post.backup_message_id or (
-        kwargs.get("backup_message_id") if "kwargs" in locals() else None
-    )
+    # Пытаемся получить актуальные данные о бекапе (могли обновиться выше)
+    current_post = await db.post.get_post(post.id)
+    backup_chat_id = current_post.backup_chat_id
+    backup_message_id = current_post.backup_message_id
 
-    if not backup_chat_id and "backup_chat_id" in locals():
-        backup_chat_id = locals()["backup_chat_id"]
-    if not backup_message_id and "backup_message_id" in locals():
-        backup_message_id = locals()["backup_message_id"]
-
+    preview_sent = False
     if backup_chat_id and backup_message_id:
         try:
             await call.bot.copy_message(
@@ -136,25 +151,39 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
                 from_chat_id=backup_chat_id,
                 message_id=backup_message_id,
             )
+            preview_sent = True
         except Exception as e:
-            logging.error(f"Failed to copy preview from backup: {e}")
-            from main_bot.utils.message_utils import answer_post
+            logger.warning(
+                "Не удалось скопировать превью из бэкапа (chat=%s, msg=%s): %s. Генерируем локально.",
+                backup_chat_id,
+                backup_message_id,
+                e,
+            )
 
-            await answer_post(call.message, state, from_edit=True)
-    else:
+    if not preview_sent:
         from main_bot.utils.message_utils import answer_post
 
-        await answer_post(call.message, state, from_edit=True)
+        try:
+            await answer_post(call.message, state, from_edit=True)
+        except Exception as e:
+            logger.error(
+                "Ошибка локальной генерации превью для поста %s: %s",
+                post.id,
+                e,
+                exc_info=True,
+            )
 
     # 2. OTLOG Text Construction
 
     # Status & Date
-    if send_time and send_time > time.time():
-        status = "🟡 <b>Запланировано</b>"
-        dt = datetime.fromtimestamp(send_time)
+    use_send_time = kwargs.get("send_time", post.send_time)
+
+    if use_send_time and use_send_time > time.time():
+        status = text("post:report:status:scheduled")
+        dt = datetime.fromtimestamp(use_send_time)
         date_str = dt.strftime("%d.%m.%Y %H:%M")
     else:
-        status = "🟢 <b>Опубликовано</b>"
+        status = text("post:report:status:published")
         dt = datetime.fromtimestamp(time.time())
         date_str = dt.strftime("%d.%m.%Y %H:%M")
 
@@ -165,26 +194,27 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
             time_display = f"{int(post.delete_time / 60)} мин."
         else:
             time_display = f"{int(post.delete_time / 3600)} ч."
-        delete_str = f"🗑 <b>Удаление через:</b> {time_display}"
+        delete_str = text("post:report:delete_in").format(time_display)
 
     # CPM Price
     cpm_str = ""
     if post.cpm_price:
-        cpm_str = f"💸 <b>CPM:</b> {int(post.cpm_price)}"
+        cpm_str = text("post:report:cpm").format(int(post.cpm_price))
 
     # Channels List
-    # Ensure quotes and HTML safety
     channels_block = ""
     if chosen:
         channels_str = "\n".join(
             f"{html.escape(obj.title)}" for obj in objects if obj.chat_id in chosen
         )
-        channels_block = f"<blockquote expandable>{channels_str}</blockquote>"
+        channels_block = text("post:report:channels").format(
+            f"<blockquote expandable>{channels_str}</blockquote>"
+        )
 
     otlog_text = (
-        f"📊 <b>Отчет о публикации</b>\n\n"
-        f"Статус: {status}\n"
-        f"📅 <b>Дата:</b> {date_str}\n"
+        f"{text('post:report:title')}\n\n"
+        f"{status}\n"
+        f"{text('post:report:date').format(date_str)}\n"
     )
     if delete_str:
         otlog_text += f"{delete_str}\n"
@@ -192,7 +222,7 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
         otlog_text += f"{cpm_str}\n"
 
     if channels_block:
-        otlog_text += f"\n📢 <b>Каналы:</b>\n" f"{channels_block}"
+        otlog_text += f"\n{channels_block}"
 
     # 3. Send OTLOG and Menu
     await state.clear()
