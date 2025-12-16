@@ -190,7 +190,9 @@ async def send(post: Post):
         post_ids=[post.id]
     )
 
-    if not post.report:
+    # Если отчет выключен И нет ошибок - выходим.
+    # Если есть ошибки - отправляем отчет в любом случае (чтобы не пропустить сбои).
+    if not post.report and not error_send:
         return
 
     objects = await db.channel.get_user_channels(
