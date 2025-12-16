@@ -56,6 +56,10 @@ async def get_message(message: types.Message, state: FSMContext):
         if story_options.caption:
             story_options.caption = message.html_text
 
+    # Проверка на наличие медиа (сторис не может быть только текстом)
+    if not story_options.photo and not story_options.video:
+        return await message.answer(text("require_media"))
+
     # Создаем story с выбранными каналами
     post = await db.story.add_story(
         return_obj=True,
@@ -198,13 +202,15 @@ async def cancel_value(call: types.CallbackQuery, state: FSMContext):
         if param == "text":
             message_options.caption = None
         if param == "media":
-            message_options.photo = message_options.video = None
+            # Нельзя удалить медиа, так как сторис обязана содержать фото или видео
+            return await call.answer(text("require_media"), show_alert=True)
 
         none_list = [
             message_options.photo is None,
             message_options.video is None,
         ]
         if False not in none_list:
+            # Если (каким-то чудом) медиа нет - удаляем сторис
             await state.clear()
             await call.message.delete()
             await db.story.delete_story(data.get("post").id)
