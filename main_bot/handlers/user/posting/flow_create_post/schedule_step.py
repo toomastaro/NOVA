@@ -304,6 +304,9 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
                 "Пользователь %s вошел в папку %s", call.from_user.id, resource_id
             )
             await state.update_data(current_folder_id=resource_id)
+            # Обновляем локальную переменную для корректного отображения
+            current_folder_id = resource_id
+            
             # Перезагружаем данные папки (батчинг)
             try:
                 folder = await db.user_folder.get_folder_by_id(resource_id)
