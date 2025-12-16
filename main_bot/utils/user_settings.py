@@ -1,4 +1,3 @@
-
 from main_bot.utils.redis_client import redis_client
 
 # Redis Key Prefix
@@ -11,10 +10,10 @@ async def get_user_view_mode(user_id: int) -> str:
     Returns: 'folders' (default) or 'channels'
     """
     if not redis_client:
-        return "folders"
-        
+        return "channels"
+
     mode = await redis_client.get(VIEW_MODE_KEY.format(user_id))
-    return mode.decode() if mode else "folders"
+    return mode.decode() if mode else "channels"
 
 
 async def set_user_view_mode(user_id: int, mode: str):
