@@ -366,9 +366,33 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
     else:
         channels_list = ""
 
+    # Проверяем, в папке мы или нет
+    folder_title = ""
+    if current_folder_id:
+        try:
+            # Пытаемся найти папку в списке загруженных folders (если есть) или загружаем
+            # Но folders здесь может быть пустым списком если мы внутри папки (см логику выше).
+            # Лучше загрузить отдельно или найти эффективный способ.
+            # Выше мы уже делали get_folder_by_id(current_folder_id), но переменную folder не сохранили в scope для использования здесь.
+            # Повторный вызов get_folder_by_id - это cheap (db call), но лучше оптимизировать если возможно.
+            # Однако, в блоке "if current_folder_id:" переменная folder локальна.
+            
+            # Загружаем для отображения названия
+            folder_obj = await db.user_folder.get_folder_by_id(current_folder_id)
+            if folder_obj:
+                folder_title = folder_obj.title
+        except Exception:
+            pass
+
     try:
+        msg_text = (
+            text("choice_channels:folder").format(folder_title, len(chosen), channels_list)
+            if current_folder_id and folder_title
+            else text("choice_channels:post").format(len(chosen), channels_list)
+        )
+
         await call.message.edit_text(
-            text("choice_channels:post").format(len(chosen), channels_list),
+            msg_text,
             reply_markup=keyboards.choice_objects(
                 resources=objects,
                 chosen=chosen,

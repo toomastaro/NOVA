@@ -215,7 +215,7 @@ class InlineContent(InlineKeyboardBuilder):
         if is_inside_folder:
             kb.row(
                 InlineKeyboardButton(
-                    text=text("back:button"), callback_data=f"{data}|cancel"
+                    text=text("close_folder:button"), callback_data=f"{data}|cancel"
                 )
             )
         else:
