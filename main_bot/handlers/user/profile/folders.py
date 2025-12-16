@@ -11,7 +11,7 @@ from aiogram.fsm.context import FSMContext
 from main_bot.database.db import db
 from main_bot.database.db_types import FolderType
 from main_bot.database.user.model import User
-from main_bot.handlers.user.profile.profile import show_setting
+
 from main_bot.handlers.user.profile.settings import show_folders
 from main_bot.keyboards import keyboards
 from main_bot.states.user import Folder
@@ -209,12 +209,11 @@ async def choice_object(call: types.CallbackQuery, state: FSMContext, user: User
 @safe_handler("Folders Cancel")
 async def cancel(call: types.CallbackQuery, state: FSMContext, user: User):
     """Отмена текущего действия (создания или переименования)."""
-    # This is for InputFolderName cancel
+   
     data = await state.get_data()
     
     await state.clear()
-    # If we were editing, restore data? 
-    # Actually, InputFolderName is used for both creating and renaming.
+   
     
     await call.message.delete()
     
@@ -274,14 +273,10 @@ async def get_folder_name(message: types.Message, state: FSMContext, user: User)
         folder_id=folder.id,
     )
     
-    # After creating/renaming, go to manage folder
-    # If it was new, we want to immediately propose content management?
-    # The user said: "After creating collection immediately propose content management".
-    # So we should trigger 'content' action of manage_folder.
+
     
     if not folder_edit:
-        # Simulate clicking "Content"
-        # We need to set up state for content management
+
         chosen = []
         cor = db.channel.get_user_channels
         object_type = 'channels'
@@ -290,11 +285,7 @@ async def get_folder_name(message: types.Message, state: FSMContext, user: User)
         
         await state.update_data(
             folder_id=folder.id,
-            folder_edit=True, # Now we are in edit mode effectively
-            cor=cor, # Store coroutine function? No, we can't store async func in state easily if it's not pickleable, but here it was stored before.
-            # Actually, previous code stored 'cor'. Let's avoid storing functions in state if possible, but if it works...
-            # 'db.channel.get_user_channels' is a bound method.
-            # Better to just store 'object_type' and deduce 'cor' in handlers.
+            folder_edit=True, 
             chosen=chosen,
             object_type=object_type
         )
@@ -348,7 +339,7 @@ async def manage_folder(call: types.CallbackQuery, state: FSMContext, user: User
         folder = await db.user_folder.get_folder_by_id(
             folder_id=data.get('folder_id')
         )
-        # Content is list of strings (chat_ids)
+     
         chosen = [
             int(i) for i in folder.content
         ]

@@ -137,12 +137,18 @@ class InlineContent(InlineKeyboardBuilder):
         kb = cls()
         count_rows = 7
 
-        # Toggle View Mode Button
-        view_text = "📂 Вид: Папки" if view_mode == "folders" else "📢 Вид: Все каналы"
+
+        folders_text = "✅ Папки" if view_mode == "folders" else "📁 Папки"
+        channels_text = "✅ Все каналы" if view_mode == "channels" else "📢 Все каналы"
+        
         kb.row(
             InlineKeyboardButton(
-                text=view_text,
-                callback_data=f'{data}|switch_view'
+                text=folders_text,
+                callback_data=f'{data}|switch_view|folders'
+            ),
+            InlineKeyboardButton(
+                text=channels_text,
+                callback_data=f'{data}|switch_view|channels'
             )
         )
 

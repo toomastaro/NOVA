@@ -64,54 +64,60 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
     view_mode = await get_user_view_mode(call.from_user.id)
 
     # Переключение вида
+    # Переключение вида
     if temp[1] == "switch_view":
-        view_mode = "channels" if view_mode == "folders" else "folders"
+        # temp[2] is now the target mode (folders/channels)
+        if len(temp) > 2:
+            view_mode = temp[2]
+        else:
+            # Fallback (shouldn't happen with new buttons)
+            view_mode = "channels" if view_mode == "folders" else "folders"
+            
         await set_user_view_mode(call.from_user.id, view_mode)
         if view_mode == "channels":
             await state.update_data(current_folder_id=None)
             current_folder_id = None
         
-        # Сбрасываем пагинацию
-        temp = list(temp)
-        if len(temp) > 2:
-            temp[2] = "0"
-        else:
-            temp.append("0")
+
+        pass
 
     # Определяем что показывать
     try:
-        if view_mode == "channels":
+        if current_folder_id:
+            # Внутри папки - показываем содержимое папки (каналы)
+            folder = await db.user_folder.get_folder_by_id(current_folder_id)
+            if folder and folder.content:
+                objects = await db.channel.get_user_channels(
+                    user_id=call.from_user.id,
+                    from_array=[int(cid) for cid in folder.content],
+                )
+            else:
+                objects = []
+            folders = []
+            
+        elif view_mode == "channels":
             # Режим "Все каналы": показываем плоский список всех каналов
             objects = await db.channel.get_user_channels(
                 user_id=call.from_user.id, sort_by="posting", limit=500
             )
             folders = []
-        elif current_folder_id:
-            # Внутри папки
-            folder = await db.user_folder.get_folder_by_id(current_folder_id)
-            if folder and folder.content:
-                # Батчинг: один запрос вместо N запросов (N+1 fix)
-                objects = await db.channel.get_user_channels(
-                    user_id=call.from_user.id,
-                    from_array=[int(cid) for cid in folder.content],
-                )
-                logger.debug(
-                    "Папка %s: загружено %d каналов", current_folder_id, len(objects)
-                )
-            else:
-                objects = []
-            folders = []
-        else:
-            # Корневой уровень: параллельная загрузка каналов и папок
-            objects, folders = await asyncio.gather(
-                db.channel.get_user_channels_without_folders(user_id=call.from_user.id),
-                db.user_folder.get_folders(user_id=call.from_user.id),
-            )
-            logger.debug(
-                "Корневой уровень: загружено %d каналов, %d папок",
-                len(objects),
-                len(folders),
-            )
+            
+        else: # view_mode == "folders"
+            # Режим "Папки": показываем ТОЛЬКО папки
+            objects = [] # Каналы не показываем
+            folders = await db.user_folder.get_folders(user_id=call.from_user.id)
+            
+    except Exception as e:
+        logger.error(
+            "Ошибка загрузки каналов для пользователя %s: %s",
+            call.from_user.id,
+            str(e),
+            exc_info=True,
+        )
+        await call.answer(
+            "❌ Ошибка загрузки каналов. Попробуйте позже.", show_alert=True
+        )
+        return
     except Exception as e:
         logger.error(
             "Ошибка загрузки каналов для пользователя %s: %s",
@@ -319,14 +325,14 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
             resources=objects,
             chosen=chosen,
             folders=folders,
-            remover=(
-                int(temp[2])
-                if temp[1] in ["choice_all", "next", "back", "switch_view"]
-                or temp[1].replace("-", "").isdigit()
-                else 0
-            ),
-            view_mode=view_mode,
+        remover=(
+            int(temp[2])
+            if (len(temp) > 2 and temp[1] in ["choice_all", "next", "back"] and temp[2].isdigit())
+            or (len(temp) > 2 and temp[1].replace("-", "").isdigit() and temp[2].isdigit()) # temp[1] is id, temp[2] is remover
+            else 0
         ),
+        view_mode=view_mode,
+    ),
     )
 
 
