@@ -144,6 +144,7 @@ class InlineContent(InlineKeyboardBuilder):
         objects = []
         if view_mode == "folders":
             objects.extend(folders)
+            objects.extend(resources)
         else:
             # Show all channels sorted by title
             objects.extend(sorted(resources, key=lambda x: x.title))

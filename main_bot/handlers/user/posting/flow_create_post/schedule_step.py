@@ -14,6 +14,7 @@ import asyncio
 from datetime import datetime
 
 from aiogram import types
+from aiogram.exceptions import TelegramBadRequest
 from aiogram.fsm.context import FSMContext
 
 from main_bot.database.db import db
@@ -319,21 +320,25 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
     else:
         channels_list = ""
 
-    await call.message.edit_text(
-        text("choice_channels:post").format(len(chosen), channels_list),
-        reply_markup=keyboards.choice_objects(
-            resources=objects,
-            chosen=chosen,
-            folders=folders,
-        remover=(
-            int(temp[2])
-            if (len(temp) > 2 and temp[1] in ["choice_all", "next", "back"] and temp[2].isdigit())
-            or (len(temp) > 2 and temp[1].replace("-", "").isdigit() and temp[2].isdigit()) # temp[1] is id, temp[2] is remover
-            else 0
+    try:
+        await call.message.edit_text(
+            text("choice_channels:post").format(len(chosen), channels_list),
+            reply_markup=keyboards.choice_objects(
+                resources=objects,
+                chosen=chosen,
+                folders=folders,
+            remover=(
+                int(temp[2])
+                if (len(temp) > 2 and temp[1] in ["choice_all", "next", "back"] and temp[2].isdigit())
+                or (len(temp) > 2 and temp[1].replace("-", "").isdigit() and temp[2].isdigit()) # temp[1] is id, temp[2] is remover
+                else 0
+            ),
+            view_mode=view_mode,
         ),
-        view_mode=view_mode,
-    ),
-    )
+        )
+    except TelegramBadRequest:
+        logger.debug("Message is not modified, skipping update")
+        await call.answer()
 
 
 @safe_handler("Финальные параметры постинга")
