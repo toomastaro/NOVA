@@ -15,6 +15,7 @@ import html
 
 from aiogram import Router, F, types
 from aiogram.fsm.context import FSMContext
+from aiogram.exceptions import TelegramBadRequest
 
 from main_bot.database.db import db
 from main_bot.keyboards import keyboards, InlineNovaStat
@@ -674,16 +675,20 @@ async def novastat_my_channels(call: types.CallbackQuery, state: FSMContext):
 
     await state.update_data(chosen=[], chosen_folders=[], current_folder_id=None)
 
-    await call.message.edit_text(
-        text("choice_channels:post").format(0, ""),
-        reply_markup=keyboards.choice_objects(
-            resources=channels,
-            chosen=[],
-            folders=folders,
-            data="ChoiceNovaStatChannels",
-            view_mode=view_mode,
-        ),
-    )
+    try:
+        await call.message.edit_text(
+            text("choice_channels:novastat").format(0, ""),
+            reply_markup=keyboards.choice_objects(
+                resources=channels,
+                chosen=[],
+                folders=folders,
+                data="ChoiceNovaStatChannels",
+                view_mode=view_mode,
+            ),
+        )
+    except TelegramBadRequest:
+        pass
+
     await state.set_state(NovaStatStates.choosing_my_channels)
 
 
@@ -843,13 +848,17 @@ async def novastat_choice_channels(call: types.CallbackQuery, state: FSMContext)
         else 0
     )
 
-    await call.message.edit_text(
-        text("choice_channels:post").format(len(chosen), channels_list),
-        reply_markup=keyboards.choice_objects(
-            resources=objects,
-            chosen=chosen,
-            folders=folders,
-            remover=remover_val,
-            data="ChoiceNovaStatChannels",
-        ),
-    )
+    try:
+        await call.message.edit_text(
+            text("choice_channels:novastat").format(len(chosen), channels_list),
+            reply_markup=keyboards.choice_objects(
+                resources=display_objects if view_mode == "channels" else objects, # If generic logic, resources should be passed correctly
+                chosen=chosen,
+                folders=folders,
+                remover=remover_val,
+                data="ChoiceNovaStatChannels",
+                view_mode=view_mode, 
+            ),
+        )
+    except TelegramBadRequest:
+        pass

@@ -159,12 +159,16 @@ class InlineContent(InlineKeyboardBuilder):
                 if isinstance(objects[idx], Channel):
                     resource_id = objects[idx].chat_id
                     resource_type = "channel"
-                    button_text = f'{"🔹" if resource_id in chosen else ""} {objects[idx].title}'
+                    button_text = f'{"✅" if resource_id in chosen else ""} {idx + 1}. {objects[idx].title}'
+                elif isinstance(objects[idx], UserBot):
+                    resource_id = objects[idx].id
+                    resource_type = "bot"
+                    button_text = f'{"✅" if resource_id in chosen else ""} {idx + 1}. {objects[idx].title}'
                 else:
                     # Folder
                     resource_id = objects[idx].id
                     resource_type = "folder"
-                    button_text = f'{"🔹" if resource_id in chosen_folders else "📁"} {objects[idx].title}'
+                    button_text = f'{"✅" if resource_id in chosen_folders else "📁"} {idx + 1}. {objects[idx].title}'
 
                 kb.add(
                     InlineKeyboardButton(

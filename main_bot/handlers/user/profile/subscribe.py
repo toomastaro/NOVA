@@ -11,11 +11,10 @@ from httpx import AsyncClient
 from config import Config
 from main_bot.database.db import db
 from main_bot.database.user.model import User
-from main_bot.handlers.user.menu import profile
-from main_bot.handlers.user.profile.profile import show_subscribe
 from main_bot.keyboards import keyboards
 from main_bot.utils.lang.language import text
 from main_bot.utils.error_handler import safe_handler
+from main_bot.utils.user_settings import get_user_view_mode, set_user_view_mode
 
 logger = logging.getLogger(__name__)
 
@@ -207,13 +206,29 @@ async def choice_period(call: types.CallbackQuery, state: FSMContext, user: User
         chosen=[]
     )
 
+    # Получаем режим просмотра и папки
+    view_mode = await get_user_view_mode(call.from_user.id)
+    folders = []
+    
+    if view_mode == 'folders':
+        folders = await db.user_folder.get_folders(user_id=user.id)
+        # Если режим папок, загружаем только каналы без папок (если это каналы)
+        if object_type == 'channels':
+             objects = await db.channel.get_user_channels_without_folders(user_id=user.id)
+        # Для ботов пока нет папок, грузим всех (или если будет поддержка)
+        # else objects (bots) already processed normally because folders logic might not apply fully to bots yet
+        # But generic keyboard handles it.
+
     await call.message.edit_text(
         text(f'subscribe:chosen:{object_type}').format(
             ""
         ),
-        reply_markup=keyboards.choice_object_subscribe(
+        reply_markup=keyboards.choice_objects(
             resources=objects,
-            chosen=[]
+            chosen=[],
+            folders=folders,
+            data="ChoiceResourceSubscribe",
+            view_mode=view_mode
         )
     )
 
@@ -221,87 +236,127 @@ async def choice_period(call: types.CallbackQuery, state: FSMContext, user: User
 @safe_handler("Subscribe Choice Object")
 async def choice_object_subscribe(call: types.CallbackQuery, state: FSMContext, user: User):
     """Выбор конкретных каналов/ботов для подписки."""
-    temp = call.data.split('|')
+    temp = call.data.split("|")
     data = await state.get_data()
     if not data:
-        await call.answer(text('keys_data_error'))
+        await call.answer(text("keys_data_error"))
         return await call.message.delete()
 
-    # cor = data.get('cor')
-    service = data.get('service')
-    object_type = data.get('object_type')
+    service = data.get("service")
+    object_type = data.get("object_type")
+    chosen = data.get("chosen", [])
     
-    # Защита от потери данных в state
+    # Защита от потери данных
     if not service:
-        service = 'subscribe'
+        service = "subscribe"
     if not object_type:
-        object_type = 'channels'
+        object_type = "channels"
     
-    # Определяем функцию динамически
-    if object_type == 'bots':
+    tariff_id = data.get("tariff_id")
+    if tariff_id is None:
+        await call.answer(text("keys_data_error"))
+        return await call.message.delete()
+
+    # Helpers
+    if object_type == "bots":
         cor = db.user_bot.get_user_bots
     else:
         cor = db.channel.get_user_channels
-    
-    tariff_id = data.get('tariff_id')
-    
-    # Если тариф не выбран (например, после перезапуска бота с потерей state), возвращаем в меню
-    if tariff_id is None:
-        await call.answer(text('keys_data_error'))
-        return await call.message.delete()
+
+    # SWITCH VIEW
+    if temp[1] == "switch_view":
+        current_view = await get_user_view_mode(call.from_user.id)
+        new_view = "channels" if current_view == "folders" else "folders"
+        await set_user_view_mode(call.from_user.id, new_view)
+        # Reset folder navigation
+        await state.update_data(current_folder_id=None)
         
-    chosen: list = data.get('chosen')
+        # Reloading happens below
+    
+    view_mode = await get_user_view_mode(call.from_user.id)
+    current_folder_id = data.get("current_folder_id")
 
-    if temp[1] == 'cancel':
-        objects = await cor(
-            user_id=user.id,
-            limit=10,
-            sort_by=service
-        )
+    # Load Objects
+    if object_type == "bots":
+        # Bots don't have folders logic yet
+        objects = await cor(user_id=user.id, sort_by=service)
+        folders = []
+    else:
+        # Channels
+        if view_mode == "channels":
+            objects = await cor(user_id=user.id, sort_by=service)
+            folders = []
+        else: # folders mode
+            folders = await db.user_folder.get_folders(user_id=user.id)
+            if current_folder_id:
+               # Inside a folder
+               folder = await db.user_folder.get_folder_by_id(int(current_folder_id))
+               objects = []
+               if folder and folder.content:
+                   for chat_id in folder.content:
+                       ch = await db.channel.get_channel_by_chat_id(int(chat_id))
+                       if ch:
+                           objects.append(ch)
+               folders = [] # Don't show folders when inside a folder
+            else:
+               # Root of folders view
+               objects = await db.channel.get_user_channels_without_folders(user_id=user.id)
 
-        await call.message.delete()
-        return await call.message.answer(
-            text('subscribe_text:{}'.format(object_type)).format(
-                get_subscribe_list_resources(
-                    objects=objects,
-                    object_type=object_type,
-                    sort_by=service
-                )
-            ),
-            reply_markup=keyboards.choice_period(
-                service=service
-            )
-        )
+    # SELECT ITEM/FOLDER
+    if temp[1].replace("-", "").isdigit(): # Check for digit (ID)
+        resource_id = int(temp[1])
+        # temp[3] is type if present
+        resource_type = temp[3] if len(temp) > 3 else None
+        
+        if resource_type == "folder":
+            await state.update_data(current_folder_id=resource_id)
+            # Re-run logic to enter folder (recursive call or just proceed)
+            # Efficient way: update local vars and proceed to render
+            current_folder_id = resource_id
+            folder = await db.user_folder.get_folder_by_id(resource_id)
+            objects = []
+            if folder and folder.content:
+               for chat_id in folder.content:
+                   ch = await db.channel.get_channel_by_chat_id(int(chat_id))
+                   if ch:
+                       objects.append(ch)
+            folders = [] 
+            # Reset pagination
+            if len(temp) > 2:
+                temp[2] = "0" 
+        else:
+            # It's a channel or bot
+            if resource_id in chosen:
+                chosen.remove(resource_id)
+            else:
+                chosen.append(resource_id)
+            await state.update_data(chosen=chosen)
 
-    objects = await cor(
-        user_id=user.id,
-        sort_by=service
-    )
+    # CHOICE ALL
+    if temp[1] == "choice_all":
+        # Get IDs of current objects
+        # For folders, decide behavior. Usually 'choice_all' applies to visible items?
+        # choice_objects usually implements "select all visible".
+        # If view_mode=folders and root, objects are orphaned channels.
+        visible_ids = [o.chat_id if isinstance(o, db.channel.model.Channel) else o.id for o in objects]
+        
+        if all(i in chosen for i in visible_ids):
+             # Unselect all visible
+             for i in visible_ids:
+                 if i in chosen:
+                     chosen.remove(i)
+        else:
+             # Select all visible
+             for i in visible_ids:
+                 if i not in chosen:
+                     chosen.append(i)
+        await state.update_data(chosen=chosen)
 
-    if temp[1] in ['next', 'back']:
-        return await call.message.edit_text(
-            text(f'subscribe:chosen:{object_type}').format(
-                "\n".join(
-                    text("resource_title").format(
-                        obj.title
-                    ) for obj in objects
-                    if obj.id in chosen[:10]
-                )
-            ),
-            reply_markup=keyboards.choice_object_subscribe(
-                resources=objects,
-                chosen=chosen,
-                remover=int(temp[2])
-            )
-        )
-
-    if temp[1] == 'pay':
+    # PAYMENT (Next Step)
+    if temp[1] == "next_step":
         if not chosen:
-            return await call.answer(
-                text('error_min_choice'),
-                show_alert=True
-            )
-
+            return await call.answer(text("error_min_choice"), show_alert=True)
+            
         total_count_resources = len(chosen)
         total_days = Config.TARIFFS.get(service).get(tariff_id).get('period')
         total_price = Config.TARIFFS.get(service).get(tariff_id).get('amount') * total_count_resources
@@ -321,41 +376,74 @@ async def choice_object_subscribe(call: types.CallbackQuery, state: FSMContext, 
                 is_subscribe=True
             )
         )
+        
+    # BACK handling (Folder navigation or Menu)
+    if temp[1] == "back" and current_folder_id:
+         # Exit folder
+         await state.update_data(current_folder_id=None)
+         # Logic will auto-reset to root view next render
+         # Need to reset objects/folders for correct rendering NOW if we don't return
+         folders = await db.user_folder.get_folders(user_id=user.id)
+         objects = await db.channel.get_user_channels_without_folders(user_id=user.id)
+         # Reset pagination
+         if len(temp) > 2:
+             temp[2] = "0"
 
-    if temp[1] == 'choice_all':
-        if len(objects) == len(chosen):
-            chosen.clear()
-        else:
-            chosen.extend(
-                [i.id for i in objects
-                 if i.id not in chosen]
-            )
-
-    if temp[1].isdigit():
-        resource_id = int(temp[1])
-        if resource_id in chosen:
-            chosen.remove(resource_id)
-        else:
-            chosen.append(resource_id)
-
-    await state.update_data(
-        chosen=chosen
-    )
-    await call.message.edit_text(
-        text(f'subscribe:chosen:{object_type}').format(
-            "\n".join(
-                text("resource_title").format(
-                    obj.title
-                ) for obj in objects
-                if obj.id in chosen[:10]
-            )
-        ),
-        reply_markup=keyboards.choice_object_subscribe(
-            resources=objects,
-            chosen=chosen,
-            remover=int(temp[2])
+    # CANCEL (Back to Period Choice)
+    if temp[1] == "cancel":
+        # Recalculate objects for period choice screen? Or just go back.
+        # Original code went back to period choice.
+        objects = await cor(user_id=user.id, limit=10, sort_by=service)
+        await call.message.delete()
+        return await call.message.answer(
+            text('subscribe_text:{}'.format(object_type)).format(
+                get_subscribe_list_resources(
+                    objects=objects,
+                    object_type=object_type,
+                    sort_by=service
+                )
+            ),
+            reply_markup=keyboards.choice_period(service=service)
         )
+        
+    # RENDER
+    # Determine pagination
+    remover = 0
+    if len(temp) > 2 and temp[2].isdigit():
+        remover = int(temp[2])
+    
+    # Calculate real chosen titles for display
+    # Need to fetch titles for all chosen IDs to display them in text?
+    # Original code displayed chosen titles.
+    # To avoid N+1, maybe just show count? Or fetch all user channels?
+    # Original: text(f'subscribe:chosen:{object_type}').format(...)
+    # Let's fetch all user channels to map titles for chosen ones.
+    all_resources = await cor(user_id=user.id) 
+    # Use dictionary for O(1)
+    res_map = { (r.chat_id if hasattr(r,'chat_id') else r.id): r.title for r in all_resources }
+    
+    display_text = "\n".join(
+        text("resource_title").format(res_map.get(cid, "Unknown"))
+        for cid in chosen[:10]
     )
+    
+    try:
+        await call.message.edit_text(
+            text(f'subscribe:chosen:{object_type}').format(
+                display_text
+            ),
+            reply_markup=keyboards.choice_objects(
+                resources=objects,
+                chosen=chosen,
+                folders=folders,
+                remover=remover,
+                data="ChoiceResourceSubscribe",
+                view_mode=view_mode
+            )
+        )
+    except Exception:
+        # Ignore message not modified
+        pass
 
 
 def get_router():
