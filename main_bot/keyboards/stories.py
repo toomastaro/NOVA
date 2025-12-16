@@ -8,6 +8,7 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 from main_bot.database.story.model import Story
 from main_bot.utils.lang.language import text
 from main_bot.utils.schemas import StoryOptions
+from main_bot.keyboards.posting import ensure_obj
 
 
 class InlineStories(InlineKeyboardBuilder):
@@ -35,6 +36,7 @@ class InlineStories(InlineKeyboardBuilder):
 
     @classmethod
     def manage_story(cls, post: Story, is_edit: bool = False):
+        post = ensure_obj(post)
         kb = cls()
         options = StoryOptions(**post.story_options)
 
@@ -108,6 +110,7 @@ class InlineStories(InlineKeyboardBuilder):
 
     @classmethod
     def manage_remain_story(cls, post: Story):
+        post = ensure_obj(post)
         kb = cls()
         options = StoryOptions(**post.story_options)
 

@@ -31,32 +31,21 @@ logger = logging.getLogger(__name__)
 
 async def get_story_report_text(chosen, objects):
     """
-    Формирование текста отчета с лимитами stories для выбранных каналов.
+    Формирование текста отчета для выбранных каналов.
 
     Args:
         chosen: Список выбранных chat_id
         objects: Список объектов каналов
 
     Returns:
-        str: Форматированный текст с информацией о лимитах
+        str: Форматированный текст
     """
     lines = []
     target_ids = chosen[:10]
     target_objects = [obj for obj in objects if obj.chat_id in target_ids]
 
     for obj in target_objects:
-        posted_stories = await db.story.get_stories(obj.chat_id, datetime.now())
-        posted = len(posted_stories)
-
-        limit = 0
-        if obj.session_path:
-            try:
-                async with SessionManager(Path(obj.session_path)) as manager:
-                    limit = await manager.get_story_limit(int(obj.chat_id))
-            except Exception:
-                pass
-
-        lines.append(text("resource_title").format(obj.title) + f" ({posted}/{limit})")
+        lines.append(text("resource_title").format(obj.title))
 
     return "\n".join(lines)
 
@@ -266,10 +255,10 @@ async def finish_params(call: types.CallbackQuery, state: FSMContext):
         await call.answer(text("keys_data_error"))
         return await call.message.delete()
 
-    post: Story = data.get("post")
-    options = StoryOptions(**post.story_options)
+    post: dict = data.get("post")
+    options = StoryOptions(**post["story_options"])
 
-    chosen: list = data.get("chosen", post.chat_ids)
+    chosen: list = data.get("chosen", post["chat_ids"])
     objects = await db.channel.get_user_channels(
         user_id=call.from_user.id, sort_by="stories"
     )
@@ -281,12 +270,14 @@ async def finish_params(call: types.CallbackQuery, state: FSMContext):
         return
 
     if temp[1] == "report":
-        post = await db.story.update_story(
-            post_id=post.id, return_obj=True, report=not post.report
+        post_obj = await db.story.update_story(
+            post_id=post["id"], return_obj=True, report=not post["report"]
         )
-        await state.update_data(post=post)
+        # Преобразуем объект post в dict для сохранения в FSM
+        post_dict = {col.name: getattr(post_obj, col.name) for col in post_obj.__table__.columns}
+        await state.update_data(post=post_dict)
         return await call.message.edit_reply_markup(
-            reply_markup=keyboards.finish_params(obj=post, data="FinishStoriesParams")
+            reply_markup=keyboards.finish_params(obj=post_dict, data="FinishStoriesParams")
         )
 
     if temp[1] == "delete_time":
@@ -326,18 +317,20 @@ async def choice_delete_time(call: types.CallbackQuery, state: FSMContext):
         await call.answer(text("keys_data_error"))
         return await call.message.delete()
 
-    post: Story = data.get("post")
-    story_options = StoryOptions(**post.story_options)
+    post: dict = data.get("post")
+    story_options = StoryOptions(**post["story_options"])
 
     delete_time = story_options.period
     if temp[1].isdigit():
         delete_time = int(temp[1])
     if story_options.period != delete_time:
         story_options.period = delete_time
-        post = await db.story.update_story(
-            post_id=post.id, return_obj=True, story_options=story_options.model_dump()
+        post_obj = await db.story.update_story(
+            post_id=post["id"], return_obj=True, story_options=story_options.model_dump()
         )
-        await state.update_data(post=post)
+        # Преобразуем объект post в dict для сохранения в FSM
+        post_dict = {col.name: getattr(post_obj, col.name) for col in post_obj.__table__.columns}
+        await state.update_data(post=post_dict)
         data = await state.get_data()
 
     is_edit: bool = data.get("is_edit")
@@ -438,14 +431,14 @@ async def get_send_time(message: types.Message, state: FSMContext):
 
     data = await state.get_data()
     is_edit: bool = data.get("is_edit")
-    post: Story = data.get("post")
-    options = StoryOptions(**post.story_options)
+    post: dict = data.get("post")
+    options = StoryOptions(**post["story_options"])
 
     if is_edit:
-        post = await db.story.update_story(
-            post_id=post.id, return_obj=True, send_time=send_time
+        post_obj = await db.story.update_story(
+            post_id=post["id"], return_obj=True, send_time=send_time
         )
-        send_date = datetime.fromtimestamp(post.send_time)
+        send_date = datetime.fromtimestamp(post_obj.send_time)
         send_date_values = (
             send_date.day,
             text("month").get(str(send_date.month)),
@@ -453,6 +446,9 @@ async def get_send_time(message: types.Message, state: FSMContext):
         )
 
         await state.clear()
+        # Преобразуем объект post в dict для сохранения в FSM
+        post_dict = {col.name: getattr(post_obj, col.name) for col in post_obj.__table__.columns}
+        data["post"] = post_dict
         data["send_date_values"] = send_date_values
         await state.update_data(data)
 
