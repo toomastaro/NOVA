@@ -1,5 +1,5 @@
 
-from main_bot.database import db
+from main_bot.utils.redis_client import redis_client
 
 # Redis Key Prefix
 VIEW_MODE_KEY = "view_mode:{}"
@@ -10,11 +10,10 @@ async def get_user_view_mode(user_id: int) -> str:
     Получает текущий режим просмотра каналов пользователя.
     Returns: 'folders' (default) or 'channels'
     """
-    redis = db.redis  # Используем существующий Redis клиент из db
-    if not redis:
+    if not redis_client:
         return "folders"
         
-    mode = await redis.get(VIEW_MODE_KEY.format(user_id))
+    mode = await redis_client.get(VIEW_MODE_KEY.format(user_id))
     return mode.decode() if mode else "folders"
 
 
@@ -24,6 +23,5 @@ async def set_user_view_mode(user_id: int, mode: str):
     Args:
         mode: 'folders' or 'channels'
     """
-    redis = db.redis
-    if redis:
-        await redis.set(VIEW_MODE_KEY.format(user_id), mode)
+    if redis_client:
+        await redis_client.set(VIEW_MODE_KEY.format(user_id), mode)

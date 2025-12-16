@@ -9,7 +9,6 @@
 import logging
 from aiogram import Dispatcher
 from aiogram.fsm.storage.redis import RedisStorage
-from redis.asyncio import Redis
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from dotenv import load_dotenv
@@ -26,16 +25,14 @@ from main_bot.utils.schedulers import init_scheduler, register_channel_jobs
 from .user import get_router as user_router
 from .admin import get_router as admin_router
 from config import Config
+from main_bot.utils.redis_client import redis_client
 
 load_dotenv()
 
 logger = logging.getLogger(__name__)
 
-redis = Redis(
-    host=Config.REDIS_HOST,
-    port=Config.REDIS_PORT,
-    password=Config.REDIS_PASS,
-)
+# Use shared Redis client
+redis = redis_client
 
 dp = Dispatcher(storage=RedisStorage(redis=redis))
 
