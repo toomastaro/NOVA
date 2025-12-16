@@ -22,6 +22,7 @@ from main_bot.utils.schemas import StoryOptions
 from main_bot.keyboards import keyboards
 from main_bot.states.user import Stories
 from main_bot.utils.error_handler import safe_handler
+from main_bot.utils.user_settings import get_user_view_mode, set_user_view_mode
 
 logger = logging.getLogger(__name__)
 
@@ -113,9 +114,36 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
     chosen: list = data.get("chosen")
     chosen_folders: list = data.get("chosen_folders")
 
-    objects = await db.channel.get_user_channels(
-        user_id=call.from_user.id, sort_by="stories"
-    )
+    chosen: list = data.get("chosen")
+    chosen_folders: list = data.get("chosen_folders")
+
+    view_mode = await get_user_view_mode(call.from_user.id)
+
+    # Переключение вида
+    if temp[1] == "switch_view":
+        view_mode = "channels" if view_mode == "folders" else "folders"
+        await set_user_view_mode(call.from_user.id, view_mode)
+        
+        # Сбрасываем пагинацию
+        temp = list(temp)
+        if len(temp) > 2:
+            temp[2] = "0"
+        else:
+            temp.append("0")
+
+    # Определяем что показывать
+    if view_mode == "channels":
+        # Режим "Все каналы": показываем плоский список всех каналов
+        objects = await db.channel.get_user_channels(
+            user_id=call.from_user.id, sort_by="stories", limit=500
+        )
+        folders = []
+    else:
+        # Режим "Папки" (или стандартный)
+        objects = await db.channel.get_user_channels(
+            user_id=call.from_user.id, sort_by="stories"
+        )
+        folders = await db.user_folder.get_folders(user_id=call.from_user.id)
 
     if temp[1] == "next_step":
         if not chosen:
@@ -149,6 +177,7 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
                 folders=folders,
                 chosen_folders=chosen_folders,
                 data="ChoiceStoriesChannels",
+                view_mode=view_mode,
             )
         )
 
@@ -240,6 +269,7 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
             chosen_folders=chosen_folders,
             remover=int(temp[2]),
             data="ChoiceStoriesChannels",
+            view_mode=view_mode,
         ),
     )
 

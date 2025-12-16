@@ -4,6 +4,7 @@ from aiogram.fsm.context import FSMContext
 from main_bot.database.db import db
 from main_bot.keyboards import keyboards
 from main_bot.utils.lang.language import text
+from main_bot.utils.user_settings import get_user_view_mode
 import logging
 from main_bot.utils.error_handler import safe_handler
 
@@ -67,6 +68,8 @@ async def show_create_post(message: types.Message, state: FSMContext):
             db.user_folder.get_folders(user_id=message.chat.id),
         )
 
+        view_mode = await get_user_view_mode(message.chat.id)
+
         logger.info(
             "Пользователь %s: загружено %d каналов для постинга",
             message.chat.id,
@@ -99,6 +102,7 @@ async def show_create_post(message: types.Message, state: FSMContext):
                 chosen=[],
                 folders=folders,
                 data="ChoicePostChannels",
+                view_mode=view_mode,
             ),
         )
 

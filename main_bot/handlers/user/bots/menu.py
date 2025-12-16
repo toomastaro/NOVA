@@ -8,6 +8,7 @@ from main_bot.utils.lang.language import text
 
 import logging
 from main_bot.utils.error_handler import safe_handler
+from main_bot.utils.user_settings import get_user_view_mode
 
 logger = logging.getLogger(__name__)
 
@@ -64,6 +65,8 @@ async def show_choice_channel(message: types.Message, state: FSMContext):
 
     folders = await db.user_folder.get_folders(message.chat.id)
 
+    view_mode = await get_user_view_mode(message.chat.id)
+
     data = await state.get_data()
     chosen = data.get("chosen", [])
 
@@ -93,6 +96,7 @@ async def show_choice_channel(message: types.Message, state: FSMContext):
             folders=folders,
             chosen_folders=data.get("chosen_folders", []),
             data="ChoicePostBots",
+            view_mode=view_mode,
         ),
     )
 

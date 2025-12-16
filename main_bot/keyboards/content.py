@@ -132,13 +132,27 @@ class InlineContent(InlineKeyboardBuilder):
             chosen_folders: List[int] = [],
             data: str = "ChoicePostChannels",
             remover: int = 0,
+            view_mode: str = "folders",
     ):
         kb = cls()
         count_rows = 7
 
+        # Toggle View Mode Button
+        view_text = "📂 Вид: Папки" if view_mode == "folders" else "📢 Вид: Все каналы"
+        kb.row(
+            InlineKeyboardButton(
+                text=view_text,
+                callback_data=f'{data}|switch_view'
+            )
+        )
+
         objects = []
-        objects.extend(folders)
-        objects.extend(resources)
+        if view_mode == "folders":
+            objects.extend(folders)
+            objects.extend(resources)
+        else:
+            # Show all channels sorted by title
+            objects.extend(sorted(resources, key=lambda x: x.title))
 
         for a, idx in enumerate(range(remover, len(objects))):
             if a < count_rows:

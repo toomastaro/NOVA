@@ -23,6 +23,7 @@ from main_bot.utils.novastat import novastat_service
 from main_bot.utils.lang.language import text
 from main_bot.states.user import NovaStatStates
 from main_bot.utils.report_signature import get_report_signatures
+from main_bot.utils.user_settings import get_user_view_mode, set_user_view_mode
 
 logger = logging.getLogger(__name__)
 
@@ -658,10 +659,18 @@ async def novastat_cpm_text(message: types.Message, state: FSMContext):
 # --- My Channels Selection ---
 @router.callback_query(F.data == "NovaStat|my_channels")
 async def novastat_my_channels(call: types.CallbackQuery, state: FSMContext):
-    folders = await db.user_folder.get_folders(user_id=call.from_user.id)
-    channels = await db.channel.get_user_channels_without_folders(
-        user_id=call.from_user.id
-    )
+    view_mode = await get_user_view_mode(call.from_user.id)
+
+    # Если view_mode == 'channels', просто грузим все каналы
+    # Иначе грузим без папок + папки (как было)
+    if view_mode == "channels":
+        channels = await db.channel.get_user_channels(user_id=call.from_user.id)
+        folders = []
+    else:
+        folders = await db.user_folder.get_folders(user_id=call.from_user.id)
+        channels = await db.channel.get_user_channels_without_folders(
+            user_id=call.from_user.id
+        )
 
     await state.update_data(chosen=[], chosen_folders=[], current_folder_id=None)
 
@@ -672,6 +681,7 @@ async def novastat_my_channels(call: types.CallbackQuery, state: FSMContext):
             chosen=[],
             folders=folders,
             data="ChoiceNovaStatChannels",
+            view_mode=view_mode,
         ),
     )
     await state.set_state(NovaStatStates.choosing_my_channels)
@@ -688,8 +698,28 @@ async def novastat_choice_channels(call: types.CallbackQuery, state: FSMContext)
     chosen: list = data.get("chosen", [])
     current_folder_id = data.get("current_folder_id")
 
+    view_mode = await get_user_view_mode(call.from_user.id)
+
+    # Переключение вида
+    if temp[1] == "switch_view":
+        view_mode = "channels" if view_mode == "folders" else "folders"
+        await set_user_view_mode(call.from_user.id, view_mode)
+        if view_mode == "channels":
+            await state.update_data(current_folder_id=None)
+            current_folder_id = None
+        
+        # Сбрасываем пагинацию
+        temp = list(temp)
+        if len(temp) > 2:
+            temp[2] = "0"
+        else:
+            temp.append("0")
+
     # Determine objects
-    if current_folder_id:
+    if view_mode == "channels":
+        objects = await db.channel.get_user_channels(user_id=call.from_user.id)
+        folders = []
+    elif current_folder_id:
         folder = await db.user_folder.get_folder_by_id(current_folder_id)
         objects = []
         if folder and folder.content:
@@ -744,6 +774,7 @@ async def novastat_choice_channels(call: types.CallbackQuery, state: FSMContext)
                 folders=folders,
                 remover=int(temp[2]),
                 data="ChoiceNovaStatChannels",
+                view_mode=view_mode,
             )
         )
 

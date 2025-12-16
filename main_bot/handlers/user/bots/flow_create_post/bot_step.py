@@ -17,7 +17,7 @@ from main_bot.handlers.user.menu import start_bots
 from main_bot.handlers.user.bots.menu import show_create_post
 from main_bot.utils.lang.language import text
 from main_bot.keyboards import keyboards
-
+from main_bot.utils.user_settings import get_user_view_mode, set_user_view_mode
 from main_bot.utils.error_handler import safe_handler
 
 logger = logging.getLogger(__name__)
@@ -65,9 +65,33 @@ async def choice_bots(call: types.CallbackQuery, state: FSMContext):
     chosen_folders: list = data.get("chosen_folders")
 
     channels = await db.channel_bot_settings.get_bot_channels(call.from_user.id)
-    objects = await db.channel.get_user_channels(
-        call.from_user.id, from_array=[i.id for i in channels]
-    )
+
+    view_mode = await get_user_view_mode(call.from_user.id)
+
+    # Переключение вида
+    if temp[1] == "switch_view":
+        view_mode = "channels" if view_mode == "folders" else "folders"
+        await set_user_view_mode(call.from_user.id, view_mode)
+        
+        # Сбрасываем пагинацию
+        temp = list(temp)
+        if len(temp) > 2:
+            temp[2] = "0"
+        else:
+            temp.append("0")
+
+    if view_mode == "channels":
+        objects = await db.channel.get_user_channels(
+            call.from_user.id, from_array=[i.id for i in channels]
+        )
+        folders = []
+    else:
+        objects = await db.channel.get_user_channels(
+            call.from_user.id, from_array=[i.id for i in channels]
+        )
+        folders = await db.user_folder.get_folders(
+            user_id=call.from_user.id,
+        )
 
     if temp[1] == "next_step":
         if not chosen:
@@ -75,10 +99,6 @@ async def choice_bots(call: types.CallbackQuery, state: FSMContext):
 
         await call.message.delete()
         return await show_create_post(call.message, state)
-
-    folders = await db.user_folder.get_folders(
-        user_id=call.from_user.id,
-    )
 
     if temp[1] == "cancel":
         await call.message.delete()
@@ -92,6 +112,7 @@ async def choice_bots(call: types.CallbackQuery, state: FSMContext):
                 folders=folders,
                 chosen_folders=chosen_folders,
                 data="ChoicePostBots",
+                view_mode=view_mode,
             )
         )
 
@@ -217,5 +238,6 @@ async def choice_bots(call: types.CallbackQuery, state: FSMContext):
             chosen_folders=chosen_folders,
             remover=int(temp[2]),
             data="ChoicePostBots",
+            view_mode=view_mode,
         ),
     )
