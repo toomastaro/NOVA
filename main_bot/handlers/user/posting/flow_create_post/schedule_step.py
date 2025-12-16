@@ -26,7 +26,6 @@ from main_bot.keyboards import keyboards
 from main_bot.keyboards.posting import ensure_obj
 from main_bot.states.user import Posting
 from main_bot.utils.error_handler import safe_handler
-from main_bot.utils.error_handler import safe_handler
 from main_bot.utils.user_settings import get_user_view_mode, set_user_view_mode
 from main_bot.utils.redis_client import redis_client
 import json

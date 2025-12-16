@@ -60,7 +60,7 @@ async def manage_post(call: types.CallbackQuery, state: FSMContext):
             await state.update_data(show_more=False)
 
             if data.get("is_published"):
-                # Return to Published Post View
+                # Возврат к просмотру опубликованного поста
                 from main_bot.handlers.user.posting.content import (
                     generate_post_info_text,
                 )
@@ -71,12 +71,13 @@ async def manage_post(call: types.CallbackQuery, state: FSMContext):
                     info_text, reply_markup=keyboards.manage_published_post(post=post)
                 )
             else:
-                # Return to Draft/Scheduled View
+                # Возврат к черновикам/отложенным
                 from main_bot.handlers.user.posting.content import (
                     generate_post_info_text,
                 )
 
                 info_text = await generate_post_info_text(post, is_published=False)
+
 
                 return await call.message.answer(
                     info_text,
@@ -169,7 +170,7 @@ async def manage_post(call: types.CallbackQuery, state: FSMContext):
 
         if temp[1] == "pin_time":
             # Переключаем закреп
-            # Handle PublishedPost (unpin_time) vs Post (pin_time)
+            # Обработка PublishedPost (unpin_time) vs Post (pin_time)
             current_val = getattr(post, "pin_time", getattr(post, "unpin_time", None))
             new_pin_value = not current_val if current_val else True
 
@@ -185,7 +186,7 @@ async def manage_post(call: types.CallbackQuery, state: FSMContext):
             await db.published_post.update_published_posts_by_post_id(
                 post_id=post.post_id, **update_kwargs
             )
-            # Fetch updated object (just one of them to keep in state)
+            # Получаем обновленный объект (только один, чтобы сохранить в state)
             post = await db.published_post.get_published_post_by_id(post.id)
         else:
             update_kwargs = {}
@@ -198,10 +199,10 @@ async def manage_post(call: types.CallbackQuery, state: FSMContext):
                 post_id=data.get("post").id, return_obj=True, **update_kwargs
             )
 
-        # Update backup message
+        # Обновляем бекап сообщения
         await edit_backup_message(post)
 
-        # Update live messages if published
+        # Обновляем live-сообщения, если опубликовано
         if data.get("is_published"):
             await update_live_messages(post.post_id, message_options)
 

@@ -77,7 +77,6 @@ async def send(post: Post):
     options = message_options.model_dump()
     
     # Очистка опций
-    # keys_to_remove = ["show_caption_above_media", "has_spoiler", "disable_web_page_preview", "caption", "text", "photo", "video", "animation"]
     # Грубая очистка - удаляем все конфликтующие поля в зависимости от типа, заново формируем.
     # Но лучше следовать логике оригинала, но чище.
     
@@ -99,7 +98,7 @@ async def send(post: Post):
     error_send = []
     success_send = []
 
-    # Backup Logic
+    # Логика бекапа (Backup Logic)
     backup_message_id = post.backup_message_id
     if Config.BACKUP_CHAT_ID:
         if not backup_message_id:
@@ -249,7 +248,11 @@ async def send(post: Post):
 
 async def send_posts():
     """Периодическая задача: отправка отложенных постов"""
+    """Периодическая задача: отправка отложенных постов"""
     posts = await db.post.get_post_for_send()
+
+    if posts:
+        logger.info(f"Запущена отправка постов: найдено {len(posts)} задач")
 
     for post in posts:
         asyncio.create_task(send(post))

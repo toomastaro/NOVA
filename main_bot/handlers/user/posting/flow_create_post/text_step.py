@@ -135,8 +135,12 @@ async def get_message(message: types.Message, state: FSMContext):
 
     # Создание бекапа поста в резервном канале (для превью и редактирования)
     from main_bot.utils.backup_utils import send_to_backup
+    from config import Config
 
     try:
+        if not Config.BACKUP_CHAT_ID:
+            raise ValueError("BACKUP_CHAT_ID не установлен")
+
         backup_chat_id, backup_message_id = await send_to_backup(post)
         if backup_chat_id and backup_message_id:
             # Обновляем пост с backup_message_id

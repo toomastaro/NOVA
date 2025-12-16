@@ -133,11 +133,11 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
                 exc_info=True,
             )
 
-    # --- OTLOG IMPLEMENTATION ---
+    # --- Реализация OTLOG (отчет) ---
     from datetime import datetime
     import html
 
-    # 1. Preview (Copy from Backup)
+    # 1. Превью (Копия из бекапа)
     # Пытаемся получить актуальные данные о бекапе (могли обновиться выше)
     current_post = await db.post.get_post(post.id)
     backup_chat_id = current_post.backup_chat_id
@@ -177,9 +177,9 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
                 exc_info=True,
             )
 
-    # 2. OTLOG Text Construction
+    # 2. Формирование текста отчета (OTLOG)
 
-    # Status & Date
+    # Статус и дата
     use_send_time = kwargs.get("send_time", post.send_time)
 
     if use_send_time and use_send_time > time.time():
@@ -191,7 +191,7 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
         dt = datetime.fromtimestamp(time.time())
         date_str = dt.strftime("%d.%m.%Y %H:%M")
 
-    # Delete Time
+    # Время удаления
     delete_str = ""
     if post.delete_time:
         if post.delete_time < 3600:
@@ -200,12 +200,12 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
             time_display = f"{int(post.delete_time / 3600)} ч."
         delete_str = text("post:report:delete_in").format(time_display)
 
-    # CPM Price
+    # Цена CPM
     cpm_str = ""
     if post.cpm_price:
         cpm_str = text("post:report:cpm").format(int(post.cpm_price))
 
-    # Channels List
+    # Список каналов
     channels_block = ""
     if chosen:
         channels_str = "\n".join(
@@ -228,11 +228,11 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
     if channels_block:
         otlog_text += f"\n{channels_block}"
 
-    # 3. Send OTLOG and Menu
+    # 3. Отправка отчета и меню
     await state.clear()
     await call.message.delete()
 
-    # Send OTLOG
+    # Отправка OTLOG
     await call.message.answer(
         otlog_text,
         reply_markup=keyboards.posting_menu(),
