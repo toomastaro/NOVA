@@ -205,7 +205,8 @@ async def manage_post(call: types.CallbackQuery, state: FSMContext):
         if data.get("is_published"):
             await update_live_messages(post.post_id, message_options)
 
-        await state.update_data(post=post)
+        post_dict = {col.name: getattr(post, col.name) for col in post.__table__.columns}
+        await state.update_data(post=post_dict)
 
         await call.message.delete()
         return await answer_post(call.message, state)
@@ -283,7 +284,8 @@ async def cancel_value(call: types.CallbackQuery, state: FSMContext):
         post = await db.post.update_post(
             post_id=data.get("post").id, return_obj=True, **kwargs
         )
-        await state.update_data(post=post)
+        post_dict = {col.name: getattr(post, col.name) for col in post.__table__.columns}
+        await state.update_data(post=post_dict)
         data = await state.get_data()
 
     await state.clear()
@@ -441,7 +443,7 @@ async def get_value(message: types.Message, state: FSMContext):
             )
 
     await state.clear()
-    data["post"] = post
+    data["post"] = {col.name: getattr(post, col.name) for col in post.__table__.columns}
     await state.update_data(data)
 
     await message.bot.delete_message(message.chat.id, data.get("input_msg_id"))

@@ -345,7 +345,8 @@ async def finish_params(call: types.CallbackQuery, state: FSMContext):
         post = await db.post.update_post(
             post_id=post.id, return_obj=True, report=not post.report
         )
-        await state.update_data(post=post)
+        post_dict = {col.name: getattr(post, col.name) for col in post.__table__.columns}
+        await state.update_data(post=post_dict)
         return await call.message.edit_reply_markup(
             reply_markup=keyboards.finish_params(obj=post)
         )
@@ -483,7 +484,8 @@ async def choice_delete_time(call: types.CallbackQuery, state: FSMContext):
                 post_id=post.id, return_obj=True, delete_time=delete_time
             )
 
-        await state.update_data(post=post)
+        post_dict = {col.name: getattr(post, col.name) for col in post.__table__.columns}
+        await state.update_data(post=post_dict)
         data = await state.get_data()
 
     # Если редактируем опубликованный пост
