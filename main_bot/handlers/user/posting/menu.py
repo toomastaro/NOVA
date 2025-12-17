@@ -42,7 +42,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
 
     if temp[1] in menu:
         cor, args = menu[temp[1]].values()
-        await call.message.delete()
+        # await call.message.delete()
         await cor(*args)
     else:
         logger.warning("Неизвестная команда меню постинга: %s", temp[1])
@@ -94,7 +94,7 @@ async def show_create_post(message: types.Message, state: FSMContext):
                 "Пользователь %s попытался создать пост без активной подписки",
                 message.chat.id,
             )
-            return await message.answer(
+            return await message.edit_text(
                 text("error_no_subscription_posting"),
                 reply_markup=keyboards.posting_menu(),
             )
@@ -111,7 +111,7 @@ async def show_create_post(message: types.Message, state: FSMContext):
             display_folders = []
 
         # Показываем выбор каналов
-        await message.answer(
+        await message.edit_text(
             text("choice_channels:post").format(0, ""),
             reply_markup=keyboards.choice_objects(
                 resources=display_channels,
@@ -129,7 +129,7 @@ async def show_create_post(message: types.Message, state: FSMContext):
             str(e),
             exc_info=True,
         )
-        await message.answer(
+        await message.edit_text(
             "❌ Произошла ошибка при загрузке каналов. Попробуйте позже.",
             reply_markup=keyboards.posting_menu(),
         )
@@ -141,7 +141,7 @@ async def show_settings(message: types.Message):
     channels = await db.channel.get_user_channels(
         user_id=message.chat.id, sort_by="posting"
     )
-    await message.answer(
+    await message.edit_text(
         text("channels_text"), reply_markup=keyboards.channels(channels=channels)
     )
 
@@ -150,7 +150,7 @@ async def show_settings(message: types.Message):
 async def show_content(message: types.Message):
     """Показывает меню выбора канала для контент-плана."""
     channels = await db.channel.get_user_channels(user_id=message.chat.id)
-    await message.answer(
+    await message.edit_text(
         text("choice_channel:content"),
         reply_markup=keyboards.choice_object_content(channels=channels),
     )
@@ -161,6 +161,7 @@ async def back_to_main(message: types.Message):
     """Возврат в главное меню"""
     from main_bot.keyboards.common import Reply
 
+    await message.delete()
     await message.answer("Главное меню", reply_markup=Reply.menu())
 
 
