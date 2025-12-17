@@ -5,13 +5,17 @@
 - Отправки рассылок через ботов
 - Удаления сообщений ботов по расписанию
 """
+
 import asyncio
 import logging
 import os
 import time
 from pathlib import Path
+from typing import Any, Dict, List, Optional
 
-from aiogram import Bot, types
+from aiogram import Bot
+from aiogram.types import FSInputFile
+
 from hello_bot.database.db import Database
 from instance_bot import bot
 from main_bot.database.bot_post.model import BotPost
@@ -19,19 +23,19 @@ from main_bot.database.db import db
 from main_bot.database.db_types import Status
 from main_bot.database.user_bot.model import UserBot
 from main_bot.utils.bot_manager import BotManager
-from main_bot.utils.schemas import MessageOptionsHello
 from main_bot.utils.file_utils import TEMP_DIR
+from main_bot.utils.schemas import MessageOptionsHello
 
 logger = logging.getLogger(__name__)
 
 
-async def delete_bot_posts(user_bot: UserBot, message_ids: list[dict]):
+async def delete_bot_posts(user_bot: UserBot, message_ids: List[Dict[str, Any]]) -> None:
     """
     Удалить сообщения бота.
-    
-    Args:
-        user_bot: Объект пользовательского бота
-        message_ids: Список словарей с chat_id и message_id для удаления
+
+    Аргументы:
+        user_bot (UserBot): Объект пользовательского бота.
+        message_ids (List[Dict[str, Any]]): Список словарей с chat_id и message_id для удаления.
     """
     async with BotManager(user_bot.token) as bot_manager:
         validate = await bot_manager.validate_token()
@@ -50,10 +54,10 @@ async def delete_bot_posts(user_bot: UserBot, message_ids: list[dict]):
                     logger.error(f"Ошибка при удалении сообщения бота: {e}", exc_info=True)
 
 
-async def start_delete_bot_posts():
+async def start_delete_bot_posts() -> None:
     """
     Периодическая задача: удаление сообщений ботов по расписанию.
-    
+
     Проверяет все посты ботов с установленным временем удаления
     и удаляет сообщения, если время истекло.
     """
@@ -71,7 +75,7 @@ async def start_delete_bot_posts():
             user_bot = await db.user_bot.get_bot_by_id(int(bot_id))
             if user_bot:
                 asyncio.create_task(delete_bot_posts(user_bot, messages[bot_id]["message_ids"]))
-        
+
         # Обновляем delete_time, чтобы не пытаться удалять снова и снова
         await db.bot_post.update_bot_post(
             post_id=bot_post.id,
@@ -79,21 +83,26 @@ async def start_delete_bot_posts():
         )
 
 
-async def send_bot_messages(other_bot: Bot, bot_post: BotPost, users, filepath: Path | str | None):
+async def send_bot_messages(
+    other_bot: Bot,
+    bot_post: BotPost,
+    users: List[int],
+    filepath: Optional[str]
+) -> Dict[int, Any]:
     """
     Отправить сообщения через бота всем пользователям.
-    
-    Args:
-        other_bot: Экземпляр бота для отправки
-        bot_post: Объект поста для рассылки
-        users: Список ID пользователей для отправки
-        filepath: Путь к медиафайлу (если есть)
-        
-    Returns:
-        Словарь с результатами отправки
+
+    Аргументы:
+        other_bot (Bot): Экземпляр бота для отправки.
+        bot_post (BotPost): Объект поста для рассылки.
+        users (List[int]): Список ID пользователей для отправки.
+        filepath (Optional[str]): Путь к медиафайлу (если есть).
+
+    Возвращает:
+        Dict[int, Any]: Словарь с результатами отправки.
     """
     message_options = MessageOptionsHello(**bot_post.message)
-    file_input = types.FSInputFile(str(filepath)) if filepath else None
+    file_input = FSInputFile(str(filepath)) if filepath else None
 
     # Определяем тип сообщения и соответствующую функцию отправки
     if message_options.text:
@@ -159,9 +168,25 @@ async def send_bot_messages(other_bot: Bot, bot_post: BotPost, users, filepath: 
     return {other_bot.id: {"success": success, "message_ids": message_ids}}
 
 
-async def process_bot(user_bot: UserBot, bot_post: BotPost, users, filepath):
+async def process_bot(
+    user_bot: UserBot,
+    bot_post: BotPost,
+    users: List[int],
+    filepath: Optional[str]
+) -> Dict[int, Any]:
     """
-    Обработать отправку через бота.
+    Обработать отправку через API бота.
+
+    Проверяет токен и статус, затем отправляет сообщения.
+
+    Аргументы:
+        user_bot (UserBot): Объект бота.
+        bot_post (BotPost): Пост.
+        users (List[int]): Пользователи.
+        filepath (Optional[str]): Медиафайл.
+
+    Возвращает:
+        Dict[int, Any]: Результат отправки.
     """
     async with BotManager(user_bot.token) as bot_manager:
         validate = await bot_manager.validate_token()
@@ -180,9 +205,19 @@ async def process_bot(user_bot: UserBot, bot_post: BotPost, users, filepath):
         )
 
 
-async def send_bot_post(bot_post: BotPost):
+async def send_bot_post(bot_post: BotPost) -> None:
     """
-    Отправить пост через ботов.
+    Отправить пост через ботов (Основная логика).
+
+    1. Загружает файл (если есть).
+    2. Определяет ботов, через которые нужно слать (на основе каналов в настройках).
+    3. Проверяет подписки каналов.
+    4. Собирает пользователей каждого бота.
+    5. Запускает рассылку параллельно (с семафором).
+    6. Обновляет статус поста.
+
+    Аргументы:
+        bot_post (BotPost): Пост для отправки.
     """
     logger.info(f"🚀 Начинаем обработку рассылки BotPost ID: {bot_post.id}")
     users_count = 0
@@ -337,9 +372,11 @@ async def send_bot_post(bot_post: BotPost):
     )
 
 
-async def send_bot_posts():
+async def send_bot_posts() -> None:
     """
     Периодическая задача: отправка постов через ботов.
+
+    Ищет посты со статусом 'wait' (или готов к отправке) и запускает их обработку.
     """
     try:
         posts = await db.bot_post.get_bot_post_for_send()
@@ -350,10 +387,8 @@ async def send_bot_posts():
 
         tasks = []
         for post in posts:
-            # Создаем таск и не ждем его завершения здесь, 
-            # чтобы рассылка одного поста не блокировала поиск новых?
-            # В оригинале было asyncio.create_task и потом gather.
-            # Если постов много, это ок.
+            # Создаем таск и не ждем его завершения здесь,
+            # чтобы рассылка одного поста не блокировала поиск новых
             tasks.append(asyncio.create_task(send_bot_post(post)))
 
         await asyncio.gather(*tasks, return_exceptions=True)

@@ -26,7 +26,7 @@ from main_bot.database.post.model import Post
 from main_bot.database.published_post.model import PublishedPost
 from main_bot.keyboards import keyboards
 from main_bot.keyboards.common import Reply
-from main_bot.utils.functions import set_channel_session
+from main_bot.utils.tg_utils import set_channel_session
 from main_bot.utils.lang.language import text
 from main_bot.utils.report_signature import get_report_signatures
 from main_bot.utils.schemas import MessageOptions

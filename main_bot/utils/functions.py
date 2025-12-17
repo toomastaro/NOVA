@@ -25,12 +25,11 @@ from main_bot.utils.message_utils import (
     answer_story,
 )
 # Дубликаты функций из schedulers/bots.py (УСТАРЕЛО)
-# Эти функции уже есть в main_bot.utils.schedulers.bots
-# Оставлены для обратной совместимости, но рекомендуется использовать из schedulers.bots
-from main_bot.utils.schedulers.bots import (
-    process_bot,
-    send_bot_messages,
-)
+# IMPORTS REMOVED TO AVOID CIRCULAR DEPENDENCY
+# from main_bot.utils.schedulers.bots import (
+#     process_bot,
+#     send_bot_messages,
+# )
 from main_bot.utils.text_utils import (
     get_protect_tag,
 )

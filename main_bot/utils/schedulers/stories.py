@@ -18,7 +18,8 @@ from instance_bot import bot
 from main_bot.database.db import db
 from main_bot.database.db_types import Status
 from main_bot.database.story.model import Story
-from main_bot.utils.functions import set_channel_session, get_path, get_path_video
+from main_bot.utils.file_utils import get_path, get_path_video
+from main_bot.utils.tg_utils import set_channel_session
 from main_bot.utils.lang.language import text
 from main_bot.utils.schemas import StoryOptions
 from main_bot.utils.session_manager import SessionManager
