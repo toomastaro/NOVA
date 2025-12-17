@@ -110,13 +110,13 @@ async def process_creative_content(message: Message, state: FSMContext) -> None:
     # Create Creative
     creative_id = await db.ad_creative.create_creative(
         owner_id=message.from_user.id,
-        name=text('ad_creative:default_name'), # Temporary name
+        name=text('ad_creative:default_name'), # Временное имя
         raw_message=raw_message
     )
     
     await db.ad_creative.create_slots_for_creative(creative_id, slots)
     
-    # Show found links
+    # Показ найденных ссылок
     links_text = "\n".join([f"{s['slot_index']}. {s['original_url'][:50]}" for s in slots])
     await message.answer(
         text('ad_creative:slots_found').format(len(slots), links_text),
@@ -171,7 +171,7 @@ async def list_creatives(call: CallbackQuery) -> None:
     creatives_with_slots = []
     for c in creatives:
         slots = await db.ad_creative.get_slots(c.id)
-        c.slots = slots # Monkey patch for display
+        c.slots = slots # Манкипатчинг для отображения
         creatives_with_slots.append(c)
         
     if not creatives_with_slots:
@@ -217,7 +217,7 @@ async def delete_creative(call: CallbackQuery) -> None:
     await db.ad_creative.update_creative_status(creative_id, "deleted")
     await call.answer(text('ad_creative:deleted'))
     
-    # Check remaining
+    # Проверка оставшихся
     creatives = await db.ad_creative.get_user_creatives(call.from_user.id)
     if not creatives:
         await call.message.edit_text(
@@ -269,7 +269,7 @@ async def back_to_menu(call: CallbackQuery) -> None:
     Аргументы:
         call (CallbackQuery): Callback запрос.
     """
-    # Navigate back to Ad Buy Menu
+    # Возврат в меню покупки рекламы
     kb = types.InlineKeyboardMarkup(inline_keyboard=[
         [types.InlineKeyboardButton(text=text("btn_ad_creatives"), callback_data="AdBuyMenu|creatives")],
         [types.InlineKeyboardButton(text=text("btn_ad_purchases"), callback_data="AdBuyMenu|purchases")],

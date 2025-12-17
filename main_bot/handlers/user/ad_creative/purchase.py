@@ -65,7 +65,7 @@ async def process_pricing_type(call: CallbackQuery, state: FSMContext) -> None:
         state (FSMContext): Контекст состояния.
     """
     pricing_type_str = call.data.split("|")[2]
-    # Validate enum
+    # Валидация enum
     try:
         pricing_type = AdPricingType(pricing_type_str)
     except ValueError:
@@ -118,7 +118,7 @@ async def process_comment(message: Message, state: FSMContext) -> None:
     comment = message.text.strip()
     data = await state.get_data()
     
-    # Create Purchase
+    # Создание закупа
     purchase_id = await db.ad_purchase.create_purchase(
         owner_id=message.from_user.id,
         creative_id=data['creative_id'],
@@ -129,7 +129,7 @@ async def process_comment(message: Message, state: FSMContext) -> None:
     
     await message.answer(f"Закуп #{purchase_id} создан! Переходим к мапингу ссылок...")
     
-    # Start Mapping Logic
+    # Запуск логики маппинга
     await start_mapping(message, purchase_id, data['creative_id'])
     await state.clear()
 
@@ -147,9 +147,9 @@ async def start_mapping(message: Message, purchase_id: int, creative_id: int) ->
     """
     slots = await db.ad_creative.get_slots(creative_id)
     
-    # Auto-detection
+    # Автоопределение
     for slot in slots:
-        # Check if mapping already exists
+        # Проверка существования маппинга
         existing_mappings = await db.ad_purchase.get_link_mappings(purchase_id)
         existing_slot_ids = [m.slot_id for m in existing_mappings]
         
@@ -160,8 +160,8 @@ async def start_mapping(message: Message, purchase_id: int, creative_id: int) ->
         target_channel_id = None
         track_enabled = False
         
-        # 1. Check t.me/username - handled later or manually
-        # 2. Check invite link - handled later or manually
+        # 1. Проверка t.me/username - обрабатывается позже или вручную
+        # 2. Проверка invite link - обрабатывается позже или вручную
         
         await db.ad_purchase.upsert_link_mapping(
             ad_purchase_id=purchase_id,
@@ -265,7 +265,7 @@ async def save_mapping_channel(call: CallbackQuery) -> None:
     slot_id = int(slot_id)
     channel_id = int(channel_id)
     
-    # Check subscription
+    # Проверка подписки
     channel = await db.channel.get_channel_by_chat_id(channel_id)
     if not channel:
         await call.answer("Канал не найден", show_alert=True)
@@ -283,7 +283,7 @@ async def save_mapping_channel(call: CallbackQuery) -> None:
         track_enabled=True
     )
     
-    # Refresh menu
+    # Обновление меню
     await call.message.delete()
     await show_mapping_menu(call.message, purchase_id)
 
@@ -309,7 +309,7 @@ async def save_mapping_external(call: CallbackQuery) -> None:
         track_enabled=False
     )
     
-    # Refresh menu
+    # Обновление меню
     await call.message.delete()
     await show_mapping_menu(call.message, purchase_id)
 
@@ -339,7 +339,7 @@ async def finish_mapping(call: CallbackQuery) -> None:
     """
     purchase_id = int(call.data.split("|")[2])
     await call.answer("Мапинг сохранен")
-    # Return to purchase view
+    # Возврат к просмотру закупа
     await view_purchase(call, purchase_id)
 
 
@@ -388,7 +388,7 @@ async def view_purchase(call: CallbackQuery, purchase_id: int) -> None:
     creative = await db.ad_creative.get_creative(purchase.creative_id)
     creative_name = creative.name if creative else "Unknown"
     
-    # Localize status
+    # Локализация статуса
     status_map = {
         "active": "🟢 Активен",
         "paused": "⏸ На паузе",
@@ -434,11 +434,11 @@ async def delete_purchase(call: CallbackQuery) -> None:
     await db.ad_purchase.update_purchase_status(purchase_id, "deleted")
     await call.answer("Закуп удален")
     
-    # Check remaining
+    # Проверка оставшихся
     purchases = await db.ad_purchase.get_user_purchases(call.from_user.id)
     
     if not purchases:
-        # No purchases left, go to main Purchases menu
+        # Закупов не осталось, переход в главное меню
         await call.message.edit_text("💰 Рекламные закупы", reply_markup=InlineAdPurchase.main_menu())
     else:
         from main_bot.handlers.user.ad_creative.purchase_menu import show_purchase_list
@@ -495,30 +495,30 @@ async def render_purchase_stats(call: CallbackQuery, purchase_id: int, period: s
     elif period == "30d":
         from_ts = now - (30 * 24 * 3600)
         period_name = "30 дней"
-    else:  # all
+    else:  # за все время
         from_ts = None
         period_name = "всё время"
     
     to_ts = now
     
-    # Get purchase info
+    # Получение информации о закупе
     purchase = await db.ad_purchase.get_purchase(purchase_id)
     if not purchase:
         await call.answer("Закуп не найден", show_alert=True)
         return
     
-    # Get statistics
+    # Получение статистики
     leads_count = await db.ad_purchase.get_leads_count(purchase_id)
     subs_count = await db.ad_purchase.get_subscriptions_count(purchase_id, from_ts, to_ts)
     
-    # Get per-channel statistics
+    # Статистика по каналам
     mappings = await db.ad_purchase.get_link_mappings(purchase_id)
     channels_stats = {}
     total_unsubs = 0
     
     for m in mappings:
         if m.target_channel_id:
-            # Setup calc
+            # Инициализация подсчета
             if m.target_channel_id not in channels_stats:
                 channel = await db.channel.get_channel_by_chat_id(m.target_channel_id)
                 channels_stats[m.target_channel_id] = {
@@ -527,15 +527,15 @@ async def render_purchase_stats(call: CallbackQuery, purchase_id: int, period: s
                     "subs": 0,
                     "unsubs": 0
                 }
-            
-            # Leads (linked to slot)
+             
+            # Лиды (привязанные к слоту)
             slot_leads = await db.ad_purchase.get_leads_by_slot(purchase_id, m.slot_id)
             channels_stats[m.target_channel_id]["leads"] += len(slot_leads)
             
-            # Subs (linked to slot/channel)
+            # Подписки (связанные со слотом/каналом)
             slot_subs_all = await db.ad_purchase.get_subscriptions_by_slot(purchase_id, m.slot_id, from_ts, to_ts)
             
-            # Filter
+            # Фильтрация
             active_subs = [s for s in slot_subs_all if s.status == 'active']
             left_subs = [s for s in slot_subs_all if s.status != 'active']
             
@@ -572,7 +572,7 @@ async def render_purchase_stats(call: CallbackQuery, purchase_id: int, period: s
             f"💰 Цена: {total_cost} руб."
         )
     else:
-        # Fallback
+        # Резервный вариант
         description = (
             f"💵 Тип оплаты: {pricing_type}\n"
             f"💸 Ставка: {purchase.price_value} руб."
@@ -587,7 +587,7 @@ async def render_purchase_stats(call: CallbackQuery, purchase_id: int, period: s
         f"{description}"
     )
     
-    # Add per-channel breakdown
+    # Добавление разбивки по каналам
     if channels_stats:
         stats_text += "\n\n<b>📺 По каналам:</b>\n"
         for ch_id, ch_data in channels_stats.items():
@@ -643,14 +643,14 @@ async def show_global_stats(call: CallbackQuery) -> None:
     elif period == "30d":
         from_ts = now - (30 * 24 * 3600)
         period_name = "30_days"
-    else:  # all
+    else:  # за все время
         from_ts = 0
         period_name = "all_time"
     
     to_ts = now
     user_id = call.from_user.id
     
-    # 1. Fetch purchases created in this range
+    # 1. Получение закупов за этот период
     all_purchases = await db.ad_purchase.get_user_purchases(user_id)
     purchases = [p for p in all_purchases if p.created_timestamp >= from_ts and p.created_timestamp <= to_ts]
     
@@ -660,12 +660,12 @@ async def show_global_stats(call: CallbackQuery) -> None:
     
     await call.answer("Генерация отчета...")
     
-    # 2. Build Excel
+    # 2. Создание Excel
     wb = Workbook()
     ws = wb.active
     ws.title = "Statistics"
     
-    # Headers
+    # Заголовки
     headers = [
         "Дата", "Название креатива", "Комментарий", 
         "Фикс цена", "Цена заявки", "Цена подписчика", 
@@ -675,20 +675,20 @@ async def show_global_stats(call: CallbackQuery) -> None:
     ws.append(headers)
     
     for p in purchases:
-        # Fetch details
+        # Получение деталей
         creative = await db.ad_creative.get_creative(p.creative_id)
         creative_name = creative.name if creative else f"Unknown #{p.creative_id}"
         
-        # Stats (Lifetime for this purchase)
+        # Статистика (За все время для этого закупа)
         leads_count = await db.ad_purchase.get_leads_count(p.id)
         subs_count = await db.ad_purchase.get_subscriptions_count(p.id, None, None) 
         
-        # Prices
+        # Цены
         fix_price = p.price_value if p.pricing_type.value == "FIXED" else 0
         cpl_price = p.price_value if p.pricing_type.value == "CPL" else 0
         cps_price = p.price_value if p.pricing_type.value == "CPS" else 0
         
-        # Calculations
+        # Расчеты
         total_spend = 0
         if p.pricing_type.value == "FIXED":
             total_spend = p.price_value
@@ -700,7 +700,7 @@ async def show_global_stats(call: CallbackQuery) -> None:
         cost_per_sub = (total_spend / subs_count) if subs_count > 0 else 0
         cost_per_lead = (total_spend / leads_count) if leads_count > 0 else 0
         
-        # Format Date
+        # Форматирование даты
         date_str = datetime.fromtimestamp(p.created_timestamp).strftime("%d.%m.%Y %H:%M")
         
         row = [
@@ -717,7 +717,7 @@ async def show_global_stats(call: CallbackQuery) -> None:
         ]
         ws.append(row)
         
-    # Auto-width
+    # Автоширина
     for column in ws.columns:
         max_length = 0
         column = [cell for cell in column]
@@ -730,7 +730,7 @@ async def show_global_stats(call: CallbackQuery) -> None:
         adjusted_width = (max_length + 2)
         ws.column_dimensions[column[0].column_letter].width = adjusted_width
 
-    # Save to memory
+    # Сохранение в память
     file_stream = BytesIO()
     wb.save(file_stream)
     file_stream.seek(0)
@@ -755,15 +755,15 @@ async def generate_post(call: CallbackQuery) -> None:
     """
     purchase_id = int(call.data.split("|")[2])
     
-    # 1. Ensure invite links
+    # 1. Проверка пригласительных ссылок
     mappings, errors = await db.ad_purchase.ensure_invite_links(purchase_id, call.bot)
     
-    # Show errors if any
+    # Показ ошибок если есть
     if errors:
         error_text = "⚠️ Не удалось создать invite-ссылки для некоторых каналов:\n" + "\n".join(errors)
         await call.message.answer(error_text)
     
-    # 2. Get Creative
+    # 2. Получение креатива
     purchase = await db.ad_purchase.get_purchase(purchase_id)
     creative = await db.ad_creative.get_creative(purchase.creative_id)
     
@@ -771,18 +771,18 @@ async def generate_post(call: CallbackQuery) -> None:
         await call.answer("Ошибка: креатив не найден или пуст", show_alert=True)
         return
 
-    # 3. Prepare message
+    # 3. Подготовка сообщения
     message_data = copy.deepcopy(creative.raw_message)
     
-    # Generate ref-links for bots
+    # Генерация ref-ссылок для ботов
     for m in mappings:
-        # Check if this is a bot link that should be tracked
+        # Проверка, является ли ссылка ссылкой на бота
         if m.track_enabled and not m.ref_param:
-            # Try to detect bot username from original_url
+            # Попытка определить юзернейм бота
             bot_username_match = re.match(r'(?:https?://)?t\.me/([a-zA-Z0-9_]+)(?:\?|$)', m.original_url)
             
             if bot_username_match and '/' not in bot_username_match.group(1):
-                # This looks like a bot link
+                # Похоже на ссылку бота
                 bot_username = bot_username_match.group(1)
                 ref_param = f"ref_{purchase_id}_{m.slot_id}"
                 
@@ -792,10 +792,10 @@ async def generate_post(call: CallbackQuery) -> None:
                     ref_param=ref_param
                 )
                 
-                # Update local object
+                # Обновление локального объекта
                 m.ref_param = ref_param
                 
-                # Set target_type to BOT if not already set
+                # Установка типа цели BOT если еще не установлено
                 if m.target_type != AdTargetType.BOT:
                     await db.ad_purchase.upsert_link_mapping(
                         ad_purchase_id=purchase_id,

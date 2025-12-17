@@ -66,9 +66,9 @@ async def show_ad_purchase_menu_internal(message: types.Message, edit: bool = Fa
     if not user_channels:
          status_text = "⚠️ Нет подключенных каналов."
     else:
-        # Check first channel for sample
+        # Проверяем первый канал для примера
         first_ch = user_channels[0]
-        # Get client
+        # Получаем клиента
         client_model = await db.mt_client_channel.get_preferred_for_stats(first_ch.chat_id) or await db.mt_client_channel.get_any_client_for_channel(first_ch.chat_id)
         
         if client_model and client_model.client:
@@ -78,7 +78,7 @@ async def show_ad_purchase_menu_internal(message: types.Message, edit: bool = Fa
         else:
              status_text = "❌ Клиент не найден в каналах."
     
-    logger.info(f"Rendering Ad Purchase Menu for user {message.chat.id}, channel count: {len(user_channels)}")
+    logger.info(f"Рендеринг меню закупки рекламы для пользователя {message.chat.id}, количество каналов: {len(user_channels)}")
     
     # Determine text
     main_text = (
@@ -114,7 +114,7 @@ async def check_client_status(call: CallbackQuery) -> None:
          await call.answer("Нет каналов для проверки.", show_alert=True)
          return
          
-    # Group channels by client to optimize sessions
+    # Группируем каналы по клиентам для оптимизации сессий
     client_groups: Dict[int, Dict[str, Any]] = {} # {client_id: {'client': mt_client, 'channels': [channel]}}
     no_client_channels = []
     
@@ -135,11 +135,11 @@ async def check_client_status(call: CallbackQuery) -> None:
         
     results = []
     
-    # 1. Channels with no client
+    # 1. Каналы без клиента
     for ch in no_client_channels:
         results.append(f"❌ <b>{ch.title}</b>: Не назначен помощник")
         
-    # 2. Check each client group
+    # 2. Проверка каждой группы клиентов
     for cid, group in client_groups.items():
         mt_client = group['client']
         channels = group['channels']
@@ -158,10 +158,10 @@ async def check_client_status(call: CallbackQuery) -> None:
                         results.append(f"❌ <b>{ch.title}</b>: Сессия не авторизована ({client_label})")
                     continue
                 
-                # Check permissions for each channel
+                # Проверка прав для каждого канала
                 for ch in channels:
                     try:
-                        # Attempt to read admin log to verify admin rights
+                        # Попытка чтения лога для проверки прав админа
                         async for event in manager.client.iter_admin_log(ch.chat_id, limit=1):
                             pass
                         results.append(f"✅ <b>{ch.title}</b>")
@@ -179,7 +179,7 @@ async def check_client_status(call: CallbackQuery) -> None:
             for ch in channels:
                 results.append(f"❌ <b>{ch.title}</b>: Ошибка подключения ({client_label})")
 
-    # Build Report
+    # Формирование отчета
     success_count = sum(1 for r in results if r.startswith("✅"))
     total_count = len(user_channels)
     

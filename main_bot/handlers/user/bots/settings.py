@@ -32,7 +32,7 @@ logger = logging.getLogger(__name__)
 
 
 class DictObj:
-    """Helper class to convert dictionary keys to attributes."""
+    """Вспомогательный класс для преобразования ключей словаря в атрибуты."""
     def __init__(self, in_dict: Dict[str, Any]):
         for key, val in in_dict.items():
             setattr(self, key, val)
@@ -40,13 +40,13 @@ class DictObj:
 
 def ensure_bot_obj(bot: Union[UserBot, Dict[str, Any]]) -> Union[UserBot, DictObj]:
     """
-    Ensures that the input is an object with attributes, not a dict.
-    
-    Args:
-        bot: UserBot object or dictionary.
-        
-    Returns:
-        UserBot or DictObj.
+    Гарантирует, что входные данные являются объектом с атрибутами, а не словарем.
+
+    Аргументы:
+        bot: Объект UserBot или словарь.
+
+    Возвращает:
+        UserBot или DictObj.
     """
     if isinstance(bot, dict):
         return DictObj(bot)
