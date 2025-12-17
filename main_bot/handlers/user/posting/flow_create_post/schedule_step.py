@@ -814,6 +814,9 @@ async def get_send_time(message: types.Message, state: FSMContext):
         else:
             delete_str = f"{int(post.delete_time / 3600)} ч."
 
+    from main_bot.keyboards.common import Reply
+    await message.answer("✅ Время принято", reply_markup=Reply.menu())
+
     await message.answer(
         text("manage:post:accept:date").format(
             _time, weekday, day, month, year, channels_block, delete_str
