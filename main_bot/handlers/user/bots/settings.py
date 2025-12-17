@@ -55,6 +55,25 @@ def ensure_bot_obj(bot: Union[UserBot, Dict[str, Any]]) -> Union[UserBot, DictOb
     return bot
 
 
+def serialize_user_bot(bot: Any) -> Union[Dict[str, Any], None]:
+    """
+    Сериализует объект бота пользователя в словарь.
+    """
+    if not bot:
+        return None
+    return {
+        "id": bot.id,
+        "admin_id": bot.admin_id,
+        "token": bot.token,
+        "username": bot.username,
+        "title": bot.title,
+        "schema": getattr(bot, "schema", None),
+        "created_timestamp": getattr(bot, "created_timestamp", None),
+        "emoji_id": getattr(bot, "emoji_id", None),
+        "subscribe": getattr(bot, "subscribe", None),
+    }
+
+
 @safe_handler("Bots Show Bot Manage")
 async def show_bot_manage(
     message: types.Message, user_bot: Union[UserBot, Dict[str, Any]]
@@ -140,7 +159,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext) -> None:
     bot_id = int(temp[1])
     user_bot = await db.user_bot.get_bot_by_id(bot_id)
 
-    await state.update_data(user_bot=user_bot, bot_id=user_bot.id)
+    await state.update_data(user_bot=serialize_user_bot(user_bot), bot_id=user_bot.id)
 
     await call.message.delete()
     await show_bot_manage(call.message, user_bot)
@@ -257,7 +276,7 @@ async def manage_bot(call: types.CallbackQuery, state: FSMContext) -> None:
             bot_id = int(temp[2])
             user_bot = await db.get_user_bot(bot_id)
             if user_bot:
-                await state.update_data(bot_id=bot_id, user_bot=user_bot)
+                await state.update_data(bot_id=bot_id, user_bot=serialize_user_bot(user_bot))
                 data = await state.get_data()
         except Exception:
             pass
@@ -381,7 +400,7 @@ async def update_token(message: types.Message, state: FSMContext) -> None:
         )
         await bot_manager.set_webhook()
 
-    await state.update_data(user_bot=user_bot)
+    await state.update_data(user_bot=serialize_user_bot(user_bot))
     await show_bot_manage(message, user_bot)
 
 
