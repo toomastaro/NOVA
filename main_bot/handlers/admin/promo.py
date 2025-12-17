@@ -68,7 +68,10 @@ async def get_promo(message: types.Message, state: FSMContext) -> None:
     )
 
     await state.clear()
-    await message.answer(text("promo:success:add"))
+    await message.answer(
+        text("promo:success:add"),
+        reply_markup=keyboards.admin()
+    )
 
 
 def get_router() -> Router:
