@@ -59,10 +59,16 @@ async def give_subscribes(state: FSMContext, user: User):
         user_id=user.id,
         sort_by=service
     )
-    chosen_objects = [
-        i for i in objects
-        if i.id in chosen
-    ]
+    if object_type == 'channels':
+        chosen_objects = [
+            i for i in objects
+            if i.chat_id in chosen
+        ]
+    else:
+        chosen_objects = [
+            i for i in objects
+            if i.id in chosen
+        ]
 
     added_time = 86400 * total_days
     for chosen_object in chosen_objects:
@@ -138,7 +144,7 @@ async def show_subscription_success(message: types.Message, state: FSMContext, u
     else:
         # Получаем все каналы пользователя и фильтруем по chosen
         all_channels = await db.channel.get_user_channels(user_id=user.id)
-        updated_objects = [channel for channel in all_channels if channel.id in chosen]
+        updated_objects = [channel for channel in all_channels if channel.chat_id in chosen]
         emoji = "📺"
     
     logger.info(f"show_subscription_success: found {len(updated_objects)} objects")

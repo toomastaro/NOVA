@@ -84,7 +84,7 @@ async def show_choice_channel(message: types.Message, state: FSMContext):
         bound_ids = {obj.id for obj in objects}
         kb_folders = [
             f for f in folders 
-            if f.content and any(int(cid) in bound_ids for cid in f.content)
+            if f.content
         ]
     else:
         kb_resources = objects
