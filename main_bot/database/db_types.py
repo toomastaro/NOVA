@@ -1,7 +1,15 @@
+"""
+Модуль общих типов и перечислений базы данных.
+
+Содержит перечисления (Enum) для статусов, типов оплаты, сервисов
+и других сущностей, используемых в моделях и бизнес-логике.
+"""
+
 from enum import Enum
 
 
 class FolderType(str, Enum):
+    """Тип папки пользователя."""
     BOT = "BOTS"
     CHANNEL = "CHANNELS"
 
@@ -10,6 +18,7 @@ class FolderType(str, Enum):
 
 
 class PaymentMethod(str, Enum):
+    """Способ оплаты."""
     CRYPTO_BOT = "CRYPTO_BOT"
     STARS = "STARS"
     BALANCE = "BALANCE"
@@ -20,6 +29,7 @@ class PaymentMethod(str, Enum):
 
 
 class Service(str, Enum):
+    """Тип услуги."""
     POSTING = "POSTING"
     STORIES = "STORIES"
     BOTS = "BOTS"
@@ -29,6 +39,7 @@ class Service(str, Enum):
 
 
 class Status(str, Enum):
+    """Общий статус сущности."""
     READY = "READY"
     PENDING = "PENDING"
     FINISH = "FINISH"
@@ -40,8 +51,9 @@ class Status(str, Enum):
 
 
 class AdPricingType(str, Enum):
-    CPL = "CPL"
-    CPS = "CPS"
+    """Тип оплаты рекламы."""
+    CPL = "CPL"    # Cost Per Lead (за подписчика)
+    CPS = "CPS"    # Cost Per Sale (за продажу) - резерв
     FIXED = "FIXED"
 
     def __str__(self):
@@ -49,6 +61,7 @@ class AdPricingType(str, Enum):
 
 
 class AdTargetType(str, Enum):
+    """Тип цели рекламы."""
     CHANNEL = "CHANNEL"
     BOT = "BOT"
     EXTERNAL = "EXTERNAL"
