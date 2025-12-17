@@ -231,6 +231,14 @@ async def subscription_menu_choice(
             show_transfer_sub_menu,
         )
 
+        # Проверка наличия каналов
+        channels = await db.channel.get_user_channels(user_id=user.id)
+        if not channels:
+            return await call.message.answer(
+                text("error_subscription_required"), 
+                reply_markup=keyboards.subscription_menu()
+            )
+
         await call.message.delete()
         await show_transfer_sub_menu(call, state)
 
