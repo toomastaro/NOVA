@@ -1,10 +1,27 @@
-from main_bot.database import Base
-from main_bot.database.db_types import FolderType
+"""
+Модель данных папки пользователя для группировки каналов/чатов.
+"""
+
 from sqlalchemy import ARRAY, BigInteger, String
 from sqlalchemy.orm import Mapped, mapped_column
 
+from main_bot.database import Base
+from main_bot.database.db_types import FolderType
+
 
 class UserFolder(Base):
+    """
+    Модель папки пользователя.
+
+    Используется для организации каналов и чатов в группы.
+
+    Атрибуты:
+        id (int): Уникальный ID папки.
+        user_id (int): ID владельца (пользователя Telegram).
+        title (str): Название папки.
+        type (FolderType): Тип папки (например, CHANNEL).
+        content (list): Список ID каналов/чатов в папке.
+    """
     __tablename__ = "user_folders"
 
     # Data

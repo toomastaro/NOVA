@@ -1,39 +1,73 @@
+"""
+Модуль операций базы данных для MTProto клиентов.
+"""
+
 import logging
 import time
 from typing import List, Optional
 
+from sqlalchemy import insert, select, update
+
 from main_bot.database import DatabaseMixin
 from main_bot.database.mt_client.model import MtClient
-from sqlalchemy import insert, select, update
 
 logger = logging.getLogger(__name__)
 
 
 class MtClientCrud(DatabaseMixin):
-    async def create_mt_client(self, **kwargs) -> MtClient:
+    """
+    Класс для управления MTProto клиентами (MtClient).
+    """
+
+    async def create_mt_client(self, **kwargs) -> MtClient | None:
+        """
+        Создает нового MTProto клиента.
+
+        Аргументы:
+            **kwargs: Поля модели MtClient.
+
+        Возвращает:
+            MtClient | None: Созданный клиент.
+        """
         stmt = insert(MtClient).values(**kwargs).returning(MtClient)
         return await self.fetchrow(stmt, commit=True)
 
     async def get_mt_client(self, client_id: int) -> Optional[MtClient]:
+        """
+        Получает клиента по ID.
+        """
         return await self.fetchrow(select(MtClient).where(MtClient.id == client_id))
 
     async def get_mt_clients_by_pool(self, pool_type: str) -> List[MtClient]:
+        """
+        Получает список клиентов по типу пула ('internal' или 'external').
+
+        Аргументы:
+            pool_type (str): Тип пула.
+        """
         return await self.fetch(select(MtClient).where(MtClient.pool_type == pool_type))
 
-    async def update_mt_client(self, client_id: int, **kwargs):
+    async def update_mt_client(self, client_id: int, **kwargs) -> None:
+        """
+        Обновляет данные клиента.
+
+        Аргументы:
+            client_id (int): ID клиента.
+            **kwargs: Поля для обновления.
+        """
         await self.execute(
             update(MtClient).where(MtClient.id == client_id).values(**kwargs)
         )
 
     async def get_next_internal_client(self, channel_id: int) -> Optional[MtClient]:
         """
-        Получить следующего internal клиента для канала по алгоритму round-robin.
+        Получает следующего internal клиента для канала по алгоритму round-robin.
 
-        Args:
-            channel_id: ID канала
+        Аргументы:
+            channel_id (int): ID канала.
 
-        Returns:
-            Следующий internal клиент или None если нет активных
+        Возвращает:
+            MtClient | None: Следующий internal клиент или None если нет активных.
         """
         # Получить всех активных internal клиентов
         clients = await self.fetch(
@@ -70,10 +104,10 @@ class MtClientCrud(DatabaseMixin):
 
     async def get_next_external_client(self) -> Optional[MtClient]:
         """
-        Получить наименее используемого external клиента (least-used алгоритм).
+        Получает наименее используемого external клиента (least-used алгоритм).
 
-        Returns:
-            External клиент с наименьшим usage_count или None если нет активных
+        Возвращает:
+            MtClient | None: External клиент с наименьшим usage_count или None если нет активных.
         """
         # Получить всех активных external клиентов, отсортированных по usage_count
         clients = await self.fetch(
@@ -90,12 +124,12 @@ class MtClientCrud(DatabaseMixin):
         # Вернуть первого (наименее используемого)
         return clients[0]
 
-    async def increment_usage(self, client_id: int):
+    async def increment_usage(self, client_id: int) -> None:
         """
-        Увеличить счетчик использования клиента.
+        Увеличивает счетчик использования клиента.
 
-        Args:
-            client_id: ID клиента
+        Аргументы:
+            client_id (int): ID клиента.
         """
         await self.execute(
             update(MtClient)

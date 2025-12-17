@@ -1,11 +1,36 @@
+"""
+Модель данных MTProto клиента.
+"""
+
 import time
 
-from main_bot.database import Base
 from sqlalchemy import BigInteger, Boolean, String
 from sqlalchemy.orm import Mapped, mapped_column
 
+from main_bot.database import Base
+
 
 class MtClient(Base):
+    """
+    Модель MTProto клиента (юзербота).
+
+    Используется для взаимодействия с Telegram от имени пользователя или системного аккаунта.
+
+    Атрибуты:
+        id (int): Уникальный ID.
+        alias (str): Псевдоним клиента.
+        pool_type (str): Тип пула ('internal' или 'external').
+        session_path (str): Путь к файлу сессии.
+        status (str): Статус клиента (NEW, ACTIVE, BANNED, ERROR).
+        is_active (bool): Флаг активности (включен/выключен).
+        created_at (int): Время создания.
+        last_self_check_at (int | None): Время последней самопроверки.
+        last_error_code (str | None): Код последней ошибки.
+        last_error_at (int | None): Время последней ошибки.
+        flood_wait_until (int | None): Метка времени до окончания FloodWait.
+        usage_count (int): Счетчик использований.
+        last_used_at (int): Время последнего использования.
+    """
     __tablename__ = "mt_clients"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)

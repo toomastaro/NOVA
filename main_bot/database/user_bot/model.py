@@ -1,16 +1,31 @@
+"""
+Модель данных пользовательского бота (UserBot).
+"""
+
 import time
 from typing import Optional
 
-from main_bot.database import Base
 from sqlalchemy import BigInteger, String
 from sqlalchemy.orm import Mapped, mapped_column
+
+from main_bot.database import Base
 
 
 class UserBot(Base):
     """
     Модель UserBot (юзербота, подключенного пользователем).
-    """
 
+    Атрибуты:
+        id (int): Внутренний ID бота (PK).
+        admin_id (int): ID владельца (User).
+        schema (str): Схема/протокол (напр. MTProto).
+        title (str): Название/Имя бота.
+        username (str): Username бота.
+        token (str): Токен авторизации (если применимо).
+        subscribe (int | None): Время окончания подписки.
+        emoji_id (str): Emoji ID.
+        created_timestamp (int): Дата создания.
+    """
     __tablename__ = "user_bots"
 
     # Основные данные

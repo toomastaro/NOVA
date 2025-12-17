@@ -30,8 +30,11 @@ class AdCreativeCrud(DatabaseMixin):
         Возвращает:
             int: ID созданного креатива.
         """
+        logger.debug(f"Создание креатива. Owner: {kwargs.get('owner_id')}, Name: {kwargs.get('name')}")
         query = insert(AdCreative).values(**kwargs).returning(AdCreative.id)
-        return await self.fetchrow(query, commit=True)
+        res = await self.fetchrow(query, commit=True)
+        logger.info(f"Креатив создан: {res}")
+        return res
 
     async def get_creative(self, creative_id: int) -> AdCreative | None:
         """
@@ -75,6 +78,8 @@ class AdCreativeCrud(DatabaseMixin):
         """
         if not slots:
             return
+        
+        logger.debug(f"Создание слотов для креатива {creative_id}. Count: {len(slots)}")
         values = [{**slot, "creative_id": creative_id} for slot in slots]
         query = insert(AdCreativeLinkSlot).values(values)
         await self.execute(query)
@@ -102,6 +107,7 @@ class AdCreativeCrud(DatabaseMixin):
             creative_id (int): ID креатива.
             status (str): Новый статус (например, 'deleted', 'active').
         """
+        logger.info(f"Обновление статуса креатива {creative_id} -> {status}")
         query = (
             update(AdCreative).where(AdCreative.id == creative_id).values(status=status)
         )

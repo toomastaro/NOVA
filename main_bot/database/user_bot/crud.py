@@ -1,25 +1,38 @@
+"""
+Модуль операций базы данных для управления юзерботами.
+"""
+
 import logging
 from typing import List
 
+from sqlalchemy import delete, desc, insert, select, update
+
 from main_bot.database import DatabaseMixin
 from main_bot.database.user_bot.model import UserBot
-from sqlalchemy import delete, desc, insert, select, update
 
 logger = logging.getLogger(__name__)
 
 
 class UserBotCrud(DatabaseMixin):
+    """
+    Класс для управления юзерботами.
+    """
+
     async def add_bot(self, **kwargs) -> None:
         """
         Добавляет нового юзербота.
-        :param kwargs: Поля модели UserBot.
+
+        Аргументы:
+            **kwargs: Поля модели UserBot.
         """
         await self.execute(insert(UserBot).values(**kwargs))
 
     async def get_active_bots(self) -> List[UserBot]:
         """
         Получает список активных ботов с подпиской.
-        :return: Лис UserBot.
+
+        Возвращает:
+            List[UserBot]: Список активных ботов.
         """
         stmt = (
             select(UserBot)
@@ -33,10 +46,14 @@ class UserBotCrud(DatabaseMixin):
     ) -> List[UserBot]:
         """
         Получает ботов конкретного пользователя.
-        :param user_id: ID пользователя.
-        :param limit: Лимит.
-        :param sort_by: Сортировка по подписке (desc).
-        :return: Список ботов.
+
+        Аргументы:
+            user_id (int): ID пользователя.
+            limit (int | None): Лимит количества.
+            sort_by (bool | None): Сортировка по подписке (desc).
+
+        Возвращает:
+            List[UserBot]: Список ботов.
         """
         stmt = select(UserBot).where(UserBot.admin_id == user_id)
 
@@ -76,9 +93,14 @@ class UserBotCrud(DatabaseMixin):
     ) -> UserBot | None:
         """
         Обновляет бота по ID.
-        :param row_id: ID бота.
-        :param return_obj: Возвращать ли объект.
-        :param kwargs: Поля для обновления.
+
+        Аргументы:
+            row_id (int): ID бота.
+            return_obj (bool): Возвращать ли обновленный объект.
+            **kwargs: Поля для обновления.
+
+        Возвращает:
+            UserBot | None: Обновленный бот или None.
         """
         stmt = update(UserBot).where(UserBot.id == row_id).values(**kwargs)
 

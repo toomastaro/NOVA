@@ -1,12 +1,27 @@
+"""
+Модель данных платежа для пополнения баланса.
+"""
+
 import time
 
-from main_bot.database import Base
-from main_bot.database.db_types import PaymentMethod
 from sqlalchemy import BigInteger
 from sqlalchemy.orm import Mapped, mapped_column
 
+from main_bot.database import Base
+from main_bot.database.db_types import PaymentMethod
+
 
 class Payment(Base):
+    """
+    Модель платежа (пополнение баланса пользователя).
+
+    Атрибуты:
+        id (int): Уникальный ID платежа.
+        user_id (int): ID пользователя (Telegram ID).
+        amount (int): Сумма пополнения.
+        method (PaymentMethod): Метод оплаты.
+        created_timestamp (int): Время создания.
+    """
     __tablename__ = "payments"
 
     # Data

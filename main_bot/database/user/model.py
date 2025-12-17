@@ -1,16 +1,38 @@
+"""
+Модель данных пользователя бота.
+"""
+
 import time
 from typing import Optional
 
-from main_bot.database import Base
 from sqlalchemy import BigInteger
 from sqlalchemy.orm import Mapped, mapped_column
+
+from main_bot.database import Base
 
 
 class User(Base):
     """
     Модель пользователя Telegram бота (администратора каналов).
-    """
 
+    Атрибуты:
+        id (int): Telegram ID пользователя (PK).
+        balance (float): Баланс пользователя.
+        timezone (int): Часовой пояс (UTC offset).
+        created_timestamp (int): Дата регистрации.
+        is_active (bool): Активен ли пользователь.
+        is_premium (bool): Есть ли премиум статус.
+        referral_id (int | None): ID пригласившего пользователя.
+        referral_earned (int): Заработано на рефералах.
+        ads_tag (str | None): Рекламная метка (откуда пришел).
+        default_exchange_rate_id (int): Валюта по умолчанию (ID курса).
+        cpm_signature_active (bool): Включена ли подпись CPM.
+        cpm_signature_text (str | None): Текст подписи CPM.
+        exchange_signature_active (bool): Включена ли подпись курса.
+        exchange_signature_text (str | None): Текст подписи курса.
+        referral_signature_active (bool): Включена ли реф. подпись.
+        referral_signature_text (str | None): Текст реф. подписи.
+    """
     __tablename__ = "users"
 
     # Основные данные
