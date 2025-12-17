@@ -287,10 +287,10 @@ class InlineBots(InlineKeyboardBuilder):
     def manage_bot(cls, user_bot: UserBot, status: bool):
         kb = cls()
 
-        kb.button(
-            text=text("manage:bot:manage"),
-            callback_data=f"ManageBot|settings|{user_bot.id}",
-        )
+        # kb.button(
+        #     text=text("manage:bot:manage"),
+        #     callback_data=f"ManageBot|settings|{user_bot.id}",
+        # )
 
         kb.button(
             text=text("manage:bot:{}_channel".format("add")),

@@ -305,7 +305,7 @@ async def send_story(story: Story):
         )
 
 
-@safe_handler("Сторис: отправка отложенных (Background)")
+@safe_handler("Сторис: отправка отложенных (Background)", log_start=False)
 async def send_stories():
     """
     Периодическая задача: отправка отложенных сторис.

@@ -59,7 +59,7 @@ async def delete_bot_posts(
                     )
 
 
-@safe_handler("Боты: удаление сообщений (Background)")
+@safe_handler("Боты: удаление сообщений (Background)", log_start=False)
 async def start_delete_bot_posts() -> None:
     """
     Периодическая задача: удаление сообщений ботов по расписанию.
@@ -395,7 +395,7 @@ async def send_bot_post(bot_post: BotPost) -> None:
     )
 
 
-@safe_handler("Боты: отправка постов (Background)")
+@safe_handler("Боты: отправка постов (Background)", log_start=False)
 async def send_bot_posts() -> None:
     """
     Периодическая задача: отправка постов через ботов.

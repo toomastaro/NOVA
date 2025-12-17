@@ -117,7 +117,7 @@ app = FastAPI(lifespan=lifespan)
 
 
 @app.get("/health")
-@safe_handler("API: Health Check")
+@safe_handler("API: Health Check", log_start=False)
 async def health_check():
     """
     Проверка работоспособности сервиса (Health Check).

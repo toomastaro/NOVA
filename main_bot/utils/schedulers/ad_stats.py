@@ -45,7 +45,7 @@ async def ad_stats_worker() -> None:
         await asyncio.sleep(interval)
 
 
-@safe_handler("Реклама: сбор статистики (Background)")
+@safe_handler("Реклама: сбор статистики (Background)", log_start=False)
 async def process_ad_stats() -> None:
     """
     Основная логика сбора статистики рекламы.

@@ -269,7 +269,7 @@ async def send(post: Post):
         )
 
 
-@safe_handler("Постинг: отправка отложенных (Background)")
+@safe_handler("Постинг: отправка отложенных (Background)", log_start=False)
 async def send_posts():
     """Периодическая задача: отправка отложенных постов"""
 
@@ -282,7 +282,7 @@ async def send_posts():
         asyncio.create_task(send(post))
 
 
-@safe_handler("Постинг: открепление (Background)")
+@safe_handler("Постинг: открепление (Background)", log_start=False)
 async def unpin_posts():
     """Периодическая задача: открепление постов"""
     posts = await db.published_post.get_posts_for_unpin()
@@ -299,7 +299,7 @@ async def unpin_posts():
             )
 
 
-@safe_handler("CPM: проверка отчетов (Background)")
+@safe_handler("CPM: проверка отчетов (Background)", log_start=False)
 async def check_cpm_reports():
     """Периодическая задача: проверка и отправка CPM отчетов за 24/48/72 часа"""
     current_time = int(time.time())
@@ -406,7 +406,7 @@ async def check_cpm_reports():
             )
 
 
-@safe_handler("Постинг: удаление (Background)")
+@safe_handler("Постинг: удаление (Background)", log_start=False)
 async def delete_posts():
     """Периодическая задача: удаление постов по расписанию"""
     db_posts = await db.published_post.get_posts_for_delete()
