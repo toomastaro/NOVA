@@ -591,7 +591,12 @@ async def calculate_and_show_price(
     else:
         rate = 100.0
 
-    price_rub = {h: int((views[h] / 1000) * cpm) for h in HOURS_TO_ANALYZE}
+    price_rub = {}
+    for h in HOURS_TO_ANALYZE:
+        # Handle potential string keys from JSON serialization
+        val = views.get(h) or views.get(str(h)) or 0
+        price_rub[h] = int((val / 1000) * cpm)
+
     price_usdt = {h: round(price_rub[h] / rate, 2) for h in HOURS_TO_ANALYZE}
 
     date_str = datetime.now().strftime("%d.%m.%Y %H:%M")

@@ -63,6 +63,7 @@ async def choice_bots(call: types.CallbackQuery, state: FSMContext):
 
     chosen: list = data.get("chosen")
     chosen_folders: list = data.get("chosen_folders")
+    current_folder_id = data.get("current_folder_id")
 
     channels = await db.channel_bot_settings.get_bot_channels(call.from_user.id)
 
@@ -73,19 +74,35 @@ async def choice_bots(call: types.CallbackQuery, state: FSMContext):
         view_mode = "channels" if view_mode == "folders" else "folders"
         await set_user_view_mode(call.from_user.id, view_mode)
 
-        # Сбрасываем пагинацию
+        # Сбрасываем пагинацию и вход в папку
+        if view_mode == "channels":
+            await state.update_data(current_folder_id=None)
+            current_folder_id = None
+
         temp = list(temp)
         if len(temp) > 2:
             temp[2] = "0"
         else:
             temp.append("0")
 
-    if view_mode == "channels":
+    # Определяем что показывать
+    if current_folder_id:
+         # Внутри папки - показываем содержимое папки
+        folder = await db.user_folder.get_folder_by_id(current_folder_id)
+        if folder and folder.content:
+            objects = await db.channel.get_user_channels(
+                call.from_user.id, from_array=[int(cid) for cid in folder.content]
+            )
+        else:
+            objects = []
+        folders = []
+    elif view_mode == "channels":
         objects = await db.channel.get_user_channels(
             call.from_user.id, from_array=[i.id for i in channels]
         )
         folders = []
     else:
+        # В режиме папок верхнего уровня не показываем каналы
         objects = []
         folders = await db.user_folder.get_folders(
             user_id=call.from_user.id,
@@ -99,8 +116,31 @@ async def choice_bots(call: types.CallbackQuery, state: FSMContext):
         return await show_create_post(call.message, state)
 
     if temp[1] == "cancel":
-        await call.message.delete()
-        return await start_bots(call.message)
+        if current_folder_id:
+             # Возврат к корневому уровню (Закрыть папку)
+            await state.update_data(current_folder_id=None)
+            current_folder_id = None
+            
+            # Перезагружаем корневые данные
+            if view_mode == "folders":
+                objects = []
+                folders = await db.user_folder.get_folders(user_id=call.from_user.id)
+            else:
+                 objects = await db.channel.get_user_channels(
+                    call.from_user.id, from_array=[i.id for i in channels]
+                )
+                 folders = []
+            
+            # Сбрасываем remover и спиннер
+            remover_value = 0
+            try:
+                await call.answer()
+            except Exception:
+                pass
+        else:
+            # Выход в главное меню ботов
+            await call.message.delete()
+            return await start_bots(call.message)
 
     if temp[1] in ["next", "back"]:
         return await call.message.edit_reply_markup(
@@ -109,17 +149,26 @@ async def choice_bots(call: types.CallbackQuery, state: FSMContext):
                 chosen=chosen,
                 folders=folders,
                 chosen_folders=chosen_folders,
+                remover=int(temp[2]),
                 data="ChoicePostBots",
                 view_mode=view_mode,
+                is_inside_folder=bool(current_folder_id),
             )
         )
 
     if temp[1] == "choice_all":
-        if len(chosen) == len(objects) and len(chosen_folders) == len(folders):
-            chosen.clear()
-            chosen_folders.clear()
+        current_ids = [i.chat_id for i in objects]
+        
+        # Проверяем все ли выбраны в текущем отображении
+        all_selected = all(cid in chosen for cid in current_ids)
+        
+        if all_selected:
+             # Снимаем выделение
+             for cid in current_ids:
+                 if cid in chosen:
+                     chosen.remove(cid)
         else:
-            # Проверяем подписку для всех ботов
+             # Проверяем подписку для всех ботов
             bots_without_sub = []
             for obj in objects:
                 if not obj.subscribe:
@@ -137,9 +186,14 @@ async def choice_bots(call: types.CallbackQuery, state: FSMContext):
                     f"Оплатите подписку через меню 💎 Подписка",
                     show_alert=True,
                 )
-
-            extend_list = [i.chat_id for i in objects if i.chat_id not in chosen]
-            chosen.extend(extend_list)
+            
+            # Выбираем все видимые
+            for cid in current_ids:
+                if cid not in chosen:
+                    chosen.append(cid)
+            
+            # Если были папки (только на верхнем уровне в режиме папок), выбираем их тоже
+            # Но если мы в папке, folders пуст.
             if folders:
                 for folder in folders:
                     sub_channels = []
@@ -161,8 +215,31 @@ async def choice_bots(call: types.CallbackQuery, state: FSMContext):
     if temp[1].replace("-", "").isdigit():
         resource_id = int(temp[1])
         logger.info(f"Обработка resource_id: {resource_id}")
+        resource_type = temp[3] if len(temp) > 3 else None
 
-        if temp[3] == "channel":
+        if resource_type == "folder":
+             # Вход в папку
+            await state.update_data(current_folder_id=resource_id)
+            current_folder_id = resource_id
+            
+            # Загружаем содержимое
+            folder = await db.user_folder.get_folder_by_id(resource_id)
+            if folder and folder.content:
+                objects = await db.channel.get_user_channels(
+                    call.from_user.id, from_array=[int(cid) for cid in folder.content]
+                )
+            else:
+                objects = []
+            folders = []
+            
+            # Сброс пагинации
+            temp = list(temp)
+            if len(temp) > 2:
+                temp[2] = "0"
+            else:
+                temp.append("0")
+
+        elif temp[3] == "channel" or not resource_type: # Fallback for old buttons if any
             if resource_id in chosen:
                 chosen.remove(resource_id)
                 logger.info(f"Удален канал {resource_id} из выбранных")
@@ -180,12 +257,11 @@ async def choice_bots(call: types.CallbackQuery, state: FSMContext):
 
                 chosen.append(resource_id)
                 logger.info(f"Добавлен канал {resource_id} в выбранные")
-        else:
-            temp_chosen, temp_chosen_folders = await set_folder_content(
-                resource_id=resource_id, chosen=chosen, chosen_folders=chosen_folders
-            )
-            if temp_chosen == "subscribe":
-                return await call.answer(text("error_sub_channel_folder:bots"))
+        
+        # NOTE: logic for set_folder_content which was used for "selecting folder" is removed/replaced by "entering folder" 
+        # unless we want to support selecting whole folder without entering?
+        # User requested "similar functionality" - in other flows clicking folder Enters it.
+        # So explicit "mass select folder" from outside is replaced by "Select All" inside.
 
     # Recalculate stats based on Unique Bots for accuracy
     # Convert chosen channels to unique bots
@@ -226,16 +302,63 @@ async def choice_bots(call: types.CallbackQuery, state: FSMContext):
     )
 
     logger.info("Обновление UI с новой статистикой")
+    
+    # Text generation
+    folder_title = ""
+    if current_folder_id:
+        try:
+             folder_obj = await db.user_folder.get_folder_by_id(current_folder_id)
+             if folder_obj:
+                 folder_title = folder_obj.title
+        except Exception:
+            pass
+
+    # Use generic "Folder: {title}" text if in folder, or standard if not.
+    # Note: "choice_channels:folder" might be specific to Posting flow text unless shared. 
+    # Let's check localization. "choice_channels:folder" key exists in Step 416.
+    # For bots, existing text is "choice_bots:post" (format: chosen_count, channels_list, available).
+    # We might need a "choice_bots:folder" key or reuse "choice_channels:folder" with adapted args?
+    # "choice_channels:folder" expects: {0}=Title, {1}=Count, {2}=List.
+    # "choice_bots:post" expects: {0}=Count, {1}=List, {2}=Available.
+    # The arguments differ.
+    # I should probably just construct the text dynamically or use "choice_bots:post" but prefix with Folder Name if present.
+    
+    list_text = (
+            "\n".join(
+                text("resource_title").format(obj.title)
+                for obj in objects
+                if obj.chat_id in chosen[:10]
+            )
+            if chosen
+            else ""
+    )
+    
+    if current_folder_id and folder_title:
+        # Using a new constructed string or "choice_channels:folder" if appropriate won't work perfectly with "Available" arg.
+        # I'll modify the text locally to include folder name.
+        # Or better, I will assume the user considers "Folder View" text as "Folder: Name ...".
+        # Let's try to preserve the Bot specific stats.
+        msg_text = (
+            f"📂 <b>Папка: {folder_title}</b>\n\n" + 
+            text("choice_bots:post").format(len(chosen), list_text, available)
+        )
+    else:
+        msg_text = text("choice_bots:post").format(len(chosen), list_text, available)
 
     await call.message.edit_text(
-        text("choice_bots:post").format(total_users, available, unavailable),
+        msg_text,
         reply_markup=keyboards.choice_objects(
             resources=objects,
             chosen=chosen,
             folders=folders,
             chosen_folders=chosen_folders,
-            remover=int(temp[2]),
+            remover=(
+                remover_value 
+                if "remover_value" in locals() 
+                else int(temp[2])
+            ),
             data="ChoicePostBots",
             view_mode=view_mode,
+            is_inside_folder=bool(current_folder_id),
         ),
     )

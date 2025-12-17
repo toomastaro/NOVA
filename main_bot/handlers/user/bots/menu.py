@@ -74,7 +74,16 @@ async def show_choice_channel(message: types.Message, state: FSMContext):
         chosen=chosen,
         chosen_folders=data.get("chosen_folders", []),
         available=data.get("available", 0),
+        current_folder_id=None,
     )
+
+    # Фильтрация списков для отображения
+    if view_mode == "folders":
+        kb_resources = []
+        kb_folders = folders
+    else:
+        kb_resources = objects
+        kb_folders = []
 
     await message.answer(
         text("choice_bots:post").format(
@@ -91,9 +100,9 @@ async def show_choice_channel(message: types.Message, state: FSMContext):
             data.get("available", 0),
         ),
         reply_markup=keyboards.choice_objects(
-            resources=objects,
+            resources=kb_resources,
             chosen=chosen,
-            folders=folders,
+            folders=kb_folders,
             chosen_folders=data.get("chosen_folders", []),
             data="ChoicePostBots",
             view_mode=view_mode,
