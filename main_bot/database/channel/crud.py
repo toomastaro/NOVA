@@ -1,19 +1,33 @@
+"""
+Модуль операций базы данных для Telegram-каналов.
+"""
+
 import logging
 from typing import List, Literal
 
+from sqlalchemy import delete, desc, select, update
+from sqlalchemy.dialects.postgresql import insert as pg_insert
+
 from main_bot.database import DatabaseMixin
 from main_bot.database.channel.model import Channel
-from sqlalchemy import delete, desc, select, update
 
 logger = logging.getLogger(__name__)
 
 
 class ChannelCrud(DatabaseMixin):
+    """
+    Класс для управления Telegram-каналами (Channel).
+    """
+
     async def get_subscribe_channels(self, user_id: int) -> List[Channel]:
         """
         Получает список каналов пользователя с активной подпиской.
-        :param user_id: ID пользователя (админа).
-        :return: Лис каналов.
+
+        Аргументы:
+            user_id (int): ID пользователя (админа).
+
+        Возвращает:
+            List[Channel]: Список каналов.
         """
         return await self.fetch(
             select(Channel).where(
@@ -30,11 +44,15 @@ class ChannelCrud(DatabaseMixin):
     ) -> List[Channel]:
         """
         Получает список каналов пользователя с опциональной фильтрацией и сортировкой.
-        :param user_id: ID пользователя.
-        :param limit: Лимит количества (для пагинации).
-        :param sort_by: Поле сортировки (например, 'subscribe').
-        :param from_array: Список chat_id для фильтрации.
-        :return: Список каналов.
+
+        Аргументы:
+            user_id (int): ID пользователя.
+            limit (int, optional): Лимит количества (для пагинации).
+            sort_by (Literal['subscribe'], optional): Поле сортировки.
+            from_array (List[int], optional): Список chat_id для фильтрации.
+
+        Возвращает:
+            List[Channel]: Список каналов.
         """
         stmt = select(Channel).where(Channel.admin_id == user_id)
 
@@ -51,6 +69,9 @@ class ChannelCrud(DatabaseMixin):
     async def get_channel_by_row_id(self, row_id: int) -> Channel | None:
         """
         Получает канал по его первичному ключу (ID в БД).
+
+        Аргументы:
+            row_id (int): Внутренний ID канала.
         """
         return await self.fetchrow(select(Channel).where(Channel.id == row_id))
 
@@ -58,6 +79,10 @@ class ChannelCrud(DatabaseMixin):
         """
         Получает канал по chat_id и admin_id.
         Проверяет владение каналом конкретным пользователем.
+
+        Аргументы:
+            chat_id (int): ID канала в Telegram.
+            user_id (int): ID пользователя.
         """
         return await self.fetchrow(
             select(Channel).where(
@@ -68,6 +93,9 @@ class ChannelCrud(DatabaseMixin):
     async def get_channel_by_chat_id(self, chat_id: int) -> Channel | None:
         """
         Получает канал по Telegram chat_id.
+
+        Аргументы:
+            chat_id (int): ID канала в Telegram.
         """
         return await self.fetchrow(
             select(Channel).where(Channel.chat_id == chat_id).limit(1)
@@ -76,6 +104,10 @@ class ChannelCrud(DatabaseMixin):
     async def update_channel_by_chat_id(self, chat_id: int, **kwargs) -> None:
         """
         Обновляет данные канала по chat_id.
+
+        Аргументы:
+            chat_id (int): ID канала в Telegram.
+            **kwargs: Поля для обновления.
         """
         await self.execute(
             update(Channel).where(Channel.chat_id == chat_id).values(**kwargs)
@@ -84,6 +116,10 @@ class ChannelCrud(DatabaseMixin):
     async def update_channel_by_id(self, channel_id: int, **kwargs) -> None:
         """
         Обновляет данные канала по ID (Primary Key).
+
+        Аргументы:
+            channel_id (int): Внутренний ID канала.
+            **kwargs: Поля для обновления.
         """
         await self.execute(
             update(Channel).where(Channel.id == channel_id).values(**kwargs)
@@ -92,9 +128,11 @@ class ChannelCrud(DatabaseMixin):
     async def add_channel(self, **kwargs) -> None:
         """
         Добавляет новый канал.
-        """
-        from sqlalchemy.dialects.postgresql import insert as pg_insert
+        Использует upsert по (chat_id, admin_id).
 
+        Аргументы:
+            **kwargs: Поля модели Channel.
+        """
         stmt = pg_insert(Channel).values(**kwargs)
         stmt = stmt.on_conflict_do_update(
             index_elements=["chat_id", "admin_id"], set_=kwargs
@@ -104,8 +142,10 @@ class ChannelCrud(DatabaseMixin):
     async def delete_channel(self, chat_id: int, user_id: int = None) -> None:
         """
         Удаляет канал.
-        :param chat_id: ID канала в Telegram.
-        :param user_id: Опционально проверка владельца.
+
+        Аргументы:
+            chat_id (int): ID канала в Telegram.
+            user_id (int, optional): Опционально проверка владельца.
         """
         stmt = delete(Channel).where(Channel.chat_id == chat_id)
         if user_id:
@@ -129,6 +169,9 @@ class ChannelCrud(DatabaseMixin):
     async def get_user_channels_without_folders(self, user_id: int) -> List[Channel]:
         """
         Получает каналы пользователя, которые НЕ находятся ни в одной папке.
+
+        Аргументы:
+            user_id (int): ID пользователя.
         """
         from main_bot.database.db_types import FolderType
         from main_bot.database.user_folder.model import UserFolder
@@ -157,9 +200,9 @@ class ChannelCrud(DatabaseMixin):
         """
         Обновить last_client_id для канала (для round-robin распределения).
 
-        Args:
-            channel_id: ID канала (row id, не chat_id)
-            client_id: ID клиента
+        Аргументы:
+            channel_id (int): ID канала (row id, не chat_id).
+            client_id (int): ID клиента.
         """
         await self.execute(
             update(Channel)
@@ -168,7 +211,9 @@ class ChannelCrud(DatabaseMixin):
         )
 
     async def get_all_channels(self) -> List[Channel]:
-        """Получить все каналы (для админ-панели и шедулера), исключая дубликаты."""
+        """
+        Получить все каналы (для админ-панели и шедулера), исключая дубликаты.
+        """
         # Используем DISTINCT ON (postgres only) для выбора уникальных каналов
         # Сортировка по chat_id обязательна для distinct on
         stmt = (

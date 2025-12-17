@@ -1,9 +1,25 @@
-from main_bot.database import Base
+"""
+Модель данных для приветственного сообщения канала.
+"""
+
 from sqlalchemy import JSON, BigInteger
 from sqlalchemy.orm import Mapped, mapped_column
 
+from main_bot.database import Base
+
 
 class ChannelHelloMessage(Base):
+    """
+    Модель приветственного сообщения в канале (Hello Message).
+
+    Атрибуты:
+        id (int): Уникальный ID.
+        channel_id (int): ID канала (Telegram Chat ID).
+        message (dict): Содержимое сообщения (JSON).
+        delay (int): Задержка отправки в секундах.
+        text_with_name (bool): Подставлять ли имя пользователя.
+        is_active (bool): Активно ли сообщение.
+    """
     __tablename__ = "channel_hello_messages"
 
     # Data

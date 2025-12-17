@@ -1,16 +1,38 @@
+"""
+Модель данных Telegram-канала.
+"""
+
 import time
 from typing import Optional
 
-from main_bot.database import Base
 from sqlalchemy import BigInteger, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
+
+from main_bot.database import Base
 
 
 class Channel(Base):
     """
     Модель Telegram-канала.
-    """
 
+    Представляет канал, добавленный пользователем в бота.
+    Хранит информацию о подписке, статистике и настройках.
+
+    Атрибуты:
+        id (int): Внутренний ID канала в БД.
+        chat_id (int): Telegram ID канала.
+        title (str): Название канала.
+        admin_id (int): ID владельца (пользователя бота).
+        subscribe (int | None): Дата окончания подписки (timestamp).
+        session_path (str | None): Путь к файлу сессии (для юзерботов).
+        emoji_id (str): ID эмодзи для оформления постов (капча и т.д.).
+        created_timestamp (int): Время добавления канала.
+        last_client_id (int | None): ID последнего использованного клиента (Round-robin).
+        subscribers_count (int): Количество подписчиков.
+        novastat_24h (int): Просмотры за 24 часа.
+        novastat_48h (int): Просмотры за 48 часов.
+        novastat_72h (int): Просмотры за 72 часа.
+    """
     __tablename__ = "channels"
     __table_args__ = (
         UniqueConstraint("chat_id", "admin_id", name="uix_channel_admin"),
