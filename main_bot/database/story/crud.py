@@ -1,18 +1,37 @@
-import time
+"""
+Модуль операций базы данных для сторис.
+"""
+
 import logging
+import time
 from datetime import datetime
 from typing import List
 
-from main_bot.database import DatabaseMixin
-from main_bot.database.story.model import Story
-from main_bot.database.db_types import Status
 from sqlalchemy import delete, func, insert, or_, select, update
+
+from main_bot.database import DatabaseMixin
+from main_bot.database.db_types import Status
+from main_bot.database.story.model import Story
 
 logger = logging.getLogger(__name__)
 
 
 class StoryCrud(DatabaseMixin):
+    """
+    Класс для управления сторис (планирование, статус, очистка).
+    """
+
     async def add_story(self, return_obj: bool = False, **kwargs) -> Story | None:
+        """
+        Добавляет новую сторис.
+
+        Аргументы:
+            return_obj (bool): Возвращать объект.
+            **kwargs: Поля модели Story.
+
+        Возвращает:
+            Story | None: Объект сторис или None.
+        """
         stmt = insert(Story).values(**kwargs)
 
         if return_obj:
@@ -26,6 +45,17 @@ class StoryCrud(DatabaseMixin):
     async def update_story(
         self, post_id: int, return_obj: bool = False, **kwargs
     ) -> Story | None:
+        """
+        Обновляет данные сторис.
+
+        Аргументы:
+            post_id (int): ID записи.
+            return_obj (bool): Возвращать обновленный объект.
+            **kwargs: Поля для обновления.
+
+        Возвращает:
+            Story | None: Обновленный объект сторис.
+        """
         stmt = update(Story).where(Story.id == post_id).values(**kwargs)
 
         if return_obj:
@@ -36,13 +66,31 @@ class StoryCrud(DatabaseMixin):
 
         return await operation(stmt, **{"commit": return_obj} if return_obj else {})
 
-    async def delete_story(self, post_id: int):
-        return await self.execute(delete(Story).where(Story.id == post_id))
+    async def delete_story(self, post_id: int) -> None:
+        """
+        Удаляет сторис по ID.
+        """
+        await self.execute(delete(Story).where(Story.id == post_id))
 
-    async def get_story(self, post_id: int) -> Story:
+    async def get_story(self, post_id: int) -> Story | None:
+        """
+        Получает сторис по ID.
+        """
         return await self.fetchrow(select(Story).where(Story.id == post_id))
 
-    async def get_stories(self, chat_id: int, current_day: datetime = None):
+    async def get_stories(
+        self, chat_id: int, current_day: datetime = None
+    ) -> List[Story]:
+        """
+        Получает запланированные сторис для канала.
+
+        Аргументы:
+            chat_id (int): ID канала/чата.
+            current_day (datetime): День для фильтрации (по умолчанию None).
+
+        Возвращает:
+            List[Story]: Список сторис.
+        """
         stmt = select(Story).where(
             Story.chat_ids.contains([chat_id]), Story.send_time.isnot(None)
         )
@@ -63,7 +111,13 @@ class StoryCrud(DatabaseMixin):
 
         return await self.fetch(stmt)
 
-    async def get_story_for_send(self):
+    async def get_story_for_send(self) -> List[Story]:
+        """
+        Получает сторис, готовые к отправке.
+
+        Возвращает:
+            List[Story]: Список сторис со статусом PENDING и наступившим временем отправки.
+        """
         current_time = int(time.time())
 
         return await self.fetch(
@@ -74,10 +128,16 @@ class StoryCrud(DatabaseMixin):
             )
         )
 
-    async def clear_story(self, post_ids: List[int]):
+    async def clear_story(self, post_ids: List[int]) -> None:
+        """
+        Массовое удаление сторис по ID.
+        """
         await self.execute(delete(Story).where(Story.id.in_(post_ids)))
 
-    async def clear_empty_stories(self):
+    async def clear_empty_stories(self) -> None:
+        """
+        Очищает старые сторис (старше недели) без адресатов.
+        """
         week_ago = int(time.time()) - 7 * 24 * 60 * 60
 
         await self.execute(

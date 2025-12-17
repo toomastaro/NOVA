@@ -18,7 +18,11 @@ from contextlib import asynccontextmanager
 from typing import Any, AsyncGenerator, Sequence, TypeVar
 
 from sqlalchemy.engine.result import Result
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import (
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 from sqlalchemy.orm import declarative_base
 from sqlalchemy.sql import Executable
 from tenacity import (
@@ -65,10 +69,10 @@ DB_MAX_RETRY_ATTEMPTS = Config.DB_MAX_RETRY_ATTEMPTS
 
 
 @asynccontextmanager
-async def log_slow_query(query_info: Any, threshold: float = 1.0):
+async def log_slow_query(query_info: Any, threshold: float = 1.0) -> AsyncGenerator[None, None]:
     """
     Контекстный менеджер для логирования медленных запросов.
-    
+
     Если выполнение блока кода занимает более `threshold` секунд,
     выводится предупреждение в лог.
 
@@ -82,14 +86,14 @@ async def log_slow_query(query_info: Any, threshold: float = 1.0):
     finally:
         duration = time.perf_counter() - start
         if duration > threshold:
-            logger.warning(f"SLOW QUERY ({duration:.3f}s): {query_info}")
+            logger.warning(f"МЕДЛЕННЫЙ ЗАПРОС ({duration:.3f}s): {query_info}")
 
 
 @asynccontextmanager
 async def get_session() -> AsyncGenerator[AsyncSession, None]:
     """
     Асинхронный контекстный менеджер для получения сессии базы данных.
-    
+
     Возвращает:
         AsyncSession: Новая сессия SQLAlchemy.
     """
@@ -163,9 +167,9 @@ class DatabaseMixin:
                             await session.execute(sql)
                         await session.commit()
                         logger.debug("Транзакция пакета зафиксирована")
-        except asyncio.TimeoutError:
+        except asyncio.TimeoutError as e:
             logger.error(
-                f"Таймаут БД в execute_many() после {DB_TIMEOUT_SECONDS * 2}с"
+                f"Таймаут БД в execute_many() после {DB_TIMEOUT_SECONDS * 2}с e={e}"
             )
             raise
         except Exception as e:
@@ -199,8 +203,8 @@ class DatabaseMixin:
                         results = res.scalars().all()
                         logger.debug(f"Получено {len(results)} строк")
                         return results
-        except asyncio.TimeoutError:
-            logger.error(f"Таймаут БД в fetch() после {DB_TIMEOUT_SECONDS}с")
+        except asyncio.TimeoutError as e:
+            logger.error(f"Таймаут БД в fetch() после {DB_TIMEOUT_SECONDS}с: {e}")
             raise
         except Exception as e:
             logger.error(f"Ошибка БД в fetch(): {e}", exc_info=True)
@@ -237,8 +241,8 @@ class DatabaseMixin:
                         result = res.scalar_one_or_none()
                         logger.debug(f"Строка получена: {result is not None}")
                         return result
-        except asyncio.TimeoutError:
-            logger.error(f"Таймаут БД в fetchrow() после {DB_TIMEOUT_SECONDS}с")
+        except asyncio.TimeoutError as e:
+            logger.error(f"Таймаут БД в fetchrow() после {DB_TIMEOUT_SECONDS}с: {e}")
             raise
         except Exception as e:
             logger.error(f"Ошибка БД в fetchrow(): {e}", exc_info=True)
@@ -271,8 +275,8 @@ class DatabaseMixin:
                         results = res.all()
                         logger.debug(f"Получено {len(results)} строк")
                         return results
-        except asyncio.TimeoutError:
-            logger.error(f"Таймаут БД в fetchall() после {DB_TIMEOUT_SECONDS}с")
+        except asyncio.TimeoutError as e:
+            logger.error(f"Таймаут БД в fetchall() после {DB_TIMEOUT_SECONDS}с: {e}")
             raise
         except Exception as e:
             logger.error(f"Ошибка БД в fetchall(): {e}", exc_info=True)
@@ -306,8 +310,8 @@ class DatabaseMixin:
                         result = res.one()
                         logger.debug("Получена ровно одна строка")
                         return result
-        except asyncio.TimeoutError:
-            logger.error(f"Таймаут БД в fetchone() после {DB_TIMEOUT_SECONDS}с")
+        except asyncio.TimeoutError as e:
+            logger.error(f"Таймаут БД в fetchone() после {DB_TIMEOUT_SECONDS}с: {e}")
             raise
         except Exception as e:
             logger.error(f"Ошибка БД в fetchone(): {e}", exc_info=True)
@@ -345,8 +349,8 @@ class DatabaseMixin:
                                 f"Объект добавлен и зафиксирован: {obj.__class__.__name__}"
                             )
                         return obj
-        except asyncio.TimeoutError:
-            logger.error(f"Таймаут БД в add() после {DB_TIMEOUT_SECONDS}с")
+        except asyncio.TimeoutError as e:
+            logger.error(f"Таймаут БД в add() после {DB_TIMEOUT_SECONDS}с: {e}")
             raise
         except Exception as e:
             logger.error(f"Ошибка БД в add(): {e}", exc_info=True)
