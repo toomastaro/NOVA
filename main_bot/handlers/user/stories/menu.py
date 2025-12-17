@@ -71,13 +71,23 @@ async def show_create_post(message: types.Message, state: FSMContext):
     # Инициализируем состояние
     await state.update_data(chosen=[], chosen_folders=[], current_folder_id=None)
 
+    # Фильтрация списков для отображения
+    if view_mode == "folders":
+        kb_resources = []
+        kb_folders = folders
+    else:
+        # В режиме каналов показываем все каналы (как в постинге), 
+        # но валидация подписки происходит при выборе
+        kb_resources = channels
+        kb_folders = []
+
     # Показываем выбор каналов
     await message.answer(
         text("choice_channels:story").format(0, ""),
         reply_markup=keyboards.choice_objects(
-            resources=channels_with_sub,
+            resources=kb_resources,
             chosen=[],
-            folders=folders,
+            folders=kb_folders,
             data="ChoiceStoriesChannels",
             view_mode=view_mode,
         ),
