@@ -585,12 +585,12 @@ class InlinePosting(InlineKeyboardBuilder):
         )
 
         # 3. Назад + Отчет
-        kb.button(text=text("back:button"), callback_data="ManagePublishedPost|cancel")
-
         kb.button(
             text=text("cpm:report:view_button"),
             callback_data="ManagePublishedPost|cpm_report",
         )
+
+        kb.button(text=text("back:button"), callback_data="ManagePublishedPost|cancel")
 
         kb.adjust(1)
         return kb.as_markup()
