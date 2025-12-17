@@ -480,16 +480,9 @@ async def finish_params(call: types.CallbackQuery, state: FSMContext):
 
     # Переключение отчетов
     if temp[1] == "report":
-        post = await db.post.update_post(
-            post_id=post.id, return_obj=True, report=not post.report
-        )
-        post_dict = {
-            col.name: getattr(post, col.name) for col in post.__table__.columns
-        }
-        await state.update_data(post=post_dict)
-        return await call.message.edit_reply_markup(
-            reply_markup=keyboards.finish_params(obj=post)
-        )
+        # Логика удалена, так как кнопка убрана из интерфейса
+        pass
+        return
 
     # Установка CPM цены
     if temp[1] == "cpm_price":
@@ -572,7 +565,8 @@ async def finish_params(call: types.CallbackQuery, state: FSMContext):
             else:
                 delete_str = f"{int(post.delete_time / 3600)} ч."
 
-        await call.message.edit_text(
+        await call.message.delete()
+        await call.message.answer(
             text("manage:post:accept:public").format(channels_block, delete_str),
             reply_markup=keyboards.accept_public(),
             parse_mode="HTML",

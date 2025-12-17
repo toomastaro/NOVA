@@ -313,11 +313,12 @@ class InlinePosting(InlineKeyboardBuilder):
 
         # Report & CPM buttons only for Posts
         if not is_story:
-            report = getattr(obj, "report", False)
-            kb.button(
-                text=text("manage:post:report:button").format("✅" if report else "❌"),
-                callback_data=f"{data}|report",
-            )
+            # report = getattr(obj, "report", False)
+            # kb.button(
+            #     text=text("manage:post:report:button").format("✅" if report else "❌"),
+            #     callback_data=f"{data}|report",
+            # )
+            pass
 
         kb.button(
             text=text("manage:post:del_time:button").format(

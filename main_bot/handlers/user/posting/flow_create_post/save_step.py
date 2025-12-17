@@ -235,7 +235,7 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
     # Отправка OTLOG
     await call.message.answer(
         otlog_text,
-        reply_markup=keyboards.posting_menu(),
+        reply_markup=None,  # Убрали кнопки по просьбе пользователя (отдельная реализация для отчета)
         parse_mode="HTML",
         link_preview_options=types.LinkPreviewOptions(is_disabled=True),
     )
