@@ -20,9 +20,10 @@ class ObjWrapper:
         self._data = data
 
     def __getattr__(self, name):
-        if name in self._data:
-            return self._data[name]
-        raise AttributeError(f"'dict' object has no attribute '{name}'")
+        # Возвращаем None для отсутствующих атрибутов,
+        # что соответствует поведению объектов SQLAlchemy
+        # и предотвращает ошибки при проверке необязательных полей
+        return self._data.get(name, None)
 
 
 def ensure_obj(obj):
