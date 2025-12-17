@@ -206,7 +206,7 @@ class Inline(InlineKeyboardBuilder):
         )
         kb.button(
             text=text("back:button"),
-            callback_data=f"ManageApplication|cancel"
+            callback_data="ManageApplication|cancel"
         )
 
         kb.adjust(1)
