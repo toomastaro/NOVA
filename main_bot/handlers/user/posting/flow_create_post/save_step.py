@@ -13,7 +13,6 @@ from aiogram import types
 from aiogram.fsm.context import FSMContext
 
 from main_bot.database.db import db
-from main_bot.database.post.model import Post
 from main_bot.utils.lang.language import text
 from main_bot.utils.backup_utils import send_to_backup
 from main_bot.keyboards import keyboards
