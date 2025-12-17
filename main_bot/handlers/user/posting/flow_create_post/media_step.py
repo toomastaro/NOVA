@@ -126,6 +126,11 @@ async def manage_post(call: types.CallbackQuery, state: FSMContext):
             channels_list = ""
 
         await call.message.delete()
+        
+        # Force refresh main menu
+        from main_bot.keyboards.common import Reply
+        await call.message.answer("⚙️ Настройка публикации", reply_markup=Reply.menu())
+
         return await call.message.answer(
             text("manage:post:finish_params").format(len(chosen), channels_list),
             reply_markup=keyboards.finish_params(obj=post),

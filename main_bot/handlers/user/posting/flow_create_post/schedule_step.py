@@ -569,6 +569,11 @@ async def finish_params(call: types.CallbackQuery, state: FSMContext):
                 delete_str = f"{int(post.delete_time / 3600)} ч."
 
         await call.message.delete()
+
+        # Force refresh main menu
+        from main_bot.keyboards.common import Reply
+        await call.message.answer("📝 Публикация...", reply_markup=Reply.menu())
+
         await call.message.answer(
             text("manage:post:accept:public").format(channels_block, delete_str),
             reply_markup=keyboards.accept_public(),
