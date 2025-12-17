@@ -410,21 +410,21 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
             is_published=True,
         )
 
-    post_message = await answer_post(call.message, state, from_edit=True)
-    if post_message:
-        await state.update_data(
-            post_message=post_message.model_dump(mode="json"),
-        )
+        post_message = await answer_post(call.message, state, from_edit=True)
+        if post_message:
+            await state.update_data(
+                post_message=post_message.model_dump(mode="json"),
+            )
 
-        await call.message.delete()
+            await call.message.delete()
 
-        # New Text Generation
-        info_text = await generate_post_info_text(post, is_published=True)
+            # New Text Generation
+            info_text = await generate_post_info_text(post, is_published=True)
 
-        await call.message.answer(
-            info_text, reply_markup=keyboards.manage_published_post(post=post)
-        )
-        return
+            await call.message.answer(
+                info_text, reply_markup=keyboards.manage_published_post(post=post)
+            )
+            return
 
     post_id = int(temp[1])
     post = await db.post.get_post(post_id)
