@@ -1,40 +1,46 @@
 """
 Обработчик команд бота.
 
-Предоставляет быстрый доступ к функциям через slash-команды:
+Предоставляет быстрый доступ к функциям через slash-команд:
 - /create_posting, /create_stories, /create_bots - создание контента
 - /posting, /stories, /bots - переход в разделы
 - /profile, /support, /subscription, /settings - настройки и поддержка
 """
-from aiogram import types, Router
+import logging
+from typing import Dict, Any
+
+from aiogram import Router, types
 from aiogram.filters import Command, CommandObject
 from aiogram.fsm.context import FSMContext
 
+from main_bot.handlers.user.bots.menu import show_create_post as bots_create
 from main_bot.handlers.user.menu import (
+    profile,
+    start_bots,
     start_posting,
     start_stories,
-    start_bots,
-    profile,
     support,
 )
 from main_bot.handlers.user.posting.menu import show_create_post as post_create
+from main_bot.handlers.user.profile.profile import show_setting, show_subscribe
 from main_bot.handlers.user.stories.menu import show_create_post as story_create
-from main_bot.handlers.user.bots.menu import show_create_post as bots_create
-from main_bot.handlers.user.profile.profile import show_subscribe, show_setting
-import logging
 from main_bot.utils.error_handler import safe_handler
 
 logger = logging.getLogger(__name__)
 
 
 @safe_handler("Commands Handler")
-async def commands(message: types.Message, command: CommandObject, state: FSMContext):
+async def commands(message: types.Message, command: CommandObject, state: FSMContext) -> None:
     """
     Обработчик slash-команд.
-    
     Маршрутизирует команду на соответствующий обработчик.
+
+    Аргументы:
+        message (types.Message): Сообщение с командой.
+        command (CommandObject): Объект команды.
+        state (FSMContext): Контекст состояния FSM.
     """
-    variants = {
+    variants: Dict[str, Dict[str, Any]] = {
         # Post
         "create_posting": {
             "cor": post_create,
@@ -74,12 +80,21 @@ async def commands(message: types.Message, command: CommandObject, state: FSMCon
         "settings": {"cor": show_setting, "args": (message,)},
     }
 
+    if command.command not in variants:
+        logger.warning(f"Неизвестная команда: {command.command}")
+        return
+
     handler_data = variants[command.command]
     await handler_data["cor"](*handler_data["args"])
 
 
-def get_router():
-    """Создает роутер для обработки slash-команд."""
+def get_router() -> Router:
+    """
+    Создает роутер для обработки slash-команд.
+
+    Возвращает:
+        Router: Роутер с зарегистрированными хендлерами команд.
+    """
     router = Router()
     router.message.register(
         commands,

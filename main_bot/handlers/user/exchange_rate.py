@@ -10,6 +10,7 @@
 import logging
 import time
 from datetime import datetime
+from typing import Dict, Any, Tuple, Optional
 
 from aiogram import types, F, Router
 from aiogram.fsm.context import FSMContext
@@ -19,7 +20,7 @@ from main_bot.keyboards import keyboards, InlineExchangeRate
 from main_bot.keyboards.common import Reply
 from main_bot.states.user import ExchangeRate
 from main_bot.utils.lang.language import text
-from main_bot.utils.schedulers import update_exchange_rates_in_db
+from main_bot.utils.schedulers.extra import update_exchange_rates_in_db
 from main_bot.utils.report_signature import get_report_signatures
 
 logger = logging.getLogger(__name__)
@@ -28,16 +29,27 @@ logger = logging.getLogger(__name__)
 async def _check_active_subscription(user_id: int) -> bool:
     """
     Проверяет наличие активной подписки у пользователя.
-    
-    Returns:
-        bool: True если есть хотя бы одна активная подписка
+
+    Аргументы:
+        user_id (int): Telegram ID пользователя.
+
+    Возвращает:
+        bool: True если есть хотя бы одна активная подписка.
     """
     subscribed_channels = await db.channel.get_subscribe_channels(user_id)
     return any(ch.subscribe and ch.subscribe > time.time() for ch in subscribed_channels)
 
 
-def serialize_rate(rate):
-    """Сериализует объект курса валюты в словарь."""
+def serialize_rate(rate: Any) -> Optional[Dict[str, Any]]:
+    """
+    Сериализует объект курса валюты в словарь.
+
+    Аргументы:
+        rate (Any): Объект курса валюты из БД.
+
+    Возвращает:
+        Optional[Dict[str, Any]]: Словарь с данными курса или None.
+    """
     if not rate:
         return None
     return {
@@ -50,12 +62,16 @@ def serialize_rate(rate):
 
 async def _get_and_format_exchange_rate(
     user_id: int, state: FSMContext
-) -> tuple[dict | None, str | None]:
+) -> Tuple[Optional[Any], Optional[str]]:
     """
     Получает и форматирует данные курса валюты.
-    
-    Returns:
-        tuple: (объект курса, форматированный текст)
+
+    Аргументы:
+        user_id (int): Telegram ID пользователя.
+        state (FSMContext): Контекст состояния.
+
+    Возвращает:
+        Tuple[Optional[Any], Optional[str]]: Объект курса и отформатированная строка.
     """
 
     user_data = await db.user.get_user(user_id=user_id)
@@ -81,8 +97,14 @@ async def _get_and_format_exchange_rate(
     return None, None
 
 
-async def start_exchange_rate(message: types.Message, state: FSMContext):
-    """Отображает главное меню курса валют с возможностью расчета."""
+async def start_exchange_rate(message: types.Message, state: FSMContext) -> None:
+    """
+    Отображает главное меню курса валют с возможностью расчета.
+
+    Аргументы:
+        message (types.Message): Сообщение пользователя.
+        state (FSMContext): Контекст состояния.
+    """
     has_active_sub = await _check_active_subscription(message.from_user.id)
 
     if not has_active_sub:
@@ -111,8 +133,14 @@ async def start_exchange_rate(message: types.Message, state: FSMContext):
         )
 
 
-async def settings_of_exchange_rate(call: types.CallbackQuery, state: FSMContext):
-    """Отображает настройки выбора источника курса."""
+async def settings_of_exchange_rate(call: types.CallbackQuery, state: FSMContext) -> None:
+    """
+    Отображает настройки выбора источника курса.
+
+    Аргументы:
+        call (types.CallbackQuery): Callback запрос.
+        state (FSMContext): Контекст состояния.
+    """
     await call.message.delete()
     data = await state.get_data()
     await call.message.answer(
@@ -123,8 +151,14 @@ async def settings_of_exchange_rate(call: types.CallbackQuery, state: FSMContext
     )
 
 
-async def choice_of_exchange_resources(call: types.CallbackQuery, state: FSMContext):
-    """Обрабатывает выбор источника курса валюты."""
+async def choice_of_exchange_resources(call: types.CallbackQuery, state: FSMContext) -> None:
+    """
+    Обрабатывает выбор источника курса валюты.
+
+    Аргументы:
+        call (types.CallbackQuery): Callback запрос.
+        state (FSMContext): Контекст состояния.
+    """
     exchange_rate_id = call.data.split("|")[-1]
     data = await state.get_data()
 
@@ -141,8 +175,14 @@ async def choice_of_exchange_resources(call: types.CallbackQuery, state: FSMCont
     )
 
 
-async def back_to_start_exchange_rate(call: types.CallbackQuery, state: FSMContext):
-    """Возврат к главному экрану курса валют."""
+async def back_to_start_exchange_rate(call: types.CallbackQuery, state: FSMContext) -> None:
+    """
+    Возврат к главному экрану курса валют.
+
+    Аргументы:
+        call (types.CallbackQuery): Callback запрос.
+        state (FSMContext): Контекст состояния.
+    """
     has_active_sub = await _check_active_subscription(call.from_user.id)
 
     if not has_active_sub:
@@ -171,8 +211,14 @@ async def back_to_start_exchange_rate(call: types.CallbackQuery, state: FSMConte
     )
 
 
-async def get_exchange_rate_of_custom_amount(message: types.Message, state: FSMContext):
-    """Рассчитывает сумму по введенному количеству валюты."""
+async def get_exchange_rate_of_custom_amount(message: types.Message, state: FSMContext) -> None:
+    """
+    Рассчитывает сумму по введенному количеству валюты.
+
+    Аргументы:
+        message (types.Message): Сообщение с суммой.
+        state (FSMContext): Контекст состояния.
+    """
     data = await state.get_data()
     exchange_rate = data["exchange_rate"]["rate"]
     amount = message.text
@@ -206,14 +252,24 @@ async def get_exchange_rate_of_custom_amount(message: types.Message, state: FSMC
         )
 
 
-async def back_to_main_menu(call: types.CallbackQuery):
-    """Возврат в главное меню."""
+async def back_to_main_menu(call: types.CallbackQuery) -> None:
+    """
+    Возврат в главное меню.
+
+    Аргументы:
+        call (types.CallbackQuery): Callback запрос.
+    """
     await call.message.delete()
     await call.message.answer("Главное меню", reply_markup=Reply.menu())
 
 
-def get_router():
-    """Создает роутер для обработки курса валют."""
+def get_router() -> Router:
+    """
+    Создает роутер для обработки курса валют.
+
+    Возвращает:
+        Router: Роутер с зарегистрированными хендлерами.
+    """
     router = Router()
 
     router.callback_query.register(back_to_main_menu, F.data == "MenuExchangeRate|back")

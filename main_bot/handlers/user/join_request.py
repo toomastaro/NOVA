@@ -1,17 +1,30 @@
+"""
+Модуль обработки заявок на вступление.
+
+Содержит:
+- Отслеживание рекламных лидов через заявки на вступление
+- Проверку маппинга инвайт-ссылок к рекламным закупкам
+"""
+import logging
+
 from aiogram import Router, types
+from sqlalchemy import select
+
+from main_bot.database.ad_purchase.model import AdPurchaseLinkMapping
 from main_bot.database.db import db
 from main_bot.utils.error_handler import safe_handler
-from sqlalchemy import select
-from main_bot.database.ad_purchase.model import AdPurchaseLinkMapping
-import logging
 
 logger = logging.getLogger(__name__)
 
 
 @safe_handler("Join Request Lead")
-async def on_join_request(request: types.ChatJoinRequest):
+async def on_join_request(request: types.ChatJoinRequest) -> None:
     """
     Обработка заявок на вступление для отслеживания рекламных лидов.
+    Проверяет invite_link заявки и сопоставляет его с рекламной закупкой.
+
+    Аргументы:
+        request (types.ChatJoinRequest): Объект заявки на вступление.
     """
     if not request.invite_link:
         return
@@ -52,8 +65,13 @@ async def on_join_request(request: types.ChatJoinRequest):
         logger.exception("Ошибка обработки заявки на вступление для трекинга лидов")
 
 
-def get_router():
-    """Регистрация роутера для обработки заявок на вступление"""
+def get_router() -> Router:
+    """
+    Регистрация роутера для обработки заявок на вступление.
+
+    Возвращает:
+        Router: Роутер с зарегистрированным хендлером.
+    """
     router = Router()
     router.chat_join_request.register(on_join_request)
     return router

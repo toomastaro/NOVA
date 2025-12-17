@@ -11,26 +11,31 @@
 from aiogram import Router
 
 from . import (
-    menu,
-    start,
-    set_resource,
-    support,
+    ad_buy_menu,
+    ad_creative,
     commands,
     exchange_rate,
-    novastat,
-    ad_creative,
-    ad_buy_menu,
-    subscription_menu,
     join_request,
+    menu,
+    novastat,
+    set_resource,
+    start,
+    subscription_menu,
+    support,
 )
-from .profile import get_router as profile_router
-from .posting import get_router as posting_router
-from .stories import get_router as stories_router
 from .bots import get_router as bots_router
+from .posting import get_router as posting_router
+from .profile import get_router as profile_router
+from .stories import get_router as stories_router
 
 
-def get_router():
-    """Создает и возвращает главный роутер для пользовательских обработчиков."""
+def get_router() -> Router:
+    """
+    Создает и возвращает главный роутер для пользовательских обработчиков.
+
+    Возвращает:
+        Router: Главный роутер с подключенными суб-роутерами.
+    """
     routers = [
         start.get_router(),
         menu.get_router(),
