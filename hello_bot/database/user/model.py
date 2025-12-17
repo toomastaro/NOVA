@@ -7,6 +7,7 @@ from hello_bot.database import Base
 
 
 class User(Base):
+    """Модель пользователя hello_bot."""
     __tablename__ = 'users'
 
     # Data

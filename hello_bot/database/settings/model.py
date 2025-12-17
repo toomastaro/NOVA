@@ -6,6 +6,7 @@ from hello_bot.database import Base
 
 
 class Setting(Base):
+    """Модель настроек hello_bot."""
     __tablename__ = 'settings'
 
     # Data

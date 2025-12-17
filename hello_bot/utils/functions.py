@@ -1,9 +1,22 @@
+"""
+Вспомогательные функции для отправки сообщений ботом.
+"""
 from aiogram import types, Bot
+from loguru import logger
 
 from hello_bot.utils.schemas import MessageOptions, Protect
 
 
 def get_protect_tag(protect: Protect):
+    """
+    Определяет тег защиты на основе настроек.
+
+    Args:
+        protect: Объект настроек защиты.
+
+    Returns:
+        str: Тег защиты ('all', 'arab', 'china' или '').
+    """
     if protect.arab and protect.china:
         protect_tag = "all"
     elif protect.arab:
@@ -17,6 +30,18 @@ def get_protect_tag(protect: Protect):
 
 
 async def answer_message_bot(bot: Bot, chat_id: int, message_options: MessageOptions, reply):
+    """
+    Отправляет сообщение от имени бота.
+
+    Args:
+        bot: Экземпляр бота.
+        chat_id: ID чата.
+        message_options: Опции сообщения (текст, медиа).
+        reply: Клавиатура.
+
+    Returns:
+        Message: Отправленное сообщение или None при ошибке.
+    """
     if message_options.text:
         cor = bot.send_message
     elif message_options.photo:
@@ -60,12 +85,24 @@ async def answer_message_bot(bot: Bot, chat_id: int, message_options: MessageOpt
             reply_markup=reply
         )
     except Exception as e:
-        return print(e)
+        logger.error(f"Ошибка при отправке сообщения ботом: {e}")
+        return None
 
     return post_message
 
 
+
 async def answer_message(message: types.Message, message_options: MessageOptions):
+    """
+    Отвечает на сообщение пользователя.
+
+    Args:
+        message: Исходное сообщение пользователя.
+        message_options: Опции ответа.
+
+    Returns:
+        Message: Отправленное сообщение.
+    """
     if message_options.text:
         cor = message.answer
     elif message_options.photo:

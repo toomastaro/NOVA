@@ -1,3 +1,6 @@
+"""
+Настройка логгера (loguru) для hello_bot.
+"""
 import sys
 
 from loguru import logger

@@ -548,7 +548,7 @@ async def get_send_time(message: types.Message, state: FSMContext):
         send_time = time.mktime(date.timetuple())
 
     except Exception as e:
-        logger.error(f"Error parsing send time: {e}")
+        logger.error(f"Ошибка парсинга времени отправки: {e}")
         return await message.answer(text("error_value"))
 
     if time.time() > send_time:

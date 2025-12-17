@@ -8,12 +8,18 @@ from hello_bot.database.user.model import User
 
 
 class UserCrud(DatabaseMixin):
+    """CRUD операции для пользователей."""
+
     async def get_dump_users(self):
+        """Получает дамп всех пользователей."""
         return await self.fetch(
             select(User)
         )
 
     async def get_users(self, chat_id: int):
+        """
+        Получает список ID активных пользователей для конкретного канала, прошедших капчу.
+        """
         return await self.fetch(
             select(User.id).where(
                 User.is_active.is_(True),
@@ -34,6 +40,7 @@ class UserCrud(DatabaseMixin):
         )
 
     async def get_time_users(self, chat_id: int, start_time, end_time, participant: bool = True):
+        """Получает пользователей за определенный период."""
         stmt = select(User).where(
             User.channel_id == chat_id,
             User.created_timestamp > start_time,
@@ -44,6 +51,9 @@ class UserCrud(DatabaseMixin):
         return await self.fetch(stmt)
 
     async def get_count_users(self, chat_id: int = None) -> dict:
+        """
+        Получает статистику по пользователям (всего, активные, проходы капчи).
+        """
         now = datetime.utcnow()
 
         start_day = now.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -85,6 +95,12 @@ class UserCrud(DatabaseMixin):
         }
 
     async def get_captcha_users(self, chat_id: int):
+        """
+        Получает статистику прохождения капчи.
+
+        Returns:
+            dict: {give_captcha, walk_captcha, conversion}
+        """
         now = datetime.utcnow()
 
         start_day = now.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -120,6 +136,7 @@ class UserCrud(DatabaseMixin):
         }
 
     async def get_count_not_approve_users(self, chat_id: int):
+        """Возвращает количество пользователей, ожидающих подтверждения."""
         return await self.fetchrow(
             select(func.count(User.id)).where(
                 User.channel_id == chat_id,
@@ -128,6 +145,7 @@ class UserCrud(DatabaseMixin):
         )
 
     async def get_not_approve_users_by_chat_id(self, chat_id: int, get_url: bool = False, limit: int = None, invite_url: str = None):
+        """Получает список пользователей, ожидающих подтверждения."""
         stmt = select(User).where(User.channel_id == chat_id)
 
         if invite_url:
@@ -138,6 +156,7 @@ class UserCrud(DatabaseMixin):
         return await self.fetch(stmt)
 
     async def get_invite_urls(self, chat_id: int):
+        """Получает список пригласительных ссылок для неподтвержденных пользователей."""
         return await self.fetch(
             select(User.invite_url).where(
                 User.invite_url.is_not(None),
@@ -147,6 +166,7 @@ class UserCrud(DatabaseMixin):
         )
 
     async def get_user(self, user_id: int) -> User:
+        """Получает пользователя по ID."""
         return await self.fetchrow(
             select(User).where(
                 User.id == user_id
@@ -154,6 +174,7 @@ class UserCrud(DatabaseMixin):
         )
 
     async def add_user(self, **kwargs):
+        """Добавляет нового пользователя."""
         await self.execute(
             insert(User).values(
                 **kwargs
@@ -161,6 +182,7 @@ class UserCrud(DatabaseMixin):
         )
 
     async def update_user(self, user_id: int, return_obj: bool = False, **kwargs) -> User | None:
+        """Обновляет данные пользователя."""
         stmt = update(User).where(User.id == user_id).values(**kwargs)
 
         if return_obj:
@@ -172,6 +194,7 @@ class UserCrud(DatabaseMixin):
         return await operation(stmt, **{'commit': return_obj} if return_obj else {})
 
     async def many_insert_user(self, users: list[dict]):
+        """Массовая вставка пользователей (игнорирует дубликаты)."""
         stmt = p_insert(User).values(users)
         await self.execute(
             stmt.on_conflict_do_nothing(

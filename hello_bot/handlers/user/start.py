@@ -1,6 +1,8 @@
 import asyncio
 import time
 
+from loguru import logger
+
 from aiogram import types, Router, F, Bot
 from aiogram.enums import ChatMemberStatus
 
@@ -19,6 +21,11 @@ from utils.functions import create_emoji
 
 
 async def msg_handler(message: types.Message, db: Database):
+    """
+    Обрабатывает любые сообщения от пользователя в личке бота.
+    
+    Регистрирует пользователя или обновляет время последней активности (капчи).
+    """
     user = await db.user.get_user(message.from_user.id)
     if not user:
         await db.user.add_user(
@@ -39,6 +46,7 @@ async def msg_handler(message: types.Message, db: Database):
 
 
 async def send_captcha(user_bot, user_id: int, db_obj: Database, captcha: ChannelCaptcha):
+    """Отправляет сообщение с капчей пользователю."""
     if captcha.delay:
         while True:
             user = await db_obj.get_user(user_id)
@@ -53,6 +61,7 @@ async def send_captcha(user_bot, user_id: int, db_obj: Database, captcha: Channe
 
 
 async def send_hello(user_bot: Bot, user_id: int, db_obj: Database, hello_message: ChannelHelloMessage):
+    """Отправляет приветственное сообщение."""
     message_options = MessageOptionsHello(**hello_message.message)
 
     if hello_message.text_with_name:
@@ -82,7 +91,13 @@ async def send_hello(user_bot: Bot, user_id: int, db_obj: Database, hello_messag
 
 
 async def join(call: types.ChatJoinRequest, db: Database):
-    print(call)
+    """
+    Обрабатывает заявку на вступление в канал.
+
+    Проверяет настройки канала, отправляет капчу или приветствие,
+    и при необходимости автоматически одобряет заявку.
+    """
+    logger.debug(f"Join request: {call}")
 
     chat_id = call.chat.id
     invite_url = call.invite_link.name.lower()
@@ -101,8 +116,8 @@ async def join(call: types.ChatJoinRequest, db: Database):
     if not channel_settings:
         return
 
-    print(channel_settings)
-    print(invite_url)
+    logger.debug(f"Channel settings: {channel_settings}")
+    logger.debug(f"Invite URL: {invite_url}")
 
     if "(aon)" in invite_url or "(aoff)" in invite_url:
         enable_auto_approve = "(aon)" in invite_url
@@ -119,9 +134,7 @@ async def join(call: types.ChatJoinRequest, db: Database):
     else:
         enable_hello = None
 
-    print(enable_captcha)
-    print(enable_hello)
-    print(enable_auto_approve)
+    logger.debug(f"Flags -> Captcha: {enable_captcha}, Hello: {enable_hello}, AutoApprove: {enable_auto_approve}")
 
     if channel_settings.active_captcha_id:
         if enable_captcha is None or enable_captcha:
@@ -143,7 +156,7 @@ async def join(call: types.ChatJoinRequest, db: Database):
         chat_id=chat_id,
         active=True
     )
-    print(active_hello_messages)
+    logger.debug(f"Active hello messages: {active_hello_messages}")
 
     if active_hello_messages:
         if enable_hello is None or enable_hello:
@@ -179,10 +192,15 @@ async def join(call: types.ChatJoinRequest, db: Database):
                 time_approved=int(time.time())
             )
         except Exception as e:
-            print(e)
+            logger.error(f"Ошибка при одобрении заявки: {e}")
 
 
 async def leave(call: types.ChatMemberUpdated, db: Database):
+    """
+    Обрабатывает выход пользователя из канала.
+
+    Если настроено прощальное сообщение (bye), отправляет его пользователю.
+    """
     if call.new_chat_member.user.is_bot:
         return
     if call.new_chat_member.status != ChatMemberStatus.LEFT:
@@ -206,6 +224,11 @@ async def leave(call: types.ChatMemberUpdated, db: Database):
 
 
 async def set_channel(call: types.ChatMemberUpdated, db_bot: UserBot):
+    """
+    Обрабатывает добавление бота в канал администратором.
+
+    Настраивает связь бота с каналом в базе данных.
+    """
     chat_id = call.chat.id
 
     channel = await main_db.get_channel_by_chat_id(
@@ -293,10 +316,11 @@ async def set_channel(call: types.ChatMemberUpdated, db_bot: UserBot):
         )
 
     except Exception as e:
-        print(e)
+        logger.error(f"Ошибка при настройке канала: {e}")
 
 
 async def set_active(call: types.ChatMemberUpdated, db: Database):
+    """Обновляет статус активности пользователя (блокировка бота)."""
     await db.user.update_user(
         user_id=call.from_user.id,
         is_active=call.new_chat_member.status != ChatMemberStatus.KICKED
@@ -304,6 +328,7 @@ async def set_active(call: types.ChatMemberUpdated, db: Database):
 
 
 def hand_add():
+    """Регистрация хендлеров пользователя для hello_bot."""
     router = Router()
     router.message.register(msg_handler)
 

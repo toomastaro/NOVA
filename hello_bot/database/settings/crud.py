@@ -5,12 +5,25 @@ from hello_bot.database.settings.model import Setting
 
 
 class SettingCrud(DatabaseMixin):
+    """CRUD операции для настроек."""
+
     async def get_setting(self) -> Setting:
+        """Получает текущие настройки."""
         return await self.fetchrow(
             select(Setting)
         )
 
     async def update_setting(self, return_obj: bool = False, **kwargs) -> Setting | None:
+        """
+        Обновляет настройки.
+
+        Args:
+            return_obj: Вернуть ли обновленный объект.
+            **kwargs: Поля для обновления.
+
+        Returns:
+            Setting | None: Обновленный объект настроек, если return_obj=True.
+        """
         stmt = update(Setting).values(**kwargs)
 
         if return_obj:
