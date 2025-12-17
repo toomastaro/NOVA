@@ -682,23 +682,19 @@ async def manage_published_post(call: types.CallbackQuery, state: FSMContext):
 
     if temp[1] == "cpm_report":
         import html
+        from types import SimpleNamespace
         from main_bot.utils.report_signature import get_report_signatures
 
+        # Ensure post is an object for attribute access
         if isinstance(post, dict):
-            post_id = post.get("post_id")
-        else:
-            post_id = post.post_id
+            post = SimpleNamespace(**post)
 
         # Fetch related posts
         related_posts = await db.published_post.get_published_posts_by_post_id(
-            post_id
+            post.post_id
         )
         if not related_posts:
-            if isinstance(post, dict):
-                from types import SimpleNamespace
-                related_posts = [SimpleNamespace(**post)]
-            else:
-                related_posts = [post]
+            related_posts = [post]
 
         total_views = 0
         channels_info = []
@@ -782,7 +778,11 @@ async def manage_published_post(call: types.CallbackQuery, state: FSMContext):
         return
 
     if temp[1] == "cancel":
+        from datetime import datetime
         day = data.get("day")
+        if isinstance(day, str):
+            day = datetime.fromisoformat(day)
+            
         channel_data = data.get("channel")
         posts = await db.post.get_posts(channel_data["chat_id"], day)
 
