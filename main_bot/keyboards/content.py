@@ -238,7 +238,7 @@ class InlineContent(InlineKeyboardBuilder):
         remover: int = 0,
     ):
         kb = cls()
-        count_rows = 6
+        count_rows = 7
 
         for a, idx in enumerate(range(remover, len(channels))):
             if isinstance(channels[idx], Channel):
@@ -253,7 +253,7 @@ class InlineContent(InlineKeyboardBuilder):
                     )
                 )
 
-        kb.adjust(2)
+        kb.adjust(1)
 
         if len(channels) <= count_rows:
             pass

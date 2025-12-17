@@ -413,7 +413,7 @@ class InlineBotSetting(InlineKeyboardBuilder):
                     )
                 )
 
-        kb.adjust(2)
+        kb.adjust(1)
 
         if len(channels) <= count_rows:
             pass
