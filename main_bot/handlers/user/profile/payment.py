@@ -98,7 +98,7 @@ async def back_to_method(call: types.CallbackQuery, state: FSMContext):
     """Возврат к выбору способа оплаты с экрана ожидания"""
     try:
         await call.answer()
-    except:
+    except Exception:
         pass
     
     data = await state.get_data()

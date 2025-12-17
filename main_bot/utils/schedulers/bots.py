@@ -117,13 +117,17 @@ async def send_bot_messages(other_bot: Bot, bot_post: BotPost, users, filepath: 
 
     # Удаляем взаимоисключающие поля медиа
     if message_options.text:
-        for k in ["photo", "video", "animation", "caption"]: options.pop(k, None)
+        for k in ["photo", "video", "animation", "caption"]:
+            options.pop(k, None)
     elif message_options.photo:
-        for k in ["video", "animation", "text"]: options.pop(k, None)
+        for k in ["video", "animation", "text"]:
+            options.pop(k, None)
     elif message_options.video:
-        for k in ["photo", "animation", "text"]: options.pop(k, None)
+        for k in ["photo", "animation", "text"]:
+            options.pop(k, None)
     else:  # animation
-        for k in ["photo", "video", "text"]: options.pop(k, None)
+        for k in ["photo", "video", "text"]:
+            options.pop(k, None)
 
     options['parse_mode'] = 'HTML'
 

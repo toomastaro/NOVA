@@ -132,7 +132,8 @@ async def process_channel_logs(channel_id: int, mappings: list[AdPurchaseLinkMap
                     
                     if invite_link:
                         def normalize_link(link: str) -> str:
-                            if not link: return ""
+                            if not link:
+                                return ""
                             return link.replace("https://", "").replace("http://", "").replace("t.me/", "").replace("telegram.me/", "").replace("+", "").strip()
 
                         norm_event_link = normalize_link(invite_link)

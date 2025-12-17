@@ -133,11 +133,11 @@ class InlineBotSetting(InlineKeyboardBuilder):
         kb.row(
             InlineKeyboardButton(
                 text=text('back:button'),
-                callback_data=f'ChoiceClonerTarget|cancel'
+                callback_data='ChoiceClonerTarget|cancel'
             ),
             InlineKeyboardButton(
                 text=text('next:button'),
-                callback_data=f'ChoiceClonerTarget|next_step'
+                callback_data='ChoiceClonerTarget|next_step'
             )
         )
 
@@ -209,7 +209,7 @@ class InlineBotSetting(InlineKeyboardBuilder):
         kb.row(
             InlineKeyboardButton(
                 text=text('back:button'),
-                callback_data=f'ChoiceCaptcha|cancel'
+                callback_data='ChoiceCaptcha|cancel'
             )
         )
 
@@ -297,7 +297,7 @@ class InlineBotSetting(InlineKeyboardBuilder):
         )
         kb.button(
             text=text('back:button'),
-            callback_data=f'ManagePostCaptcha|cancel'
+            callback_data='ManagePostCaptcha|cancel'
         )
 
         kb.adjust(1)
@@ -353,7 +353,7 @@ class InlineBotSetting(InlineKeyboardBuilder):
         )
         kb.button(
             text=text('back:button'),
-            callback_data=f'ManagePostHelloMessage|cancel'
+            callback_data='ManagePostHelloMessage|cancel'
         )
 
         kb.adjust(1)
@@ -422,7 +422,7 @@ class InlineBotSetting(InlineKeyboardBuilder):
         kb.row(
             InlineKeyboardButton(
                 text=text('back:button'),
-                callback_data=f'ChoiceInviteUrlApplication|cancel'
+                callback_data='ChoiceInviteUrlApplication|cancel'
             )
         )
 
@@ -655,7 +655,7 @@ class InlineBotSetting(InlineKeyboardBuilder):
         kb.row(
             InlineKeyboardButton(
                 text=text('back:button'),
-                callback_data=f'ChoiceHelloMessage|cancel'
+                callback_data='ChoiceHelloMessage|cancel'
             )
         )
 
@@ -744,7 +744,7 @@ class InlineBotSetting(InlineKeyboardBuilder):
         )
         kb.button(
             text=text("back:button"),
-            callback_data=f"ManageApplication|cancel"
+            callback_data="ManageApplication|cancel"
         )
 
         kb.adjust(1)

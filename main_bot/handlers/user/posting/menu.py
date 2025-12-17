@@ -96,7 +96,8 @@ async def show_create_post(message: types.Message, state: FSMContext):
 
         if view_mode == "folders":
             display_channels = []
-            display_folders = folders
+            # Скрываем пустые папки
+            display_folders = [f for f in folders if f.content]
         else:
             display_channels = channels
             display_folders = []

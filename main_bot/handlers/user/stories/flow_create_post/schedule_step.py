@@ -161,6 +161,10 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
         # В режиме папок мы не показываем каналы на верхнем уровне
         if view_mode == "folders":
             objects = []
+            kb_folders = [f for f in folders if f.content]
+            folders = kb_folders # Keep consistent nomenclature if needed, or just filter
+        else:
+             pass
 
     if temp[1] == "next_step":
         if not chosen:
@@ -186,7 +190,8 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
             # Перезагружаем корневые данные
             if view_mode == "folders":
                 objects = []
-                folders = await db.user_folder.get_folders(user_id=call.from_user.id)
+                raw_folders = await db.user_folder.get_folders(user_id=call.from_user.id)
+                folders = [f for f in raw_folders if f.content]
             else:
                 objects = await db.channel.get_user_channels(
                     user_id=call.from_user.id, sort_by="stories", limit=500

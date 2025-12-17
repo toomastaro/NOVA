@@ -74,7 +74,8 @@ async def show_create_post(message: types.Message, state: FSMContext):
     # Фильтрация списков для отображения
     if view_mode == "folders":
         kb_resources = []
-        kb_folders = folders
+        # Фильтрация пустых папок
+        kb_folders = [f for f in folders if f.content]
     else:
         # В режиме каналов показываем все каналы (как в постинге), 
         # но валидация подписки происходит при выборе

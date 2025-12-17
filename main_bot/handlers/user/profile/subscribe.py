@@ -190,7 +190,8 @@ async def choice_period(call: types.CallbackQuery, state: FSMContext, user: User
     folders = []
 
     if view_mode == "folders":
-        folders = await db.user_folder.get_folders(user_id=user.id)
+        raw_folders = await db.user_folder.get_folders(user_id=user.id)
+        folders = [f for f in raw_folders if f.content]
         # Если режим папок, загружаем только каналы без папок (если это каналы)
         if object_type == "channels":
             objects = await db.channel.get_user_channels_without_folders(
@@ -268,7 +269,8 @@ async def choice_object_subscribe(
             objects = await cor(user_id=user.id, sort_by=service)
             folders = []
         else:  # folders mode
-            folders = await db.user_folder.get_folders(user_id=user.id)
+            raw_folders = await db.user_folder.get_folders(user_id=user.id)
+            folders = [f for f in raw_folders if f.content]
             if current_folder_id:
                 # Inside a folder
                 folder = await db.user_folder.get_folder_by_id(int(current_folder_id))
@@ -369,7 +371,8 @@ async def choice_object_subscribe(
         await state.update_data(current_folder_id=None)
         # Logic will auto-reset to root view next render
         # Need to reset objects/folders for correct rendering NOW if we don't return
-        folders = await db.user_folder.get_folders(user_id=user.id)
+        raw_folders = await db.user_folder.get_folders(user_id=user.id)
+        folders = [f for f in raw_folders if f.content]
         objects = await db.channel.get_user_channels_without_folders(user_id=user.id)
         # Reset pagination
         if len(temp) > 2:

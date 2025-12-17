@@ -104,13 +104,27 @@ async def choice_bots(call: types.CallbackQuery, state: FSMContext):
     else:
         # В режиме папок верхнего уровня не показываем каналы
         objects = []
-        folders = await db.user_folder.get_folders(
+        raw_folders = await db.user_folder.get_folders(
             user_id=call.from_user.id,
         )
+        bound_ids = {i.id for i in channels}
+        folders = [
+             f for f in raw_folders 
+             if f.content and any(int(cid) in bound_ids for cid in f.content)
+        ]
 
     if temp[1] == "next_step":
         if not chosen:
             return await call.answer(text("error_min_choice"))
+
+        # Strict validation of subscriptions
+        for chat_id in chosen:
+             user_bot = await db.channel.get_channel_by_chat_id(chat_id)
+             if not user_bot or not user_bot.subscribe:
+                 return await call.answer(
+                     text("error_sub_channel:bots").format(user_bot.title if user_bot else "Unknown"),
+                     show_alert=True,
+                 )
 
         await call.message.delete()
         return await show_create_post(call.message, state)

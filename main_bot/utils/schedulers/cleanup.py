@@ -99,7 +99,7 @@ async def mt_clients_self_check():
     """
     logger.info("Запуск самопроверки MT клиентов")
 
-    stmt = select(MtClient).where(MtClient.is_active == True)
+    stmt = select(MtClient).where(MtClient.is_active)
     active_clients = await db.fetch_all(stmt)
     
     if not active_clients:

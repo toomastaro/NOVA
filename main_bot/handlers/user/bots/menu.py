@@ -80,7 +80,12 @@ async def show_choice_channel(message: types.Message, state: FSMContext):
     # Фильтрация списков для отображения
     if view_mode == "folders":
         kb_resources = []
-        kb_folders = folders
+        # Показываем только папки, в которых есть каналы, доступные для рассылки (привязанные к боту)
+        bound_ids = {obj.id for obj in objects}
+        kb_folders = [
+            f for f in folders 
+            if f.content and any(int(cid) in bound_ids for cid in f.content)
+        ]
     else:
         kb_resources = objects
         kb_folders = []

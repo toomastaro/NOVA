@@ -8,9 +8,7 @@ import logging
 from datetime import datetime
 from io import BytesIO
 
-import openpyxl
 from openpyxl import Workbook
-from sqlalchemy import update
 
 from aiogram import Router, F, types
 from aiogram.fsm.context import FSMContext
@@ -18,10 +16,8 @@ from aiogram.types import Message, CallbackQuery, BufferedInputFile
 
 from main_bot.database.db import db
 from main_bot.database.db_types import AdPricingType, AdTargetType
-from main_bot.database.ad_purchase.model import AdPurchase
-from main_bot.keyboards import keyboards, InlineAdPurchase, InlineAdCreative
+from main_bot.keyboards import InlineAdPurchase
 from main_bot.states.user import AdPurchaseStates
-from main_bot.utils.lang.language import text
 from main_bot.utils.error_handler import safe_handler
 
 logger = logging.getLogger(__name__)
@@ -108,7 +104,7 @@ async def process_comment(message: Message, state: FSMContext):
 async def start_mapping(message: Message, purchase_id: int, creative_id: int):
     """Начало процесса маппинга ссылок."""
     slots = await db.ad_creative.get_slots(creative_id)
-    user_channels = await db.channel.get_user_channels(message.chat.id)
+    slots = await db.ad_creative.get_slots(creative_id)
     
     # Auto-detection
     for slot in slots:
@@ -132,7 +128,7 @@ async def start_mapping(message: Message, purchase_id: int, creative_id: int):
         target_channel_id = None
         track_enabled = False
         
-        url = slot.original_url.lower()
+
         
         # 1. Check t.me/username
         # Simplified check: if any user channel has this username in link?
@@ -563,7 +559,6 @@ async def show_global_stats(call: CallbackQuery):
     
     # Calculate time range for CREATION DATE
     import time
-    from datetime import datetime
     now = int(time.time())
     
     if period == "24h":
@@ -674,7 +669,7 @@ async def show_global_stats(call: CallbackQuery):
             try:
                 if len(str(cell.value)) > max_length:
                     max_length = len(str(cell.value))
-            except:
+            except Exception:
                 pass
         adjusted_width = (max_length + 2)
         ws.column_dimensions[column[0].column_letter].width = adjusted_width

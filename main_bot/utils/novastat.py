@@ -1,6 +1,4 @@
 import asyncio
-import os
-import time
 import logging
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
@@ -373,7 +371,8 @@ class NovaStatService:
         # Попытка получить entity с 3 попытками (для авто-приема)
         # Если канал приватный с автоприемом, может потребоваться несколько попыток
         entity = None
-        last_error = None
+        entity = None
+    # last_error = None
         join_attempted = False
         
         for attempt in range(3):
@@ -382,7 +381,7 @@ class NovaStatService:
                 logger.info(f"Успешно получен entity для {channel_identifier} с попытки {attempt + 1}")
                 break  # Success
             except Exception as e:
-                last_error = e
+                # last_error = e
                 error_str = str(e)
                 
                 # Если это ошибка доступа и мы еще не пытались join
@@ -456,7 +455,7 @@ class NovaStatService:
                                 channel = await db.get_channel_by_username(username)
                                 if channel:
                                     channel_id = channel.chat_id
-                        except:
+                        except Exception:
                             pass
                         
                         safe_username = channel_identifier if isinstance(channel_identifier, str) else str(channel_identifier)

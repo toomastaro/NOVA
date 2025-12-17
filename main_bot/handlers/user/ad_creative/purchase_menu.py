@@ -6,7 +6,6 @@ import logging
 from pathlib import Path
 
 from aiogram import Router, F, types
-from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery
 
 from main_bot.database.db import db
@@ -42,7 +41,7 @@ async def show_ad_purchase_menu_internal(message: types.Message, edit: bool = Fa
     
 
     
-    has_rights = False
+    
     
     if not user_channels:
          status_text = "⚠️ Нет подключенных каналов."
@@ -56,7 +55,6 @@ async def show_ad_purchase_menu_internal(message: types.Message, edit: bool = Fa
             client_name = client_model.client.alias or f"Client #{client_model.client.id}"
 
             status_text = f"🤖 Клиент: {client_name}\n✅ Статус: Подключен"
-            has_rights = True
         else:
             status_text = "❌ Клиент не найден в каналах."
     

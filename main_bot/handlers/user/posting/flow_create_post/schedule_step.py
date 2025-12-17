@@ -144,7 +144,8 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
         else:  # view_mode == "folders"
             # Режим "Папки": показываем ТОЛЬКО папки
             objects = []  # Каналы не показываем
-            folders = await db.user_folder.get_folders(user_id=call.from_user.id)
+            raw_folders = await db.user_folder.get_folders(user_id=call.from_user.id)
+            folders = [f for f in raw_folders if f.content]
 
     except Exception as e:
         logger.error(
@@ -202,7 +203,8 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
             try:
                 if view_mode == "folders":
                     objects = []
-                    folders = await db.user_folder.get_folders(user_id=call.from_user.id)
+                    raw_folders = await db.user_folder.get_folders(user_id=call.from_user.id)
+                    folders = [f for f in raw_folders if f.content]
                 else:
                     objects, folders = await asyncio.gather(
                         db.channel.get_user_channels_without_folders(
@@ -210,6 +212,7 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
                         ),
                         db.user_folder.get_folders(user_id=call.from_user.id),
                     )
+                    folders = [f for f in folders if f.content]
             except Exception as e:
                 logger.error(
                     "Ошибка при возврате к корневому уровню: %s", str(e), exc_info=True

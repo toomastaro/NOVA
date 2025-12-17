@@ -2,7 +2,6 @@
 Обработчики для раздела информации (политика конфиденциальности, пользовательское соглашение)
 """
 from aiogram import Router, F, types
-from aiogram.fsm.context import FSMContext
 
 from main_bot.database.db import db
 from main_bot.keyboards import keyboards

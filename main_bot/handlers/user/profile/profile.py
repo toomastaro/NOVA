@@ -137,7 +137,6 @@ async def show_folders(message: types.Message):
 async def show_subscribe(message: types.Message, state: FSMContext = None):
     """Показать выбор каналов для подписки (без промежуточного меню)"""
     from main_bot.handlers.user.profile.subscribe import get_subscribe_list_resources
-    from aiogram.fsm.context import FSMContext
     
     service = "subscribe"
     object_type = 'channels'

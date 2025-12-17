@@ -183,13 +183,13 @@ class InlineBots(InlineKeyboardBuilder):
         kb.row(
             InlineKeyboardButton(
                 text=text("manage:post:delete:param:delete_time:button"),
-                callback_data=f'GetDeleteTimeBotPost|off'
+                callback_data='GetDeleteTimeBotPost|off'
             )
         )
         kb.row(
             InlineKeyboardButton(
                 text="1 мин.",
-                callback_data=f'GetDeleteTimeBotPost|60'
+                callback_data='GetDeleteTimeBotPost|60'
             )
         )
         groups = [
@@ -206,7 +206,7 @@ class InlineBots(InlineKeyboardBuilder):
         kb.row(
             InlineKeyboardButton(
                 text=text("back:button"),
-                callback_data=f'GetDeleteTimeBotPost|cancel'
+                callback_data='GetDeleteTimeBotPost|cancel'
             )
         )
 

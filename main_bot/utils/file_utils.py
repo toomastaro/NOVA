@@ -16,7 +16,7 @@ import pathlib
 from concurrent.futures import ThreadPoolExecutor
 
 import ffmpeg
-from PIL import Image, ImageDraw, ImageFilter
+from PIL import Image
 
 logger = logging.getLogger(__name__)
 

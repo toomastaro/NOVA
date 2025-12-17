@@ -678,8 +678,9 @@ async def novastat_my_channels(call: types.CallbackQuery, state: FSMContext):
         channels = await db.channel.get_user_channels(user_id=call.from_user.id)
         folders = []
     else:
-        folders = await db.user_folder.get_folders(user_id=call.from_user.id)
-        # В режиме папок скрываем каналы без папок (как в постинге)
+        raw_folders = await db.user_folder.get_folders(user_id=call.from_user.id)
+        # В режиме папок скрываем каналы без папок (как в постинге) и пустые папки
+        folders = [f for f in raw_folders if f.content]
         channels = []
 
     await state.update_data(chosen=[], chosen_folders=[], current_folder_id=None)
@@ -746,7 +747,8 @@ async def novastat_choice_channels(call: types.CallbackQuery, state: FSMContext)
         objects = await db.channel.get_user_channels_without_folders(
             user_id=call.from_user.id
         )
-        folders = await db.user_folder.get_folders(user_id=call.from_user.id)
+        raw_folders = await db.user_folder.get_folders(user_id=call.from_user.id)
+        folders = [f for f in raw_folders if f.content]
 
     # NEXT STEP (Analyze)
     if temp[1] == "next_step":
@@ -769,7 +771,8 @@ async def novastat_choice_channels(call: types.CallbackQuery, state: FSMContext)
             objects = await db.channel.get_user_channels_without_folders(
                 user_id=call.from_user.id
             )
-            folders = await db.user_folder.get_folders(user_id=call.from_user.id)
+            raw_folders = await db.user_folder.get_folders(user_id=call.from_user.id)
+            folders = [f for f in raw_folders if f.content]
             # Reset pagination
             temp = list(temp)
             if len(temp) > 2:

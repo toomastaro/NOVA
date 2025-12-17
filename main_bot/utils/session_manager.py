@@ -7,7 +7,7 @@
 import asyncio
 import logging
 from pathlib import Path
-from typing import List, Optional, Union
+from typing import List, Optional
 
 from telethon import TelegramClient, functions, types, utils
 from telethon.errors import (
@@ -16,7 +16,6 @@ from telethon.errors import (
     UserDeactivatedError,
     AuthKeyUnregisteredError,
     UserNotParticipantError,
-    ChatAdminRequiredError,
     rpcerrorlist
 )
 

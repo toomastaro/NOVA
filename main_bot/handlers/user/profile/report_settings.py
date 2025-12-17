@@ -51,23 +51,22 @@ async def show_specific_setting(call: types.CallbackQuery, setting_type: str):
     is_active = False
     current_text = ""
     title_key = ""
-    default_key = ""
     
     if setting_type == 'cpm':
         is_active = user.cpm_signature_active
         current_text = user.cpm_signature_text or text('default:cpm_signature')
         title_key = 'report:cpm:title'
-        default_key = 'default:cpm_signature'
+
     elif setting_type == 'exchange':
         is_active = user.exchange_signature_active
         current_text = user.exchange_signature_text or text('default:exchange_signature')
         title_key = 'report:exchange:title'
-        default_key = 'default:exchange_signature'
+
     elif setting_type == 'referral':
         is_active = user.referral_signature_active
         current_text = user.referral_signature_text or text('default:referral_signature')
         title_key = 'report:referral:title'
-        default_key = 'default:referral_signature'
+
         
     status = text('on') if is_active else text('off')
     

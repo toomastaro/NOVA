@@ -36,7 +36,7 @@ class InlineExchangeRate(InlineKeyboardBuilder):
 
         kb.button(
             text=text("exchange_rate:start_exchange_rate:settings:back:button"),
-            callback_data=f'MenuExchangeRate|settings|back'
+            callback_data='MenuExchangeRate|settings|back'
         )
 
         kb.adjust(*([1]*(len(source_list) + 1)))

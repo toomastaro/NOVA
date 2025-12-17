@@ -256,7 +256,7 @@ async def execute_transfer(call: types.CallbackQuery, state: FSMContext, user: U
     days_available = data.get('transfer_days_available')
     
     # Получаем канал-донор
-    donor_channel = await db.channel.get_channel_by_chat_id(chat_id=donor_chat_id)
+    await db.channel.get_channel_by_chat_id(chat_id=donor_chat_id)
     
     # Вычисляем конец сегодняшнего дня (23:59:59)
     now = datetime.now()

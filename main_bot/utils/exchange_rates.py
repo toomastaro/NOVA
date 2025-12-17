@@ -1,15 +1,11 @@
 import asyncio
-from datetime import datetime
 import json
 import os
 import pathlib
 import logging
-from itertools import product
 
 import aiohttp
 from dotenv import load_dotenv
-from main_bot.database.db import db
-from config import Config
 
 logger = logging.getLogger(__name__)
 

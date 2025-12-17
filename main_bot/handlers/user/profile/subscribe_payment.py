@@ -1,7 +1,6 @@
 """
 Модуль оплаты подписок и выравнивания дат подписки.
 """
-import asyncio
 import random
 import time
 import logging
@@ -13,7 +12,6 @@ from aiogram.types import LabeledPrice
 from main_bot.database.db import db
 from main_bot.database.db_types import PaymentMethod, Service
 from main_bot.database.user.model import User
-from main_bot.handlers.user.menu import subscription
 from main_bot.handlers.user.profile.subscribe import get_pay_info_text
 from main_bot.keyboards import keyboards
 from main_bot.states.user import Subscribe
@@ -136,13 +134,12 @@ async def show_subscription_success(message: types.Message, state: FSMContext, u
         all_bots = await db.user_bot.get_user_bots(user_id=user.id)
         updated_objects = [bot for bot in all_bots if bot.id in chosen]
         emoji = "🤖"
-        object_name = "бот"
+
     else:
         # Получаем все каналы пользователя и фильтруем по chosen
         all_channels = await db.channel.get_user_channels(user_id=user.id)
         updated_objects = [channel for channel in all_channels if channel.id in chosen]
         emoji = "📺"
-        object_name = "канал"
     
     logger.info(f"show_subscription_success: found {len(updated_objects)} objects")
     
@@ -229,6 +226,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext, user: User):
             user_id=user.id,
             sort_by=service
         )
+        chosen = data.get('chosen', [])
         await safe_delete(call.message)
         return await call.message.answer(
             text(f'subscribe:chosen:{object_type}').format(
@@ -563,7 +561,7 @@ async def back_to_method(call: types.CallbackQuery, state: FSMContext):
     logger.info(f"back_to_method called: {call.data}")
     try:
         await call.answer()
-    except:
+    except Exception:
         pass
 
     user = await db.user.get_user(user_id=call.from_user.id)

@@ -539,7 +539,6 @@ class InlineProfile(InlineKeyboardBuilder):
         count_rows = 7
         
         import time
-        from datetime import datetime
         
         for a, idx in enumerate(range(remover, len(channels))):
             if a < count_rows:
@@ -607,7 +606,6 @@ class InlineProfile(InlineKeyboardBuilder):
         count_rows = 6
         
         import time
-        from datetime import datetime
         
         for a, idx in enumerate(range(remover, len(channels))):
             if a < count_rows:

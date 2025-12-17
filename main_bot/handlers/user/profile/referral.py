@@ -3,7 +3,6 @@
 """
 from aiogram import types, Router, F
 
-from main_bot.handlers.user.menu import profile
 from main_bot.utils.error_handler import safe_handler
 
 

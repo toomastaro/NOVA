@@ -19,7 +19,6 @@ from aiogram import types
 from aiogram.enums import ChatMemberStatus
 from PIL import Image, ImageDraw, ImageFilter
 
-from config import Config
 from instance_bot import bot as main_bot_obj
 from main_bot.database.db import db
 from main_bot.utils.session_manager import SessionManager
@@ -196,7 +195,7 @@ async def set_channel_session(chat_id: int):
         
         # Ждем перед следующей попыткой (кроме последней)
         if attempt < 2:
-            logger.info(f"Ожидание 1 секунду перед повторной попыткой...")
+            logger.info("Ожидание 1 секунду перед повторной попыткой...")
             await asyncio.sleep(1.0)
     
     # Если после всех попыток бот не админ - возвращаем ошибку
