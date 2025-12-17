@@ -67,7 +67,7 @@ class NovaStatService:
             logger.warning("Нет активных внешних клиентов")
             return None
 
-        logger.info(
+        logger.debug(
             f"🔄 Выбран внешний клиент {client.id} ({client.alias}) с использованием={client.usage_count}"
         )
 
@@ -147,7 +147,7 @@ class NovaStatService:
                 if views.get(24, 0) > 0:
                     return data
 
-                logger.info(
+                logger.debug(
                     f"В кэше 0 просмотров для {channel_identifier}, принудительное обновление."
                 )
 
@@ -160,7 +160,7 @@ class NovaStatService:
             return None
 
         # 3. Если кэша нет или он устарел - обновить синхронно (ждать результата)
-        logger.info(f"Промах кэша для {channel_identifier}, получение свежих данных...")
+        logger.debug(f"Промах кэша для {channel_identifier}, получение свежих данных...")
         await self.async_refresh_stats(channel_identifier, days_limit, horizon, bot=bot)
 
         # 4. Получить обновленные данные из кэша
@@ -227,7 +227,7 @@ class NovaStatService:
                             channel_id = ch.chat_id
                             break
             except Exception as e:
-                logger.info(
+                logger.debug(
                     f"Не удалось определить, является ли канал {channel_identifier} нашим: {e}"
                 )
 
@@ -383,7 +383,7 @@ class NovaStatService:
                 return
 
             # Шаг 3: Канал не "свой" или нет internal клиента - использовать external клиента
-            logger.info(f"Используем внешний клиент для канала {channel_identifier}")
+            logger.debug(f"Используем внешний клиент для канала {channel_identifier}")
 
             # Получить external клиента
             client_data = await self.get_external_client()
@@ -625,7 +625,7 @@ class NovaStatService:
                 functions.channels.GetFullChannelRequest(channel=entity)
             )
             members = int(getattr(full.full_chat, "participants_count", 0) or 0)
-            logger.info(f"Получено {members} подписчиков для {channel_identifier}")
+            logger.debug(f"Получено {members} подписчиков для {channel_identifier}")
         except RPCError as e:
             logger.warning(
                 f"Не удалось получить подписчиков для {channel_identifier}: {e}"
@@ -666,7 +666,7 @@ class NovaStatService:
             )
             # Продолжаем с тем что успели собрать
 
-        logger.info(f"Собрано {len(raw_points)} точек данных для {channel_identifier}")
+        logger.debug(f"Собрано {len(raw_points)} точек данных для {channel_identifier}")
 
         # Определить ссылку
         link = None

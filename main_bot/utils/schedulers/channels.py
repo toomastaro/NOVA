@@ -26,7 +26,7 @@ from utils.error_handler import safe_handler
 logger = logging.getLogger(__name__)
 
 
-@safe_handler("Каналы: обновление статистики (Background)")
+@safe_handler("Каналы: обновление статистики (Background)", log_start=False)
 async def update_channel_stats(channel_id: int) -> None:
     """
     Ежечасная задача по обновлению статистики канала и постов.
@@ -38,7 +38,7 @@ async def update_channel_stats(channel_id: int) -> None:
     Аргументы:
         channel_id (int): Telegram chat_id канала.
     """
-    logger.info(f"Запуск ежечасного обновления статистики для канала {channel_id}")
+    logger.debug(f"Запуск ежечасного обновления статистики для канала {channel_id}")
 
     # 1. Получаем канал и проверяем подписку
     channel = await db.channel.get_channel_by_chat_id(channel_id)
@@ -63,7 +63,7 @@ async def update_channel_stats(channel_id: int) -> None:
             channel.chat_id
         )
         if mt_client_channel:
-            logger.info(
+            logger.debug(
                 f"Используется fallback клиент {mt_client_channel.client_id} для канала {channel.title}"
             )
 
@@ -113,7 +113,7 @@ async def update_channel_stats(channel_id: int) -> None:
                 await db.channel.update_channel_by_id(
                     channel.id, subscribers_count=subs
                 )
-                logger.info(f"Обновлены подписчики для {channel.title}: {subs}")
+                logger.debug(f"Обновлены подписчики для {channel.title}: {subs}")
             except Exception as e:
                 logger.error(f"Не удалось получить подписчиков: {e}")
 
@@ -132,7 +132,7 @@ async def update_channel_stats(channel_id: int) -> None:
                         novastat_48h=views_data.get(48, 0),
                         novastat_72h=views_data.get(72, 0),
                     )
-                    logger.info(f"Обновлен кэш NovaStat для {channel.title}")
+                    logger.debug(f"Обновлен кэш NovaStat для {channel.title}")
             except Exception as e:
                 logger.error(f"Не удалось собрать NovaStat: {e}")
 
@@ -153,7 +153,7 @@ async def update_channel_stats(channel_id: int) -> None:
                 recent_posts = []
 
             if not recent_posts:
-                logger.info("Нет недавних постов для обновления.")
+                logger.debug("Нет недавних постов для обновления.")
                 return
 
             # Собираем message_ids
@@ -200,7 +200,7 @@ async def update_channel_stats(channel_id: int) -> None:
                         updated_count += 1
 
                 if updated_count > 0:
-                    logger.info(
+                    logger.debug(
                         f"Обновлены просмотры для {updated_count} постов в {channel.title}"
                     )
 
@@ -238,7 +238,7 @@ def schedule_channel_job(scheduler: AsyncIOScheduler, channel: object) -> None:
         replace_existing=True,
         name=f"Обновление статистики для {channel.title}",
     )
-    logger.info(
+    logger.debug(
         f"Запланирована задача статистики для {channel.title} в XX:{minute:02d}:{second:02d}"
     )
 
