@@ -24,7 +24,7 @@ class Payment(Base):
     """
     __tablename__ = "payments"
 
-    # Data
+    # Данные
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(BigInteger, default=10)
     amount: Mapped[int] = mapped_column()

@@ -22,7 +22,7 @@ class ChannelHelloMessage(Base):
     """
     __tablename__ = "channel_hello_messages"
 
-    # Data
+    # Данные
     id: Mapped[int] = mapped_column(primary_key=True)
     channel_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
     message: Mapped[dict] = mapped_column(JSON, nullable=False)

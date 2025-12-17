@@ -28,7 +28,7 @@ class PaymentLink(Base):
     """
     __tablename__ = "payment_links"
 
-    # PK is a String (UUID) to match Platega order_id requirement easily
+    # PK - это строка (UUID), чтобы легко соответствовать требованию order_id в Platega
     id: Mapped[str] = mapped_column(
         String, primary_key=True, default=lambda: str(uuid.uuid4())
     )
@@ -37,10 +37,10 @@ class PaymentLink(Base):
     amount: Mapped[int] = mapped_column()
     currency: Mapped[str] = mapped_column(String, default="RUB")
 
-    # Status: PENDING, PAID, CANCELED
+    # Статус: PENDING, PAID, CANCELED
     status: Mapped[str] = mapped_column(String, default="PENDING")
 
-    # Context payload: e.g. {"type": "balance"} or {"type": "sub", "days": 30, ...}
+    # Контекстная нагрузка: например {"type": "balance"} или {"type": "sub", "days": 30, ...}
     payload: Mapped[dict] = mapped_column(JSON, default={})
 
     created_timestamp: Mapped[int] = mapped_column(default=lambda: int(time.time()))

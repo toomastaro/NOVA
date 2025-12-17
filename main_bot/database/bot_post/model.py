@@ -37,7 +37,7 @@ class BotPost(Base):
     """
     __tablename__ = "bot_posts"
 
-    # Data
+    # Данные
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
 
     chat_ids: Mapped[list[int]] = mapped_column(ARRAY(BigInteger), index=True)
@@ -52,11 +52,11 @@ class BotPost(Base):
 
     created_timestamp: Mapped[int] = mapped_column(default=time.time)
 
-    # Backup
+    # Бэкап
     backup_chat_id: Mapped[int | None] = mapped_column(BigInteger, default=None)
     backup_message_id: Mapped[int | None] = mapped_column(BigInteger, default=None)
 
-    # Report Data
+    # Данные отчета
     status: Mapped[Status] = mapped_column(default=Status.PENDING)
     start_timestamp: Mapped[int | None] = mapped_column(default=None)
     end_timestamp: Mapped[int | None] = mapped_column(default=None)

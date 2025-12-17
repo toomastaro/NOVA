@@ -17,7 +17,7 @@ class NovaStatCache(Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     channel_identifier: Mapped[str] = mapped_column(
         String(255), nullable=False
-    )  # username или ссылка
+    )  # username или ссылкаили ссылка
     horizon: Mapped[int] = mapped_column(nullable=False)  # 24, 48 или 72
     value_json: Mapped[dict] = mapped_column(
         JSON, nullable=False

@@ -49,6 +49,6 @@ class MtClient(Base):
     last_error_at: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     flood_wait_until: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
 
-    # Round-robin distribution fields
+    # Поля для Round-robin распределения
     usage_count: Mapped[int] = mapped_column(BigInteger, default=0)
     last_used_at: Mapped[int] = mapped_column(BigInteger, default=0)

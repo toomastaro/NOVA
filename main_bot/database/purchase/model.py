@@ -25,7 +25,7 @@ class Purchase(Base):
     """
     __tablename__ = "purchases"
 
-    # Data
+    # Данные
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(BigInteger, default=10)
     amount: Mapped[int] = mapped_column()

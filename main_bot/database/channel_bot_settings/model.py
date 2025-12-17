@@ -24,12 +24,12 @@ class ChannelBotSetting(Base):
     """
     __tablename__ = "channels_bot_settings"
 
-    # Data
+    # Данные
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)  # chat_id
     admin_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
     bot_id: Mapped[int | None] = mapped_column(BigInteger, default=None)
 
-    # Settings
+    # Настройки
     auto_approve: Mapped[bool] = mapped_column(default=False)
     delay_approve: Mapped[int] = mapped_column(default=0)
     bye: Mapped[dict | None] = mapped_column(JSON)

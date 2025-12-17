@@ -21,7 +21,7 @@ class AdTag(Base):
     """
     __tablename__ = "ad_tags"
 
-    # Data
+    # Данные
     name: Mapped[str] = mapped_column(primary_key=True)
     title: Mapped[str] = mapped_column()
     click_count: Mapped[int] = mapped_column(default=0)

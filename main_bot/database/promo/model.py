@@ -21,7 +21,7 @@ class Promo(Base):
     """
     __tablename__ = "promo"
 
-    # Data
+    # Данные
     name: Mapped[str] = mapped_column(primary_key=True)
     use_count: Mapped[int] = mapped_column(default=10)
     amount: Mapped[Optional[int]] = mapped_column()

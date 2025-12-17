@@ -60,6 +60,6 @@ class CollectionChannel(Base):
     )
     channel_identifier: Mapped[str] = mapped_column(
         String, nullable=False
-    )  # username or link
+    )  # username или ссылка
 
     collection = relationship("Collection", back_populates="channels")

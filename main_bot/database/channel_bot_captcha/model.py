@@ -20,7 +20,7 @@ class ChannelCaptcha(Base):
     """
     __tablename__ = "channel_captcha"
 
-    # Data
+    # Данные
     id: Mapped[int] = mapped_column(autoincrement=True, primary_key=True)
     channel_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
     message: Mapped[dict] = mapped_column(JSON, nullable=False)
