@@ -185,7 +185,11 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
         await state.update_data(chosen=chosen)
 
         # Переходим к вводу контента
-        await call.message.edit_text(
+        try:
+            await call.message.edit_reply_markup(reply_markup=None)
+        except Exception:
+            pass
+        await call.message.answer(
             text("input_message"), reply_markup=keyboards.cancel(data="InputPostCancel")
         )
         await state.set_state(Posting.input_message)
