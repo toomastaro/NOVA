@@ -33,9 +33,10 @@ async def show_ad_buy_menu(event: Union[types.Message, types.CallbackQuery]) -> 
     
     # Проверка наличия каналов с активной подпиской
     user_id = event.from_user.id
-    channels = await db.channel.get_user_enabled_channels(user_id)
+    channels = await db.channel.get_user_channels(user_id=user_id, limit=500)
+    channels_with_sub = [ch for ch in channels if ch.subscribe]
     
-    if not channels:
+    if not channels_with_sub:
         error_text = text("error_no_subscription_ad_buy")
         if isinstance(event, types.Message):
             return await event.answer(error_text)
