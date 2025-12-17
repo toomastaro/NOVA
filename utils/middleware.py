@@ -1,3 +1,6 @@
+"""
+Middleware для настройки контекста (DB, бот) и обработки ошибок.
+"""
 from aiogram import BaseMiddleware
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Update
@@ -14,6 +17,11 @@ created_db_objects = {}
 
 
 class SetCrud(BaseMiddleware):
+    """
+    Middleware для инициализации БД hello_bot.
+
+    Создает подключение к схеме конкретного бота и добавляет его в data.
+    """
     async def __call__(self, handler, event, data):
         db_bot = await db.user_bot.get_bot_by_id(event.bot.id)
 
@@ -33,6 +41,12 @@ class SetCrud(BaseMiddleware):
 
 
 class SetCrudMain(BaseMiddleware):
+    """
+    Middleware для основного бота (main_bot) при работе с пользовательскими ботами.
+
+    Настраивает контекст (db_obj, db_bot) для админки управления ботами.
+    Кэширует созданные объекты БД.
+    """
     async def __call__(self, handler, event, data):
         state: FSMContext = data.get("state")
         state_data = await state.get_data()
@@ -86,6 +100,11 @@ class SetCrudMain(BaseMiddleware):
 
 
 class AnswerMiddleware(BaseMiddleware):
+    """
+    Middleware для автоматических ответов (hello_bot).
+
+    Проверяет текст сообщения на совпадение с ключевыми словами и отправляет ответ.
+    """
     async def __call__(self, handler, event: Update, data):
         other_db = data['db']
         settings = await other_db.get_setting()
@@ -110,6 +129,9 @@ class AnswerMiddleware(BaseMiddleware):
 
 
 class ErrorMiddleware(BaseMiddleware):
+    """
+    Глобальный обработчик ошибок в middleware.
+    """
     async def __call__(self, handler, event: Update, data):
         try:
             return await handler(event, data)

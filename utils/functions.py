@@ -1,3 +1,8 @@
+"""
+Утилитарные функции общего назначения.
+
+Содержит функции для работы с изображениями и стикерами (создание эмодзи).
+"""
 import os
 import random
 import string
@@ -11,7 +16,17 @@ from instance_bot import bot
 logger = logging.getLogger(__name__)
 
 
-async def create_emoji(user_id: int, photo_bytes=None):
+async def create_emoji(user_id: int, photo_bytes=None) -> str:
+    """
+    Создает кастомный эмодзи из фото пользователя (или дефолтного).
+
+    Обрабатывает изображение (круг + размытие краев), создает стикерпак
+    и возвращает ID созданного эмодзи.
+
+    :param user_id: ID пользователя Telegram.
+    :param photo_bytes: Байты фото или путь к файлу.
+    :return: custom_emoji_id (str)
+    """
     emoji_id = '5393222813345663485'
 
     if not photo_bytes:
@@ -55,12 +70,12 @@ async def create_emoji(user_id: int, photo_bytes=None):
             r = await bot.get_sticker_set(set_id)
             # await bot.session.close()  # CRITICAL FIX: Do not close global bot session!
             emoji_id = r.stickers[0].custom_emoji_id
-        except Exception:
-            logger.error("Error creating sticker set", exc_info=True)
+        except Exception as e:
+            logger.error(f"Ошибка при создании набора стикеров для {user_id}: {e}", exc_info=True)
 
         os.remove(output_path)
 
-    except Exception:
-        logger.error("Error in create_emoji", exc_info=True)
+    except Exception as e:
+        logger.error(f"Ошибка в create_emoji для {user_id}: {e}", exc_info=True)
 
     return emoji_id

@@ -1,3 +1,9 @@
+"""
+Модуль миксина для работы с базой данных.
+
+Содержит абстракцию над SQLAlchemy и asyncpg для выполнения SQL-запросов
+с поддержкой повторных попыток (retries) и логирования медленных запросов.
+"""
 import asyncio
 import logging
 import time
@@ -70,6 +76,15 @@ DB_MAX_RETRY_ATTEMPTS = Config.DB_MAX_RETRY_ATTEMPTS
 
 
 class DatabaseMixin:
+    """
+    Миксин для выполнения SQL-запросов.
+
+    Обертывает вызовы SQLAlchemy с поддержкой:
+    - Повторных попыток (tenacity)
+    - Логирования медленных запросов
+    - Управления транзакциями
+    - Обработки таймаутов
+    """
     def __init__(self):
         self.schema = None
 
@@ -83,6 +98,12 @@ class DatabaseMixin:
         reraise=True,
     )
     async def execute(self, sql: Executable, commit: bool = True) -> None:
+        """
+        Выполняет SQL-запрос без возврата результата.
+
+        :param sql: Объект запроса (SQLAlchemy Executable)
+        :param commit: Автоматически коммитить транзакцию (по умолчанию True)
+        """
         try:
             async with log_slow_query(sql):
                 async with asyncio.timeout(DB_TIMEOUT_SECONDS):
@@ -111,6 +132,12 @@ class DatabaseMixin:
         reraise=True,
     )
     async def fetch(self, sql: Executable) -> Sequence[Any]:
+        """
+        Выполняет запрос и возвращает список строк (scalars).
+
+        :param sql: Объект запроса
+        :return: Список значений (scalars().all())
+        """
         try:
             async with log_slow_query(sql):
                 async with asyncio.timeout(DB_TIMEOUT_SECONDS):
@@ -135,6 +162,13 @@ class DatabaseMixin:
         reraise=True,
     )
     async def fetchrow(self, sql: Executable, commit: bool = False) -> Any | None:
+        """
+        Выполняет запрос и возвращает одну строку (или None).
+
+        :param sql: Объект запроса
+        :param commit: Коммитить ли транзакцию (редко нужно для select, но бывает)
+        :return: Единственное значение (scalar_one_or_none())
+        """
         try:
             async with log_slow_query(sql):
                 async with asyncio.timeout(DB_TIMEOUT_SECONDS):
@@ -161,6 +195,11 @@ class DatabaseMixin:
         reraise=True,
     )
     async def fetchall(self, sql: Executable) -> Sequence[Any]:
+        """
+        Выполняет запрос и возвращает все строки (Result.all()).
+
+        Важно: отличается от fetch тем, что возвращает не скаляры, а кортежи/Row.
+        """
         try:
             async with log_slow_query(sql):
                 async with asyncio.timeout(DB_TIMEOUT_SECONDS):
@@ -185,6 +224,11 @@ class DatabaseMixin:
         reraise=True,
     )
     async def fetchone(self, sql: Executable) -> Any:
+        """
+        Выполняет запрос и возвращает ровно одну строку.
+
+        Если строк нет или их больше одной — вызывает исключение.
+        """
         try:
             async with log_slow_query(sql):
                 async with asyncio.timeout(DB_TIMEOUT_SECONDS):
