@@ -8,6 +8,7 @@
 import logging
 import time
 from pathlib import Path
+from typing import Optional, Tuple
 
 from sqlalchemy import select
 
@@ -24,15 +25,15 @@ logger = logging.getLogger(__name__)
 _sent_notifications = set()
 
 
-def get_sub_status(expire_time: int | None) -> tuple[str | None, int | None]:
+def get_sub_status(expire_time: Optional[int]) -> Tuple[Optional[str], Optional[int]]:
     """
     Получить статус подписки на основе времени истечения.
-    
-    Args:
-        expire_time: Unix timestamp времени истечения подписки
-        
-    Returns:
-        Tuple из (статус, количество дней) или (None, None)
+
+    Аргументы:
+        expire_time (Optional[int]): Unix timestamp времени истечения подписки.
+
+    Возвращает:
+        Tuple[Optional[str], Optional[int]]: (статус, количество дней) или (None, None).
     """
     if not expire_time:
         return None, None
@@ -48,17 +49,17 @@ def get_sub_status(expire_time: int | None) -> tuple[str | None, int | None]:
     return None, None
 
 
-async def check_subscriptions():
+async def check_subscriptions() -> None:
     """
     Периодическая задача: проверка подписок и уведомления пользователей.
-    
+
     Проверяет все активные каналы на истечение подписки и отправляет
     уведомления пользователям за 3 дня, за 1 день и при истечении.
     """
     current_day = time.strftime("%Y-%m-%d", time.localtime())
-    
+
     active_channels = await db.channel.get_active_channels()
-    
+
     for channel in active_channels:
         for field, text_prefix in [("subscribe", "post")]:
             expire_time = getattr(channel, field, None)
@@ -87,10 +88,10 @@ async def check_subscriptions():
                 logger.error(f"Ошибка уведомления [{text_prefix.upper()}] для {channel.title}: {e}")
 
 
-async def mt_clients_self_check():
+async def mt_clients_self_check() -> None:
     """
     Периодическая задача: самопроверка MT клиентов.
-    
+
     Проверяет состояние всех активных MT клиентов:
     - Наличие файла сессии
     - Работоспособность клиента
@@ -101,7 +102,7 @@ async def mt_clients_self_check():
 
     stmt = select(MtClient).where(MtClient.is_active)
     active_clients = await db.fetch_all(stmt)
-    
+
     if not active_clients:
         return
 
@@ -152,6 +153,7 @@ async def mt_clients_self_check():
                     if (
                         "AUTH_KEY_UNREGISTERED" in error_code
                         or "USER_DEACTIVATED" in error_code
+                        or "SESSION_REVOKED" in error_code
                     ):
                         updates["status"] = "DISABLED"
                         updates["is_active"] = False

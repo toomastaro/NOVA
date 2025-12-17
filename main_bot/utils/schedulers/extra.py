@@ -14,30 +14,30 @@ from main_bot.utils.exchange_rates import get_update_of_exchange_rates, get_exch
 logger = logging.getLogger(__name__)
 
 
-async def update_exchange_rates_in_db():
+async def update_exchange_rates_in_db() -> None:
     """
     Периодическая задача: обновление курсов валют в БД.
-    
-    Получает актуальные курсы валют и обновляет их в базе данных.
-    Если курсы отсутствуют в БД, создает их из JSON файла.
+
+    Получает актуальные курсы валют из внешнего API и обновляет их в базе данных.
+    Если курсы отсутствуют в БД (нет записей), инициализирует их из локального JSON файла.
     """
     # Получение текущего времени по МСК
     last_update = datetime.now(timezone(timedelta(hours=3))).replace(tzinfo=None)
-    
+
     # Получение новых курсов валют (Retry logic)
     new_update = {}
     for attempt in range(3):
         try:
             new_update = await get_update_of_exchange_rates()
-            # Check if we got any valid rate (assuming sum > 0 implies some success)
+            # Проверяем, что получили хоть один курс > 0
             if any(val > 0 for val in new_update.values()):
                 break
         except Exception as e:
             logger.error(f"Попытка {attempt+1} не удалась при получении курсов: {e}")
-        
+
         logger.warning(f"Попытка {attempt+1}: Все курсы нулевые или ошибка. Повтор через 5с...")
         await asyncio.sleep(5)
-    
+
     logger.info(f"Получены курсы валют: {new_update}")
 
     # Проверка наличия курсов в БД
@@ -50,7 +50,7 @@ async def update_exchange_rates_in_db():
             await db.exchange_rate.add_exchange_rate(
                 id=ed_id,
                 name=exchange_rate["name"],
-                rate=new_update.get(ed_id, 0.0), # Use .get for safety
+                rate=new_update.get(ed_id, 0.0),
                 last_update=last_update
             )
     else:
