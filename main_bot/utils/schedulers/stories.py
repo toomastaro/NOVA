@@ -123,7 +123,7 @@ async def send_story(story: Story):
             input_file = None
             filepath = None
             try:
-                # TEMP_DIR verification
+                # Проверка TEMP_DIR
                 temp_dir = Path("main_bot/utils/temp")
                 if not temp_dir.exists():
                     temp_dir.mkdir(parents=True, exist_ok=True)
@@ -201,7 +201,7 @@ async def send_story(story: Story):
                             if Path(c.session_path) == path_obj:
                                 found_client = c
                                 break
-                    # Try sending alert, but don't crash if it fails
+                    # Попытка отправить алерт, но не падать, если не вышло
                     try:
                         await send_support_alert(
                             bot,

@@ -24,7 +24,7 @@ class UserFolder(Base):
     """
     __tablename__ = "user_folders"
 
-    # Data
+    # Данные
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(BigInteger)
     title: Mapped[str] = mapped_column()

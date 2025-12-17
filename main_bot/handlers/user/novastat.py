@@ -156,7 +156,7 @@ async def novastat_set_depth(call: types.CallbackQuery) -> None:
     await db.novastat.update_novastat_settings(call.from_user.id, depth_days=depth)
     await call.answer(f"Глубина анализа обновлена: {depth} дней")
 
-    # Refresh view
+    # Обновление вида
     settings = await db.novastat.get_novastat_settings(call.from_user.id)
     await call.message.edit_text(
         f"<b>Настройки NOVAстат</b>\n\n"
@@ -221,7 +221,7 @@ async def novastat_create_col_finish(message: types.Message, state: FSMContext) 
     await db.novastat.create_collection(message.from_user.id, name)
     await message.answer(f"Коллекция '{name}' создана!")
 
-    # Return to collections list
+    # Возврат к списку коллекций
     collections = await db.novastat.get_collections(message.from_user.id)
     await message.answer(
         "Ваши коллекции:", reply_markup=InlineNovaStat.collections_list(collections)
@@ -355,7 +355,7 @@ async def novastat_add_channel_finish(message: types.Message, state: FSMContext)
         await message.answer("Не удалось распознать каналы. Попробуйте еще раз.")
         return
 
-    # Check limit
+    # Проверка лимита
     existing = await db.novastat.get_collection_channels(col_id)
     if len(existing) + len(channels_to_add) > 100:
         await message.answer(
@@ -370,7 +370,7 @@ async def novastat_add_channel_finish(message: types.Message, state: FSMContext)
 
     await message.answer(f"Добавлено каналов: {added_count}")
 
-    # Return to collection view
+    # Возврат к просмотру коллекции
     collection = await db.novastat.get_collection(col_id)
     channels = await db.novastat.get_collection_channels(col_id)
 
@@ -420,14 +420,16 @@ async def novastat_del_channel(call: types.CallbackQuery) -> None:
     await db.novastat.remove_channel_from_collection(channel_db_id)
     await call.answer("Канал удален")
 
-    # Refresh list
+
+
+    # Обновление списка
     channels = await db.novastat.get_collection_channels(col_id)
     await call.message.edit_reply_markup(
         reply_markup=InlineNovaStat.collection_channels_delete(col_id, channels)
     )
 
 
-# --- Analysis Logic ---
+# --- Логика анализа ---
 async def process_analysis(
     message: types.Message, channels: List[str], state: FSMContext
 ) -> None:
@@ -589,7 +591,7 @@ async def run_analysis_logic(
                 link_preview_options=types.LinkPreviewOptions(is_disabled=True),
             )
 
-    # Delete initial processing status
+    # Удаление начального статуса
     if status_msg:
         await status_msg.delete()
 
@@ -597,15 +599,15 @@ async def run_analysis_logic(
         await message.answer("❌ Не удалось получить данные ни по одному каналу.")
         return
 
-    # Prepare Summary
+    # Подготовка сводки
     summary_views = total_views
     summary_er = {h: round(total_er[h] / valid_count, 2) for h in HOURS_TO_ANALYZE}
 
-    # Save for CPM
+    # Сохранение для CPM
     await state.update_data(last_analysis_views=summary_views)
 
     if len(channels) == 1:
-        # Single channel case: This IS the report.
+        # Один канал: это и есть отчет.
         stats = results[0]
 
         single_info = {
@@ -627,7 +629,7 @@ async def run_analysis_logic(
         )
 
     else:
-        # Summary
+        # Сводка
         await state.update_data(single_channel_info=None)
 
         report = f"📊 <b>ОБЩИЙ ОТЧЕТ ({valid_count} каналов)</b>\n\n"
@@ -696,7 +698,7 @@ async def novastat_analyze_collection(call: types.CallbackQuery, state: FSMConte
     await process_analysis(call.message, channels, state)
 
 
-# --- CPM Calculation ---
+# --- Расчет CPM ---
 @router.callback_query(F.data == "NovaStat|calc_cpm_start")
 async def novastat_cpm_start(call: types.CallbackQuery, state: FSMContext) -> None:
     """
@@ -747,7 +749,7 @@ async def calculate_and_show_price(
             )
         return
 
-    # Fetch user's exchange rate
+    # Получение курса валют пользователя
     user = await db.user.get_user(user_id)
     if user and user.default_exchange_rate_id:
         exchange_rate_obj = await db.exchange_rate.get_exchange_rate(
@@ -759,7 +761,7 @@ async def calculate_and_show_price(
 
     price_rub = {}
     for h in HOURS_TO_ANALYZE:
-        # Handle potential string keys from JSON serialization
+        # Обработка возможных строковых ключей из JSON сериализации
         val = views.get(h) or views.get(str(h)) or 0
         price_rub[h] = int((val / 1000) * cpm)
 

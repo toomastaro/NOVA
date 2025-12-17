@@ -24,7 +24,7 @@ async def update_exchange_rates_in_db() -> None:
     # Получение текущего времени по МСК
     last_update = datetime.now(timezone(timedelta(hours=3))).replace(tzinfo=None)
 
-    # Получение новых курсов валют (Retry logic)
+    # Получение новых курсов валют (логика повторных попыток)
     new_update = {}
     for attempt in range(3):
         try:

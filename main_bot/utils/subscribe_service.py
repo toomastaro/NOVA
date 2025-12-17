@@ -29,7 +29,7 @@ async def grant_subscription(
         service: Тип сервиса (top - сортировка)
         object_type: Тип объекта ('channels' или 'bots')
     """
-    # Logic extracted from subscribe_payment.py
+    # Логика извлечена из subscribe_payment.py
     
     added_time = 86400 * total_days
     

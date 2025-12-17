@@ -6,7 +6,7 @@
 import re
 from typing import Any
 
-# Pre-compile regex patterns for performance
+# Предкомпилированные regex паттерны для производительности
 _HTML_TAGS_PATTERN = re.compile(r'<[^>]+>')
 
 def clean_html_text(text: str | None) -> str:
@@ -17,7 +17,7 @@ def clean_html_text(text: str | None) -> str:
     if not text:
         return "Медиа"
     
-    # Remove HTML tags
+    # Удаление HTML тегов
     clean_text = _HTML_TAGS_PATTERN.sub('', text)
     
     return clean_text.strip() or "Медиа"

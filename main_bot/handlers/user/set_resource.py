@@ -153,7 +153,7 @@ async def set_channel(call: types.ChatMemberUpdated) -> None:
         # Назначаем клиента и получаем инструкцию
         res = await set_channel_session(chat_id)
 
-        # Schedule stats job
+        # Планирование задачи сбора статистики
         channel_obj = await db.channel.get_channel_by_chat_id(chat_id)
         if channel_obj and scheduler_instance:
             schedule_channel_job(scheduler_instance, channel_obj)
@@ -199,7 +199,9 @@ async def set_admin(call: types.ChatMemberUpdated) -> None:
 
     chat_id = call.chat.id
 
-    # Track subscription for ad purchases if user joined via invite link
+    chat_id = call.chat.id
+
+    # Отслеживание подписки для рекламных закупок, если пользователь вступил по ссылке
     if call.new_chat_member.status == ChatMemberStatus.MEMBER:
         if call.invite_link:
             try:
@@ -209,10 +211,10 @@ async def set_admin(call: types.ChatMemberUpdated) -> None:
                     invite_link=call.invite_link.invite_link,
                 )
             except Exception:
-                # Silently ignore errors in subscription tracking
+                # Игнорируем ошибки отслеживания
                 pass
 
-    # Track Unsubscribe (Left/Kicked)
+    # Отслеживание отписки (Left/Kicked)
     if call.new_chat_member.status in [ChatMemberStatus.LEFT, ChatMemberStatus.KICKED]:
         try:
             await db.ad_purchase.update_subscription_status(
@@ -285,7 +287,7 @@ async def manual_add_channel(message: types.Message, state: FSMContext) -> None:
         text_val = message.text.strip()
         if text_val.startswith("@") or "t.me/" in text_val:
             try:
-                # Extract username if it's a link
+                # Извлечение юзернейма, если это ссылка
                 if "t.me/" in text_val:
                     username = text_val.split("t.me/")[-1].split("/")[0]
                     if not username.startswith("@"):
@@ -305,7 +307,7 @@ async def manual_add_channel(message: types.Message, state: FSMContext) -> None:
         )
         return
 
-    # Check if bot is admin
+    # Проверка, является ли бот админом
     try:
         bot_member = await message.bot.get_chat_member(
             chat_id, (await message.bot.get_me()).id
@@ -320,7 +322,7 @@ async def manual_add_channel(message: types.Message, state: FSMContext) -> None:
         logger.error("Бот не является членом канала %s: %s", chat_id, e)
         return
 
-    # Check if user is admin
+    # Проверка, является ли пользователь админом
     user_member = await message.bot.get_chat_member(chat_id, message.from_user.id)
     if user_member.status not in [
         ChatMemberStatus.ADMINISTRATOR,
@@ -329,7 +331,7 @@ async def manual_add_channel(message: types.Message, state: FSMContext) -> None:
         await message.answer("Вы не являетесь администратором этого канала.")
         return
 
-    # Add channel logic
+    # Логика добавления канала
     try:
         chat = await message.bot.get_chat(chat_id)
         chat_title = chat.title
@@ -364,7 +366,7 @@ async def manual_add_channel(message: types.Message, state: FSMContext) -> None:
     # Назначаем клиента и получаем инструкцию
     res = await set_channel_session(chat_id)
 
-    # Schedule stats job
+    # Планирование задачи сбора статистики
     channel_obj = await db.channel.get_channel_by_chat_id(chat_id)
     if channel_obj and scheduler_instance:
         schedule_channel_job(scheduler_instance, channel_obj)

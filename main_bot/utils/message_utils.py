@@ -136,7 +136,7 @@ async def answer_post(message: types.Message, state: FSMContext, from_edit: bool
             return post_message
         except Exception as e:
             logger.error(f"Не удалось загрузить превью из бэкапа для поста {post.id}: {e}", exc_info=True)
-            # Fallback к локальной генерации
+            # Возврат к локальной генерации
 
     post_message = await cor(
         **message_options.model_dump(),
@@ -197,7 +197,7 @@ async def answer_story(message: types.Message, state: FSMContext, from_edit: boo
             return post_message
         except Exception as e:
             logger.error(f"Не удалось загрузить превью из бэкапа для сторис {post.id}: {e}", exc_info=True)
-            # Fallback к локальной генерации
+            # Возврат к локальной генерации
 
     post_message = await cor(
         **story_options.model_dump(),

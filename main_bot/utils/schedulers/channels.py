@@ -74,9 +74,9 @@ async def update_channel_stats(channel_id: int) -> None:
 
     async with SessionManager(path_obj) as manager:
         try:
-            # Explicit init might be needed depending on SessionManager implementation,
-            # but usually context manager handles connection if designed so.
-            # Assuming we need to check authorization.
+            # Явная инициализация может потребоваться в зависимости от реализации SessionManager,
+            # но обычно контекстный менеджер обрабатывает соединение.
+            # Подразумеваем, что нам нужно проверить авторизацию.
             if not manager.client:
                  await manager.init_client()
 
@@ -123,7 +123,7 @@ async def update_channel_stats(channel_id: int) -> None:
 
             # 5. Обновляем просмотры постов (< 72ч)
             current_time = int(time.time())
-            limit_time = current_time - (72 * 3600 + 600) # + reserve
+            limit_time = current_time - (72 * 3600 + 600) # + резерв
 
             query = select(PublishedPost).where(
                 and_(

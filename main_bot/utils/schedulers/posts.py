@@ -98,7 +98,7 @@ async def send(post: Post):
     error_send = []
     success_send = []
 
-    # Логика бекапа (Backup Logic)
+    # Логика бекапа
     backup_message_id = post.backup_message_id
     if Config.BACKUP_CHAT_ID:
         if not backup_message_id:
@@ -248,7 +248,7 @@ async def send(post: Post):
 
 async def send_posts():
     """Периодическая задача: отправка отложенных постов"""
-    """Периодическая задача: отправка отложенных постов"""
+
     posts = await db.post.get_post_for_send()
 
     if posts:

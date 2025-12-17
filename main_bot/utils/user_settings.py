@@ -1,13 +1,13 @@
 from main_bot.utils.redis_client import redis_client
 
-# Redis Key Prefix
+# Префикс ключа Redis
 VIEW_MODE_KEY = "view_mode:{}"
 
 
 async def get_user_view_mode(user_id: int) -> str:
     """
     Получает текущий режим просмотра каналов пользователя.
-    Returns: 'folders' (default) or 'channels'
+    Returns: 'folders' (по умолчанию) или 'channels'
     """
     if not redis_client:
         return "channels"

@@ -320,7 +320,7 @@ async def send_bot_post(bot_post: BotPost) -> None:
         # Получаем всех пользователей бота
         try:
             raw_users = await other_db.get_all_users()
-            # Extract IDs if records are returned
+            # Извлекаем ID, если возвращаются записи
             users = [u.id if hasattr(u, 'id') else u for u in raw_users]
             logger.info(f"👥 Найдено {len(users)} пользователей для бота {user_bot.title} (ID: {bot_id})")
             

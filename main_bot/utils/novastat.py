@@ -116,7 +116,7 @@ class NovaStatService:
         Returns:
             Dict со статистикой или None при ошибке
         """
-        # Ensure identifier is string for DB cache operations
+        # Убедимся, что идентификатор строка для операций с кэшем БД
         channel_identifier = str(channel_identifier)
 
         # 1. Проверить кэш
@@ -241,7 +241,7 @@ class NovaStatService:
                                     if hasattr(entity, 'participants_count') and entity.participants_count:
                                         subs = entity.participants_count
                                     else:
-                                        # Fallback to get_full_channel if simple entity doesn't have count
+                                        # Возврат к get_full_channel, если простой entity не имеет счетчика
                                         full = await manager.client(functions.channels.GetFullChannelRequest(entity))
                                         subs = full.full_chat.participants_count
                                     
@@ -261,13 +261,13 @@ class NovaStatService:
                 if our_channel.novastat_24h == 0 and our_channel.session_path:
                     try:
                         logger.info(f"Просмотры 0 для 'нашего' канала {channel_id}, пробуем внутренний клиент...")
-                        # SessionManager imports from utils
+                        # SessionManager импортируется из utils
                         manager = SessionManager(our_channel.session_path)
                         await manager.init_client()
                         if manager.client:
                             try:
                                 entity = await manager.client.get_entity(channel_id)
-                                # _collect_stats_impl is available in this class
+                                # _collect_stats_impl доступен в этом классе
                                 stats = await self._collect_stats_impl(manager.client, entity, days_limit=4)
                                 if stats and 'views' in stats:
                                     v = stats['views']
@@ -277,7 +277,7 @@ class NovaStatService:
                                         novastat_48h=v.get(48, 0),
                                         novastat_72h=v.get(72, 0)
                                     )
-                                    # Update memory object
+                                    # Обновление объекта в памяти
                                     our_channel.novastat_24h = v.get(24, 0)
                                     our_channel.novastat_48h = v.get(48, 0)
                                     our_channel.novastat_72h = v.get(72, 0)
@@ -396,18 +396,18 @@ class NovaStatService:
                             if "t.me/" in channel_identifier:
                                 # Это ссылка
                                 if "t.me/+" in channel_identifier or "joinchat" in channel_identifier:
-                                    # Private invite link
+                                    # Приватная ссылка приглашения
                                     hash_arg = channel_identifier.split('/')[-1].replace('+', '')
                                     await client(functions.messages.ImportChatInviteRequest(hash=hash_arg))
                                 else:
-                                    # Public link
+                                    # Публичная ссылка
                                     username = channel_identifier.split('/')[-1]
                                     await client(functions.channels.JoinChannelRequest(channel=username))
                             elif channel_identifier.startswith('@'):
-                                # Username
+                                # Юзернейм
                                 await client(functions.channels.JoinChannelRequest(channel=channel_identifier[1:]))
                             else:
-                                # Assume username without @
+                                # Предполагаем юзернейм без @
                                 await client(functions.channels.JoinChannelRequest(channel=channel_identifier))
                         else:
                              logger.warning(f"Невозможно автоматически вступить в канал по ID/Entity: {channel_identifier}")
@@ -429,7 +429,7 @@ class NovaStatService:
                     logger.warning(f"Попытка get_entity {attempt + 1} не удалась для {channel_identifier}: {e}. Повтор через {delay}с...")
                     await asyncio.sleep(delay)
                 else:
-                    # Last attempt failed
+                    # Последняя попытка не удалась
                     logger.error(f"get_entity не удалось после 3 попыток для {channel_identifier}: {e}")
                     
                     # Проверить, стал ли клиент подписчиком (если join был выполнен)
@@ -445,11 +445,11 @@ class NovaStatService:
                         from main_bot.utils.support_log import send_support_alert, SupportAlert
                         from instance_bot import bot as main_bot_obj
                         
-                        # Try to get channel info
+                        # Попытка получить информацию о канале
                         channel = None
                         channel_id = None
                         try:
-                            # Extract channel ID from identifier if it's a link
+                            # Извлечь ID канала из идентификатора если это ссылка
                             if isinstance(channel_identifier, str) and "t.me/" in channel_identifier:
                                 username = channel_identifier.split('/')[-1]
                                 channel = await db.get_channel_by_username(username)
@@ -482,7 +482,7 @@ class NovaStatService:
         username = getattr(entity, "username", None)
         logger.info(f"Получена информация о сущности: title={title}, username={username}")
         
-        # Get subscribers
+        # Получить подписчиков
         try:
             logger.debug(f"Получение полной информации о канале для {channel_identifier}")
             full = await client(functions.channels.GetFullChannelRequest(channel=entity))
@@ -495,7 +495,7 @@ class NovaStatService:
             logger.error(f"Неожиданная ошибка получения подписчиков для {channel_identifier}: {e}")
             members = 0
 
-        # Get posts
+        # Получить посты
         cutoff_utc = now_utc - timedelta(days=days_limit)
         raw_points: List[Tuple[float, int]] = []
         logger.debug(f"Начало итерации сообщений для {channel_identifier}, cutoff={cutoff_utc}")
@@ -520,7 +520,7 @@ class NovaStatService:
         
         logger.info(f"Собрано {len(raw_points)} точек данных для {channel_identifier}")
 
-        # Determine link
+        # Определить ссылку
         link = None
         if username:
             link = f"https://t.me/{username}"
@@ -528,7 +528,7 @@ class NovaStatService:
             link = channel_identifier
 
         if not raw_points:
-            # No posts or views found, return 0 stats
+            # Нет постов или просмотров, вернуть 0
             return {
                 'title': title,
                 'username': username,
@@ -538,7 +538,7 @@ class NovaStatService:
                 'er': {24: 0.0, 48: 0.0, 72: 0.0}
             }
 
-        # Filter anomalies
+        # Фильтрация аномалий
         views_list = [v for (_, v) in raw_points]
         med = int(median(views_list))
         threshold = med * ANOMALY_FACTOR if med > 0 else None
@@ -558,7 +558,7 @@ class NovaStatService:
                 'er': {24: 0.0, 48: 0.0, 72: 0.0}
             }
 
-        # Interpolate
+        # Интерполяция
         views_res = {}
         er_res = {}
         for h in HORIZONS:

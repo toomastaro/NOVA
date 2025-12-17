@@ -111,7 +111,9 @@ async def novastat_set_depth(call: types.CallbackQuery) -> None:
     await db.novastat.update_novastat_settings(call.from_user.id, depth_days=depth)
     await call.answer(f"Глубина анализа обновлена: {depth} дней")
 
-    # Refresh view
+    await call.answer(f"Глубина анализа обновлена: {depth} дней")
+
+    # Обновление вида
     settings = await db.novastat.get_novastat_settings(call.from_user.id)
     await call.message.edit_text(
         f"<b>Настройки NOVAстат</b>\n\n"
@@ -137,8 +139,9 @@ async def novastat_collections(call: types.CallbackQuery) -> None:
         )
     else:
         text_list = "<b>Ваши коллекции:</b>\n"
-        # We need to fetch channels count for each collection to display properly
-        # For now, just list names
+        text_list = "<b>Ваши коллекции:</b>\n"
+        # Нам нужно получить количество каналов для каждой коллекции, чтобы отобразить правильно
+        # Пока просто перечисляем имена
         for i, col in enumerate(collections, 1):
             text_list += f"{i}. {col.name}\n"
 
@@ -168,7 +171,9 @@ async def novastat_create_col_finish(message: types.Message, state: FSMContext) 
     await db.novastat.create_collection(message.from_user.id, name)
     await message.answer(f"Коллекция '{name}' создана!")
 
-    # Return to collections list
+    await message.answer(f"Коллекция '{name}' создана!")
+
+    # Возврат к списку коллекций
     collections = await db.novastat.get_collections(message.from_user.id)
     await message.answer(
         "Ваши коллекции:", reply_markup=keyboards.collections_list(collections)
@@ -233,9 +238,11 @@ async def novastat_rename_col_finish(message: types.Message, state: FSMContext) 
     await db.novastat.rename_collection(col_id, new_name)
     await message.answer(f"Коллекция переименована в '{new_name}'")
 
-    # Return to collection view
-    # We need to manually trigger the view update or just send a new message
-    # Sending new message is easier
+    await message.answer(f"Коллекция переименована в '{new_name}'")
+
+    # Возврат к просмотру коллекции
+    # Нам нужно вручную вызвать обновление вида или отправить новое сообщение
+    # Отправить новое сообщение проще
     collection = await db.novastat.get_collection(col_id)
     channels = await db.novastat.get_collection_channels(col_id)
 
@@ -285,13 +292,15 @@ async def novastat_add_channel_finish(message: types.Message, state: FSMContext)
 
     added_count = 0
     for identifier in channels_to_add:
-        # Simple validation or error handling could be added here if needed
+
+        # Здесь можно добавить простую валидацию или обработку ошибок, если нужно
         await db.novastat.add_channel_to_collection(col_id, identifier)
         added_count += 1
 
     await message.answer(f"Добавлено каналов: {added_count}")
 
-    # Return to collection view
+
+    # Возврат к просмотру коллекции
     collection = await db.novastat.get_collection(col_id)
     channels = await db.novastat.get_collection_channels(col_id)
 
@@ -335,7 +344,9 @@ async def novastat_del_channel(call: types.CallbackQuery) -> None:
     await db.novastat.remove_channel_from_collection(channel_db_id)
     await call.answer("Канал удален")
 
-    # Refresh list
+    await call.answer("Канал удален")
+
+    # Обновление списка
     channels = await db.novastat.get_collection_channels(col_id)
     await call.message.edit_reply_markup(
         reply_markup=keyboards.collection_channels_delete(col_id, channels)
@@ -419,9 +430,9 @@ async def run_analysis_logic(
         state (FSMContext): Контекст состояния.
         status_msg (Optional[types.Message]): Сообщение для обновления статуса.
     """
-    # Use a single client session for the entire analysis process
+    # Используем одну сессию клиента для всего процесса анализа
     async with novastat_service.get_client() as client:
-        # 1. Check Access (параллельно)
+        # 1. Проверка доступа (параллельно)
         valid_entities = []
         failed = []
 
@@ -471,7 +482,9 @@ async def run_analysis_logic(
                 link_preview_options=types.LinkPreviewOptions(is_disabled=True),
             )
 
-        # 2. Collect Stats (параллельно с ограничением)
+
+
+        # 2. Сбор статистики (параллельно с ограничением)
         results = []
 
         # Семафор для ограничения количества одновременных запросов
@@ -497,14 +510,18 @@ async def run_analysis_logic(
             else:
                 failed.append(ch_id)
 
-    # 3. Analyze
+
+
+    # 3. Анализ
     if status_msg:
         await status_msg.edit_text(
             "🔄 Анализирую данные...",
             link_preview_options=types.LinkPreviewOptions(is_disabled=True),
         )
 
-    # Calculate totals for views and averages for ER
+
+
+    # Расчет сумм просмотров и средних значений ER
     total_views = {h: 0 for h in HOURS_TO_ANALYZE}
     total_er = {h: 0.0 for h in HOURS_TO_ANALYZE}
     count = len(results)
@@ -514,14 +531,18 @@ async def run_analysis_logic(
             total_views[h] += res["views"][h]
             total_er[h] += res["er"][h]
 
-    # Views are summed (Total), ER is averaged
+
+
+    # Просмотры суммируются (Итого), ER усредняется
     final_views = total_views
     if count > 0:
         avg_er = {h: round(total_er[h] / count, 2) for h in HOURS_TO_ANALYZE}
     else:
         avg_er = {h: 0.0 for h in HOURS_TO_ANALYZE}
 
-    # Store results for CPM calculation
+        avg_er = {h: 0.0 for h in HOURS_TO_ANALYZE}
+
+    # Сохранение результатов для расчета CPM
     data_to_store = {"last_analysis_views": final_views}
     if count == 1:
         data_to_store["single_channel_info"] = {

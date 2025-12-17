@@ -195,10 +195,10 @@ class SessionManager:
             peer = await self.client.get_input_entity(chat_id)
             chat_full = await self.client(functions.channels.GetFullChannelRequest(channel=peer))
             
-            # Access attributes directly to avoid to_dict() issues
+            # Доступ к атрибутам напрямую, чтобы избежать проблем с to_dict()
             full_chat = chat_full.full_chat
             boosts_applied = getattr(full_chat, 'boosts_applied', 0) or 0
-            # boosts_unrestrict is often the field for "boosts needed to unrestrict"
+            # boosts_unrestrict часто является полем для "boosts needed to unrestrict"
             boosts_for_stories = getattr(full_chat, 'boosts_unrestrict', 0) or 0
             
             logger.info(f"Бусты канала {chat_id}: {boosts_applied}, необходимо для историй: {boosts_for_stories}")
@@ -206,11 +206,11 @@ class SessionManager:
             # Если требуется следующий уровень для историй и бустов недостаточно
             if boosts_for_stories > 0 and boosts_applied < boosts_for_stories:
                 logger.warning(f"Недостаточно бустов для {chat_id}: {boosts_applied}/{boosts_for_stories}")
-                # return False # Disabled by request
+                # return False # Отключено по запросу
 
             if chat_full.chats and getattr(chat_full.chats[0], 'stories_unavailable', False):
                 logger.warning(f"Истории недоступны для {chat_id}")
-                # return False # Disabled by request
+                # return False # Отключено по запросу
 
             # Проверка прав администратора
             participant = await self.client(functions.channels.GetParticipantRequest(
@@ -250,7 +250,7 @@ class SessionManager:
             if options.photo:
                 media = types.InputMediaUploadedPhoto(file=file)
             else:
-                # Default video attributes, can be enhanced to parse actual video metadata
+                # Атрибуты видео по умолчанию, можно улучшить для парсинга реальных метаданных видео
                 media = types.InputMediaUploadedDocument(
                     file=file,
                     mime_type="video/mp4",

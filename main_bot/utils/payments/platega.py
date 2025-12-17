@@ -59,7 +59,7 @@ class Platega:
             if 'transactionId' in res_json:
                 res_json['id'] = res_json['transactionId']
             else:
-                res_json['id'] = order_id # Fallback к нашему ID
+                res_json['id'] = order_id # Возврат к нашему ID
 
             # Попытка H2H (пропускаем в текущей версии, так как redirect достаточно)
             try:

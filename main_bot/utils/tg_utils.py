@@ -62,7 +62,7 @@ async def create_emoji(user_id: int, photo_bytes=None) -> str:
 
             # Сохраняем обработанное изображение
             output_path = f"main_bot/utils/temp/{user_id}.png"
-            # Ensure directory exists
+            # Убеждаемся, что директория существует
             os.makedirs(os.path.dirname(output_path), exist_ok=True)
             
             result = new_image.copy()
@@ -92,7 +92,7 @@ async def create_emoji(user_id: int, photo_bytes=None) -> str:
                 sticker_type='custom_emoji'
             )
             r = await main_bot_obj.get_sticker_set(set_id)
-            # await main_bot_obj.session.close() # Don't close session here, shared bot object
+            # await main_bot_obj.session.close() # Не закрываем сессию здесь, используется общий объект бота
             if r.stickers:
                 emoji_id = r.stickers[0].custom_emoji_id
                 logger.info(f"Создан custom emoji для пользователя {user_id}: {emoji_id}")
@@ -166,7 +166,7 @@ async def get_editors(call: types.CallbackQuery, chat_id: int):
         "@{}".format(i.user.username)
         if i.user.username else i.user.full_name
         for i in editors
-        if not isinstance(i, str) # Filter out error strings if mixed
+        if not isinstance(i, str) # Отфильтровать строки ошибок, если они есть
     )
 
 
@@ -207,7 +207,7 @@ async def set_channel_session(chat_id: int):
             "message": "Бот не является администратором канала. Пожалуйста, добавьте бота в канал с правами администратора и повторите попытку."
         }
     
-    # NEW: Create invite link for the assistant
+    # Создать инвайт-ссылку для помощника
     invite_link = None
     try:
         invite = await main_bot_obj.create_chat_invite_link(
@@ -242,7 +242,7 @@ async def set_channel_session(chat_id: int):
         return {"error": "Session File Not Found"}
         
     async with SessionManager(session_path) as manager:
-        if not manager.client: # Check if client initialized
+        if not manager.client: # Проверка инициализации клиента
             logger.error(f"Не удалось инициализировать SessionManager для клиента {client.id}")
             return {"error": "Session Manager Failed"}
         
@@ -252,7 +252,7 @@ async def set_channel_session(chat_id: int):
             logger.error(f"Не удалось получить информацию о пользователе для клиента {client.id}")
             return {"error": "Failed to Get User Info"}
         
-        # NEW: Try to join automatically
+        # Попытка автоматического вступления
         logger.info(f"Клиент {client.id} пробует вступить в канал {chat_id}...")
         join_success = False
         try:
@@ -284,8 +284,8 @@ async def set_channel_session(chat_id: int):
         await db.mt_client_channel.set_membership(
             client_id=client.id,
             channel_id=chat_id,
-            is_member=join_success, # True if joined
-            is_admin=False, # Rights checked later manually or via check button
+            is_member=join_success, # True если вступил
+            is_admin=False, # Права проверяются позже вручную или через кнопку проверки
             can_post_stories=False,
             last_joined_at=int(time.time()),
             preferred_for_stats=is_preferred
@@ -296,7 +296,7 @@ async def set_channel_session(chat_id: int):
             session_path=str(session_path)
         )
         
-        # Update last_client_id for round-robin
+        # Обновление last_client_id для round-robin
         await db.channel.update_last_client(channel.id, client.id)
         logger.info(f"✅ Обновлен last_client_id для канала {channel.id} на {client.id}")
         
@@ -318,7 +318,7 @@ async def background_join_channel(chat_id: int, user_id: int = None):
     Попытка добавить клиента в канал в фоне с ретраями.
     Делает 3 попытки с экспоненциальной задержкой.
     """
-    # Try adding client with exponential backoff
+    # Попытка добавления клиента с экспоненциальной задержкой
     for attempt in range(3):
         try:
             # Используем существующую логику set_channel_session

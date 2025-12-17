@@ -26,6 +26,7 @@ from main_bot.utils.message_utils import (
 )
 # Дубликаты функций из schedulers/bots.py (УСТАРЕЛО)
 # IMPORTS REMOVED TO AVOID CIRCULAR DEPENDENCY
+# ИМПОРТЫ УДАЛЕНЫ ВО ИЗБЕЖАНИЕ ЦИКЛИЧЕСКОЙ ЗАВИСИМОСТИ
 # from main_bot.utils.schedulers.bots import (
 #     process_bot,
 #     send_bot_messages,
@@ -64,6 +65,6 @@ __all__ = [
     'background_join_channel',
 
     # Устарело (из schedulers.bots)
-    'send_bot_messages',
-    'process_bot',
+    # 'send_bot_messages',
+    # 'process_bot',
 ]

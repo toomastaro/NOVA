@@ -781,7 +781,7 @@ async def manage_published_post(call: types.CallbackQuery, state: FSMContext):
                 ),
             )
 
-            )
+
         
         # Возврат к списку контента
         days_with_posts = await get_days_with_posts(
