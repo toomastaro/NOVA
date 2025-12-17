@@ -113,9 +113,7 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
 
     chosen: list = data.get("chosen")
     chosen_folders: list = data.get("chosen_folders")
-
-    chosen: list = data.get("chosen")
-    chosen_folders: list = data.get("chosen_folders")
+    current_folder_id = data.get("current_folder_id")
 
     view_mode = await get_user_view_mode(call.from_user.id)
 
@@ -124,7 +122,11 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
         view_mode = "channels" if view_mode == "folders" else "folders"
         await set_user_view_mode(call.from_user.id, view_mode)
         
-        # Сбрасываем пагинацию
+        # Сбрасываем пагинацию и вход в папку
+        if view_mode == "channels":
+            await state.update_data(current_folder_id=None)
+            current_folder_id = None
+        
         temp = list(temp)
         if len(temp) > 2:
             temp[2] = "0"
@@ -132,7 +134,19 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
             temp.append("0")
 
     # Определяем что показывать
-    if view_mode == "channels":
+    if current_folder_id:
+        # Внутри папки - показываем содержимое папки
+        folder = await db.user_folder.get_folder_by_id(current_folder_id)
+        if folder and folder.content:
+            objects = await db.channel.get_user_channels(
+                user_id=call.from_user.id,
+                from_array=[int(cid) for cid in folder.content],
+                sort_by="stories"
+            )
+        else:
+            objects = []
+        folders = []
+    elif view_mode == "channels":
         # Режим "Все каналы": показываем плоский список всех каналов
         objects = await db.channel.get_user_channels(
             user_id=call.from_user.id, sort_by="stories", limit=500
@@ -144,6 +158,9 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
             user_id=call.from_user.id, sort_by="stories"
         )
         folders = await db.user_folder.get_folders(user_id=call.from_user.id)
+        # В режиме папок мы не показываем каналы на верхнем уровне
+        if view_mode == "folders":
+            objects = []
 
     if temp[1] == "next_step":
         if not chosen:
@@ -160,14 +177,34 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
         await state.set_state(Stories.input_message)
         return
 
-    folders = await db.user_folder.get_folders(user_id=call.from_user.id)
-
     if temp[1] == "cancel":
-        # Возврат в меню историй
-        from main_bot.handlers.user.menu import start_stories
+        if current_folder_id:
+            # Возврат к корневому уровню
+            await state.update_data(current_folder_id=None)
+            current_folder_id = None
+            
+            # Перезагружаем корневые данные
+            if view_mode == "folders":
+                objects = []
+                folders = await db.user_folder.get_folders(user_id=call.from_user.id)
+            else:
+                objects = await db.channel.get_user_channels(
+                    user_id=call.from_user.id, sort_by="stories", limit=500
+                )
+                folders = []
+            
+            # Сбрасываем remover
+            remover_value = 0
+            try:
+                await call.answer()
+            except Exception:
+                pass
+        else:
+            # Возврат в меню историй
+            from main_bot.handlers.user.menu import start_stories
 
-        await call.message.delete()
-        return await start_stories(call.message)
+            await call.message.delete()
+            return await start_stories(call.message)
 
     if temp[1] in ["next", "back"]:
         return await call.message.edit_reply_markup(
@@ -176,15 +213,24 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
                 chosen=chosen,
                 folders=folders,
                 chosen_folders=chosen_folders,
+                remover=int(temp[2]),
                 data="ChoiceStoriesChannels",
                 view_mode=view_mode,
+                is_inside_folder=bool(current_folder_id),
             )
         )
 
     if temp[1] == "choice_all":
-        if len(chosen) == len(objects) and len(chosen_folders) == len(folders):
-            chosen.clear()
-            chosen_folders.clear()
+        current_ids = [i.chat_id for i in objects]
+        
+        # Проверяем, все ли выбраны в текущем виде
+        all_selected = all(cid in chosen for cid in current_ids)
+        
+        if all_selected:
+            # Отменяем выбор всех видимых
+            for cid in current_ids:
+                if cid in chosen:
+                    chosen.remove(cid)
         else:
             # Проверяем подписку для всех каналов
             channels_without_sub = []
@@ -206,28 +252,57 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
                     f"Оплатите подписку через меню 💎 Подписка",
                     show_alert=True,
                 )
+                
+            # Проверка сессии для сторис
+            channels_without_session = []
+            for obj in objects:
+                 if not obj.session_path:
+                     channels_without_session.append(obj.title)
+                     
+            if channels_without_session:
+                channels_list = "\n".join(
+                    f"• {title}" for title in channels_without_session[:5]
+                )
+                return await call.answer(
+                    f"❌ Невозможно выбрать все каналы\n\n"
+                    f"Следующие каналы не имеют подключенной сессии для сторис:\n{channels_list}",
+                    show_alert=True
+                )
 
-            _ = [i.chat_id for i in objects if i.chat_id not in chosen]
-            if folders:
-                for folder in folders:
-                    sub_channels = []
-                    for chat_id in folder.content:
-                        channel = await db.channel.get_channel_by_chat_id(int(chat_id))
-
-                        if not channel.subscribe:
-                            continue
-
-                        sub_channels.append(int(chat_id))
-
-                    if len(sub_channels) == len(folder.content):
-                        chosen_folders.append(folder.id)
-
-            chosen = list(set(chosen))
+            # Выбираем все видимые
+            for cid in current_ids:
+                if cid not in chosen:
+                    chosen.append(cid)
 
     if temp[1].replace("-", "").isdigit():
         resource_id = int(temp[1])
+        resource_type = temp[3] if len(temp) > 3 else None
 
-        if temp[3] == "channel":
+        if resource_type == "folder":
+             # Вход в папку
+            await state.update_data(current_folder_id=resource_id)
+            current_folder_id = resource_id
+            
+            # Загружаем содержимое папки
+            folder = await db.user_folder.get_folder_by_id(resource_id)
+            if folder and folder.content:
+                objects = await db.channel.get_user_channels(
+                    user_id=call.from_user.id,
+                    from_array=[int(cid) for cid in folder.content],
+                    sort_by="stories"
+                )
+            else:
+                objects = []
+            folders = []
+            
+            # Сбрасываем пагинацию
+            temp = list(temp)
+            if len(temp) > 2:
+                temp[2] = "0"
+            else:
+                temp.append("0")
+        else:
+            # Выбор канала
             if resource_id in chosen:
                 chosen.remove(resource_id)
             else:
@@ -245,31 +320,40 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
                     )
 
                 chosen.append(resource_id)
-        else:
-            temp_chosen, temp_chosen_folders = await set_folder_content(
-                resource_id=resource_id,
-                chosen=chosen,
-                chosen_folders=chosen_folders,
-                user_channels=objects,  # Passing already loaded channels to avoid N+1
-            )
-            if temp_chosen == "subscribe":
-                return await call.answer(text("error_sub_channel_folder"))
-            if temp_chosen == "session_path":
-                return await call.answer(text("error_story_session_folder"))
 
     await state.update_data(chosen=chosen, chosen_folders=chosen_folders)
+    
+    # Формируем текст
+    folder_title = ""
+    if current_folder_id:
+        try:
+             folder_obj = await db.user_folder.get_folder_by_id(current_folder_id)
+             if folder_obj:
+                 folder_title = folder_obj.title
+        except Exception:
+            pass
+
+    msg_text = (
+        text("choice_channels:folder").format(folder_title, len(chosen), await get_story_report_text(chosen, objects))
+        if current_folder_id and folder_title
+        else text("choice_channels:story").format(len(chosen), await get_story_report_text(chosen, objects))
+    )
+    
     await call.message.edit_text(
-        text("choice_channels:story").format(
-            len(chosen), await get_story_report_text(chosen, objects)
-        ),
+        msg_text,
         reply_markup=keyboards.choice_objects(
             resources=objects,
             chosen=chosen,
             folders=folders,
             chosen_folders=chosen_folders,
-            remover=int(temp[2]),
+            remover=(
+                remover_value
+                if "remover_value" in locals()
+                else int(temp[2])
+            ),
             data="ChoiceStoriesChannels",
             view_mode=view_mode,
+            is_inside_folder=bool(current_folder_id),
         ),
     )
 
