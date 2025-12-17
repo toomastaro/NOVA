@@ -1,8 +1,13 @@
+"""
+Модуль для получения курсов валют (USDT/RUB) из различных источников (Crypto Bot, BestChange, Bybit).
+"""
+
 import asyncio
 import json
+import logging
 import os
 import pathlib
-import logging
+from typing import Any, Dict, List
 
 import aiohttp
 from dotenv import load_dotenv
@@ -14,9 +19,16 @@ load_dotenv()
 # Используем относительный путь от текущего файла
 current_dir = pathlib.Path(__file__).parent.resolve()
 
-async def get_crypto_bot_usdt_rub_rate():
+
+async def get_crypto_bot_usdt_rub_rate() -> float:
+    """
+    Получает актуальный курс USDT/RUB через API Crypto Bot.
+
+    Возвращает:
+        float: Курс обмена. 0 при ошибке.
+    """
     api_token = os.getenv('CRYPTO_BOT_API_TOKEN') or os.getenv('CRYPTO_BOT_TOKEN')
-    
+
     if not api_token:
         logger.error("CRYPTO_BOT_API_TOKEN не найден в переменных окружения")
         return 0
@@ -42,17 +54,16 @@ async def get_crypto_bot_usdt_rub_rate():
     return 0
 
 
-async def get_best_change_usdt_rub_rate() -> dict[str, float | None]:
+async def get_best_change_usdt_rub_rate() -> Dict[str, float]:
     """
     Получает курсы обмена USDT/RUB с API BestChange.
-    Возвращает словарь:
-    {
-        'sell': средний курс продажи (USDT->RUB),
-        'buy': средний курс покупки (RUB->USDT),
-        'average': (sell + buy) / 2
-    }
-    """
 
+    Возвращает:
+        Dict[str, float]: Словарь с ключами:
+            - 'sell': средний курс продажи (USDT->RUB)
+            - 'buy': средний курс покупки (RUB->USDT)
+            - 'average': (sell + buy) / 2
+    """
     api_key = os.getenv('BEST_EXCHANGE_API')
     if not api_key:
         logger.warning("BEST_EXCHANGE_API не найден в переменных окружения")
@@ -110,16 +121,16 @@ async def get_best_change_usdt_rub_rate() -> dict[str, float | None]:
                                 buy_rates.extend([float(item["rate"]) for item in pair_rates if "rate" in item])
 
                     # Вычисляем средние значения
-                    
+
                     # Примечание: тут логика может быть специфичной для обратных курсов
-                    sell = 1 / (sum(sell_rates) / len(sell_rates)) if sell_rates else None
-                    buy = sum(buy_rates) / len(buy_rates) if buy_rates else None
-                    average = ((sell + buy) / 2) if sell and buy else None
+                    sell = 1 / (sum(sell_rates) / len(sell_rates)) if sell_rates else 0
+                    buy = sum(buy_rates) / len(buy_rates) if buy_rates else 0
+                    average = ((sell + buy) / 2) if sell and buy else 0
 
                     return {
-                        'sell': sell if sell else 0,
-                        'buy': buy if buy else 0,
-                        'average': average if average else 0
+                        'sell': sell,
+                        'buy': buy,
+                        'average': average
                     }
 
         except (aiohttp.ClientError, asyncio.TimeoutError, ValueError, KeyError) as e:
@@ -129,8 +140,13 @@ async def get_best_change_usdt_rub_rate() -> dict[str, float | None]:
     return {'sell': 0, 'buy': 0, 'average': 0}
 
 
-async def get_p2p_bybit_usdt_rub_rate() -> dict[str, float | None]:
-    """Получает P2P курсы USDT/RUB с API Bybit"""
+async def get_p2p_bybit_usdt_rub_rate() -> Dict[str, float]:
+    """
+    Получает P2P курсы USDT/RUB с API Bybit.
+
+    Возвращает:
+        Dict[str, float]: Словарь с курсами (sell, buy, average).
+    """
 
     url = "https://api2.bybit.com/fiat/otc/item/online"
     headers = {"User-Agent": "Mozilla/5.0", "Content-Type": "application/json"}
@@ -169,9 +185,12 @@ async def get_p2p_bybit_usdt_rub_rate() -> dict[str, float | None]:
     }
 
 
-async def get_update_of_exchange_rates():
+async def get_update_of_exchange_rates() -> Dict[int, float]:
     """
     Агрегирует курсы с разных источников.
+
+    Возвращает:
+        Dict[int, float]: Словарь с ID типа курса и значением.
     """
     best_change_data = await get_best_change_usdt_rub_rate()
     bybit_data = await get_p2p_bybit_usdt_rub_rate()
@@ -187,9 +206,15 @@ async def get_update_of_exchange_rates():
     }
 
 
-async def format_exchange_rate_from_db(exchange_rates):
+async def format_exchange_rate_from_db(exchange_rates: List[Any]) -> Dict[int, float]:
     """
     Форматирует курсы из БД в словарь.
+
+    Аргументы:
+        exchange_rates (List[ExchangeRate]): Список объектов курса.
+
+    Возвращает:
+        Dict[int, float]: Словарь {id: rate}.
     """
     rtn = {}
     for er in exchange_rates:
@@ -197,8 +222,13 @@ async def format_exchange_rate_from_db(exchange_rates):
     return rtn
 
 
-def get_exchange_rates_from_json():
-    """Чтение файла обменных курсов."""
+def get_exchange_rates_from_json() -> Any:
+    """
+    Чтение файла обменных курсов (exchange_rates.json).
+
+    Возвращает:
+        Any: Загруженные данные (список или словарь).
+    """
     try:
         with open(current_dir / "exchange_rate_data/exchange_rates.json", "r", encoding='utf-8') as file:
             return json.load(file)
@@ -207,8 +237,13 @@ def get_exchange_rates_from_json():
         return []
 
 
-def get_rates_sources_from_json():
-    """Чтение настройки источников."""
+def get_rates_sources_from_json() -> Any:
+    """
+    Чтение настройки источников (rates_sources.json).
+
+    Возвращает:
+        Any: Загруженные данные (список или словарь).
+    """
     try:
         with open(current_dir / "exchange_rate_data/rates_sources.json", "r", encoding='utf-8') as file:
             return json.load(file)
@@ -224,7 +259,7 @@ if __name__ == "__main__":
     async def test():
         rate_bybit = await get_p2p_bybit_usdt_rub_rate()
         logger.info(f"Bybit: {rate_bybit}")
-        
+
         rate_crypto = await get_crypto_bot_usdt_rub_rate()
         logger.info(f"CryptoBot: {rate_crypto}")
 

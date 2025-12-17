@@ -6,34 +6,41 @@
 - Отправки сообщений через ботов
 - Работы с медиафайлами в сообщениях
 """
-import os
-import logging
-import pathlib
 
-from aiogram import types, Bot
+import logging
+import os
+import pathlib
+from typing import Optional, Union
+
+from aiogram import Bot, types
 from aiogram.fsm.context import FSMContext
 
 from config import Config
-from main_bot.keyboards import keyboards
-from main_bot.keyboards.posting import ensure_obj # Use existing helper
-from main_bot.utils.schemas import MessageOptions, StoryOptions, MessageOptionsHello, MessageOptionsCaptcha
-from main_bot.utils.file_utils import TEMP_DIR
 from instance_bot import bot as main_bot_obj
+from main_bot.keyboards import keyboards
+from main_bot.keyboards.posting import ensure_obj
+from main_bot.utils.file_utils import TEMP_DIR
+from main_bot.utils.schemas import (
+    MessageOptions,
+    MessageOptionsCaptcha,
+    MessageOptionsHello,
+    StoryOptions,
+)
 
 logger = logging.getLogger(__name__)
 
 
-async def answer_bot_post(message: types.Message, state: FSMContext, from_edit: bool = False):
+async def answer_bot_post(message: types.Message, state: FSMContext, from_edit: bool = False) -> types.Message:
     """
-    Отправить превью бот-поста пользователю.
-    
-    Args:
-        message: Сообщение пользователя
-        state: FSM контекст с данными поста
-        from_edit: Флаг редактирования (влияет на клавиатуру)
-        
-    Returns:
-        Отправленное сообщение
+    Отправляет превью бот-поста пользователю.
+
+    Аргументы:
+        message (types.Message): Сообщение пользователя.
+        state (FSMContext): FSM контекст с данными поста.
+        from_edit (bool): Флаг редактирования (влияет на клавиатуру).
+
+    Возвращает:
+        types.Message: Отправленное сообщение.
     """
     data = await state.get_data()
 
@@ -69,20 +76,20 @@ async def answer_bot_post(message: types.Message, state: FSMContext, from_edit: 
     return post_message
 
 
-async def answer_post(message: types.Message, state: FSMContext, from_edit: bool = False):
+async def answer_post(message: types.Message, state: FSMContext, from_edit: bool = False) -> types.Message:
     """
-    Отправить превью поста пользователю.
-    
+    Отправляет превью поста пользователю.
+
     Пытается загрузить превью из бэкапа, если доступно.
     В противном случае генерирует локально.
-    
-    Args:
-        message: Сообщение пользователя
-        state: FSM контекст с данными поста
-        from_edit: Флаг редактирования (влияет на клавиатуру)
-        
-    Returns:
-        Отправленное сообщение
+
+    Аргументы:
+        message (types.Message): Сообщение пользователя.
+        state (FSMContext): FSM контекст с данными поста.
+        from_edit (bool): Флаг редактирования (влияет на клавиатуру).
+
+    Возвращает:
+        types.Message: Отправленное сообщение.
     """
     data = await state.get_data()
 
@@ -141,17 +148,17 @@ async def answer_post(message: types.Message, state: FSMContext, from_edit: bool
     return post_message
 
 
-async def answer_story(message: types.Message, state: FSMContext, from_edit: bool = False):
+async def answer_story(message: types.Message, state: FSMContext, from_edit: bool = False) -> types.Message:
     """
-    Отправить превью сторис пользователю.
-    
-    Args:
-        message: Сообщение пользователя
-        state: FSM контекст с данными сторис
-        from_edit: Флаг редактирования (влияет на клавиатуру)
-        
-    Returns:
-        Отправленное сообщение
+    Отправляет превью сторис пользователю.
+
+    Аргументы:
+        message (types.Message): Сообщение пользователя.
+        state (FSMContext): FSM контекст с данными сторис.
+        from_edit (bool): Флаг редактирования (влияет на клавиатуру).
+
+    Возвращает:
+        types.Message: Отправленное сообщение.
     """
     data = await state.get_data()
 
@@ -200,20 +207,24 @@ async def answer_story(message: types.Message, state: FSMContext, from_edit: boo
     return post_message
 
 
-async def answer_message_bot(bot: Bot, chat_id: int, message_options: MessageOptionsHello | MessageOptionsCaptcha):
+async def answer_message_bot(
+    bot: Bot,
+    chat_id: int,
+    message_options: Union[MessageOptionsHello, MessageOptionsCaptcha]
+) -> Optional[types.Message]:
     """
-    Отправить сообщение через бота в указанный чат.
-    
+    Отправляет сообщение через бота в указанный чат.
+
     Скачивает медиафайлы если необходимо, отправляет сообщение,
     затем удаляет временные файлы.
-    
-    Args:
-        bot: Экземпляр бота для отправки
-        chat_id: ID чата для отправки
-        message_options: Опции сообщения (текст/фото/видео/анимация)
-        
-    Returns:
-        Отправленное сообщение или None при ошибке
+
+    Аргументы:
+        bot (Bot): Экземпляр бота для отправки.
+        chat_id (int): ID чата для отправки.
+        message_options (Union[MessageOptionsHello, MessageOptionsCaptcha]): Опции сообщения.
+
+    Возвращает:
+        Optional[types.Message]: Отправленное сообщение или None при ошибке.
     """
     # Определяем тип сообщения
     if message_options.text:
@@ -243,7 +254,7 @@ async def answer_message_bot(bot: Bot, chat_id: int, message_options: MessageOpt
             # Используем общий TEMP_DIR
             filepath_obj = TEMP_DIR / filename
             filepath = str(filepath_obj)
-            
+
             await main_bot_obj.download(file_id, filepath)
     except Exception as e:
         logger.error(f"Ошибка при скачивании медиафайла: {e}")
@@ -306,16 +317,16 @@ async def answer_message_bot(bot: Bot, chat_id: int, message_options: MessageOpt
     return post_message
 
 
-async def answer_message(message: types.Message, message_options: MessageOptionsHello | MessageOptionsCaptcha):
+async def answer_message(message: types.Message, message_options: Union[MessageOptionsHello, MessageOptionsCaptcha]) -> types.Message:
     """
-    Ответить на сообщение пользователя с указанными опциями.
-    
-    Args:
-        message: Сообщение пользователя
-        message_options: Опции сообщения (текст/фото/видео/анимация)
-        
-    Returns:
-        Отправленное сообщение
+    Отвечает на сообщение пользователя с указанными опциями.
+
+    Аргументы:
+        message (types.Message): Сообщение пользователя.
+        message_options (Union[MessageOptionsHello, MessageOptionsCaptcha]): Опции сообщения.
+
+    Возвращает:
+        types.Message: Отправленное сообщение.
     """
     # Определяем тип сообщения
     if message_options.text:

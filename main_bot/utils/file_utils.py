@@ -8,12 +8,14 @@
 
 Все тяжелые операции выполняются в отдельном потоке (executor), чтобы не блокировать event loop.
 """
+
+import asyncio
+import logging
 import math
 import os
-import logging
-import asyncio
 import pathlib
 from concurrent.futures import ThreadPoolExecutor
+from typing import Optional, Tuple, Union
 
 import ffmpeg
 from PIL import Image
@@ -31,32 +33,32 @@ TEMP_DIR.mkdir(parents=True, exist_ok=True)
 _executor = ThreadPoolExecutor(max_workers=4)
 
 
-def get_mode(image: Image) -> str:
+def get_mode(image: Image.Image) -> str:
     """
-    Получить корректный режим изображения.
-    
-    Args:
-        image: Объект PIL Image
-        
-    Returns:
-        Режим изображения ('RGB' или 'RGBA')
+    Получает корректный режим изображения.
+
+    Аргументы:
+        image (Image.Image): Объект PIL Image.
+
+    Возвращает:
+        str: Режим изображения ('RGB' или 'RGBA').
     """
     if image.mode not in ['RGB', 'RGBA']:
         return 'RGB'
     return image.mode
 
 
-def get_color(image: Image):
+def get_color(image: Image.Image) -> Tuple[int, int, int, int]:
     """
-    Вычислить средний цвет изображения с учетом альфа-канала.
-    
+    Вычисляет средний цвет изображения с учетом альфа-канала.
+
     Использует квадратичное усреднение для более точного результата.
-    
-    Args:
-        image: Объект PIL Image
-        
-    Returns:
-        Tuple (red, green, blue, alpha) - средние значения цветов
+
+    Аргументы:
+        image (Image.Image): Объект PIL Image.
+
+    Возвращает:
+        Tuple[int, int, int, int]: Средние значения цветов (red, green, blue, alpha).
     """
     mode = get_mode(image)
     if mode != image.mode:
@@ -69,6 +71,8 @@ def get_color(image: Image):
     count = 0
 
     pixel = image.load()
+    if not pixel:
+        return (0, 0, 0, 0)
 
     for i in range(image.width):
         for j in range(image.height):
@@ -85,6 +89,9 @@ def get_color(image: Image):
 
             count += 1
 
+    if count == 0:
+        return (0, 0, 0, 0)
+
     return (
         round(math.sqrt(red_total / alpha_total)),
         round(math.sqrt(green_total / alpha_total)),
@@ -93,13 +100,19 @@ def get_color(image: Image):
     )
 
 
-def _process_image_sync(photo, chat_id) -> str:
+def _process_image_sync(photo: Union[str, pathlib.Path], chat_id: int) -> str:
     """
     Синхронная версия обработки фото.
+
+    Аргументы:
+        photo (Union[str, pathlib.Path]): Путь к файлу.
+        chat_id (int): ID чата.
+
+    Возвращает:
+        str: Путь к обработанному файлу.
     """
     try:
         # Если photo - это путь к файлу, убедимся что это строка или Path
-        
         with Image.open(photo) as img:
             mask = Image.new("RGBA", (540, 960), get_color(img))
 
@@ -130,37 +143,44 @@ def _process_image_sync(photo, chat_id) -> str:
         raise e
 
 
-async def get_path(photo, chat_id) -> str:
+async def get_path(photo: Union[str, pathlib.Path], chat_id: int) -> str:
     """
     Асинхронная обертка для обработки фото.
     Запускает обработку в executor'е.
-    
-    Args:
-        photo: Путь к файлу или file-like объект с изображением
-        chat_id: ID чата для формирования имени файла
-        
-    Returns:
-        Путь к обработанному файлу
+
+    Аргументы:
+        photo (Union[str, pathlib.Path]): Путь к файлу или file-like объект с изображением.
+        chat_id (int): ID чата для формирования имени файла.
+
+    Возвращает:
+        str: Путь к обработанному файлу.
     """
     loop = asyncio.get_running_loop()
     return await loop.run_in_executor(_executor, _process_image_sync, photo, chat_id)
 
 
-def _process_video_sync(input_path: str, chat_id: int) -> str | None:
+def _process_video_sync(input_path: Union[str, pathlib.Path], chat_id: int) -> Optional[str]:
     """
     Синхронная версия обработки видео.
+
+    Аргументы:
+        input_path (Union[str, pathlib.Path]): Путь к исходному видео.
+        chat_id (int): ID чата.
+
+    Возвращает:
+        Optional[str]: Путь к обработанному видео или None.
     """
     # Гарантируем строковый путь
     input_path = str(input_path)
     base_name = f"{abs(chat_id)}"
-    
+
     # Получаем расширение безопасно
     _, extension = os.path.splitext(input_path)
     if not extension:
          extension = ".mp4" # Fallback
     # Убираем точку если она есть (для ffmpeg путей может быть важно, но здесь splitext оставляет точку)
     # В оригинале было split('.')[1], что ненадежно
-    
+
     # Формируем пути
     tmp_path = TEMP_DIR / f"{base_name}_tmp{extension}"
     output_path = TEMP_DIR / f"{base_name}_final{extension}"
@@ -175,7 +195,7 @@ def _process_video_sync(input_path: str, chat_id: int) -> str | None:
             raise RuntimeError("Не удалось определить разрешение видео")
 
         width, height = stream["width"], stream["height"]
-        
+
         # Для горизонтальных видео добавляем размытый фон
         if width >= height:
             (
@@ -222,17 +242,17 @@ def _process_video_sync(input_path: str, chat_id: int) -> str | None:
                  logger.warning(f"Не удалось удалить временный файл {tmp_path_str}: {ex}")
 
 
-async def get_path_video(input_path: str, chat_id: int) -> str | None:
+async def get_path_video(input_path: Union[str, pathlib.Path], chat_id: int) -> Optional[str]:
     """
     Асинхронная обертка для обработки видео.
     Запускает ffmpeg в executor'е.
-    
-    Args:
-        input_path: Путь к исходному видео
-        chat_id: ID чата для формирования имени файла
-        
-    Returns:
-        Путь к обработанному видео или None при ошибке
+
+    Аргументы:
+        input_path (Union[str, pathlib.Path]): Путь к исходному видео.
+        chat_id (int): ID чата для формирования имени файла.
+
+    Возвращает:
+        Optional[str]: Путь к обработанному видео или None при ошибке.
     """
     loop = asyncio.get_running_loop()
     return await loop.run_in_executor(_executor, _process_video_sync, input_path, chat_id)

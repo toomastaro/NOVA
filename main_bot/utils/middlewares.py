@@ -1,8 +1,21 @@
-from aiogram import BaseMiddleware, types
-from aiogram.filters import CommandObject
-from aiogram.types import Update
+"""
+Middleware для обработки событий в aiogram.
+
+Этот модуль содержит middleware для:
+- Регистрации пользователей при команде /start
+- Получения объекта пользователя из БД
+- Глобальной обработки ошибок
+- Проверки версии бота и сброса устаревших FSM состояний
+"""
 
 import logging
+from typing import Any, Awaitable, Callable, Dict
+
+from aiogram import BaseMiddleware, types
+from aiogram.filters import CommandObject
+from aiogram.types import TelegramObject
+
+from config import Config
 from main_bot.database.db import db
 
 logger = logging.getLogger(__name__)
@@ -11,10 +24,24 @@ logger = logging.getLogger(__name__)
 class StartMiddle(BaseMiddleware):
     """
     Middleware для обработки команды /start и регистрации пользователя.
+
+    Проверяет, зарегистрирован ли пользователь. Если нет:
+    - Проверяет реферальный код или UTM-метку.
+    - Регистрирует пользователя в БД.
     """
-    async def __call__(self, handler, message: types.Message, data):
+    async def __call__(
+        self,
+        handler: Callable[[TelegramObject, Dict[str, Any]], Awaitable[Any]],
+        event: TelegramObject,
+        data: Dict[str, Any]
+    ) -> Any:
+        # Применяем только к Message
+        if not isinstance(event, types.Message):
+            return await handler(event, data)
+
+        message: types.Message = event
         command: CommandObject = data.get('command')
-        
+
         # Если это не команда или не команда start, просто передаем управление дальше
         if not command or command.command != 'start':
             return await handler(message, data)
@@ -58,15 +85,31 @@ class StartMiddle(BaseMiddleware):
 
 class GetUserMiddleware(BaseMiddleware):
     """
-    Middleware для получения объекта пользователя из БД и добавления в data.
+    Middleware для получения объекта пользователя из БД и добавления его в контекст (data).
+
+    Работает для Message и CallbackQuery.
     """
-    async def __call__(self, handler, event: Update, data):
+    async def __call__(
+        self,
+        handler: Callable[[TelegramObject, Dict[str, Any]], Awaitable[Any]],
+        event: TelegramObject,
+        data: Dict[str, Any]
+    ) -> Any:
         user_id = None
-        if event.message:
-            user_id = event.message.from_user.id
-        elif event.callback_query:
-            user_id = event.callback_query.from_user.id
-        
+        if isinstance(event, types.Update): # Проверка типа на всякий случай, хотя middleware принимает event как Update обычно в aiogram 3 но здесь BaseMiddleware
+             # В Aiogram 3 BaseMiddleware получает event который может быть Update или сразу Message/Callback (в зависимости от того где зарегистрирован)
+             # Здесь предполагается outer middleware, получающая Update? Нет, GetUserMiddleware обычно вешается на router.message/callback_query
+             # Если она вешается на диспетчер как outer, то event это Update. Если как inner, то Message.
+             # Судя по event.message в коде, это Update.
+             if event.message:
+                user_id = event.message.from_user.id
+             elif event.callback_query:
+                user_id = event.callback_query.from_user.id
+        elif isinstance(event, types.Message):
+            user_id = event.from_user.id
+        elif isinstance(event, types.CallbackQuery):
+             user_id = event.from_user.id
+
         if not user_id:
             return await handler(event, data)
 
@@ -78,9 +121,16 @@ class GetUserMiddleware(BaseMiddleware):
 
 class ErrorMiddleware(BaseMiddleware):
     """
-    Global error handler middleware.
+    Глобальный обработчик ошибок (Middleware).
+
+    Ловит необработанные исключения в хендлерах и логирует их.
     """
-    async def __call__(self, handler, event: Update, data):
+    async def __call__(
+        self,
+        handler: Callable[[TelegramObject, Dict[str, Any]], Awaitable[Any]],
+        event: TelegramObject,
+        data: Dict[str, Any]
+    ) -> Any:
         try:
             return await handler(event, data)
         except Exception as e:
@@ -94,22 +144,26 @@ class ErrorMiddleware(BaseMiddleware):
 class VersionCheckMiddleware(BaseMiddleware):
     """
     Middleware для автоматической проверки версии бота.
-    
+
     При обновлении версии бота автоматически очищает устаревшие FSM состояния,
     чтобы пользователи работали с актуальной версией без необходимости
     ручного сброса через /start.
     """
-    
-    async def __call__(self, handler, event: Update, data):
-        from config import Config
-        
+
+    async def __call__(
+        self,
+        handler: Callable[[TelegramObject, Dict[str, Any]], Awaitable[Any]],
+        event: TelegramObject,
+        data: Dict[str, Any]
+    ) -> Any:
+
         state = data.get("state")
-        
+
         if state:
             try:
                 state_data = await state.get_data()
                 bot_version = state_data.get("bot_version")
-                
+
                 # Если версия отличается или не установлена
                 if bot_version != Config.VERSION:
                     # Логируем только если была старая версия (не первый запуск)
@@ -120,10 +174,10 @@ class VersionCheckMiddleware(BaseMiddleware):
                         )
                         # Сбрасываем состояние только если была старая версия
                         await state.clear()
-                    
+
                     # Устанавливаем текущую версию
                     await state.update_data(bot_version=Config.VERSION)
             except Exception as e:
                 logger.error(f"Ошибка в VersionCheckMiddleware: {e}", exc_info=True)
-        
+
         return await handler(event, data)
