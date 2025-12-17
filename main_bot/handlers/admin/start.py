@@ -23,11 +23,12 @@ from utils.error_handler import safe_handler
 logger = logging.getLogger(__name__)
 
 
-@safe_handler("Админ: меню — команда /admin")
+@safe_handler("Админ: меню — команда /admin или /админ")
 async def admin_menu(message: types.Message) -> None:
     """
     Показать главное меню администратора.
     Доступно только пользователям из списка Config.ADMINS.
+    Команды: /admin, /админ
     """
     if message.from_user.id not in Config.ADMINS:
         return
@@ -100,5 +101,6 @@ def get_router() -> Router:
     """
     router = Router()
     router.message.register(admin_menu, Command("admin"))
+    router.message.register(admin_menu, Command("админ"))  # Русская команда
     router.callback_query.register(choice, F.data.split("|")[0] == "Admin")
     return router
