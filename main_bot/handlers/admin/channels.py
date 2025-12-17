@@ -7,9 +7,9 @@
 - Просмотр детальной информации о канале
 - Просмотр администраторов канала
 """
-
 import logging
-from aiogram import types, Router, F
+
+from aiogram import Router, F, types
 from aiogram.fsm.context import FSMContext
 
 from main_bot.database.db import db
@@ -25,8 +25,14 @@ CHANNELS_PER_PAGE = 10
 
 
 @safe_handler("Admin Show Channels List")
-async def show_channels_list(call: types.CallbackQuery, offset: int = 0):
-    """Показать список каналов с пагинацией"""
+async def show_channels_list(call: types.CallbackQuery, offset: int = 0) -> None:
+    """
+    Показать список каналов с пагинацией.
+
+    Аргументы:
+        call (types.CallbackQuery): Callback запрос.
+        offset (int): Смещение для пагинации.
+    """
     # Получить все каналы
     all_channels = await db.channel.get_all_channels()
     total = len(all_channels)
@@ -56,8 +62,15 @@ async def show_channels_list(call: types.CallbackQuery, offset: int = 0):
 
 
 @safe_handler("Admin Search Channel Start")
-async def search_channel_start(call: types.CallbackQuery, state: FSMContext):
-    """Начать поиск канала"""
+async def search_channel_start(call: types.CallbackQuery, state: FSMContext) -> None:
+    """
+    Начать процесс поиска канала.
+    Переводит бота в состояние ожидания ввода.
+
+    Аргументы:
+        call (types.CallbackQuery): Callback запрос.
+        state (FSMContext): Контекст состояния.
+    """
     await call.message.edit_text(
         "🔍 <b>Поиск канала</b>\n\n"
         "Отправьте название или username канала для поиска:",
@@ -69,8 +82,14 @@ async def search_channel_start(call: types.CallbackQuery, state: FSMContext):
 
 
 @safe_handler("Admin Search Channel Process")
-async def search_channel_process(message: types.Message, state: FSMContext):
-    """Обработка поиска канала"""
+async def search_channel_process(message: types.Message, state: FSMContext) -> None:
+    """
+    Обработка текстового запроса для поиска канала.
+
+    Аргументы:
+        message (types.Message): Сообщение с поисковым запросом.
+        state (FSMContext): Контекст состояния.
+    """
     query = message.text.strip().lower()
 
     # Получить все каналы
@@ -81,7 +100,7 @@ async def search_channel_process(message: types.Message, state: FSMContext):
 
     if not found_channels:
         await message.answer(
-            "❌ Каналы не найдены\n\n" f"По запросу '{query}' ничего не найдено",
+            f"❌ Каналы не найдены\n\nПо запросу '{query}' ничего не найдено",
             reply_markup=keyboards.back(data="AdminChannels|list|0"),
             parse_mode="HTML",
         )
@@ -102,8 +121,14 @@ async def search_channel_process(message: types.Message, state: FSMContext):
 
 
 @safe_handler("Admin View Channel Details")
-async def view_channel_details(call: types.CallbackQuery):
-    """Показать детали канала"""
+async def view_channel_details(call: types.CallbackQuery) -> None:
+    """
+    Показать детальную информацию о выбранном канале.
+    Включает информацию из БД и список админов из Telegram API.
+
+    Аргументы:
+        call (types.CallbackQuery): Callback запрос с ID канала.
+    """
     channel_id = int(call.data.split("|")[2])
 
     # Получить канал
@@ -125,14 +150,14 @@ async def view_channel_details(call: types.CallbackQuery):
             f"Failed to get chat info for {channel.title} ({channel.id}): {e}"
         )
 
+    admins_text = ""
     try:
         admins = await call.bot.get_chat_administrators(channel.chat_id)
-        admins_text = "\n".join(
-            [
-                f"• {admin.user.full_name} (@{admin.user.username or 'N/A'}) - {admin.status}"
-                for admin in admins[:10]  # Показать первых 10
-            ]
-        )
+        admins_list = [
+            f"• {admin.user.full_name} (@{admin.user.username or 'N/A'}) - {admin.status}"
+            for admin in admins[:10]  # Показать первых 10
+        ]
+        admins_text = "\n".join(admins_list)
 
         if len(admins) > 10:
             admins_text += f"\n\n... и еще {len(admins) - 10} администраторов"
@@ -159,8 +184,15 @@ async def view_channel_details(call: types.CallbackQuery):
 
 
 @safe_handler("Admin Channels Callback")
-async def channels_callback_handler(call: types.CallbackQuery, state: FSMContext):
-    """Общий обработчик для всех callback'ов каналов"""
+async def channels_callback_handler(call: types.CallbackQuery, state: FSMContext) -> None:
+    """
+    Общий обработчик для всех callback'ов каналов.
+    Маршрутизирует действия (list, search, view) на соответствующие функции.
+
+    Аргументы:
+        call (types.CallbackQuery): Callback запрос.
+        state (FSMContext): Контекст состояния.
+    """
     data = call.data.split("|")
     action = data[1] if len(data) > 1 else None
 
@@ -173,8 +205,13 @@ async def channels_callback_handler(call: types.CallbackQuery, state: FSMContext
         await view_channel_details(call)
 
 
-def get_router():
-    """Регистрация handlers"""
+def get_router() -> Router:
+    """
+    Регистрация handlers и возврат роутера.
+
+    Возвращает:
+        Router: Роутер с зарегистрированными хендлерами.
+    """
     router.callback_query.register(
         channels_callback_handler, F.data.split("|")[0] == "AdminChannels"
     )

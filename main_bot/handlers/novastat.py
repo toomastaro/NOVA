@@ -10,6 +10,7 @@
 import asyncio
 import logging
 from datetime import datetime
+from typing import List, Optional
 
 from aiogram import Router, F, types
 from aiogram.fsm.context import FSMContext
@@ -40,7 +41,14 @@ class NovaStatStates(StatesGroup):
 
 # --- Entry Point ---
 @router.message(F.text == text("reply_menu:novastat"))
-async def novastat_main(message: types.Message, state: FSMContext):
+async def novastat_main(message: types.Message, state: FSMContext) -> None:
+    """
+    Входная точка в меню NOVAстат.
+
+    Аргументы:
+        message (types.Message): Сообщение пользователя.
+        state (FSMContext): Контекст состояния FSM.
+    """
     await state.clear()
     await message.answer(
         "<b>Быстрая аналитика канала!</b>\n"
@@ -53,7 +61,10 @@ async def novastat_main(message: types.Message, state: FSMContext):
 
 
 @router.callback_query(F.data == "NovaStat|main")
-async def novastat_main_cb(call: types.CallbackQuery, state: FSMContext):
+async def novastat_main_cb(call: types.CallbackQuery, state: FSMContext) -> None:
+    """
+    Возврат в главное меню NOVAстат через callback.
+    """
     await state.clear()
     await call.message.edit_text(
         "<b>Быстрая аналитика канала!</b>\n"
@@ -66,7 +77,10 @@ async def novastat_main_cb(call: types.CallbackQuery, state: FSMContext):
 
 
 @router.callback_query(F.data == "NovaStat|exit")
-async def novastat_exit(call: types.CallbackQuery, state: FSMContext):
+async def novastat_exit(call: types.CallbackQuery, state: FSMContext) -> None:
+    """
+    Выход из режима NOVAстат в главное меню бота.
+    """
     await state.clear()
     await call.message.delete()
     await call.message.answer(text("start_text"), reply_markup=keyboards.menu())
@@ -74,7 +88,10 @@ async def novastat_exit(call: types.CallbackQuery, state: FSMContext):
 
 # --- Settings ---
 @router.callback_query(F.data == "NovaStat|settings")
-async def novastat_settings(call: types.CallbackQuery):
+async def novastat_settings(call: types.CallbackQuery) -> None:
+    """
+    Отображение настроек NOVAстат.
+    """
     settings = await db.novastat.get_novastat_settings(call.from_user.id)
     await call.message.edit_text(
         f"<b>Настройки NOVAстат</b>\n\n"
@@ -86,7 +103,10 @@ async def novastat_settings(call: types.CallbackQuery):
 
 
 @router.callback_query(F.data.startswith("NovaStat|set_depth|"))
-async def novastat_set_depth(call: types.CallbackQuery):
+async def novastat_set_depth(call: types.CallbackQuery) -> None:
+    """
+    Установка глубины анализа (дней).
+    """
     depth = int(call.data.split("|")[2])
     await db.novastat.update_novastat_settings(call.from_user.id, depth_days=depth)
     await call.answer(f"Глубина анализа обновлена: {depth} дней")
@@ -104,7 +124,10 @@ async def novastat_set_depth(call: types.CallbackQuery):
 
 # --- Collections ---
 @router.callback_query(F.data == "NovaStat|collections")
-async def novastat_collections(call: types.CallbackQuery):
+async def novastat_collections(call: types.CallbackQuery) -> None:
+    """
+    Отображение списка коллекций каналов пользователя.
+    """
     collections = await db.novastat.get_collections(call.from_user.id)
     if not collections:
         await call.message.edit_text(
@@ -127,14 +150,20 @@ async def novastat_collections(call: types.CallbackQuery):
 
 
 @router.callback_query(F.data == "NovaStat|col_create")
-async def novastat_create_col_start(call: types.CallbackQuery, state: FSMContext):
+async def novastat_create_col_start(call: types.CallbackQuery, state: FSMContext) -> None:
+    """
+    Начало создания новой коллекции.
+    """
     await call.message.answer("Введите название для новой коллекции:")
     await state.set_state(NovaStatStates.waiting_for_collection_name)
     await call.answer()
 
 
 @router.message(NovaStatStates.waiting_for_collection_name)
-async def novastat_create_col_finish(message: types.Message, state: FSMContext):
+async def novastat_create_col_finish(message: types.Message, state: FSMContext) -> None:
+    """
+    Завершение создания коллекции (сохранение названия).
+    """
     name = message.text
     await db.novastat.create_collection(message.from_user.id, name)
     await message.answer(f"Коллекция '{name}' создана!")
@@ -148,7 +177,10 @@ async def novastat_create_col_finish(message: types.Message, state: FSMContext):
 
 
 @router.callback_query(F.data.startswith("NovaStat|col_open|"))
-async def novastat_open_col(call: types.CallbackQuery):
+async def novastat_open_col(call: types.CallbackQuery) -> None:
+    """
+    Открытие коллекции для просмотра списка каналов и действий.
+    """
     col_id = int(call.data.split("|")[2])
     collection = await db.novastat.get_collection(col_id)
     channels = await db.novastat.get_collection_channels(col_id)
@@ -168,7 +200,10 @@ async def novastat_open_col(call: types.CallbackQuery):
 
 
 @router.callback_query(F.data.startswith("NovaStat|col_delete|"))
-async def novastat_delete_col(call: types.CallbackQuery):
+async def novastat_delete_col(call: types.CallbackQuery) -> None:
+    """
+    Удаление коллекции.
+    """
     col_id = int(call.data.split("|")[2])
     await db.novastat.delete_collection(col_id)
     await call.answer("Коллекция удалена")
@@ -176,7 +211,10 @@ async def novastat_delete_col(call: types.CallbackQuery):
 
 
 @router.callback_query(F.data.startswith("NovaStat|col_rename|"))
-async def novastat_rename_col_start(call: types.CallbackQuery, state: FSMContext):
+async def novastat_rename_col_start(call: types.CallbackQuery, state: FSMContext) -> None:
+    """
+    Начало переименования коллекции.
+    """
     col_id = int(call.data.split("|")[2])
     await state.update_data(col_id=col_id)
     await call.message.answer("Введите новое название коллекции:")
@@ -185,7 +223,10 @@ async def novastat_rename_col_start(call: types.CallbackQuery, state: FSMContext
 
 
 @router.message(NovaStatStates.waiting_for_rename_collection)
-async def novastat_rename_col_finish(message: types.Message, state: FSMContext):
+async def novastat_rename_col_finish(message: types.Message, state: FSMContext) -> None:
+    """
+    Завершение переименования коллекции.
+    """
     data = await state.get_data()
     col_id = data["col_id"]
     new_name = message.text
@@ -214,7 +255,10 @@ async def novastat_rename_col_finish(message: types.Message, state: FSMContext):
 
 
 @router.callback_query(F.data.startswith("NovaStat|col_add_channel|"))
-async def novastat_add_channel_start(call: types.CallbackQuery, state: FSMContext):
+async def novastat_add_channel_start(call: types.CallbackQuery, state: FSMContext) -> None:
+    """
+    Начало добавления канала в коллекцию.
+    """
     col_id = int(call.data.split("|")[2])
     await state.update_data(col_id=col_id)
     await call.message.answer(
@@ -225,7 +269,10 @@ async def novastat_add_channel_start(call: types.CallbackQuery, state: FSMContex
 
 
 @router.message(NovaStatStates.waiting_for_channel_to_add)
-async def novastat_add_channel_finish(message: types.Message, state: FSMContext):
+async def novastat_add_channel_finish(message: types.Message, state: FSMContext) -> None:
+    """
+    Завершение добавления канала(ов) в коллекцию.
+    """
     data = await state.get_data()
     col_id = data["col_id"]
 
@@ -264,7 +311,10 @@ async def novastat_add_channel_finish(message: types.Message, state: FSMContext)
 
 
 @router.callback_query(F.data.startswith("NovaStat|col_del_channel_list|"))
-async def novastat_del_channel_list(call: types.CallbackQuery):
+async def novastat_del_channel_list(call: types.CallbackQuery) -> None:
+    """
+    Отображение списка каналов для удаления из коллекции.
+    """
     col_id = int(call.data.split("|")[2])
     channels = await db.novastat.get_collection_channels(col_id)
     await call.message.edit_text(
@@ -274,7 +324,10 @@ async def novastat_del_channel_list(call: types.CallbackQuery):
 
 
 @router.callback_query(F.data.startswith("NovaStat|col_del_channel|"))
-async def novastat_del_channel(call: types.CallbackQuery):
+async def novastat_del_channel(call: types.CallbackQuery) -> None:
+    """
+    Удаление выбранного канала из коллекции.
+    """
     parts = call.data.split("|")
     col_id = int(parts[2])
     channel_db_id = int(parts[3])
@@ -290,11 +343,16 @@ async def novastat_del_channel(call: types.CallbackQuery):
 
 
 # --- Analysis Logic ---
-async def process_analysis(message: types.Message, channels: list, state: FSMContext):
+async def process_analysis(message: types.Message, channels: List[str], state: FSMContext) -> None:
     """
     Запускает анализ каналов (синхронно или в фоне в зависимости от количества).
-    
+
     Если каналов > MAX_CHANNELS_SYNC, запускается фоновая задача.
+
+    Аргументы:
+        message (types.Message): Сообщение пользователя для ответа.
+        channels (List[str]): Список идентификаторов каналов (username/ссылки).
+        state (FSMContext): Контекст состояния.
     """
     settings = await db.novastat.get_novastat_settings(message.from_user.id)
     depth = settings.depth_days
@@ -314,11 +372,11 @@ async def process_analysis(message: types.Message, channels: list, state: FSMCon
 
 
 async def run_analysis_background(
-    message: types.Message, channels: list, depth: int, state: FSMContext
-):
+    message: types.Message, channels: List[str], depth: int, state: FSMContext
+) -> None:
     """
     Фоновая обработка анализа большого количества каналов.
-    
+
     Используется для >MAX_CHANNELS_SYNC каналов, чтобы не блокировать бота.
     """
     try:
@@ -328,25 +386,38 @@ async def run_analysis_background(
             "Фоновый анализ завершился ошибкой для пользователя %s",
             message.from_user.id
         )
-        await message.answer(
-            "❌ Произошла внутренняя ошибка при анализе. Попробуйте позже."
-        )
+        # Лучше не спамить пользователю об ошибках фона, если он уже ушел,
+        # но в рамках MVP можно уведомить
+        if message.chat.id:
+            try:
+                await message.answer(
+                    "❌ Произошла внутренняя ошибка при анализе. Попробуйте позже."
+                )
+            except Exception:
+                pass
 
 
 async def run_analysis_logic(
     message: types.Message,
-    channels: list,
+    channels: List[str],
     depth: int,
     state: FSMContext,
-    status_msg: types.Message = None,
-):
+    status_msg: Optional[types.Message] = None,
+) -> None:
     """
     Основная логика анализа каналов.
-    
+
     Этапы:
     1. Проверка доступа к каналам (параллельно)
     2. Сбор статистики (параллельно с ограничением)
     3. Формирование и отправка отчета
+
+    Аргументы:
+        message (types.Message): Исходное сообщение.
+        channels (List[str]): Список каналов.
+        depth (int): Глубина анализа в днях.
+        state (FSMContext): Контекст состояния.
+        status_msg (Optional[types.Message]): Сообщение для обновления статуса.
     """
     # Use a single client session for the entire analysis process
     async with novastat_service.get_client() as client:
@@ -497,7 +568,10 @@ async def run_analysis_logic(
 
 
 @router.message(NovaStatStates.waiting_for_channels)
-async def novastat_analyze_text(message: types.Message, state: FSMContext):
+async def novastat_analyze_text(message: types.Message, state: FSMContext) -> None:
+    """
+    Обработка текстового ввода со списком каналов для анализа.
+    """
     text_lines = message.text.strip().split("\n")
     channels = [line.strip() for line in text_lines if line.strip()]
 
@@ -509,7 +583,10 @@ async def novastat_analyze_text(message: types.Message, state: FSMContext):
 
 
 @router.callback_query(F.data.startswith("NovaStat|col_analyze|"))
-async def novastat_analyze_collection(call: types.CallbackQuery, state: FSMContext):
+async def novastat_analyze_collection(call: types.CallbackQuery, state: FSMContext) -> None:
+    """
+    Запуск анализа для сохраненной коллекции.
+    """
     col_id = int(call.data.split("|")[2])
     channels_db = await db.novastat.get_collection_channels(col_id)
 
@@ -524,7 +601,10 @@ async def novastat_analyze_collection(call: types.CallbackQuery, state: FSMConte
 
 # --- CPM Calculation ---
 @router.callback_query(F.data == "NovaStat|calc_cpm_start")
-async def novastat_cpm_start(call: types.CallbackQuery, state: FSMContext):
+async def novastat_cpm_start(call: types.CallbackQuery, state: FSMContext) -> None:
+    """
+    Начало калькулятора CPM.
+    """
     await call.message.edit_text(
         "Выберите CPM (стоимость за 1000 просмотров) кнопкой ниже\n"
         "или отправьте своё значение числом.",
@@ -536,8 +616,16 @@ async def novastat_cpm_start(call: types.CallbackQuery, state: FSMContext):
 
 async def calculate_and_show_price(
     message: types.Message, cpm: int, state: FSMContext, is_edit: bool = False
-):
-    """Расчет и отображение стоимости рекламы на основе CPM и собранной статистики."""
+) -> None:
+    """
+    Расчет и отображение стоимости рекламы на основе CPM и собранной статистики.
+
+    Аргументы:
+        message (types.Message): Сообщение для ответа.
+        cpm (int): Cost Per Mille.
+        state (FSMContext): Контекст состояния.
+        is_edit (bool): Если True, редактирует сообщение.
+    """
     data = await state.get_data()
     views = data.get("last_analysis_views")
     single_info = data.get("single_channel_info")
@@ -597,14 +685,20 @@ async def calculate_and_show_price(
 
 
 @router.callback_query(F.data.startswith("NovaStat|calc_cpm|"))
-async def novastat_cpm_cb(call: types.CallbackQuery, state: FSMContext):
+async def novastat_cpm_cb(call: types.CallbackQuery, state: FSMContext) -> None:
+    """
+    Обработка выбора CPM через кнопки.
+    """
     cpm = int(call.data.split("|")[2])
     await calculate_and_show_price(call.message, cpm, state, is_edit=True)
     await call.answer()
 
 
 @router.message(NovaStatStates.waiting_for_cpm)
-async def novastat_cpm_text(message: types.Message, state: FSMContext):
+async def novastat_cpm_text(message: types.Message, state: FSMContext) -> None:
+    """
+    Обработка ввода CPM текстом.
+    """
     try:
         cpm = int(message.text.strip())
         await calculate_and_show_price(message, cpm, state)

@@ -1,10 +1,18 @@
+"""
+Инициализация роутеров для админ-панели.
+"""
 from aiogram import Router
 
-from . import start, promo, session, channels
+from . import channels, promo, session, start
 
 
-def get_router():
-    """Сборка и подключение всех роутеров админ-панели."""
+def get_router() -> Router:
+    """
+    Сборка и подключение всех роутеров админ-панели.
+
+    Возвращает:
+        Router: Главный роутер админ-панели с подключенными под-роутерами.
+    """
     routers = [
         start.get_router(),
         promo.get_router(),

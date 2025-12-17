@@ -5,9 +5,9 @@
 - Создание новых промокодов
 - Валидацию параметров промокода
 """
-
 import logging
-from aiogram import types, Router, F
+
+from aiogram import Router, F, types
 from aiogram.fsm.context import FSMContext
 
 from main_bot.database.db import db
@@ -20,17 +20,27 @@ logger = logging.getLogger(__name__)
 
 
 @safe_handler("Admin Promo Back")
-async def back(call: types.CallbackQuery, state: FSMContext):
-    """Возврат в меню админа."""
+async def back(call: types.CallbackQuery, state: FSMContext) -> None:
+    """
+    Возврат в меню админа.
+
+    Аргументы:
+        call (types.CallbackQuery): Callback запрос.
+        state (FSMContext): Контекст состояния.
+    """
     await state.clear()
     await call.message.edit_text("Админ меню", reply_markup=keyboards.admin())
 
 
 @safe_handler("Admin Get Promo")
-async def get_promo(message: types.Message, state: FSMContext):
+async def get_promo(message: types.Message, state: FSMContext) -> None:
     """
     Создание нового промокода.
     Формат ввода: Название\nКоличество\nКол-во использований\nСкидка
+
+    Аргументы:
+        message (types.Message): Сообщение с данными промокода.
+        state (FSMContext): Контекст состояния.
     """
     temp = message.text.split("\n")
     if len(temp) < 4:
@@ -53,15 +63,20 @@ async def get_promo(message: types.Message, state: FSMContext):
     )
 
     logger.info(
-        f"Admin {message.from_user.id} created promo '{name}' (amount={amount}, uses={count_use}, discount={discount})"
+        f"Администратор {message.from_user.id} создал промокод '{name}' (сумма={amount}, использований={count_use}, скидка={discount})"
     )
 
     await state.clear()
     await message.answer(text("promo:success:add"))
 
 
-def get_router():
-    """Регистрация роутера для управления промокодами."""
+def get_router() -> Router:
+    """
+    Регистрация роутера для управления промокодами.
+
+    Возвращает:
+        Router: Роутер с зарегистрированными хендлерами.
+    """
     router = Router()
     router.message.register(get_promo, Promo.input, F.text)
     router.callback_query.register(back, F.data.split("|")[0] == "AdminPromoBack")

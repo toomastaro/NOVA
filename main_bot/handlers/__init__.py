@@ -1,4 +1,5 @@
-"""Инициализация handlers для main_bot.
+"""
+Инициализация handlers для main_bot.
 
 Модуль отвечает за:
 - Настройку диспетчера Aiogram с Redis-хранилищем
@@ -7,25 +8,26 @@
 - Инициализацию планировщика задач с персистентностью в PostgreSQL
 """
 import logging
+
 from aiogram import Dispatcher
 from aiogram.fsm.storage.redis import RedisStorage
+from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from dotenv import load_dotenv
 
-
+from config import Config
 from main_bot.database.db import db
 from main_bot.utils.middlewares import (
-    GetUserMiddleware,
     ErrorMiddleware,
+    GetUserMiddleware,
     VersionCheckMiddleware,
 )
-from main_bot.utils.state_reset_middleware import StateResetMiddleware
-from main_bot.utils.schedulers import init_scheduler, register_channel_jobs
-from .user import get_router as user_router
-from .admin import get_router as admin_router
-from config import Config
 from main_bot.utils.redis_client import redis_client
+from main_bot.utils.schedulers import init_scheduler, register_channel_jobs
+from main_bot.utils.state_reset_middleware import StateResetMiddleware
+from .admin import get_router as admin_router
+from .user import get_router as user_router
 
 load_dotenv()
 
@@ -37,7 +39,7 @@ redis = redis_client
 dp = Dispatcher(storage=RedisStorage(redis=redis))
 
 
-def set_main_routers():
+def set_main_routers() -> None:
     """
     Регистрация глобальных middleware и роутеров (user, admin).
     Порядок регистрации middleware важен для корректной работы.
@@ -54,7 +56,7 @@ def set_main_routers():
     )
 
 
-async def set_scheduler():
+async def set_scheduler() -> None:
     """
     Инициализация планировщика задач.
 
@@ -64,8 +66,6 @@ async def set_scheduler():
     Использует SQLAlchemyJobStore для персистентности задач в PostgreSQL,
     что позволяет восстанавливать все задачи после рестарта Docker контейнера.
     """
-    from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
-
     # Формирование URL подключения к PostgreSQL
     postgres_url = f"postgresql://{Config.PG_USER}:{Config.PG_PASS}@{Config.PG_HOST}/{Config.PG_DATABASE}"
 
