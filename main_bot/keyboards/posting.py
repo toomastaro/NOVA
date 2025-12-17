@@ -505,23 +505,18 @@ class InlinePosting(InlineKeyboardBuilder):
                 callback_data="FinishPostParams|public",
             )
 
-            kb.row(
-                InlineKeyboardButton(
-                    text=text("back:button"), callback_data="ManageRemainPost|cancel"
-                ),
-                InlineKeyboardButton(
-                    text=text("manage:post:delete:button"),
-                    callback_data="ManageRemainPost|delete",
-                ),
+            # 6. Удалить
+            kb.button(
+                text=text("manage:post:delete:button"),
+                callback_data="ManageRemainPost|delete",
             )
-            # Layout:
-            # [Change]
-            # [Timer] [CPM]
-            # [Time] [Public Now]
-            # [Delete] [Back]
-            kb.adjust(
-                1, 2, 2
-            )  # Adjust for the first 5 buttons, the last row is explicit
+
+            # 7. Назад (last)
+            kb.button(
+                text=text("back:button"), callback_data="ManageRemainPost|cancel"
+            )
+
+            kb.adjust(1)
             return kb.as_markup()
 
         else:
