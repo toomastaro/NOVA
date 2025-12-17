@@ -1,4 +1,11 @@
+"""
+Модуль главного меню hello_bot.
+
+Содержит функции для отображения разделов меню (статистика, ответы, приветствие, прощание, заявки).
+"""
 from datetime import datetime
+
+from loguru import logger
 
 from aiogram import types, F, Router
 from aiogram.fsm.context import FSMContext
@@ -12,8 +19,17 @@ from hello_bot.utils.schemas import HelloAnswer, ByeAnswer, Protect
 
 
 async def choice(call: types.CallbackQuery, state: FSMContext, db: Database, settings):
+    """
+    Обрабатывает навигацию в главном меню.
+
+    :param call: CallbackQuery
+    :param state: FSMContext
+    :param db: Database instance
+    :param settings: Channel settings
+    """
     await state.clear()
     temp = call.data.split('|')
+    logger.debug(f"Menu choice: {temp}")
 
     menu = {
         'stats': {
@@ -45,6 +61,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext, db: Database, set
 
 
 async def show_stats(message: types.Message, db: Database, setting):
+    """Показывает статистику бота."""
     count_users = await db.get_count_users()
 
     await message.answer(
@@ -62,6 +79,7 @@ async def show_stats(message: types.Message, db: Database, setting):
 
 
 async def show_answers(message: types.Message, setting):
+    """Показывает меню управления автоответами."""
     await message.answer(
         text("answer_text"),
         reply_markup=keyboards.answers(
@@ -71,6 +89,7 @@ async def show_answers(message: types.Message, setting):
 
 
 async def show_hello(message: types.Message, setting):
+    """Показывает меню управления приветствием."""
     hello = HelloAnswer(**setting.hello)
 
     await message.answer(
@@ -85,6 +104,7 @@ async def show_hello(message: types.Message, setting):
 
 
 async def show_bye(message: types.Message, setting):
+    """Показывает меню управления прощанием."""
     hello = ByeAnswer(**setting.bye)
 
     await message.answer(
@@ -100,6 +120,7 @@ async def show_bye(message: types.Message, setting):
 
 
 async def show_application(message: types.Message, setting):
+    """Показывает меню управления заявками (автоприем, защита)."""
     protect = Protect(**setting.protect)
     protect_tag = get_protect_tag(protect)
 
@@ -117,6 +138,7 @@ async def show_application(message: types.Message, setting):
 
 
 def hand_add():
+    """Регистрация хэндлеров меню."""
     router = Router()
     router.callback_query.register(choice, F.data.split("|")[0] == "Menu")
     return router

@@ -1,5 +1,11 @@
+"""
+Модуль управления прощальным сообщением (bye).
+
+Позволяет настраивать сообщение, которое отправляется при выходе пользователя из канала.
+"""
 from aiogram import types, F, Router
 from aiogram.fsm.context import FSMContext
+from loguru import logger
 
 
 from hello_bot.database.db import Database
@@ -12,8 +18,17 @@ from hello_bot.utils.functions import answer_message
 
 
 async def choice(call: types.CallbackQuery, state: FSMContext, db: Database, settings):
+    """
+    Обрабатывает выбор действия в меню прощального сообщения.
+
+    :param call: CallbackQuery
+    :param state: FSMContext
+    :param db: Database instance
+    :param settings: Channel settings
+    """
     temp = call.data.split('|')
     hello = ByeAnswer(**settings.bye)
+    logger.debug(f"Bye choice: {temp}, current active={hello.active}")
 
     if temp[1] == "cancel":
         return await call.message.edit_text(
@@ -24,6 +39,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext, db: Database, set
     if temp[1] in ["active", "message"]:
         if temp[1] == "active":
             hello.active = not hello.active
+            logger.info(f"Bye active changed to {hello.active}")
         if temp[1] == "message":
             if not hello.message:
                 await call.message.edit_text(
@@ -63,12 +79,16 @@ async def choice(call: types.CallbackQuery, state: FSMContext, db: Database, set
 
 
 async def back(call: types.CallbackQuery, state: FSMContext, settings):
+    """Возврат назад."""
     await state.clear()
     await call.message.delete()
     return await show_bye(call.message, settings)
 
 
 async def get_message(message: types.Message, state: FSMContext, db: Database, settings):
+    """
+    Обрабатывает ввод прощального сообщения ботом.
+    """
     message_text_length = len(message.caption or message.text or "")
     if message_text_length > 1024:
         return await message.answer(
@@ -93,6 +113,7 @@ async def get_message(message: types.Message, state: FSMContext, db: Database, s
         return_obj=True,
         bye=hello.model_dump()
     )
+    logger.info("Bye message updated")
 
     await state.clear()
     await message.answer(text("success_add_bye"))
@@ -100,6 +121,7 @@ async def get_message(message: types.Message, state: FSMContext, db: Database, s
 
 
 def hand_add():
+    """Регистрация хэндлеров для прощального сообщения."""
     router = Router()
     router.callback_query.register(choice, F.data.split("|")[0] == "ManageBye")
     router.callback_query.register(back, F.data.split("|")[0] == "AddByeBack")

@@ -1,5 +1,12 @@
+"""
+Модуль управления автоответами (answers).
+
+Позволяет создавать, редактировать и удалять настройки автоответов на ключевые слова.
+"""
 import random
 import string
+
+from loguru import logger
 
 from aiogram import types, F, Router
 from aiogram.fsm.context import FSMContext
@@ -15,7 +22,15 @@ from hello_bot.utils.functions import answer_message
 
 
 async def choice(call: types.CallbackQuery, state: FSMContext, settings):
+    """
+    Обрабатывает выбор действия в меню автоответов.
+
+    :param call: CallbackQuery
+    :param state: FSMContext
+    :param settings: Настройки канала
+    """
     temp = call.data.split('|')
+    logger.debug(f"Answers choice: {temp}")
 
     if temp[1] == "cancel":
         return await call.message.edit_text(
@@ -51,6 +66,9 @@ async def choice(call: types.CallbackQuery, state: FSMContext, settings):
 
 
 async def back_answer(call: types.CallbackQuery, state: FSMContext, settings):
+    """
+    Возврат к предыдущему шагу или меню списка ответов.
+    """
     temp = call.data.split('|')
     data = await state.get_data()
 
@@ -74,8 +92,12 @@ async def back_answer(call: types.CallbackQuery, state: FSMContext, settings):
 
 
 async def get_keyword(message: types.Message, state: FSMContext, db: Database, settings):
+    """
+    Обрабатывает ввод ключевого слова для автоответа.
+    """
     data = await state.get_data()
     edit = data.get('edit')
+    logger.info(f"Setting keyword: {message.text}, edit_mode={edit}")
 
     if edit:
         for i_answer in settings.answers:
@@ -110,6 +132,9 @@ async def get_keyword(message: types.Message, state: FSMContext, db: Database, s
 
 
 async def get_message(message: types.Message, state: FSMContext, db: Database, settings):
+    """
+    Обрабатывает ввод сообщения (ответа) ботом.
+    """
     message_text_length = len(message.caption or message.text or "")
     if message_text_length > 1024:
         return await message.answer(
@@ -149,6 +174,7 @@ async def get_message(message: types.Message, state: FSMContext, db: Database, s
             key=data.get("key")
         )
         settings.answers.append(answer.model_dump())
+        logger.info(f"New answer added: {answer.id} -> {answer.key}")
 
     await db.update_setting(
         answers=settings.answers
@@ -164,6 +190,7 @@ async def get_message(message: types.Message, state: FSMContext, db: Database, s
 
 
 async def manage_answer(call: types.CallbackQuery, state: FSMContext, db: Database, settings):
+    """Управление конкретным автоответом (редактирование/удаление)."""
     temp = call.data.split("|")
     data = await state.get_data()
 
@@ -173,6 +200,7 @@ async def manage_answer(call: types.CallbackQuery, state: FSMContext, db: Databa
                 if answer["id"] != data.get("answer").id:
                     continue
                 settings.answers.remove(answer)
+                logger.info(f"Answer deleted: {answer['id']}")
 
             settings = await db.update_setting(
                 return_obj=True,
@@ -206,6 +234,7 @@ async def manage_answer(call: types.CallbackQuery, state: FSMContext, db: Databa
 
 
 def hand_add():
+    """Регистрация хэндлеров для ответов."""
     router = Router()
     router.callback_query.register(choice, F.data.split("|")[0] == "Answer")
     router.callback_query.register(back_answer, F.data.split("|")[0] == "BackAddAnswer")

@@ -1,3 +1,8 @@
+"""
+Модуль создания клавиатур (keyboards).
+
+Содержит методы для генерации Inline-клавиатур.
+"""
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from hello_bot.utils.schemas import Answer, HelloAnswer, Protect
@@ -5,8 +10,10 @@ from hello_bot.utils.lang.language import text
 
 
 class Inline(InlineKeyboardBuilder):
+    """Базовый класс для создания клавиатур."""
     @classmethod
     def cancel(cls, data: str):
+        """Кнопка отмены."""
         kb = cls()
 
         kb.button(
@@ -18,6 +25,7 @@ class Inline(InlineKeyboardBuilder):
 
     @classmethod
     def back(cls, data: str):
+        """Кнопка назад."""
         kb = cls()
 
         kb.button(
@@ -29,6 +37,7 @@ class Inline(InlineKeyboardBuilder):
 
     @classmethod
     def add_channel(cls, bot_username: str, data: str = "BackAddChannel"):
+        """Кнопки добавления бота в канал."""
         kb = cls()
 
         kb.button(
@@ -45,6 +54,7 @@ class Inline(InlineKeyboardBuilder):
 
     @classmethod
     def menu(cls):
+        """Главное меню."""
         kb = cls()
 
         kb.button(
@@ -73,6 +83,7 @@ class Inline(InlineKeyboardBuilder):
 
     @classmethod
     def answers(cls, settings):
+        """Клавиатура списка ответов."""
         kb = cls()
 
         for answer in settings.answers:
@@ -100,6 +111,7 @@ class Inline(InlineKeyboardBuilder):
 
     @classmethod
     def manage_answer(cls):
+        """Меню управления ответом."""
         kb = cls()
 
         kb.button(
@@ -124,6 +136,7 @@ class Inline(InlineKeyboardBuilder):
 
     @classmethod
     def param_answers_back(cls, data: str = "BackAddAnswer"):
+        """Кнопки назад при редактировании ответа."""
         kb = cls()
 
         kb.button(
@@ -140,6 +153,7 @@ class Inline(InlineKeyboardBuilder):
 
     @classmethod
     def manage_answer_user(cls, obj: HelloAnswer, data: str = "ManageHello"):
+        """Меню управления приветствием/прощанием."""
         kb = cls()
 
         kb.button(
@@ -164,6 +178,7 @@ class Inline(InlineKeyboardBuilder):
 
     @classmethod
     def manage_application(cls, setting):
+        """Меню управления заявками."""
         kb = cls()
         protect = Protect(**setting.protect)
 

@@ -1,5 +1,11 @@
+"""
+Модуль управления заявками (application).
+
+Позволяет настраивать автоприем заявок, защиту от ботов (арабских/китайских) и задержку одобрения.
+"""
 from aiogram import types, F, Router
 from aiogram.fsm.context import FSMContext
+from loguru import logger
 
 
 from hello_bot.database.db import Database
@@ -11,8 +17,17 @@ from hello_bot.utils.schemas import Protect
 
 
 async def choice(call: types.CallbackQuery, state: FSMContext, db: Database, settings):
+    """
+    Обрабатывает выбор действия в меню заявок.
+
+    :param call: CallbackQuery
+    :param state: FSMContext
+    :param db: Database instance
+    :param settings: Channel settings
+    """
     temp = call.data.split('|')
     protect = Protect(**settings.protect)
+    logger.debug(f"Application choice: {temp}")
 
     if temp[1] == "cancel":
         return await call.message.edit_text(
@@ -33,6 +48,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext, db: Database, set
             protect=protect.model_dump(),
             auto_approve=settings.auto_approve
         )
+        logger.info(f"Application settings updated: auto_approve={settings.auto_approve}, protect={protect.model_dump()}")
 
         await call.message.delete()
         return await show_application(call.message, settings)
@@ -48,12 +64,16 @@ async def choice(call: types.CallbackQuery, state: FSMContext, db: Database, set
 
 
 async def back(call: types.CallbackQuery, state: FSMContext, settings):
+    """Возврат назад."""
     await state.clear()
     await call.message.delete()
     return await show_application(call.message, settings)
 
 
 async def get_message(message: types.Message, state: FSMContext, db: Database):
+    """
+    Обрабатывает ввод задержки одобрения заявок.
+    """
     try:
         delay = int(message.text)
     except ValueError:
@@ -65,12 +85,14 @@ async def get_message(message: types.Message, state: FSMContext, db: Database):
         return_obj=True,
         delay_approve=delay
     )
+    logger.info(f"Delay approve updated to {delay}")
 
     await state.clear()
     await show_application(message, settings)
 
 
 def hand_add():
+    """Регистрация хэндлеров для заявок."""
     router = Router()
     router.callback_query.register(choice, F.data.split("|")[0] == "ManageApplication")
     router.callback_query.register(back, F.data.split("|")[0] == "AddDelayBack")
