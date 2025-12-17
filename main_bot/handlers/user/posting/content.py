@@ -684,12 +684,21 @@ async def manage_published_post(call: types.CallbackQuery, state: FSMContext):
         import html
         from main_bot.utils.report_signature import get_report_signatures
 
+        if isinstance(post, dict):
+            post_id = post.get("post_id")
+        else:
+            post_id = post.post_id
+
         # Fetch related posts
         related_posts = await db.published_post.get_published_posts_by_post_id(
-            post.post_id
+            post_id
         )
         if not related_posts:
-            related_posts = [post]
+            if isinstance(post, dict):
+                from types import SimpleNamespace
+                related_posts = [SimpleNamespace(**post)]
+            else:
+                related_posts = [post]
 
         total_views = 0
         channels_info = []
