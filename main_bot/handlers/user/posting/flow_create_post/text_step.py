@@ -181,4 +181,7 @@ async def get_message(message: types.Message, state: FSMContext):
     await state.update_data(show_more=False, post=post_dict, chosen=chosen)
 
     # Показываем превью поста с возможностью редактирования
+    from main_bot.keyboards.common import Reply
+    await message.answer("✅ Контент принят", reply_markup=Reply.menu())
+
     await answer_post(message, state)
