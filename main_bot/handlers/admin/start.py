@@ -6,11 +6,10 @@
 - Главное меню панели администратора
 - Навигацию по разделам (сессии, промокоды)
 """
-
 import logging
 import os
 
-from aiogram import types, Router, F
+from aiogram import Router, F, types
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 
@@ -24,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 
 @safe_handler("Admin Menu Command")
-async def admin_menu(message: types.Message):
+async def admin_menu(message: types.Message) -> None:
     """
     Показать главное меню администратора.
     Доступно только пользователям из списка Config.ADMINS.
@@ -35,13 +34,25 @@ async def admin_menu(message: types.Message):
     await message.answer(text("admin:menu:title"), reply_markup=keyboards.admin())
 
 
-async def choice(call: types.CallbackQuery, state: FSMContext):
-    """Обработка нажатий в админ-меню."""
+@safe_handler("Admin Menu Choice")
+async def choice(call: types.CallbackQuery, state: FSMContext) -> None:
+    """
+    Обработка нажатий в админ-меню.
+
+    Аргументы:
+        call (types.CallbackQuery): Callback запрос.
+        state (FSMContext): Контекст состояния.
+    """
     temp = call.data.split("|")
     action = temp[1]
 
     if action == "session":
-        session_count = len(os.listdir("main_bot/utils/sessions/"))
+        # Проверяем наличие директории сессий
+        session_dir = "main_bot/utils/sessions/"
+        session_count = 0
+        if os.path.exists(session_dir):
+            session_count = len(os.listdir(session_dir))
+
         try:
             await call.message.edit_text(
                 text("admin:session:available").format(session_count),
@@ -71,23 +82,21 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
 
     elif action == "stats":
         # TODO: Implement full stats logic
-        # Currently just a placeholder based on existing code structure
         try:
-            # Need to implement data gathering for stats first
             await call.answer("Stats not implemented yet", show_alert=True)
-        # await call.message.edit_text(
-        #     text("main:stats").format(...)
-        # )
         except Exception as e:
             logger.error(f"Error in stats: {e}")
 
-    # Dead code removed (mail, ads placeholders were empty or unreachable)
-
-    return await call.answer()
+    await call.answer()
 
 
-def get_router():
-    """Регистрация роутера для админ-меню."""
+def get_router() -> Router:
+    """
+    Регистрация роутера для админ-меню.
+
+    Возвращает:
+        Router: Роутер с зарегистрированными хендлерами.
+    """
     router = Router()
     router.message.register(admin_menu, Command("admin"))
     router.callback_query.register(choice, F.data.split("|")[0] == "Admin")

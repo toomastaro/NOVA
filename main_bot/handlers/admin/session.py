@@ -15,6 +15,7 @@ import os
 import time
 from datetime import datetime
 from pathlib import Path
+from typing import Dict, Optional
 
 from aiogram import types, Router, F
 from aiogram.exceptions import TelegramBadRequest
@@ -32,11 +33,11 @@ from main_bot.utils.error_handler import safe_handler
 
 logger = logging.getLogger(__name__)
 
-apps = {}
+apps: Dict[str, SessionManager] = {}
 
 
 @safe_handler("Admin Session Choice")
-async def choice(call: types.CallbackQuery, state: FSMContext):
+async def choice(call: types.CallbackQuery, state: FSMContext) -> None:
     """
     Обработчик действий с сессиями.
 
@@ -49,6 +50,10 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
     - manage: управление конкретной сессией
     - check_health: принудительная проверка статуса
     - reset_ask/reset_confirm: сброс сессии
+
+    Аргументы:
+        call (types.CallbackQuery): Callback запрос.
+        state (FSMContext): Контекст состояния.
     """
     temp = call.data.split("|")
     action = temp[1]
@@ -403,16 +408,24 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
 
 
 @safe_handler("Admin Session Back")
-async def admin_session_back(call: types.CallbackQuery, state: FSMContext):
-    """Возврат назад из процесса добавления сессии."""
+async def admin_session_back(call: types.CallbackQuery, state: FSMContext) -> None:
+    """
+    Возврат назад из процесса добавления сессии.
+    Удаляет временные файлы сессий, если они были созданы.
+
+    Аргументы:
+        call (types.CallbackQuery): Callback запрос.
+        state (FSMContext): Контекст состояния.
+    """
     data = await state.get_data()
 
     try:
         number = data.get("number")
         if number:
-            app: SessionManager = apps.get(number)
+            app: Optional[SessionManager] = apps.get(number)
             if app:
-                os.remove(app.session_path)
+                if isinstance(app.session_path, (str, Path)) and os.path.exists(app.session_path):
+                    os.remove(app.session_path)
                 await app.close()
     except Exception as e:
         logger.error(f"Error removing session during back: {e}")
@@ -432,10 +445,14 @@ async def admin_session_back(call: types.CallbackQuery, state: FSMContext):
 
 
 @safe_handler("Admin Session Get Number")
-async def get_number(message: types.Message, state: FSMContext):
+async def get_number(message: types.Message, state: FSMContext) -> None:
     """
     Получение номера телефона для новой сессии.
     Инициализирует SessionManager и запрашивает код подтверждения.
+
+    Аргументы:
+        message (types.Message): Сообщение с номером телефона.
+        state (FSMContext): Контекст состояния.
     """
     number = message.text
     session_path = Path("main_bot/utils/sessions/{}.session".format(number))
@@ -453,13 +470,15 @@ async def get_number(message: types.Message, state: FSMContext):
         logger.error(f"Error sending code request: {e}")
         await manager.close()
         try:
-            os.remove(session_path)
+            if session_path.exists():
+                os.remove(session_path)
         except Exception:
             pass
-        return await message.answer(
+        await message.answer(
             text("admin:session:init_error"),
             reply_markup=keyboards.cancel(data="AdminSessionNumberBack"),
         )
+        return
 
     await state.update_data(
         hash_code=code.phone_code_hash,
@@ -474,19 +493,24 @@ async def get_number(message: types.Message, state: FSMContext):
 
 
 @safe_handler("Admin Session Get Code")
-async def get_code(message: types.Message, state: FSMContext):
+async def get_code(message: types.Message, state: FSMContext) -> None:
     """
     Получение кода подтверждения и завершение авторизации.
     Создает запись MtClient в БД.
+
+    Аргументы:
+        message (types.Message): Сообщение с кодом.
+        state (FSMContext): Контекст состояния.
     """
     data = await state.get_data()
     number = data.get("number")
     hash_code = data.get("hash_code")
     pool_type = data.get("pool_type", "internal")  # Default to internal if missing
 
-    app: SessionManager = apps.get(number)
+    app: Optional[SessionManager] = apps.get(number)
     if not app:
-        return await message.answer(text("admin:session:session_lost"))
+        await message.answer(text("admin:session:session_lost"))
+        return
 
     try:
         await app.client.sign_in(number, message.text, phone_code_hash=hash_code)
@@ -496,15 +520,17 @@ async def get_code(message: types.Message, state: FSMContext):
         logger.error(f"Error signing in: {e}")
         await app.close()
         try:
-            os.remove(app.session_path)
+            if isinstance(app.session_path, (str, Path)) and os.path.exists(app.session_path):
+                os.remove(app.session_path)
         except Exception:
             pass
 
         await state.clear()
-        return await message.answer(
+        await message.answer(
             text("admin:session:auth_error"),
             reply_markup=keyboards.cancel(data="AdminSessionNumberBack"),
         )
+        return
 
     # --- MtClient Creation Logic ---
 
@@ -558,7 +584,8 @@ async def get_code(message: types.Message, state: FSMContext):
     await app.close()
     await state.clear()
 
-    session_count = len(os.listdir("main_bot/utils/sessions/"))
+    session_dir = "main_bot/utils/sessions/"
+    session_count = len(os.listdir(session_dir)) if os.path.exists(session_dir) else 0
 
     await message.answer(
         text("admin:session:success_add").format(
@@ -568,8 +595,13 @@ async def get_code(message: types.Message, state: FSMContext):
     )
 
 
-def get_router():
-    """Регистрация роутера для управления сессиями."""
+def get_router() -> Router:
+    """
+    Регистрация роутера для управления сессиями.
+
+    Возвращает:
+        Router: Роутер с зарегистрированными хендлерами.
+    """
     router = Router()
     router.callback_query.register(choice, F.data.split("|")[0] == "AdminSession")
     router.callback_query.register(
