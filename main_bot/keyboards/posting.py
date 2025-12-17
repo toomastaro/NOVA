@@ -592,5 +592,5 @@ class InlinePosting(InlineKeyboardBuilder):
             callback_data="ManagePublishedPost|cpm_report",
         )
 
-        kb.adjust(2, 2, 2)
+        kb.adjust(1)
         return kb.as_markup()
