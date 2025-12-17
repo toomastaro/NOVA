@@ -1,21 +1,33 @@
-import logging
+"""
+Модуль утилит для работы с бэкап-каналом (резервным хранилищем постов).
+"""
+
 import asyncio
+import logging
 from typing import Any
+
+from config import Config
+from instance_bot import bot
+from main_bot.database.bot_post.model import BotPost
 from main_bot.database.db import db
 from main_bot.database.post.model import Post
 from main_bot.database.published_post.model import PublishedPost
 from main_bot.database.story.model import Story
-from main_bot.database.bot_post.model import BotPost
 from main_bot.keyboards import keyboards
 from main_bot.utils.schemas import MessageOptions
-from config import Config
-from instance_bot import bot
 
 logger = logging.getLogger(__name__)
+
 
 def _prepare_send_options(message_options: MessageOptions) -> tuple[Any, dict]:
     """
     Вспомогательная функция для определения метода отправки и подготовки параметров.
+
+    Аргументы:
+        message_options (MessageOptions): Опции сообщения.
+
+    Возвращает:
+        tuple[Any, dict]: Метод отправки (coroutine) и словарь параметров.
     """
     if message_options.text:
         cor = bot.send_message
@@ -35,13 +47,20 @@ def _prepare_send_options(message_options: MessageOptions) -> tuple[Any, dict]:
         options = message_options.model_dump(exclude={"photo", "video", "text", "disable_web_page_preview", "reply_markup"})
         if hasattr(message_options.animation, 'file_id'):
             options["animation"] = message_options.animation.file_id
-            
+
     options['parse_mode'] = 'HTML'
     return cor, options
+
 
 async def send_to_backup(post: Post | Story | BotPost) -> tuple[int | None, int | None]:
     """
     Отправляет пост в резервный канал. Возвращает ID чата и сообщения.
+
+    Аргументы:
+        post (Post | Story | BotPost): Объект поста.
+
+    Возвращает:
+        tuple[int | None, int | None]: (chat_id, message_id) или (None, None).
     """
     if not Config.BACKUP_CHAT_ID:
         return None, None
@@ -54,7 +73,7 @@ async def send_to_backup(post: Post | Story | BotPost) -> tuple[int | None, int 
         story_dump = post.story_options.copy() if hasattr(post.story_options, 'copy') else dict(post.story_options)
         valid_fields = MessageOptions.model_fields.keys()
         filtered_story_options = {k: v for k, v in story_dump.items() if k in valid_fields}
-        
+
         message_options = MessageOptions(**filtered_story_options)
         reply_markup = keyboards.story_kb(post=post)
     elif isinstance(post, BotPost):
@@ -63,11 +82,11 @@ async def send_to_backup(post: Post | Story | BotPost) -> tuple[int | None, int 
         reply_markup = keyboards.bot_post_kb(post=post)
     else:
         return None, None
-    
+
     cor, options = _prepare_send_options(message_options)
     options['chat_id'] = Config.BACKUP_CHAT_ID
     # reply_markup передается отдельно, чтобы избежать путаницы с pop/clean, если словарь изменяется на месте
-    
+
     try:
         backup_msg = await cor(
             **options,
@@ -78,9 +97,16 @@ async def send_to_backup(post: Post | Story | BotPost) -> tuple[int | None, int 
         logger.error(f"Ошибка отправки в резервный канал: {e}", exc_info=True)
         return None, None
 
-async def edit_backup_message(post: Post | PublishedPost | Story | BotPost, message_options: MessageOptions = None):
+
+async def edit_backup_message(post: Post | PublishedPost | Story | BotPost, message_options: MessageOptions = None) -> None:
     """
     Обновляет сообщение в резервном канале в соответствии с текущим состоянием поста.
+
+    Если редактирование не удается, пытается удалить и отправить заново.
+
+    Аргументы:
+        post (Post | PublishedPost | Story | BotPost): Объект поста.
+        message_options (MessageOptions): Опции сообщения (опционально).
     """
     if not post or not post.backup_chat_id or not post.backup_message_id:
         return
@@ -94,7 +120,7 @@ async def edit_backup_message(post: Post | PublishedPost | Story | BotPost, mess
             story_dump = post.story_options.copy() if hasattr(post.story_options, 'copy') else dict(post.story_options)
             valid_fields = MessageOptions.model_fields.keys()
             filtered = {k: v for k, v in story_dump.items() if k in valid_fields}
-            
+
             message_options = MessageOptions(**filtered)
             reply_markup = keyboards.manage_story(post=post)
         elif isinstance(post, BotPost):
@@ -142,7 +168,7 @@ async def edit_backup_message(post: Post | PublishedPost | Story | BotPost, mess
                     message_id=message_id,
                     reply_markup=reply_markup
                 )
-                
+
     except Exception as e:
         logger.error(f"Ошибка редактирования сообщения бэкапа {message_id} в {chat_id}: {e}. Попытка отката (удаление и повторная отправка).")
         try:
@@ -155,13 +181,13 @@ async def edit_backup_message(post: Post | PublishedPost | Story | BotPost, mess
             # Отправка нового сообщения в бэкап с использованием хелпера
             cor, send_options = _prepare_send_options(message_options)
             send_options['chat_id'] = chat_id
-            
+
             new_backup_msg = await cor(**send_options, reply_markup=reply_markup)
             new_backup_message_id = new_backup_msg.message_id
-            
+
             # Обновление БД
             post_id = post.post_id if isinstance(post, PublishedPost) else post.id
-            
+
             # Обновление поста
             if isinstance(post, Story):
                  await db.story.update_story(post.id, backup_message_id=new_backup_message_id)
@@ -173,22 +199,30 @@ async def edit_backup_message(post: Post | PublishedPost | Story | BotPost, mess
                     post_id=post_id,
                     backup_message_id=new_backup_message_id
                 )
-                
+
                 # Обновление всех опубликованных постов
                 await db.published_post.update_published_posts_by_post_id(
                     post_id=post_id,
                     backup_message_id=new_backup_message_id
                 )
-            
+
             logger.info(f"Откат бэкапа успешен: Заменено {message_id} на {new_backup_message_id} для поста {post_id}")
 
         except Exception as fallback_e:
             logger.error(f"Ошибка отката бэкапа для поста {post.id if hasattr(post, 'id') else '?'}: {fallback_e}", exc_info=True)
 
 
-async def _update_single_live_message(post: PublishedPost, message_options: MessageOptions, reply_markup, semaphore: asyncio.Semaphore):
+async def _update_single_live_message(post: PublishedPost, message_options: MessageOptions, reply_markup, semaphore: asyncio.Semaphore) -> None:
     """
     Хелпер для обновления одного живого сообщения с семафором.
+
+    Если обновление не удается, пытается восстановить сообщение из бэкапа.
+
+    Аргументы:
+        post (PublishedPost): Опубликованный пост.
+        message_options (MessageOptions): Опции сообщения.
+        reply_markup: Клавиатура.
+        semaphore (asyncio.Semaphore): Семафор для ограничения конкурентности.
     """
     async with semaphore:
         try:
@@ -233,7 +267,7 @@ async def _update_single_live_message(post: PublishedPost, message_options: Mess
                         reply_markup=reply_markup,
                         parse_mode='HTML'
                     )
-                    
+
                     # Обновление PublishedPost с новым message_id
                     await db.published_post.update_published_post(
                         post_id=post.id,
@@ -246,9 +280,15 @@ async def _update_single_live_message(post: PublishedPost, message_options: Mess
             except Exception as fallback_e:
                 logger.error(f"Ошибка отката для {post.chat_id}: {fallback_e}", exc_info=True)
 
-async def update_live_messages(post_id: int, message_options: MessageOptions, reply_markup=None):
+
+async def update_live_messages(post_id: int, message_options: MessageOptions, reply_markup=None) -> None:
     """
     Обновляет все опубликованные сообщения (live/channels) для указанного поста.
+
+    Аргументы:
+        post_id (int): ID родительского поста.
+        message_options (MessageOptions): Опции сообщения.
+        reply_markup: Клавиатура (опционально).
     """
     published_posts = await db.published_post.get_published_posts_by_post_id(post_id)
     if not published_posts:
@@ -256,12 +296,12 @@ async def update_live_messages(post_id: int, message_options: MessageOptions, re
 
     # Ограничение конкурентности чтобы избежать флуда API Telegram
     semaphore = asyncio.Semaphore(10)
-    
+
     tasks = [
-        _update_single_live_message(post, message_options, reply_markup, semaphore) 
+        _update_single_live_message(post, message_options, reply_markup, semaphore)
         for post in published_posts
     ]
-    
+
     await asyncio.gather(*tasks)
-            
+
     logger.info(f"Обновлено {len(published_posts)} живых сообщений для поста {post_id}")

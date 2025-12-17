@@ -1,10 +1,16 @@
+"""
+Модуль менеджера ботов.
+"""
+
 import logging
+from typing import Optional
+
 from aiogram import Bot
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
-from aiogram.utils.token import validate_token, TokenValidationError
 from aiogram.exceptions import TelegramUnauthorizedError
 from aiogram.types import User
+from aiogram.utils.token import TokenValidationError, validate_token
 
 from config import Config
 
@@ -14,13 +20,26 @@ logger = logging.getLogger(__name__)
 class BotManager:
     """
     Менеджер для управления экземпляром бота и его вебхуками.
+
+    Управляет жизненным циклом экземпляра бота, валидацией токена
+    и настройкой вебхуков.
     """
+
     def __init__(self, token: str):
+        """
+        Инициализирует BotManager.
+
+        Аргументы:
+             token (str): Токен бота.
+        """
         self.token = token
         self.bot: Bot | None = None
         self._me: User | None = None
 
     async def __aenter__(self):
+        """
+        Вход в контекстный менеджер. Проверяет токен.
+        """
         is_valid = await self.validate_token()
         if not is_valid:
             logger.error(f"Неверный токен передан в BotManager: {self.token[:10]}...")
@@ -30,10 +49,15 @@ class BotManager:
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
+        """
+        Выход из контекстного менеджера. Закрывает бота.
+        """
         await self.close()
 
-    async def open(self):
-        """Создает экземпляр бота, если он еще не создан."""
+    async def open(self) -> None:
+        """
+        Создает экземпляр бота с настройками по умолчанию, если он еще не создан.
+        """
         if not self.bot:
             self.bot = Bot(
                 token=self.token,
@@ -42,8 +66,10 @@ class BotManager:
                 )
             )
 
-    async def close(self):
-        """Закрывает сессию бота, если она открыта."""
+    async def close(self) -> None:
+        """
+        Закрывает сессию бота, если она открыта.
+        """
         if self.bot:
             try:
                 await self.bot.session.close()
@@ -58,6 +84,9 @@ class BotManager:
         """
         Проверяет валидность токена и авторизацию.
         Кеширует результат get_me() для производительности.
+
+        Возвращает:
+            User | bool: Объект пользователя (бота) при успехе, иначе False.
         """
         # 1. Локальная валидация
         try:
@@ -86,7 +115,15 @@ class BotManager:
             return False
 
     async def set_webhook(self, delete: bool = False) -> bool:
-        """Устанавливает или удаляет вебхук."""
+        """
+        Устанавливает или удаляет вебхук.
+
+        Аргументы:
+             delete (bool): Если True, только удаляет вебхук.
+
+        Возвращает:
+            bool: Успешность операции.
+        """
         me = await self.validate_token()
         if not me:
             return False
@@ -114,8 +151,13 @@ class BotManager:
             logger.error(f"Ошибка при установке вебхука: {e}", exc_info=True)
             return False
 
-    async def status(self) -> bool | None:
-        """Проверяет, установлен ли корректный вебхук."""
+    async def status(self) -> Optional[bool]:
+        """
+        Проверяет, установлен ли корректный вебхук в Telegram.
+
+        Возвращает:
+             bool | None: True если вебхук совпадает с настроенным, False если нет или ошибка (и None при исключении).
+        """
         me = await self.validate_token()
         if not me:
             return False

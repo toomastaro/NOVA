@@ -1,20 +1,27 @@
+"""
+Модуль обработки ошибок (декораторы).
+"""
+
 import logging
 from functools import wraps
-from typing import Callable
+from typing import Any, Callable
 
 logger = logging.getLogger(__name__)
 
 
-def safe_handler(stage_info: str):
+def safe_handler(stage_info: str) -> Callable:
     """
     Декоратор для оборачивания хендлеров в блок try-except с логированием ошибок.
-    
-    Args:
-         stage_info: Короткое описание этапа/хендлера.
+
+    Аргументы:
+         stage_info (str): Короткое описание этапа/хендлера для логов.
+
+    Возвращает:
+        Callable: Обернутая функция.
     """
-    def decorator(func: Callable):
+    def decorator(func: Callable) -> Callable:
         @wraps(func)
-        async def wrapper(*args, **kwargs):
+        async def wrapper(*args: Any, **kwargs: Any) -> Any:
             try:
                 return await func(*args, **kwargs)
             except Exception as e:
