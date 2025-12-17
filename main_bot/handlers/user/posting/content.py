@@ -443,7 +443,7 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
 
     post_message = await answer_post(call.message, state, from_edit=True)
     await state.update_data(
-        post_message=post_message,
+        post_message=post_message.model_dump(mode="json"),
     )
 
     await call.message.delete()
