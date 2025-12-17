@@ -12,6 +12,7 @@ from httpx import AsyncClient
 from config import Config
 from main_bot.database.db import db
 from main_bot.database.user.model import User
+from main_bot.database.channel.model import Channel
 from main_bot.keyboards import keyboards
 from main_bot.utils.lang.language import text
 from main_bot.utils.error_handler import safe_handler
@@ -197,10 +198,8 @@ async def choice_period(call: types.CallbackQuery, state: FSMContext, user: User
             objects = await db.channel.get_user_channels_without_folders(
                 user_id=user.id
             )
-        # Для ботов пока нет папок, грузим всех (или если будет поддержка)
-        # else objects (bots) already processed normally because folders logic might not apply fully to bots yet
-        # But generic keyboard handles it.
-
+        # Для ботов пока нет папок
+        
     await call.message.edit_text(
         text(f"subscribe:chosen:{object_type}").format(""),
         reply_markup=keyboards.choice_objects(
@@ -209,6 +208,7 @@ async def choice_period(call: types.CallbackQuery, state: FSMContext, user: User
             folders=folders,
             data="ChoiceResourceSubscribe",
             view_mode=view_mode,
+            is_inside_folder=False,
         ),
     )
 
@@ -299,10 +299,13 @@ async def choice_object_subscribe(
             folder = await db.user_folder.get_folder_by_id(resource_id)
             objects = []
             if folder and folder.content:
-                for chat_id in folder.content:
-                    ch = await db.channel.get_channel_by_chat_id(int(chat_id))
-                    if ch:
-                        objects.append(ch)
+                # Батчинг
+                objects = await db.channel.get_user_channels(
+                    user_id=call.from_user.id,
+                    from_array=[int(cid) for cid in folder.content],
+                )
+            else:
+                objects = []
             folders = []
             # Reset pagination
             if len(temp) > 2:
@@ -318,14 +321,11 @@ async def choice_object_subscribe(
     # CHOICE ALL
     if temp[1] == "choice_all":
         # Get IDs of current objects
-        # For folders, decide behavior. Usually 'choice_all' applies to visible items?
-        # choice_objects usually implements "select all visible".
-        # If view_mode=folders and root, objects are orphaned channels.
         visible_ids = [
-            o.chat_id if isinstance(o, db.channel.model.Channel) else o.id
+            o.chat_id if isinstance(o, Channel) else o.id
             for o in objects
         ]
-
+        
         if all(i in chosen for i in visible_ids):
             # Unselect all visible
             for i in visible_ids:
@@ -366,17 +366,38 @@ async def choice_object_subscribe(
         )
 
     # BACK handling (Folder navigation or Menu)
+    is_inside_folder = False
+    
+    if current_folder_id:
+        is_inside_folder = True
+
     if temp[1] == "back" and current_folder_id:
         # Exit folder
         await state.update_data(current_folder_id=None)
-        # Logic will auto-reset to root view next render
-        # Need to reset objects/folders for correct rendering NOW if we don't return
+        current_folder_id = None
+        is_inside_folder = False
+        
         raw_folders = await db.user_folder.get_folders(user_id=user.id)
         folders = [f for f in raw_folders if f.content]
         objects = await db.channel.get_user_channels_without_folders(user_id=user.id)
         # Reset pagination
         if len(temp) > 2:
             temp[2] = "0"
+            
+    # CLOSE FOLDER (Explicit close action)
+    if temp[1] == "cancel" and current_folder_id:
+        # Exit folder same as back
+        await call.answer()
+        await state.update_data(current_folder_id=None)
+        current_folder_id = None
+        is_inside_folder = False
+        
+        raw_folders = await db.user_folder.get_folders(user_id=user.id)
+        folders = [f for f in raw_folders if f.content]
+        objects = await db.channel.get_user_channels_without_folders(user_id=user.id)
+        remover = 0
+        # Prevent "cancel" below from triggering return to period choice
+        temp[1] = "handled_cancel"
 
     # CANCEL (Back to Period Choice)
     if temp[1] == "cancel":
@@ -416,9 +437,15 @@ async def choice_object_subscribe(
         for cid in chosen[:10]
     )
 
+    folder_text = ""
+    if current_folder_id:
+        folder_obj = await db.user_folder.get_folder_by_id(current_folder_id)
+        if folder_obj:
+            folder_text = text("choice_channels:folder").format(folder_obj.title) + "\n\n"
+
     try:
         await call.message.edit_text(
-            text(f"subscribe:chosen:{object_type}").format(display_text),
+            text(f"subscribe:chosen:{object_type}").format(folder_text + display_text),
             reply_markup=keyboards.choice_objects(
                 resources=objects,
                 chosen=chosen,
@@ -426,6 +453,7 @@ async def choice_object_subscribe(
                 remover=remover,
                 data="ChoiceResourceSubscribe",
                 view_mode=view_mode,
+                is_inside_folder=is_inside_folder,
             ),
         )
     except Exception:
