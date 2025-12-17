@@ -97,7 +97,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext) -> None:
         pool_type = action
         clients = await db.mt_client.get_mt_clients_by_pool(pool_type)
 
-        # Store pool type in state to return to list later if needed
+        # Сохраняем тип пула в состояние, чтобы вернуться к списку позже, если потребуется
         await state.update_data(current_pool=pool_type)
 
         await call.message.edit_text(
@@ -505,7 +505,7 @@ async def get_code(message: types.Message, state: FSMContext) -> None:
     data = await state.get_data()
     number = data.get("number")
     hash_code = data.get("hash_code")
-    pool_type = data.get("pool_type", "internal")  # Default to internal if missing
+    pool_type = data.get("pool_type", "internal")  # По умолчанию internal, если отсутствует
 
     app: Optional[SessionManager] = apps.get(number)
     if not app:
@@ -514,7 +514,7 @@ async def get_code(message: types.Message, state: FSMContext) -> None:
 
     try:
         await app.client.sign_in(number, message.text, phone_code_hash=hash_code)
-        # Do not close app yet, we need it for health check
+        # Пока не закрываем приложение, оно нужно для проверки здоровья (health check)
 
     except Exception as e:
         logger.error(f"Error signing in: {e}")
@@ -553,7 +553,7 @@ async def get_code(message: types.Message, state: FSMContext) -> None:
         existing_clients = await db.mt_client.get_mt_clients_by_pool(pool_type)
         alias = f"{pool_type}-{len(existing_clients) + 1}"
 
-    # 2. Create MtClient
+    # 2. Создание MtClient
     new_client = await db.mt_client.create_mt_client(
         alias=alias,
         pool_type=pool_type,
@@ -562,7 +562,7 @@ async def get_code(message: types.Message, state: FSMContext) -> None:
         is_active=False,
     )
 
-    # 3. Health Check
+    # 3. Проверка здоровья (Health Check)
     health = await app.health_check()
     current_time = int(time.time())
 

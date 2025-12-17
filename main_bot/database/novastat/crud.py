@@ -75,10 +75,9 @@ class NovaStatCrud(DatabaseMixin):
         Возвращает:
             Collection | None: Объект коллекции.
         """
-        # Eager load channels
-        # Note: simple select might not load relationships eagerly without options,
-        # but for now we'll fetch channels separately if needed or rely on lazy loading if session is open (which it isn't in this pattern)
-        # Better to fetch channels explicitly
+        # Жадная загрузка каналов (Eager load)
+        # Примечание: простой select может не загружать отношения без опций,
+        # лучше запросить каналы явно.
         return await self.fetchrow(
             select(Collection).where(Collection.id == collection_id)
         )
@@ -107,7 +106,7 @@ class NovaStatCrud(DatabaseMixin):
         """
         Удаляет коллекцию и все её каналы.
         """
-        # Manually delete channels first because we use Core delete which bypasses ORM cascade
+        # Вручную удаляем каналы, так как используем Core delete, который обходит ORM cascade
         await self.execute(
             delete(CollectionChannel).where(
                 CollectionChannel.collection_id == collection_id

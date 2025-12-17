@@ -55,7 +55,7 @@ class MtClientChannelCrud(DatabaseMixin):
             channel_id (int): ID канала.
         """
         stmt = select(MtClientChannel).where(MtClientChannel.channel_id == channel_id)
-        # Using fetch to return a list of items, as expected by handlers
+        # Используем fetch для возврата списка элементов, как ожидают хендлеры
         return await self.fetch(stmt)
 
     async def set_membership(self, client_id: int, channel_id: int, **kwargs) -> None:
@@ -67,7 +67,7 @@ class MtClientChannelCrud(DatabaseMixin):
             channel_id (int): ID канала.
             **kwargs: Поля для обновления (is_member, is_admin, last_seen_at и т.д.).
         """
-        # Filter allowed keys to avoid errors
+        # Фильтруем разрешенные ключи во избежание ошибок
         allowed_keys = {
             "is_member",
             "is_admin",

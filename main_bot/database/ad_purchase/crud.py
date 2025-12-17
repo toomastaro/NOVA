@@ -398,7 +398,7 @@ class AdPurchaseCrud(DatabaseMixin):
         Обрабатывает событие вступления и создает подписку, если ссылка соответствует закупке.
         Возвращает True, если подписка создана.
         """
-        # Find mapping by invite_link
+        # Поиск маппинга по ссылке приглашения
         query = select(AdPurchaseLinkMapping).where(
             AdPurchaseLinkMapping.invite_link == invite_link
         )
@@ -407,16 +407,16 @@ class AdPurchaseCrud(DatabaseMixin):
         if not mapping:
             return False
 
-        # Ensure Lead exists (for cases where ChatJoinRequest didn't fire or was missed)
-        # We record a lead because a join implies intent (and success).
+        # Убеждаемся, что лид существует (на случай, если ChatJoinRequest не сработал или был пропущен)
+        # Мы регистрируем лид, так как вступление подразумевает намерение (и успех).
         await self.add_lead(
             user_id=user_id,
             ad_purchase_id=mapping.ad_purchase_id,
             slot_id=mapping.slot_id,
-            ref_param=f"auto_{mapping.ad_purchase_id}_{mapping.slot_id}",  # Synthetic ref param for direct joins
+            ref_param=f"auto_{mapping.ad_purchase_id}_{mapping.slot_id}",  # Синтетический параметр для прямых вступлений
         )
 
-        # Add subscription
+        # Добавление подписки
         return await self.add_subscription(
             user_id=user_id,
             channel_id=channel_id,
@@ -440,11 +440,11 @@ class AdPurchaseCrud(DatabaseMixin):
 
         from main_bot.database.ad_purchase.model import AdLead, AdSubscription
 
-        # Count active purchases
+        # Подсчет активных закупок
         query = select(func.count(AdPurchase.id)).where(AdPurchase.status == "active")
         active_purchases = await self.fetchrow(query)
 
-        # Count total leads
+        # Подсчет общего количества лидов
         query = select(func.count(AdLead.id))
         if from_ts:
             query = query.where(AdLead.created_timestamp >= from_ts)
@@ -452,7 +452,7 @@ class AdPurchaseCrud(DatabaseMixin):
             query = query.where(AdLead.created_timestamp <= to_ts)
         total_leads = await self.fetchrow(query)
 
-        # Count total subscriptions
+        # Подсчет общего количества подписок
         query = select(func.count(AdSubscription.id))
         if from_ts:
             query = query.where(AdSubscription.created_timestamp >= from_ts)
@@ -566,13 +566,13 @@ class AdPurchaseCrud(DatabaseMixin):
 
         from main_bot.database.ad_purchase.model import AdLead, AdSubscription
 
-        # Count active purchases for this user
+        # Подсчет активных закупок для этого пользователя
         query = select(func.count(AdPurchase.id)).where(
             AdPurchase.owner_id == user_id, AdPurchase.status == "active"
         )
         active_purchases = await self.fetchrow(query)
 
-        # Count total leads for user's purchases
+        # Подсчет общего количества лидов по закупкам пользователя
         query = (
             select(func.count(AdLead.id))
             .join(AdPurchase, AdLead.ad_purchase_id == AdPurchase.id)
@@ -585,7 +585,7 @@ class AdPurchaseCrud(DatabaseMixin):
             query = query.where(AdLead.created_timestamp <= to_ts)
         total_leads = await self.fetchrow(query)
 
-        # Count total subscriptions for user's purchases
+        # Подсчет общего количества подписок по закупкам пользователя
         query = (
             select(func.count(AdSubscription.id))
             .join(AdPurchase, AdSubscription.ad_purchase_id == AdPurchase.id)
