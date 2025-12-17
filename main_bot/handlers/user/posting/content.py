@@ -37,7 +37,7 @@ def serialize_post(post):
     data = {
         "id": post.id,
         "post_id": getattr(post, "post_id", None),
-        "chat_id": post.chat_id,
+        "chat_id": getattr(post, "chat_id", post.chat_ids[0] if getattr(post, "chat_ids", None) else None),
         "message_id": getattr(post, "message_id", None),
         "created_timestamp": post.created_timestamp,
         "send_time": getattr(post, "send_time", None),
