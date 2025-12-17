@@ -1,6 +1,5 @@
 """
 Модуль планировщика задач для Telegram-бота.
-
 Реэкспорт всех функций планировщика для удобного импорта.
 
 Структура модулей:
@@ -10,65 +9,64 @@
 - cleanup.py: проверка подписок, самопроверка MT клиентов
 - extra.py: обновление курсов валют и прочие вспомогательные задачи
 """
-import os
+
 import logging
+import os
+from typing import Optional
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 
+from config import config
+
 # Импорты из модулей
-from .posts import (
-    send_posts,
-    unpin_posts,
-    delete_posts,
-    check_cpm_reports,
-)
-
-from .stories import (
-    send_stories,
-)
-
+from .ad_stats import process_ad_stats
 from .bots import (
     send_bot_posts,
     start_delete_bot_posts,
 )
-
+from .channels import (
+    register_channel_jobs,
+    schedule_channel_job,
+    update_channel_stats,
+)
 from .cleanup import (
     check_subscriptions,
     mt_clients_self_check,
 )
-
-from .channels import (
-    register_channel_jobs,
-    update_channel_stats,
-    schedule_channel_job,
-)
-
 from .extra import (
     update_exchange_rates_in_db,
 )
-
-from .ad_stats import process_ad_stats
-from config import config
+from .posts import (
+    check_cpm_reports,
+    delete_posts,
+    send_posts,
+    unpin_posts,
+)
+from .stories import (
+    send_stories,
+)
 
 logger = logging.getLogger(__name__)
 
-scheduler_instance: AsyncIOScheduler | None = None
+scheduler_instance: Optional[AsyncIOScheduler] = None
 
-def init_scheduler(scheduler: AsyncIOScheduler):
-    global scheduler_instance
-    scheduler_instance = scheduler
+
+def init_scheduler(scheduler: AsyncIOScheduler) -> None:
     """
     Инициализация и регистрация всех системных периодических задач.
-    
+
     Использует replace_existing=True для предотвращения дублей при перезапуске приложения.
     Регистрирует только системные задачи, пользовательские задачи (отложенные посты)
     управляются через бизнес-логику.
-    
-    Args:
-        scheduler: Экземпляр AsyncIOScheduler для регистрации задач
+
+    Аргументы:
+        scheduler (AsyncIOScheduler): Экземпляр планировщика для регистрации задач.
     """
+    global scheduler_instance
+    scheduler_instance = scheduler
+
     # === ПОСТЫ ===
     # Отправка отложенных постов (каждые 10 секунд)
     scheduler.add_job(
@@ -78,7 +76,7 @@ def init_scheduler(scheduler: AsyncIOScheduler):
         replace_existing=True,
         name="Отправка отложенных постов"
     )
-    
+
     # Открепление постов (каждые 10 секунд)
     scheduler.add_job(
         func=unpin_posts,
@@ -87,7 +85,7 @@ def init_scheduler(scheduler: AsyncIOScheduler):
         replace_existing=True,
         name="Открепление постов"
     )
-    
+
     # Удаление постов (каждые 10 секунд)
     scheduler.add_job(
         func=delete_posts,
@@ -96,7 +94,7 @@ def init_scheduler(scheduler: AsyncIOScheduler):
         replace_existing=True,
         name="Удаление постов по расписанию"
     )
-    
+
     # Проверка CPM отчетов (каждые 10 секунд)
     scheduler.add_job(
         func=check_cpm_reports,
@@ -105,7 +103,7 @@ def init_scheduler(scheduler: AsyncIOScheduler):
         replace_existing=True,
         name="Проверка CPM отчетов 24/48/72ч"
     )
-    
+
     # === СТОРИС ===
     # Отправка отложенных сторис (каждые 10 секунд)
     scheduler.add_job(
@@ -115,7 +113,7 @@ def init_scheduler(scheduler: AsyncIOScheduler):
         replace_existing=True,
         name="Отправка отложенных сторис"
     )
-    
+
     # === БОТЫ ===
     # Отправка постов через ботов (каждые 10 секунд)
     scheduler.add_job(
@@ -125,7 +123,7 @@ def init_scheduler(scheduler: AsyncIOScheduler):
         replace_existing=True,
         name="Отправка постов через ботов"
     )
-    
+
     # Удаление сообщений ботов (каждые 10 секунд)
     scheduler.add_job(
         func=start_delete_bot_posts,
@@ -134,7 +132,7 @@ def init_scheduler(scheduler: AsyncIOScheduler):
         replace_existing=True,
         name="Удаление сообщений ботов"
     )
-    
+
     # === ОЧИСТКА И ОБСЛУЖИВАНИЕ ===
     # Проверка подписок (каждые 10 секунд)
     scheduler.add_job(
@@ -144,7 +142,7 @@ def init_scheduler(scheduler: AsyncIOScheduler):
         replace_existing=True,
         name="Проверка подписок"
     )
-    
+
     # Самопроверка MT клиентов (каждый день в 3:00 по Москве)
     scheduler.add_job(
         func=mt_clients_self_check,
@@ -153,7 +151,7 @@ def init_scheduler(scheduler: AsyncIOScheduler):
         replace_existing=True,
         name="Самопроверка MT клиентов"
     )
-    
+
     # === ВСПОМОГАТЕЛЬНЫЕ ===
     # Обновление курсов валют
     rub_usdt_timer = int(os.getenv('RUBUSDTTIMER', '3600'))
@@ -164,13 +162,13 @@ def init_scheduler(scheduler: AsyncIOScheduler):
         replace_existing=True,
         name="Обновление курсов валют"
     )
-    
+
     # === AD STATS ===
     # Сбор статистики рекламы (Admin Log)
     # Используем `process_ad_stats` с IntervalTrigger
-    
+
     ad_timer = int(config.zakup_timer or 600)
-    
+
     scheduler.add_job(
         func=process_ad_stats,
         trigger=IntervalTrigger(seconds=ad_timer),
@@ -186,27 +184,27 @@ def init_scheduler(scheduler: AsyncIOScheduler):
 __all__ = [
     # Инициализация
     "init_scheduler",
-    
+
     # Посты
     "send_posts",
     "unpin_posts",
     "delete_posts",
     "check_cpm_reports",
-    
+
     # Сторис
     "send_stories",
-    
+
     # Боты
     "send_bot_posts",
     "start_delete_bot_posts",
-    
+
     # Очистка и обслуживание
     "check_subscriptions",
     "mt_clients_self_check",
-    
+
     # Вспомогательные
     "update_exchange_rates_in_db",
-    
+
     # Channels
     "register_channel_jobs",
     "update_channel_stats",
