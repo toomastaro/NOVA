@@ -1,9 +1,15 @@
 """
 Модуль меню закупов рекламы.
 Отображает списки закупов, проверяет статус технического аккаунта.
+
+Модуль реализует:
+- Отображение главного меню закупов
+- Проверку подключения технических аккаунтов к каналам
+- Навигацию по списку закупов
 """
 import logging
 from pathlib import Path
+from typing import Dict, Any
 
 from aiogram import Router, F, types
 from aiogram.types import CallbackQuery
@@ -17,31 +23,45 @@ logger = logging.getLogger(__name__)
 
 router = Router(name="AdPurchaseMenu")
 
+
 @router.message(F.text == "Рекламные закупы")
 @safe_handler("Show Ad Purchase Menu")
-async def show_ad_purchase_menu(message: types.Message):
-    """Показ меню закупов (сообщение)."""
+async def show_ad_purchase_menu(message: types.Message) -> None:
+    """
+    Показ меню закупов (сообщение).
+    
+    Аргументы:
+        message (types.Message): Сообщение пользователя.
+    """
     await show_ad_purchase_menu_internal(message, edit=False)
 
 
 @router.callback_query(F.data == "AdPurchase|menu")
 @safe_handler("Show Ad Purchase Menu Callback")
-async def show_ad_purchase_menu_callback(call: CallbackQuery):
-    """Показ меню закупов (callback)."""
+async def show_ad_purchase_menu_callback(call: CallbackQuery) -> None:
+    """
+    Показ меню закупов (callback).
+    
+    Аргументы:
+        call (CallbackQuery): Callback запрос.
+    """
     await show_ad_purchase_menu_internal(call.message, edit=True)
 
-@safe_handler("Show Ad Purchase Menu Internal")
-async def show_ad_purchase_menu_internal(message: types.Message, edit: bool = False):
-    """Внутренняя функция отображения меню закупов."""
 
+@safe_handler("Show Ad Purchase Menu Internal")
+async def show_ad_purchase_menu_internal(message: types.Message, edit: bool = False) -> None:
+    """
+    Внутренняя функция отображения меню закупов.
+    Проверяет наличие технического аккаунта клиента в каналах пользователя.
+
+    Аргументы:
+        message (types.Message): Сообщение для ответа/редактирования.
+        edit (bool): Флаг редактирования сообщения (True = edit, False = answer).
+    """
     user_channels = await db.channel.get_user_channels(message.chat.id)
     
     status_text = ""
-    client_name = "NovaClient" # Placeholder if no specific client logic exposed clearly
-    
-
-    
-    
+    client_name = "NovaClient"
     
     if not user_channels:
          status_text = "⚠️ Нет подключенных каналов."
@@ -56,7 +76,7 @@ async def show_ad_purchase_menu_internal(message: types.Message, edit: bool = Fa
 
             status_text = f"🤖 Клиент: {client_name}\n✅ Статус: Подключен"
         else:
-            status_text = "❌ Клиент не найден в каналах."
+             status_text = "❌ Клиент не найден в каналах."
     
     logger.info(f"Rendering Ad Purchase Menu for user {message.chat.id}, channel count: {len(user_channels)}")
     
@@ -69,7 +89,6 @@ async def show_ad_purchase_menu_internal(message: types.Message, edit: bool = Fa
     )
     
     # Keyboard
-    # Add "Check Status" button
     kb = InlineAdPurchase.main_menu()
     
     if edit:
@@ -77,10 +96,17 @@ async def show_ad_purchase_menu_internal(message: types.Message, edit: bool = Fa
     else:
         await message.answer(main_text, reply_markup=kb, parse_mode="HTML")
 
+
 @router.callback_query(F.data == "AdPurchase|check_client_status")
 @safe_handler("Check Client Status")
-async def check_client_status(call: CallbackQuery):
-    """Проверка статуса подключения технических аккаунтов."""
+async def check_client_status(call: CallbackQuery) -> None:
+    """
+    Проверка статуса подключения технических аккаунтов к каналам пользователя.
+    Выполняет фактическую проверку сессии и прав администратора.
+
+    Аргументы:
+        call (CallbackQuery): Callback запрос.
+    """
     await call.answer("⏳ Полная проверка всех каналов...", show_alert=False)
     
     user_channels = await db.channel.get_user_channels(call.message.chat.id)
@@ -89,7 +115,7 @@ async def check_client_status(call: CallbackQuery):
          return
          
     # Group channels by client to optimize sessions
-    client_groups = {} # {client_id: {'client': mt_client, 'channels': [channel]}}
+    client_groups: Dict[int, Dict[str, Any]] = {} # {client_id: {'client': mt_client, 'channels': [channel]}}
     no_client_channels = []
     
     for channel in user_channels:
@@ -114,9 +140,6 @@ async def check_client_status(call: CallbackQuery):
         results.append(f"❌ <b>{ch.title}</b>: Не назначен помощник")
         
     # 2. Check each client group
-    # from pathlib import Path
-    # from main_bot.utils.session_manager import SessionManager
-    
     for cid, group in client_groups.items():
         mt_client = group['client']
         channels = group['channels']
@@ -161,12 +184,6 @@ async def check_client_status(call: CallbackQuery):
     total_count = len(user_channels)
     
     report_header = f"📊 <b>Результат проверки ({success_count}/{total_count})</b>"
-    if len(results) > 20: 
-        # Shorten if too many?
-        # User asked for status, so full list is expected but maybe split messages if > 4096 chars.
-        # Generally 20 lines is fine.
-        pass
-        
     report_body = "\n".join(results)
     
     main_text = (
@@ -186,16 +203,19 @@ async def check_client_status(call: CallbackQuery):
 
 @router.callback_query(F.data == "AdPurchase|create_menu")
 @safe_handler("Show Creative Selection")
-async def show_creative_selection(call: CallbackQuery):
-    """Меню выбора креатива для создания закупа."""
+async def show_creative_selection(call: CallbackQuery) -> None:
+    """
+    Меню выбора креатива для создания закупа.
+    Проверяет наличие креативов, подключенных каналов и тех. аккаунта.
+
+    Аргументы:
+        call (CallbackQuery): Callback запрос.
+    """
     creatives = await db.ad_creative.get_user_creatives(call.from_user.id)
     if not creatives:
         await call.answer("У вас нет креативов. Сначала создайте креатив.", show_alert=True)
         return
     
-    # Block if no client rights (simplified check: must have client)
-    # Ideally should read status from DB which we updated in 'check_client_status'
-    # For now, unblock to allow flow testing, or check simplistic presence
     user_channels = await db.channel.get_user_channels(call.from_user.id)
     if not user_channels:
          await call.answer("Нет подключенных каналов!", show_alert=True)
@@ -214,26 +234,28 @@ async def show_creative_selection(call: CallbackQuery):
 
 @router.callback_query(F.data == "AdPurchase|list")
 @safe_handler("Show Purchase List")
-async def show_purchase_list(call: CallbackQuery, send_new: bool = False):
-    """Список закупов пользователя."""
+async def show_purchase_list(call: CallbackQuery, send_new: bool = False) -> None:
+    """
+    Отображает список закупов пользователя.
+
+    Аргументы:
+        call (CallbackQuery): Callback запрос.
+        send_new (bool): Если True, отправляет новое сообщение, иначе редактирует.
+    """
     purchases = await db.ad_purchase.get_user_purchases(call.from_user.id)
     if not purchases:
         if send_new:
-            await call.message.answer("У вас пока нет закупов.", show_alert=True)
+            await call.message.answer("У вас пока нет закупов.")
         else:
             await call.answer("У вас пока нет закупов.", show_alert=True)
         return
     
-    # Enrich purchases with creative names
-    # This is N+1 but acceptable for small lists. Ideally join in DB.
-    # For now, let's fetch creative for each purchase
     enriched_purchases = []
     for p in purchases:
         creative = await db.ad_creative.get_creative(p.creative_id)
         p.creative_name = creative.name if creative else "Unknown"
         enriched_purchases.append(p)
     
-    # Sort by ID or created_timestamp desc (Assuming ID is auto-increment, higher ID = newer)
     enriched_purchases.sort(key=lambda x: x.id, reverse=True)
         
     text = "Ваши закупы:"
@@ -243,4 +265,3 @@ async def show_purchase_list(call: CallbackQuery, send_new: bool = False):
         await call.message.answer(text, reply_markup=kb)
     else:
         await call.message.edit_text(text, reply_markup=kb)
-

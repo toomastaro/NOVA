@@ -1,3 +1,13 @@
+"""
+Инициализация модуля ботов.
+
+Объединяет роутеры для управления функциональностью ботов:
+- Настройки
+- Создание постов
+- Контент
+- Капча, клонер, очистка
+- Приветствия/прощания
+"""
 from aiogram import Router
 
 from utils.middleware import SetCrudMain
@@ -13,7 +23,14 @@ from .bot_settings import (
 )
 
 
-def get_router():
+def get_router() -> Router:
+    """
+    Создает роутер модуля ботов.
+    Регистрирует middleware SetCrudMain.
+
+    Возвращает:
+        Router: Роутер с подключенными суб-роутерами.
+    """
     routers = [
         menu.get_router(),
         settings.get_router(),

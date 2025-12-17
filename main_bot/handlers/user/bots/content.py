@@ -1,5 +1,15 @@
+"""
+Модуль управления контент-планом ботов.
+
+Включает:
+- Просмотр календаря рассылок
+- Навигацию по дням/месяцам
+- Управление запланированными постами (просмотр, редактирование, удаление)
+- Формирование отчетов по дням
+"""
 from datetime import datetime, timedelta
 import logging
+from typing import Dict, Any, Optional
 
 from aiogram import types, F, Router
 from aiogram.fsm.context import FSMContext
@@ -17,7 +27,16 @@ from main_bot.utils.error_handler import safe_handler
 logger = logging.getLogger(__name__)
 
 
-def serialize_channel(channel):
+def serialize_channel(channel: Any) -> Optional[Dict[str, Any]]:
+    """
+    Сериализует объект канала в словарь.
+    
+    Аргументы:
+        channel: Объект канала.
+        
+    Возвращает:
+        dict: Данные канала или None.
+    """
     if not channel:
         return None
     return {
@@ -30,7 +49,16 @@ def serialize_channel(channel):
     }
 
 
-def serialize_bot_post(post):
+def serialize_bot_post(post: Any) -> Optional[Dict[str, Any]]:
+    """
+    Сериализует объект поста бота в словарь.
+    
+    Аргументы:
+        post: Объект поста.
+        
+    Возвращает:
+        dict: Данные поста или None.
+    """
     if not post:
         return None
     return {
@@ -52,16 +80,16 @@ def serialize_bot_post(post):
     }
 
 
-async def get_days_with_bot_posts(bot_id: int, year: int, month: int) -> dict:
+async def get_days_with_bot_posts(bot_id: int, year: int, month: int) -> Dict[int, Dict[str, bool]]:
     """
     Получает информацию о днях месяца с рассылками и их статусах.
 
-    Args:
-        bot_id: ID бота
-        year: Год
-        month: Месяц
+    Аргументы:
+        bot_id (int): ID бота (chat_id канала).
+        year (int): Год.
+        month (int): Месяц.
 
-    Returns:
+    Возвращает:
         dict: Словарь {день: {"has_finished": bool, "has_pending": bool}}
     """
     from calendar import monthrange
@@ -94,8 +122,15 @@ async def get_days_with_bot_posts(bot_id: int, year: int, month: int) -> dict:
 
 
 @safe_handler("Bots Content Choice Channel")
-async def choice_channel(call: types.CallbackQuery, state: FSMContext):
-    """Выбор канала для просмотра контент-плана бота."""
+async def choice_channel(call: types.CallbackQuery, state: FSMContext) -> None:
+    """
+    Выбор канала для просмотра контент-плана бота.
+    Отображает календарь постов для выбранного канала.
+
+    Аргументы:
+        call (types.CallbackQuery): Callback запрос.
+        state (FSMContext): Контекст состояния.
+    """
     temp = call.data.split("|")
 
     if temp[1] in ["next", "back"]:
@@ -104,15 +139,17 @@ async def choice_channel(call: types.CallbackQuery, state: FSMContext):
             call.from_user.id, from_array=[i.id for i in channels]
         )
 
-        return await call.message.edit_reply_markup(
+        await call.message.edit_reply_markup(
             reply_markup=keyboards.choice_object_content(
                 channels=objects, remover=int(temp[2]), data="ChoiceObjectContentBots"
             )
         )
+        return
 
     if temp[1] == "cancel":
         await call.message.delete()
-        return await start_bots(call.message)
+        await start_bots(call.message)
+        return
 
     bot_id = int(temp[1])
     channel = await db.channel.get_channel_by_chat_id(bot_id)
@@ -149,17 +186,26 @@ async def choice_channel(call: types.CallbackQuery, state: FSMContext):
 
 
 @safe_handler("Bots Content Choice Row")
-async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
-    """Выбор дня или навигация по календарю контента."""
+async def choice_row_content(call: types.CallbackQuery, state: FSMContext) -> None:
+    """
+    Выбор дня или навигация по календарю контента.
+    Обрабатывает переключение дней, месяцев и показ списка постов.
+
+    Аргументы:
+        call (types.CallbackQuery): Callback запрос.
+        state (FSMContext): Контекст состояния.
+    """
     temp = call.data.split("|")
     data = await state.get_data()
     if not data:
         await call.answer(text("keys_data_error"))
-        return await call.message.delete()
+        await call.message.delete()
+        return
 
     if temp[1] == "cancel":
         await call.message.delete()
-        return await show_content(call.message)
+        await show_content(call.message)
+        return
 
     channel_data = data.get("channel")
     show_more: bool = data.get("show_more")
@@ -200,7 +246,7 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
             day=day.isoformat(), day_values=day_values, show_more=show_more
         )
 
-        return await call.message.edit_text(
+        await call.message.edit_text(
             text("bot:content").format(
                 *day_values,
                 channel_data["title"],
@@ -218,12 +264,13 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
                 days_with_posts=days_with_posts,
             ),
         )
+        return
 
     if temp[1] == "show_all":
         all_posts = await db.bot_post.get_bot_posts(channel_data["chat_id"])
         # Показываем только запланированные рассылки
         posts = [post for post in all_posts if post.status == Status.PENDING]
-        return await call.message.edit_text(
+        await call.message.edit_text(
             text("bot:show_all:content").format(
                 channel_data["title"],
                 (
@@ -236,9 +283,11 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
                 objects=posts, data="ContentBotPost"
             ),
         )
+        return
 
     if temp[1] == "...":
-        return await call.answer()
+        await call.answer()
+        return
 
     post_id = int(temp[1])
     post = await db.bot_post.get_bot_post(post_id)
@@ -289,7 +338,7 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
 
     if post.status in [Status.FINISH, Status.ERROR]:
         await call.message.delete()
-        return await call.message.answer(
+        await call.message.answer(
             text("report_finished").format(
                 post.success_send,
                 post.error_send,
@@ -300,6 +349,7 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
             ),
             reply_markup=keyboards.back(data="ManageRemainBotPost|cancel"),
         )
+        return
 
     await call.message.delete()
 
@@ -322,23 +372,31 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
 
 
 @safe_handler("Bots Content Choice Time Objects")
-async def choice_time_objects(call: types.CallbackQuery, state: FSMContext):
-    """Выбор конкретного поста из списка."""
+async def choice_time_objects(call: types.CallbackQuery, state: FSMContext) -> None:
+    """
+    Выбор конкретного поста из списка time objects.
+    
+    Аргументы:
+        call (types.CallbackQuery): Callback запрос.
+        state (FSMContext): Контекст состояния.
+    """
     temp = call.data.split("|")
     data = await state.get_data()
     if not data:
         await call.answer(text("keys_data_error"))
-        return await call.message.delete()
+        await call.message.delete()
+        return
 
     channel_data = data.get("channel")
 
     if temp[1] in ["next", "back"]:
         posts = await db.bot_post.get_bot_posts(channel_data["chat_id"])
-        return await call.message.edit_reply_markup(
+        await call.message.edit_reply_markup(
             reply_markup=keyboards.choice_time_objects(
                 objects=posts, remover=int(temp[2]), data="ChoiceTimeObjectContentBots"
             )
         )
+        return
 
     show_more: bool = data.get("show_more")
     day_str = data.get("day")
@@ -350,7 +408,7 @@ async def choice_time_objects(call: types.CallbackQuery, state: FSMContext):
 
     if temp[1] == "cancel":
         posts = await db.bot_post.get_bot_posts(channel_data["chat_id"], day)
-        return await call.message.edit_text(
+        await call.message.edit_text(
             text("bot:content").format(
                 *data.get("day_values"),
                 channel_data["title"],
@@ -373,13 +431,21 @@ async def choice_time_objects(call: types.CallbackQuery, state: FSMContext):
 
 
 @safe_handler("Bots Manage Remain Post")
-async def manage_remain_post(call: types.CallbackQuery, state: FSMContext):
-    """Управление запланированным постом (изменить/удалить)."""
+async def manage_remain_post(call: types.CallbackQuery, state: FSMContext) -> None:
+    """
+    Управление запланированным постом.
+    Поддерживает изменение клавиатуры или удаление поста.
+
+    Аргументы:
+        call (types.CallbackQuery): Callback запрос.
+        state (FSMContext): Контекст состояния.
+    """
     temp = call.data.split("|")
     data = await state.get_data()
     if not data:
         await call.answer(text("keys_data_error"))
-        return await call.message.delete()
+        await call.message.delete()
+        return
 
     channel_data = data.get("channel")
     day_str = data.get("day")
@@ -412,7 +478,7 @@ async def manage_remain_post(call: types.CallbackQuery, state: FSMContext):
             except Exception:
                 pass
 
-        return await call.message.edit_text(
+        await call.message.edit_text(
             text("bot:content").format(
                 channel_data["title"],
                 *data.get("day_values"),
@@ -431,6 +497,7 @@ async def manage_remain_post(call: types.CallbackQuery, state: FSMContext):
                 ),
             ),
         )
+        return
 
     if temp[1] == "delete":
         await call.message.edit_text(
@@ -439,6 +506,7 @@ async def manage_remain_post(call: types.CallbackQuery, state: FSMContext):
                 data="AcceptDeleteBotPost"
             ),
         )
+        return
 
     if temp[1] == "change":
         await call.message.delete()
@@ -467,13 +535,21 @@ async def manage_remain_post(call: types.CallbackQuery, state: FSMContext):
 
 
 @safe_handler("Bots Accept Delete Post")
-async def accept_delete_row_content(call: types.CallbackQuery, state: FSMContext):
-    """Подтверждение удаления поста."""
+async def accept_delete_row_content(call: types.CallbackQuery, state: FSMContext) -> None:
+    """
+    Подтверждение удаления поста.
+    Удаляет пост из базы данных и возвращает пользователя в календарь.
+
+    Аргументы:
+        call (types.CallbackQuery): Callback запрос.
+        state (FSMContext): Контекст состояния.
+    """
     temp = call.data.split("|")
     data = await state.get_data()
     if not data:
         await call.answer(text("keys_data_error"))
-        return await call.message.delete()
+        await call.message.delete()
+        return
 
     day = data.get("day")
     day_values = data.get("day_values")
@@ -503,7 +579,7 @@ async def accept_delete_row_content(call: types.CallbackQuery, state: FSMContext
 
         send_date = datetime.fromtimestamp(send_timestamp or start_timestamp)
 
-        return await call.message.edit_text(
+        await call.message.edit_text(
             text("bot_post:content").format(
                 "Нет" if not delete_time else f"{int(delete_time / 3600)} час.",
                 send_date.day,
@@ -513,6 +589,7 @@ async def accept_delete_row_content(call: types.CallbackQuery, state: FSMContext
             ),
             reply_markup=keyboards.manage_remain_bot_post(post=post),
         )
+        return
 
     if temp[1] == "accept":
         post_id = post.get("id") if isinstance(post, dict) else post.id
@@ -539,7 +616,7 @@ async def accept_delete_row_content(call: types.CallbackQuery, state: FSMContext
             except Exception:
                 pass
 
-        return await call.message.edit_text(
+        await call.message.edit_text(
             text("bot:content").format(
                 channel_data["title"],
                 *day_values,
@@ -560,7 +637,13 @@ async def accept_delete_row_content(call: types.CallbackQuery, state: FSMContext
         )
 
 
-def get_router():
+def get_router() -> Router:
+    """
+    Регистрация роутеров управления контентом ботов.
+
+    Возвращает:
+        Router: Роутер с зарегистрированными хендлерами.
+    """
     router = Router()
     router.callback_query.register(
         choice_channel, F.data.split("|")[0] == "ChoiceObjectContentBots"
