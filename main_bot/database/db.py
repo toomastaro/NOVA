@@ -1,3 +1,13 @@
+"""
+Модуль единой точки доступа к базе данных.
+
+Агрегирует все CRUD-классы для удобного доступа через единый объект `db`.
+Обеспечивает инициализацию таблиц и управление подключением.
+
+Переменные:
+    db (Database): Глобальный экземпляр БД.
+"""
+
 from main_bot.database import Base, DatabaseMixin, engine
 from main_bot.database.ad_creative.crud import AdCreativeCrud
 from main_bot.database.ad_purchase.crud import AdPurchaseCrud
@@ -27,8 +37,15 @@ from main_bot.database.user_folder.crud import UserFolderCrud
 
 class Database(DatabaseMixin):
     """
-    Основной класс базы данных, использующий композицию для доступа к CRUD-компонентам.
-    Пример: db.user.get_users(), db.post.add_post()
+    Основной класс базы данных.
+
+    Использует композицию для объединения всех CRUD-компонентов.
+    Позволяет обращаться к методам работы с БД через `db.сущность.метод(...)`.
+
+    Атрибуты:
+        user (UserCrud): Методы работы с пользователями.
+        post (PostCrud): Методы работы с постами.
+        ... (и остальные CRUD классы)
     """
 
     def __init__(self):
@@ -60,7 +77,9 @@ class Database(DatabaseMixin):
     @staticmethod
     async def create_tables():
         """
-        Создает таблицы в базе данных, если они не существуют.
+        Создает таблицы в базе данных.
+
+        Использует метаданные SQLAlchemy для создания таблиц, если они еще не существуют.
         """
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)

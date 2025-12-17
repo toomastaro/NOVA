@@ -1,13 +1,37 @@
+"""
+Скрипт глобального рефакторинга роутеров.
+
+Проходит по всем файлам в целевой директории и заменяет устаревшие
+вызовы `hand_add` на `get_router`. Используется для миграции
+кодовой базы.
+
+Запуск:
+    python refactor_routers_global.py
+"""
+
+import logging
 import os
 
-# Target the main project directory
+from main_bot.utils.logger import setup_logging
+
+# Настройка логирования
+setup_logging()
+logger = logging.getLogger(__name__)
+
+# Целевая директория проекта
 TARGET_DIR = r"C:\NOVA\main_bot"
 
+
 def refactor_files():
-    print(f"Starting refactoring in {TARGET_DIR}...")
+    """
+    Выполняет рефакторинг файлов в TARGET_DIR.
+
+    Сканирует .py файлы, ищет вхождения 'hand_add' и заменяет на 'get_router'.
+    """
+    logger.info(f"Запуск рефакторинга в {TARGET_DIR}...")
     count = 0
     for root, dirs, files in os.walk(TARGET_DIR):
-        # Scan all directories
+        # Сканируем все директории
         for file in files:
             if file.endswith(".py"):
                 file_path = os.path.join(root, file)
@@ -19,12 +43,13 @@ def refactor_files():
                         new_content = content.replace("hand_add", "get_router")
                         with open(file_path, "w", encoding="utf-8") as f:
                             f.write(new_content)
-                        print(f"Updated: {file_path}")
+                        logger.info(f"Обновлен: {file_path}")
                         count += 1
                 except Exception as e:
-                    print(f"Error processing {file_path}: {e}")
-    
-    print(f"Refactoring complete. {count} files updated.")
+                    logger.error(f"Ошибка обработки {file_path}: {e}")
+
+    logger.info(f"Рефакторинг завершен. Обновлено файлов: {count}.")
+
 
 if __name__ == "__main__":
     refactor_files()

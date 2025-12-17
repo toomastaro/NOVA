@@ -1,3 +1,15 @@
+"""
+Пакет базы данных.
+
+Содержит инициализацию асинхронного движка SQLAlchemy, настройки сессий
+и базовый класс DatabaseMixin, предоставляющий общие методы для выполнения SQL-запросов.
+
+Переменные:
+    engine (AsyncEngine): Асинхронный движок SQLAlchemy.
+    async_session (async_sessionmaker): Фабрика асинхронных сессий.
+    Base (DeclarativeBase): Базовый класс для моделей.
+"""
+
 import asyncio
 import logging
 import time
@@ -5,7 +17,6 @@ import urllib.parse
 from contextlib import asynccontextmanager
 from typing import Any, AsyncGenerator, Sequence, TypeVar
 
-from config import Config
 from sqlalchemy.engine.result import Result
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import declarative_base
@@ -17,9 +28,11 @@ from tenacity import (
     wait_exponential,
 )
 
+from config import Config
+
 logger = logging.getLogger(__name__)
 
-# Кодируем пользователя и пароль
+# Кодирование учетных данных
 pg_user = urllib.parse.quote_plus(Config.PG_USER)
 pg_pass = urllib.parse.quote_plus(Config.PG_PASS)
 
@@ -46,14 +59,23 @@ Base = declarative_base()
 
 T = TypeVar("T")
 
-# Константы для retry и таймаутов
+# Константы для повторных попыток
 DB_TIMEOUT_SECONDS = Config.DB_TIMEOUT_SECONDS
 DB_MAX_RETRY_ATTEMPTS = Config.DB_MAX_RETRY_ATTEMPTS
 
 
 @asynccontextmanager
 async def log_slow_query(query_info: Any, threshold: float = 1.0):
-    """Логирует предупреждение, если выполнение блока занимает больше threshold секунд."""
+    """
+    Контекстный менеджер для логирования медленных запросов.
+    
+    Если выполнение блока кода занимает более `threshold` секунд,
+    выводится предупреждение в лог.
+
+    Аргументы:
+        query_info (Any): Информация о запросе (строка или объект SQL).
+        threshold (float): Порог времени в секундах.
+    """
     start = time.perf_counter()
     try:
         yield
@@ -67,6 +89,9 @@ async def log_slow_query(query_info: Any, threshold: float = 1.0):
 async def get_session() -> AsyncGenerator[AsyncSession, None]:
     """
     Асинхронный контекстный менеджер для получения сессии базы данных.
+    
+    Возвращает:
+        AsyncSession: Новая сессия SQLAlchemy.
     """
     async with async_session() as session:
         yield session
@@ -74,8 +99,10 @@ async def get_session() -> AsyncGenerator[AsyncSession, None]:
 
 class DatabaseMixin:
     """
-    Миксин, предоставляющий базовые методы для работы с базой данных.
-    Все методы создают новую сессию для выполнения запроса.
+    Миксин с базовыми методами для работы с БД.
+
+    Предоставляет методы execute, fetch, fetchrow, add с автоматическим
+    управлением сессиями, повторными попытками (retry) и логированием.
     """
 
     @staticmethod
@@ -88,24 +115,26 @@ class DatabaseMixin:
     async def execute(sql: Executable, commit: bool = True) -> None:
         """
         Выполняет SQL-запрос.
-        :param sql: SQL-запрос (SQLAlchemy statement).
-        :param commit: Нужно ли делать коммит (по умолчанию True).
+
+        Аргументы:
+            sql (Executable): SQL-запрос (SQLAlchemy statement).
+            commit (bool): Выполнять ли commit после запроса.
         """
         try:
             async with log_slow_query(sql):
                 async with asyncio.timeout(DB_TIMEOUT_SECONDS):
                     async with get_session() as session:
                         session: AsyncSession
-                        logger.debug(f"Executing SQL: {sql}")
+                        logger.debug(f"Выполнение SQL: {sql}")
                         await session.execute(sql)
                         if commit:
                             await session.commit()
-                            logger.debug("Transaction committed")
+                            logger.debug("Транзакция зафиксирована")
         except asyncio.TimeoutError:
-            logger.error(f"Database timeout in execute() after {DB_TIMEOUT_SECONDS}s")
+            logger.error(f"Таймаут БД в execute() после {DB_TIMEOUT_SECONDS}с")
             raise
         except Exception as e:
-            logger.error(f"Database error in execute(): {e}", exc_info=True)
+            logger.error(f"Ошибка БД в execute(): {e}", exc_info=True)
             raise
 
     @staticmethod
@@ -118,7 +147,9 @@ class DatabaseMixin:
     async def execute_many(list_sql: list[Executable]) -> None:
         """
         Выполняет список SQL-запросов в одной транзакции.
-        :param list_sql: Список запросов.
+
+        Аргументы:
+            list_sql (list[Executable]): Список SQL-запросов.
         """
         try:
             async with log_slow_query(f"Batch ({len(list_sql)})"):
@@ -126,19 +157,19 @@ class DatabaseMixin:
                     async with get_session() as session:
                         session: AsyncSession
                         logger.debug(
-                            f"Executing {len(list_sql)} SQL statements in transaction"
+                            f"Выполнение {len(list_sql)} SQL запросов в транзакции"
                         )
                         for sql in list_sql:
                             await session.execute(sql)
                         await session.commit()
-                        logger.debug("Transaction committed")
+                        logger.debug("Транзакция пакета зафиксирована")
         except asyncio.TimeoutError:
             logger.error(
-                f"Database timeout in execute_many() after {DB_TIMEOUT_SECONDS * 2}s"
+                f"Таймаут БД в execute_many() после {DB_TIMEOUT_SECONDS * 2}с"
             )
             raise
         except Exception as e:
-            logger.error(f"Database error in execute_many(): {e}", exc_info=True)
+            logger.error(f"Ошибка БД в execute_many(): {e}", exc_info=True)
             raise
 
     @staticmethod
@@ -150,26 +181,29 @@ class DatabaseMixin:
     )
     async def fetch(sql: Executable) -> Sequence[Any]:
         """
-        Выполняет запрос и возвращает список скалярных значений (scalars().all()).
-        Подходит для выборок списка объектов.
-        :param sql: SQL-запрос.
-        :return: Список результатов.
+        Выполняет запрос и возвращает список скалярных значений.
+
+        Аргументы:
+            sql (Executable): SQL-запрос.
+
+        Возвращает:
+            Sequence[Any]: Список результатов (scalars().all()).
         """
         try:
             async with log_slow_query(sql):
                 async with asyncio.timeout(DB_TIMEOUT_SECONDS):
                     async with get_session() as session:
                         session: AsyncSession
-                        logger.debug(f"Fetching data: {sql}")
+                        logger.debug(f"Получение данных (fetch): {sql}")
                         res: Result = await session.execute(sql)
                         results = res.scalars().all()
-                        logger.debug(f"Fetched {len(results)} rows")
+                        logger.debug(f"Получено {len(results)} строк")
                         return results
         except asyncio.TimeoutError:
-            logger.error(f"Database timeout in fetch() after {DB_TIMEOUT_SECONDS}s")
+            logger.error(f"Таймаут БД в fetch() после {DB_TIMEOUT_SECONDS}с")
             raise
         except Exception as e:
-            logger.error(f"Database error in fetch(): {e}", exc_info=True)
+            logger.error(f"Ошибка БД в fetch(): {e}", exc_info=True)
             raise
 
     @staticmethod
@@ -181,29 +215,33 @@ class DatabaseMixin:
     )
     async def fetchrow(sql: Executable, commit: bool = False) -> Any | None:
         """
-        Выполняет запрос и возвращает одну запись (scalar_one_or_none).
-        :param sql: SQL-запрос.
-        :param commit: Выполнить ли коммит после запроса (например, для RETURNING).
-        :return: Один объект или None.
+        Выполняет запрос и возвращает одну запись (скаляр).
+
+        Аргументы:
+            sql (Executable): SQL-запрос.
+            commit (bool): Выполнять ли commit.
+
+        Возвращает:
+            Any | None: Результат или None.
         """
         try:
             async with log_slow_query(sql):
                 async with asyncio.timeout(DB_TIMEOUT_SECONDS):
                     async with get_session() as session:
                         session: AsyncSession
-                        logger.debug(f"Fetching row: {sql}")
+                        logger.debug(f"Получение строки (fetchrow): {sql}")
                         res: Result = await session.execute(sql)
                         if commit:
                             await session.commit()
-                            logger.debug("Transaction committed")
+                            logger.debug("Транзакция зафиксирована")
                         result = res.scalar_one_or_none()
-                        logger.debug(f"Fetched row: {result is not None}")
+                        logger.debug(f"Строка получена: {result is not None}")
                         return result
         except asyncio.TimeoutError:
-            logger.error(f"Database timeout in fetchrow() after {DB_TIMEOUT_SECONDS}s")
+            logger.error(f"Таймаут БД в fetchrow() после {DB_TIMEOUT_SECONDS}с")
             raise
         except Exception as e:
-            logger.error(f"Database error in fetchrow(): {e}", exc_info=True)
+            logger.error(f"Ошибка БД в fetchrow(): {e}", exc_info=True)
             raise
 
     @staticmethod
@@ -215,26 +253,29 @@ class DatabaseMixin:
     )
     async def fetchall(sql: Executable) -> Sequence[Any]:
         """
-        Выполняет запрос и возвращает все строки (res.all()).
-        Возвращает список кортежей (Row).
-        :param sql: SQL-запрос.
-        :return: Список строк.
+        Выполняет запрос и возвращает все строки (список кортежей).
+
+        Аргументы:
+            sql (Executable): SQL-запрос.
+
+        Возвращает:
+            Sequence[Any]: Список строк (Result.all()).
         """
         try:
             async with log_slow_query(sql):
                 async with asyncio.timeout(DB_TIMEOUT_SECONDS):
                     async with get_session() as session:
                         session: AsyncSession
-                        logger.debug(f"Fetching all rows: {sql}")
+                        logger.debug(f"Получение всех строк (fetchall): {sql}")
                         res: Result = await session.execute(sql)
                         results = res.all()
-                        logger.debug(f"Fetched {len(results)} rows")
+                        logger.debug(f"Получено {len(results)} строк")
                         return results
         except asyncio.TimeoutError:
-            logger.error(f"Database timeout in fetchall() after {DB_TIMEOUT_SECONDS}s")
+            logger.error(f"Таймаут БД в fetchall() после {DB_TIMEOUT_SECONDS}с")
             raise
         except Exception as e:
-            logger.error(f"Database error in fetchall(): {e}", exc_info=True)
+            logger.error(f"Ошибка БД в fetchall(): {e}", exc_info=True)
             raise
 
     @staticmethod
@@ -246,26 +287,30 @@ class DatabaseMixin:
     )
     async def fetchone(sql: Executable) -> Any:
         """
-        Выполняет запрос и возвращает ровно одну строку (res.one()).
-        Вызовет ошибку, если строк нет или их больше одной.
-        :param sql: SQL-запрос.
-        :return: Результат.
+        Выполняет запрос и возвращает ровно одну строку.
+        Вызывает исключение, если строк нет или их > 1.
+
+        Аргументы:
+            sql (Executable): SQL-запрос.
+
+        Возвращает:
+            Any: Результат.
         """
         try:
             async with log_slow_query(sql):
                 async with asyncio.timeout(DB_TIMEOUT_SECONDS):
                     async with get_session() as session:
                         session: AsyncSession
-                        logger.debug(f"Fetching one row: {sql}")
+                        logger.debug(f"Получение одной строки (fetchone): {sql}")
                         res: Result = await session.execute(sql)
                         result = res.one()
-                        logger.debug("Fetched exactly one row")
+                        logger.debug("Получена ровно одна строка")
                         return result
         except asyncio.TimeoutError:
-            logger.error(f"Database timeout in fetchone() after {DB_TIMEOUT_SECONDS}s")
+            logger.error(f"Таймаут БД в fetchone() после {DB_TIMEOUT_SECONDS}с")
             raise
         except Exception as e:
-            logger.error(f"Database error in fetchone(): {e}", exc_info=True)
+            logger.error(f"Ошибка БД в fetchone(): {e}", exc_info=True)
             raise
 
     @staticmethod
@@ -278,27 +323,31 @@ class DatabaseMixin:
     async def add(obj: Any, commit: bool = True) -> Any:
         """
         Добавляет объект в сессию и сохраняет его.
-        :param obj: Объект модели SQLAlchemy.
-        :param commit: Делать ли коммит.
-        :return: Добавленный объект (обновленный).
+
+        Аргументы:
+            obj (Any): Объект модели.
+            commit (bool): Выполнять ли commit.
+
+        Возвращает:
+            Any: Обновленный объект.
         """
         try:
             async with log_slow_query(f"Add {obj.__class__.__name__}"):
                 async with asyncio.timeout(DB_TIMEOUT_SECONDS):
                     async with get_session() as session:
                         session: AsyncSession
-                        logger.debug(f"Adding object: {obj.__class__.__name__}")
+                        logger.debug(f"Добавление объекта: {obj.__class__.__name__}")
                         session.add(obj)
                         if commit:
                             await session.commit()
                             await session.refresh(obj)
                             logger.debug(
-                                f"Object added and committed: {obj.__class__.__name__}"
+                                f"Объект добавлен и зафиксирован: {obj.__class__.__name__}"
                             )
                         return obj
         except asyncio.TimeoutError:
-            logger.error(f"Database timeout in add() after {DB_TIMEOUT_SECONDS}s")
+            logger.error(f"Таймаут БД в add() после {DB_TIMEOUT_SECONDS}с")
             raise
         except Exception as e:
-            logger.error(f"Database error in add(): {e}", exc_info=True)
+            logger.error(f"Ошибка БД в add(): {e}", exc_info=True)
             raise
