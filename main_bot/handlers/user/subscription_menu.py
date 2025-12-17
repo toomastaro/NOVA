@@ -132,13 +132,17 @@ async def show_align_sub_menu(call: types.CallbackQuery, state: FSMContext) -> N
         state (FSMContext): Контекст состояния.
     """
     user = await db.user.get_user(user_id=call.from_user.id)
-    all_sub_objects = await db.channel.get_subscribe_channels(user_id=user.id)
+    channels = await db.channel.get_user_channels(user_id=user.id)
 
+    if not channels:
+        return await call.answer(text("error_subscription_required"), show_alert=True)
+
+    # Фильтруем только активные подписки для выравнивания
     now = int(time.time())
-    sub_objects = [ch for ch in all_sub_objects if ch.subscribe and ch.subscribe > now]
+    sub_objects = [ch for ch in channels if ch.subscribe and ch.subscribe > now]
 
     if len(sub_objects) < 2:
-        return await call.answer(text("error_align_sub"), show_alert=True)
+        return await call.answer(text("error_subscription_required"), show_alert=True)
 
     await state.update_data(align_chosen=[])
 

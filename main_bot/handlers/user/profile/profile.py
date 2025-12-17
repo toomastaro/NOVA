@@ -198,7 +198,7 @@ async def subscription_menu_choice(
 
         if not channels:
             return await call.message.answer(
-                text("error_no_channels"), reply_markup=keyboards.subscription_menu()
+                text("error_subscription_required"), reply_markup=keyboards.subscription_menu()
             )
 
         await state.update_data(align_chosen=[])

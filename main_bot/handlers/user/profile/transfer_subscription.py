@@ -23,20 +23,23 @@ logger = logging.getLogger(__name__)
 async def show_transfer_sub_menu(call: types.CallbackQuery, state: FSMContext):
     """Показать меню выбора канала-донора для переноса подписки"""
     user = await db.user.get_user(user_id=call.from_user.id)
-    all_channels = await db.channel.get_subscribe_channels(user_id=user.id)
-
-    # Фильтруем только активные подписки (не истекшие)
-    now = int(time.time())
-    channels = [ch for ch in all_channels if ch.subscribe and ch.subscribe > now]
+    channels = await db.channel.get_user_channels(user_id=user.id)
 
     if not channels:
-        return await call.answer(text("error_transfer_no_channels"), show_alert=True)
+        return await call.answer(text("error_subscription_required"), show_alert=True)
+
+    # Фильтруем только активные подписки для отображения
+    now = int(time.time())
+    active_channels = [ch for ch in channels if ch.subscribe and ch.subscribe > now]
+    
+    if not active_channels:
+        return await call.answer(text("error_subscription_required"), show_alert=True)
 
     await state.update_data(transfer_chosen_recipients=[])
 
     await call.message.answer(
         text("transfer_sub:choose_donor"),
-        reply_markup=keyboards.transfer_sub_choose_donor(channels=channels),
+        reply_markup=keyboards.transfer_sub_choose_donor(channels=active_channels),
     )
 
 
