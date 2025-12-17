@@ -23,7 +23,7 @@ from main_bot.database.channel.model import Channel
 from main_bot.utils.message_utils import answer_post
 from main_bot.utils.lang.language import text
 from main_bot.keyboards import keyboards
-from main_bot.keyboards.posting import ensure_obj
+from main_bot.keyboards.posting import ensure_obj, safe_post_from_dict
 from main_bot.states.user import Posting
 from utils.error_handler import safe_handler
 from main_bot.utils.user_settings import get_user_view_mode, set_user_view_mode
@@ -465,7 +465,7 @@ async def finish_params(call: types.CallbackQuery, state: FSMContext):
         await call.answer(text("keys_data_error"))
         return await call.message.delete()
 
-    post = Post(**data.get("post"))
+    post = safe_post_from_dict(data.get("post"))
     if not post:
         await call.answer(text("error_post_not_found"))
         return await call.message.delete()
@@ -598,7 +598,7 @@ async def choice_delete_time(call: types.CallbackQuery, state: FSMContext):
         await call.answer(text("keys_data_error"))
         return await call.message.delete()
 
-    post = Post(**data.get("post"))
+    post = safe_post_from_dict(data.get("post"))
 
     delete_time = post.delete_time
     if temp[1].isdigit():
@@ -654,7 +654,7 @@ async def choice_delete_time(call: types.CallbackQuery, state: FSMContext):
                 if obj.chat_id in chosen[:10]
             ),
         ),
-        reply_markup=keyboards.finish_params(obj=Post(**data.get("post"))),
+        reply_markup=keyboards.finish_params(obj=safe_post_from_dict(data.get("post"))),
     )
 
 
@@ -700,7 +700,7 @@ async def cancel_send_time(call: types.CallbackQuery, state: FSMContext):
                 if obj.chat_id in chosen[:10]
             ),
         ),
-        reply_markup=keyboards.finish_params(obj=Post(**data.get("post"))),
+        reply_markup=keyboards.finish_params(obj=safe_post_from_dict(data.get("post"))),
     )
 
 
@@ -750,7 +750,7 @@ async def get_send_time(message: types.Message, state: FSMContext):
 
     data = await state.get_data()
     is_edit: bool = data.get("is_edit")
-    post: Post = Post(**data.get("post"))
+    post: Post = safe_post_from_dict(data.get("post"))
 
     # Если редактируем опубликованный пост
     if is_edit:
