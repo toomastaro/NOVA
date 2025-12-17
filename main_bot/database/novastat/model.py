@@ -16,6 +16,7 @@ class NovaStatSettings(Base):
         user_id (int): ID пользователя (Telegram ID).
         depth_days (int): Глубина анализа в днях.
     """
+
     __tablename__ = "novastat_settings"
 
     user_id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
@@ -32,6 +33,7 @@ class Collection(Base):
         name (str): Название коллекции.
         channels (list[CollectionChannel]): Связанные каналы.
     """
+
     __tablename__ = "novastat_collections"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -52,6 +54,7 @@ class CollectionChannel(Base):
         collection_id (int): ID коллекции.
         channel_identifier (str): Идентификатор канала (username/link).
     """
+
     __tablename__ = "novastat_collection_channels"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)

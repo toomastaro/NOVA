@@ -21,7 +21,7 @@ from main_bot.utils.lang.language import text
 from main_bot.utils.schemas import StoryOptions
 from main_bot.keyboards import keyboards
 from main_bot.states.user import Stories
-from main_bot.utils.error_handler import safe_handler
+from utils.error_handler import safe_handler
 from main_bot.utils.user_settings import get_user_view_mode, set_user_view_mode
 
 logger = logging.getLogger(__name__)
@@ -102,7 +102,7 @@ async def set_folder_content(
     return chosen, chosen_folders
 
 
-@safe_handler("Stories Choice Channels")
+@safe_handler("Сторис: выбор каналов")
 async def choice_channels(call: types.CallbackQuery, state: FSMContext):
     """Выбор каналов для публикации stories."""
     temp = call.data.split("|")
@@ -121,12 +121,12 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
     if temp[1] == "switch_view":
         view_mode = "channels" if view_mode == "folders" else "folders"
         await set_user_view_mode(call.from_user.id, view_mode)
-        
+
         # Сбрасываем пагинацию и вход в папку
         if view_mode == "channels":
             await state.update_data(current_folder_id=None)
             current_folder_id = None
-        
+
         temp = list(temp)
         if len(temp) > 2:
             temp[2] = "0"
@@ -141,7 +141,7 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
             objects = await db.channel.get_user_channels(
                 user_id=call.from_user.id,
                 from_array=[int(cid) for cid in folder.content],
-                sort_by="stories"
+                sort_by="stories",
             )
         else:
             objects = []
@@ -162,9 +162,11 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
         if view_mode == "folders":
             objects = []
             kb_folders = [f for f in folders if f.content]
-            folders = kb_folders # Keep consistent nomenclature if needed, or just filter
+            folders = (
+                kb_folders  # Keep consistent nomenclature if needed, or just filter
+            )
         else:
-             pass
+            pass
 
     if temp[1] == "next_step":
         if not chosen:
@@ -186,18 +188,20 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
             # Возврат к корневому уровню
             await state.update_data(current_folder_id=None)
             current_folder_id = None
-            
+
             # Перезагружаем корневые данные
             if view_mode == "folders":
                 objects = []
-                raw_folders = await db.user_folder.get_folders(user_id=call.from_user.id)
+                raw_folders = await db.user_folder.get_folders(
+                    user_id=call.from_user.id
+                )
                 folders = [f for f in raw_folders if f.content]
             else:
                 objects = await db.channel.get_user_channels(
                     user_id=call.from_user.id, sort_by="stories", limit=500
                 )
                 folders = []
-            
+
             # Сбрасываем remover
             remover_value = 0
             try:
@@ -227,10 +231,10 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
 
     if temp[1] == "choice_all":
         current_ids = [i.chat_id for i in objects]
-        
+
         # Проверяем, все ли выбраны в текущем виде
         all_selected = all(cid in chosen for cid in current_ids)
-        
+
         if all_selected:
             # Отменяем выбор всех видимых
             for cid in current_ids:
@@ -257,13 +261,13 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
                     f"Оплатите подписку через меню 💎 Подписка",
                     show_alert=True,
                 )
-                
+
             # Проверка сессии для сторис
             channels_without_session = []
             for obj in objects:
-                 if not obj.session_path:
-                     channels_without_session.append(obj.title)
-                     
+                if not obj.session_path:
+                    channels_without_session.append(obj.title)
+
             if channels_without_session:
                 channels_list = "\n".join(
                     f"• {title}" for title in channels_without_session[:5]
@@ -271,7 +275,7 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
                 return await call.answer(
                     f"❌ Невозможно выбрать все каналы\n\n"
                     f"Следующие каналы не имеют подключенной сессии для сторис:\n{channels_list}",
-                    show_alert=True
+                    show_alert=True,
                 )
 
             # Выбираем все видимые
@@ -284,22 +288,22 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
         resource_type = temp[3] if len(temp) > 3 else None
 
         if resource_type == "folder":
-             # Вход в папку
+            # Вход в папку
             await state.update_data(current_folder_id=resource_id)
             current_folder_id = resource_id
-            
+
             # Загружаем содержимое папки
             folder = await db.user_folder.get_folder_by_id(resource_id)
             if folder and folder.content:
                 objects = await db.channel.get_user_channels(
                     user_id=call.from_user.id,
                     from_array=[int(cid) for cid in folder.content],
-                    sort_by="stories"
+                    sort_by="stories",
                 )
             else:
                 objects = []
             folders = []
-            
+
             # Сбрасываем пагинацию
             temp = list(temp)
             if len(temp) > 2:
@@ -327,23 +331,27 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
                 chosen.append(resource_id)
 
     await state.update_data(chosen=chosen, chosen_folders=chosen_folders)
-    
+
     # Формируем текст
     folder_title = ""
     if current_folder_id:
         try:
-             folder_obj = await db.user_folder.get_folder_by_id(current_folder_id)
-             if folder_obj:
-                 folder_title = folder_obj.title
+            folder_obj = await db.user_folder.get_folder_by_id(current_folder_id)
+            if folder_obj:
+                folder_title = folder_obj.title
         except Exception:
             pass
 
     msg_text = (
-        text("choice_channels:folder").format(folder_title, len(chosen), await get_story_report_text(chosen, objects))
+        text("choice_channels:folder").format(
+            folder_title, len(chosen), await get_story_report_text(chosen, objects)
+        )
         if current_folder_id and folder_title
-        else text("choice_channels:story").format(len(chosen), await get_story_report_text(chosen, objects))
+        else text("choice_channels:story").format(
+            len(chosen), await get_story_report_text(chosen, objects)
+        )
     )
-    
+
     await call.message.edit_text(
         msg_text,
         reply_markup=keyboards.choice_objects(
@@ -351,11 +359,7 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
             chosen=chosen,
             folders=folders,
             chosen_folders=chosen_folders,
-            remover=(
-                remover_value
-                if "remover_value" in locals()
-                else int(temp[2])
-            ),
+            remover=(remover_value if "remover_value" in locals() else int(temp[2])),
             data="ChoiceStoriesChannels",
             view_mode=view_mode,
             is_inside_folder=bool(current_folder_id),
@@ -363,7 +367,7 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
     )
 
 
-@safe_handler("Stories Finish Params")
+@safe_handler("Сторис: завершение параметров")
 async def finish_params(call: types.CallbackQuery, state: FSMContext):
     """Настройка финальных параметров stories перед публикацией."""
     temp = call.data.split("|")
@@ -429,7 +433,7 @@ async def finish_params(call: types.CallbackQuery, state: FSMContext):
         )
 
 
-@safe_handler("Stories Choice Delete Time")
+@safe_handler("Сторис: время удаления")
 async def choice_delete_time(call: types.CallbackQuery, state: FSMContext):
     """Выбор времени автоудаления stories."""
     temp = call.data.split("|")
@@ -484,7 +488,7 @@ async def choice_delete_time(call: types.CallbackQuery, state: FSMContext):
     )
 
 
-@safe_handler("Stories Cancel Send Time")
+@safe_handler("Сторис: отмена времени отправки")
 async def cancel_send_time(call: types.CallbackQuery, state: FSMContext):
     """Отмена ввода времени отправки."""
     data = await state.get_data()
@@ -517,7 +521,7 @@ async def cancel_send_time(call: types.CallbackQuery, state: FSMContext):
     )
 
 
-@safe_handler("Stories Get Send Time")
+@safe_handler("Сторис: время отправки")
 async def get_send_time(message: types.Message, state: FSMContext):
     """
     Получение времени отправки от пользователя.

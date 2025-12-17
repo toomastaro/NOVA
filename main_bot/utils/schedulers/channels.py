@@ -6,6 +6,7 @@
 - Сбора данных NovaStat (24/48/72 часа)
 - Обновления просмотров для недавних постов
 """
+
 import logging
 import time
 from datetime import datetime
@@ -20,10 +21,12 @@ from main_bot.database.db import db
 from main_bot.database.published_post.model import PublishedPost
 from main_bot.utils.novastat import novastat_service
 from main_bot.utils.session_manager import SessionManager
+from utils.error_handler import safe_handler
 
 logger = logging.getLogger(__name__)
 
 
+@safe_handler("Каналы: обновление статистики (Background)")
 async def update_channel_stats(channel_id: int) -> None:
     """
     Ежечасная задача по обновлению статистики канала и постов.
@@ -50,13 +53,19 @@ async def update_channel_stats(channel_id: int) -> None:
 
     # 2. Инициализируем клиент (Internal)
     # Ищем клиент, привязанный к каналу (preferred_for_stats или любой активный)
-    mt_client_channel = await db.mt_client_channel.get_preferred_for_stats(channel.chat_id)
+    mt_client_channel = await db.mt_client_channel.get_preferred_for_stats(
+        channel.chat_id
+    )
 
     if not mt_client_channel:
         # Fallback: берем любого привязанного клиента
-        mt_client_channel = await db.mt_client_channel.get_any_client_for_channel(channel.chat_id)
+        mt_client_channel = await db.mt_client_channel.get_any_client_for_channel(
+            channel.chat_id
+        )
         if mt_client_channel:
-            logger.info(f"Используется fallback клиент {mt_client_channel.client_id} для канала {channel.title}")
+            logger.info(
+                f"Используется fallback клиент {mt_client_channel.client_id} для канала {channel.title}"
+            )
 
     client_obj = None
 
@@ -78,7 +87,7 @@ async def update_channel_stats(channel_id: int) -> None:
             # но обычно контекстный менеджер обрабатывает соединение.
             # Подразумеваем, что нам нужно проверить авторизацию.
             if not manager.client:
-                 await manager.init_client()
+                await manager.init_client()
 
             if not manager.client or not await manager.client.is_user_authorized():
                 logger.error(f"Не удалось инициализировать клиент {client_obj.id}")
@@ -95,11 +104,15 @@ async def update_channel_stats(channel_id: int) -> None:
 
             # 3. Обновляем подписчиков
             try:
-                full = await client(functions.channels.GetFullChannelRequest(channel=entity))
+                full = await client(
+                    functions.channels.GetFullChannelRequest(channel=entity)
+                )
                 subs = int(getattr(full.full_chat, "participants_count", 0) or 0)
 
                 # Обновляем в БД
-                await db.channel.update_channel_by_id(channel.id, subscribers_count=subs)
+                await db.channel.update_channel_by_id(
+                    channel.id, subscribers_count=subs
+                )
                 logger.info(f"Обновлены подписчики для {channel.title}: {subs}")
             except Exception as e:
                 logger.error(f"Не удалось получить подписчиков: {e}")
@@ -107,15 +120,17 @@ async def update_channel_stats(channel_id: int) -> None:
             # 4. Обновляем NovaStat данные (24/48/72)
             # days_limit=4 (достаточно для 72ч)
             try:
-                stats = await novastat_service._collect_stats_impl(client, entity, days_limit=4)
-                if stats and 'views' in stats:
-                    views_data = stats['views'] # {24: ..., 48: ..., 72: ...}
+                stats = await novastat_service._collect_stats_impl(
+                    client, entity, days_limit=4
+                )
+                if stats and "views" in stats:
+                    views_data = stats["views"]  # {24: ..., 48: ..., 72: ...}
 
                     await db.channel.update_channel_by_id(
                         channel.id,
                         novastat_24h=views_data.get(24, 0),
                         novastat_48h=views_data.get(48, 0),
-                        novastat_72h=views_data.get(72, 0)
+                        novastat_72h=views_data.get(72, 0),
                     )
                     logger.info(f"Обновлен кэш NovaStat для {channel.title}")
             except Exception as e:
@@ -123,13 +138,13 @@ async def update_channel_stats(channel_id: int) -> None:
 
             # 5. Обновляем просмотры постов (< 72ч)
             current_time = int(time.time())
-            limit_time = current_time - (72 * 3600 + 600) # + резерв
+            limit_time = current_time - (72 * 3600 + 600)  # + резерв
 
             query = select(PublishedPost).where(
                 and_(
                     PublishedPost.chat_id == channel.chat_id,
-                    PublishedPost.status == 'active',
-                    PublishedPost.created_timestamp > limit_time
+                    PublishedPost.status == "active",
+                    PublishedPost.created_timestamp > limit_time,
                 )
             )
 
@@ -142,7 +157,7 @@ async def update_channel_stats(channel_id: int) -> None:
                 return
 
             # Собираем message_ids
-            msg_ids = [p.message_id for p in recent_posts if hasattr(p, 'message_id')]
+            msg_ids = [p.message_id for p in recent_posts if hasattr(p, "message_id")]
 
             if not msg_ids:
                 return
@@ -157,11 +172,13 @@ async def update_channel_stats(channel_id: int) -> None:
                         continue
 
                     # Находим соответствующий пост в БД
-                    post_obj = next((p for p in recent_posts if p.message_id == msg.id), None)
+                    post_obj = next(
+                        (p for p in recent_posts if p.message_id == msg.id), None
+                    )
                     if not post_obj:
                         continue
 
-                    views = int(getattr(msg, 'views', 0) or 0)
+                    views = int(getattr(msg, "views", 0) or 0)
 
                     age_seconds = current_time - post_obj.created_timestamp
                     age_hours = age_seconds / 3600.0
@@ -169,25 +186,32 @@ async def update_channel_stats(channel_id: int) -> None:
                     update_data = {}
 
                     if age_hours <= 24:
-                        update_data['views_24h'] = views
+                        update_data["views_24h"] = views
                     elif age_hours <= 48:
-                        update_data['views_48h'] = views
+                        update_data["views_48h"] = views
                     elif age_hours <= 72:
-                        update_data['views_72h'] = views
+                        update_data["views_72h"] = views
 
                     if update_data:
                         # TODO: Можно оптимизировать через bulk update в будущем
-                        await db.published_post.update_published_post(post_obj.id, **update_data)
+                        await db.published_post.update_published_post(
+                            post_obj.id, **update_data
+                        )
                         updated_count += 1
 
                 if updated_count > 0:
-                    logger.info(f"Обновлены просмотры для {updated_count} постов в {channel.title}")
+                    logger.info(
+                        f"Обновлены просмотры для {updated_count} постов в {channel.title}"
+                    )
 
             except Exception as e:
                 logger.error(f"Не удалось обновить просмотры постов: {e}")
 
         except Exception as e:
-            logger.error(f"Global error in update_channel_stats for {channel_id}: {e}", exc_info=True)
+            logger.error(
+                f"Global error in update_channel_stats for {channel_id}: {e}",
+                exc_info=True,
+            )
 
 
 def schedule_channel_job(scheduler: AsyncIOScheduler, channel: object) -> None:
@@ -212,9 +236,11 @@ def schedule_channel_job(scheduler: AsyncIOScheduler, channel: object) -> None:
         id=job_id,
         args=[channel.chat_id],
         replace_existing=True,
-        name=f"Обновление статистики для {channel.title}"
+        name=f"Обновление статистики для {channel.title}",
     )
-    logger.info(f"Запланирована задача статистики для {channel.title} в XX:{minute:02d}:{second:02d}")
+    logger.info(
+        f"Запланирована задача статистики для {channel.title} в XX:{minute:02d}:{second:02d}"
+    )
 
 
 async def register_channel_jobs(scheduler: AsyncIOScheduler) -> None:

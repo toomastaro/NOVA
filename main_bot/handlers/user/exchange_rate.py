@@ -7,6 +7,7 @@
 - Выбор источника курса
 - Доступно только при наличии активной подписки
 """
+
 import logging
 import time
 from datetime import datetime
@@ -37,7 +38,9 @@ async def _check_active_subscription(user_id: int) -> bool:
         bool: True если есть хотя бы одна активная подписка.
     """
     subscribed_channels = await db.channel.get_subscribe_channels(user_id)
-    return any(ch.subscribe and ch.subscribe > time.time() for ch in subscribed_channels)
+    return any(
+        ch.subscribe and ch.subscribe > time.time() for ch in subscribed_channels
+    )
 
 
 def serialize_rate(rate: Any) -> Optional[Dict[str, Any]]:
@@ -133,7 +136,9 @@ async def start_exchange_rate(message: types.Message, state: FSMContext) -> None
         )
 
 
-async def settings_of_exchange_rate(call: types.CallbackQuery, state: FSMContext) -> None:
+async def settings_of_exchange_rate(
+    call: types.CallbackQuery, state: FSMContext
+) -> None:
     """
     Отображает настройки выбора источника курса.
 
@@ -151,7 +156,9 @@ async def settings_of_exchange_rate(call: types.CallbackQuery, state: FSMContext
     )
 
 
-async def choice_of_exchange_resources(call: types.CallbackQuery, state: FSMContext) -> None:
+async def choice_of_exchange_resources(
+    call: types.CallbackQuery, state: FSMContext
+) -> None:
     """
     Обрабатывает выбор источника курса валюты.
 
@@ -175,7 +182,9 @@ async def choice_of_exchange_resources(call: types.CallbackQuery, state: FSMCont
     )
 
 
-async def back_to_start_exchange_rate(call: types.CallbackQuery, state: FSMContext) -> None:
+async def back_to_start_exchange_rate(
+    call: types.CallbackQuery, state: FSMContext
+) -> None:
     """
     Возврат к главному экрану курса валют.
 
@@ -211,7 +220,9 @@ async def back_to_start_exchange_rate(call: types.CallbackQuery, state: FSMConte
     )
 
 
-async def get_exchange_rate_of_custom_amount(message: types.Message, state: FSMContext) -> None:
+async def get_exchange_rate_of_custom_amount(
+    message: types.Message, state: FSMContext
+) -> None:
     """
     Рассчитывает сумму по введенному количеству валюты.
 

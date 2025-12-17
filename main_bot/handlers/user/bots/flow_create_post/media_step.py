@@ -7,6 +7,7 @@
 - Редактирование параметров поста (текст, медиа, кнопки)
 - Сериализацию данных поста для FSM
 """
+
 import logging
 from typing import Any, Dict, Optional, Union
 
@@ -21,7 +22,7 @@ from main_bot.utils.lang.language import text
 from main_bot.utils.schemas import Media, MessageOptionsHello
 from main_bot.keyboards import keyboards
 from main_bot.states.user import Bots
-from main_bot.utils.error_handler import safe_handler
+from utils.error_handler import safe_handler
 
 logger = logging.getLogger(__name__)
 
@@ -29,10 +30,10 @@ logger = logging.getLogger(__name__)
 def serialize_bot_post(post: BotPost) -> Optional[Dict[str, Any]]:
     """
     Сериализация объекта BotPost в словарь.
-    
+
     Аргументы:
         post (BotPost): Объект поста.
-        
+
     Возвращает:
         Optional[Dict[str, Any]]: Словарь с данными поста или None.
     """
@@ -59,18 +60,21 @@ def serialize_bot_post(post: BotPost) -> Optional[Dict[str, Any]]:
 
 class DictObj:
     """Вспомогательный класс для доступа к ключам словаря как к атрибутам."""
+
     def __init__(self, in_dict: dict):
         for key, val in in_dict.items():
             setattr(self, key, val)
 
 
-def ensure_bot_post_obj(post: Union[BotPost, Dict[str, Any]]) -> Union[BotPost, DictObj]:
+def ensure_bot_post_obj(
+    post: Union[BotPost, Dict[str, Any]],
+) -> Union[BotPost, DictObj]:
     """
     Гарантирует, что post является объектом (или DictObj).
-    
+
     Аргументы:
         post: Объект поста или словарь.
-        
+
     Возвращает:
         Union[BotPost, DictObj]: Объект с атрибутивным доступом.
     """
@@ -83,7 +87,7 @@ def ensure_bot_post_obj(post: Union[BotPost, Dict[str, Any]]) -> Union[BotPost, 
 async def cancel_message(call: types.CallbackQuery, state: FSMContext) -> None:
     """
     Отмена создания сообщения и возврат к выбору каналов.
-    
+
     Аргументы:
         call (types.CallbackQuery): Callback запрос.
         state (FSMContext): Контекст состояния.
@@ -234,7 +238,7 @@ async def manage_post(call: types.CallbackQuery, state: FSMContext) -> None:
 async def cancel_value(call: types.CallbackQuery, state: FSMContext) -> None:
     """
     Отмена или удаление значения конкретного параметра (текст, медиа, кнопки).
-    
+
     Аргументы:
         call (types.CallbackQuery): Callback запрос.
         state (FSMContext): Контекст состояния.
@@ -369,7 +373,7 @@ async def get_value(message: types.Message, state: FSMContext) -> None:
             # if param in ["text", "media", "buttons"]: ...
             # else: ...
             #    if param == "buttons": ...
-            # So the second block is indeed unreachable for "buttons". 
+            # So the second block is indeed unreachable for "buttons".
             # I will keep it as is to be "safe" but it is dead code.
             post.buttons = value
 
@@ -394,5 +398,5 @@ async def get_value(message: types.Message, state: FSMContext) -> None:
         await message.bot.delete_message(message.chat.id, data.get("input_msg_id"))
     except Exception:
         pass
-        
+
     await answer_bot_post(message, state)

@@ -7,6 +7,7 @@
 - Редактирование кнопок и контента капчи
 - Включение/выключение активной капчи
 """
+
 import logging
 
 from aiogram import types, F, Router
@@ -24,7 +25,7 @@ from main_bot.utils.lang.language import text
 from main_bot.keyboards import keyboards
 from main_bot.utils.schemas import Media, MessageOptionsCaptcha
 from main_bot.utils.functions import answer_message
-from main_bot.utils.error_handler import safe_handler
+from utils.error_handler import safe_handler
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +34,7 @@ logger = logging.getLogger(__name__)
 async def show_manage_captcha(message: types.Message, state: FSMContext) -> None:
     """
     Отображение меню управления конкретной капчей.
-    
+
     Аргументы:
         message (types.Message): Сообщение для ответа.
         state (FSMContext): Контекст состояния.
@@ -166,7 +167,9 @@ async def manage_hello_message(
 
 
 @safe_handler("Bots Manage Hello Message Post")
-async def manage_hello_message_post(call: types.CallbackQuery, state: FSMContext) -> None:
+async def manage_hello_message_post(
+    call: types.CallbackQuery, state: FSMContext
+) -> None:
     """
     Редактирование свойств поста капчи (кнопки, размер, текст).
 
@@ -183,7 +186,7 @@ async def manage_hello_message_post(call: types.CallbackQuery, state: FSMContext
             await call.bot.delete_message(call.from_user.id, data.get("post_id"))
         except Exception:
             pass
-            
+
         await call.message.answer("✅ Меню возвращено", reply_markup=keyboards.menu())
 
         await call.message.delete()
@@ -226,7 +229,7 @@ async def manage_hello_message_post(call: types.CallbackQuery, state: FSMContext
             await call.bot.delete_message(call.from_user.id, data.get("post_id"))
         except Exception:
             pass
-            
+
         post_id = await answer_message(call.message, message_obj)
 
         await state.update_data(post_id=post_id.message_id, is_edit=True)
@@ -250,7 +253,9 @@ async def manage_hello_message_post(call: types.CallbackQuery, state: FSMContext
 
 
 @safe_handler("Bots Choice Hello Message Delay")
-async def choice_hello_message_delay(call: types.CallbackQuery, state: FSMContext) -> None:
+async def choice_hello_message_delay(
+    call: types.CallbackQuery, state: FSMContext
+) -> None:
     """
     Выбор задержки капчи.
 
@@ -312,7 +317,9 @@ async def back(call: types.CallbackQuery, state: FSMContext, db_obj: Database) -
 
 
 @safe_handler("Bots Captcha Get Message")
-async def get_message(message: types.Message, state: FSMContext, db_obj: Database) -> None:
+async def get_message(
+    message: types.Message, state: FSMContext, db_obj: Database
+) -> None:
     """
     Обработка ввода сообщения капчи.
     Сохраняет новое сообщение или обновляет существующее.
@@ -351,7 +358,7 @@ async def get_message(message: types.Message, state: FSMContext, db_obj: Databas
             await message.bot.delete_message(message.from_user.id, data.get("post_id"))
         except Exception:
             pass
-            
+
         post_id = await answer_message(message, message_options)
 
         data.pop("post_id")
@@ -417,7 +424,7 @@ async def get_buttons(message: types.Message, state: FSMContext) -> None:
         await message.bot.delete_message(message.from_user.id, data.get("post_id"))
     except Exception:
         pass
-        
+
     post_id = await answer_message(message, hello_message)
 
     data.pop("post_id")

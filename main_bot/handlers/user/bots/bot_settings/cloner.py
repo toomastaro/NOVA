@@ -6,6 +6,7 @@
 - Выбор настроек для копирования (автоприем, капча, приветствие, прощание)
 - Процесс клонирования настроек
 """
+
 import logging
 from typing import List
 
@@ -17,7 +18,7 @@ from main_bot.database.db import db
 from main_bot.handlers.user.bots.bot_settings.menu import show_channel_setting
 from main_bot.utils.lang.language import text
 from main_bot.keyboards import keyboards
-from main_bot.utils.error_handler import safe_handler
+from utils.error_handler import safe_handler
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +29,7 @@ async def choice_channel(
 ) -> None:
     """
     Выбор канала-цели для клонирования настроек текущего канала.
-    
+
     Аргументы:
         call (types.CallbackQuery): Callback запрос.
         state (FSMContext): Контекст состояния.
@@ -98,10 +99,12 @@ async def choice_channel(
     )
 
 
-async def start_clone(settings: List[int], chat_ids: List[int], current_chat: int) -> None:
+async def start_clone(
+    settings: List[int], chat_ids: List[int], current_chat: int
+) -> None:
     """
     Выполняет клонирование выбранных настроек из текущего канала в целевые.
-    
+
     Аргументы:
         settings (List[int]): Список ID выбранных настроек.
         chat_ids (List[int]): Список ID целевых каналов.
@@ -164,10 +167,12 @@ async def start_clone(settings: List[int], chat_ids: List[int], current_chat: in
 
 
 @safe_handler("Bots Cloner Choice")
-async def choice(call: types.CallbackQuery, state: FSMContext, db_obj: Database) -> None:
+async def choice(
+    call: types.CallbackQuery, state: FSMContext, db_obj: Database
+) -> None:
     """
     Меню выбора конкретных настроек для клонирования (галочки).
-    
+
     Аргументы:
         call (types.CallbackQuery): Callback запрос.
         state (FSMContext): Контекст состояния.

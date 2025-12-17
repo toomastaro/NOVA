@@ -23,7 +23,7 @@ from utils.functions import create_emoji
 async def msg_handler(message: types.Message, db: Database):
     """
     Обрабатывает любые сообщения от пользователя в личке бота.
-    
+
     Регистрирует пользователя или обновляет время последней активности (капчи).
     """
     user = await db.user.get_user(message.from_user.id)
@@ -31,13 +31,13 @@ async def msg_handler(message: types.Message, db: Database):
         await db.user.add_user(
             id=message.from_user.id,
             walk_captcha=True,
-            time_walk_captcha=int(time.time())
+            time_walk_captcha=int(time.time()),
         )
     else:
         await db.user.update_user(
             user_id=message.from_user.id,
             walk_captcha=True,
-            time_walk_captcha=int(time.time())
+            time_walk_captcha=int(time.time()),
         )
 
     await message.delete()
@@ -45,7 +45,9 @@ async def msg_handler(message: types.Message, db: Database):
     await r.delete()
 
 
-async def send_captcha(user_bot, user_id: int, db_obj: Database, captcha: ChannelCaptcha):
+async def send_captcha(
+    user_bot, user_id: int, db_obj: Database, captcha: ChannelCaptcha
+):
     """Отправляет сообщение с капчей пользователю."""
     if captcha.delay:
         while True:
@@ -54,13 +56,19 @@ async def send_captcha(user_bot, user_id: int, db_obj: Database, captcha: Channe
             if not user or user.walk_captcha:
                 return
 
-            await answer_message_bot(user_bot, user_id, MessageOptionsCaptcha(**captcha.message))
+            await answer_message_bot(
+                user_bot, user_id, MessageOptionsCaptcha(**captcha.message)
+            )
             await asyncio.sleep(captcha.delay)  # type: ignore
 
-    await answer_message_bot(user_bot, user_id, MessageOptionsCaptcha(**captcha.message))
+    await answer_message_bot(
+        user_bot, user_id, MessageOptionsCaptcha(**captcha.message)
+    )
 
 
-async def send_hello(user_bot: Bot, user_id: int, db_obj: Database, hello_message: ChannelHelloMessage):
+async def send_hello(
+    user_bot: Bot, user_id: int, db_obj: Database, hello_message: ChannelHelloMessage
+):
     """Отправляет приветственное сообщение."""
     message_options = MessageOptionsHello(**hello_message.message)
 
@@ -105,14 +113,10 @@ async def join(call: types.ChatJoinRequest, db: Database):
     user = await db.user.get_user(call.from_user.id)
     if not user:
         await db.user.add_user(
-            id=call.from_user.id,
-            channel_id=chat_id,
-            invite_url=invite_url
+            id=call.from_user.id, channel_id=chat_id, invite_url=invite_url
         )
 
-    channel_settings = await main_db.get_channel_bot_setting(
-        chat_id=chat_id
-    )
+    channel_settings = await main_db.get_channel_bot_setting(chat_id=chat_id)
     if not channel_settings:
         return
 
@@ -134,7 +138,9 @@ async def join(call: types.ChatJoinRequest, db: Database):
     else:
         enable_hello = None
 
-    logger.debug(f"Flags -> Captcha: {enable_captcha}, Hello: {enable_hello}, AutoApprove: {enable_auto_approve}")
+    logger.debug(
+        f"Flags -> Captcha: {enable_captcha}, Hello: {enable_hello}, AutoApprove: {enable_auto_approve}"
+    )
 
     if channel_settings.active_captcha_id:
         if enable_captcha is None or enable_captcha:
@@ -148,13 +154,12 @@ async def join(call: types.ChatJoinRequest, db: Database):
                         user_bot=call.bot,
                         user_id=call.from_user.id,
                         db_obj=db,
-                        captcha=captcha
+                        captcha=captcha,
                     )
                 )
 
     active_hello_messages = await main_db.get_hello_messages(
-        chat_id=chat_id,
-        active=True
+        chat_id=chat_id, active=True
     )
     logger.debug(f"Active hello messages: {active_hello_messages}")
 
@@ -166,7 +171,7 @@ async def join(call: types.ChatJoinRequest, db: Database):
                         user_bot=call.bot,
                         user_id=call.from_user.id,
                         db_obj=db,
-                        hello_message=hello_message
+                        hello_message=hello_message,
                     )
                 )
 
@@ -189,7 +194,7 @@ async def join(call: types.ChatJoinRequest, db: Database):
             await db.user.update_user(
                 user_id=call.from_user.id,
                 is_approved=True,
-                time_approved=int(time.time())
+                time_approved=int(time.time()),
             )
         except Exception as e:
             logger.error(f"Ошибка при одобрении заявки: {e}")
@@ -206,9 +211,7 @@ async def leave(call: types.ChatMemberUpdated, db: Database):
     if call.new_chat_member.status != ChatMemberStatus.LEFT:
         return
 
-    settings = await main_db.get_channel_bot_setting(
-        chat_id=call.chat.id
-    )
+    settings = await main_db.get_channel_bot_setting(chat_id=call.chat.id)
     if not settings:
         return
 
@@ -231,15 +234,15 @@ async def set_channel(call: types.ChatMemberUpdated, db_bot: UserBot):
     """
     chat_id = call.chat.id
 
-    channel = await main_db.get_channel_by_chat_id(
-        chat_id=chat_id
-    )
+    channel = await main_db.get_channel_by_chat_id(chat_id=chat_id)
     if not channel:
         return
 
     exist = await main_db.get_channel_bot_setting(chat_id)
 
-    if call.new_chat_member.status == ChatMemberStatus.ADMINISTRATOR and (not exist or not exist.bot_id):
+    if call.new_chat_member.status == ChatMemberStatus.ADMINISTRATOR and (
+        not exist or not exist.bot_id
+    ):
         chat = await call.bot.get_chat(chat_id)
         if chat.photo:
             photo_bytes = await call.bot.download(chat.photo.big_file_id)
@@ -253,7 +256,7 @@ async def set_channel(call: types.ChatMemberUpdated, db_bot: UserBot):
                 id=chat_id,
                 bot_id=db_bot.id,
                 admin_id=db_bot.admin_id,
-                bye=ByeAnswer().model_dump()
+                bye=ByeAnswer().model_dump(),
             )
         else:
             await main_db.update_channel_bot_setting(
@@ -262,36 +265,24 @@ async def set_channel(call: types.ChatMemberUpdated, db_bot: UserBot):
                 admin_id=db_bot.admin_id,
             )
 
-        message_text = text('success_connect_bot_channel').format(
-            db_bot.username,
-            call.chat.title
+        message_text = text("success_connect_bot_channel").format(
+            db_bot.username, call.chat.title
         )
     else:
-        await main_db.update_channel_bot_setting(
-            chat_id=chat_id,
-            bot_id=None
-        )
+        await main_db.update_channel_bot_setting(chat_id=chat_id, bot_id=None)
 
-        message_text = text('success_delete_channel').format(
-            channel.title
-        )
+        message_text = text("success_delete_channel").format(channel.title)
 
     try:
-        await main_bot_obj.send_message(
-            chat_id=call.from_user.id,
-            text=message_text
-        )
+        await main_bot_obj.send_message(chat_id=call.from_user.id, text=message_text)
 
         bot_database = Database()
         bot_database.schema = db_bot.schema
         count_users = await bot_database.get_count_users()
 
-        channel_ids_in_bot = await main_db.get_all_channels_in_bot_id(
-            bot_id=db_bot.id
-        )
+        channel_ids_in_bot = await main_db.get_all_channels_in_bot_id(bot_id=db_bot.id)
         channels = [
-            await main_db.get_channel_by_chat_id(chat.id)
-            for chat in channel_ids_in_bot
+            await main_db.get_channel_by_chat_id(chat.id) for chat in channel_ids_in_bot
         ]
 
         status = True
@@ -300,19 +291,19 @@ async def set_channel(call: types.ChatMemberUpdated, db_bot: UserBot):
             chat_id=call.from_user.id,
             text=text("bot:info").format(
                 db_bot.title,
-                "\n".join(
-                    text("resource_title").format(
-                        channel.title
-                    ) for channel in channels
-                ) if channels else "❌",
+                (
+                    "\n".join(
+                        text("resource_title").format(channel.title)
+                        for channel in channels
+                    )
+                    if channels
+                    else "❌"
+                ),
                 "✅" if status else "❌",
                 count_users.get("active"),
                 count_users.get("total"),
             ),
-            reply_markup=keyboards.manage_bot(
-                user_bot=db_bot,
-                status=status
-            )
+            reply_markup=keyboards.manage_bot(user_bot=db_bot, status=status),
         )
 
     except Exception as e:
@@ -323,7 +314,7 @@ async def set_active(call: types.ChatMemberUpdated, db: Database):
     """Обновляет статус активности пользователя (блокировка бота)."""
     await db.user.update_user(
         user_id=call.from_user.id,
-        is_active=call.new_chat_member.status != ChatMemberStatus.KICKED
+        is_active=call.new_chat_member.status != ChatMemberStatus.KICKED,
     )
 
 
@@ -334,7 +325,7 @@ def hand_add():
 
     router.chat_join_request.register(join)
     router.chat_member.register(leave, F.chat.type == "channel")
-    router.my_chat_member.register(set_channel, F.chat.type == 'channel')
-    router.my_chat_member.register(set_active, F.chat.type == 'private')
+    router.my_chat_member.register(set_channel, F.chat.type == "channel")
+    router.my_chat_member.register(set_active, F.chat.type == "private")
 
     return router

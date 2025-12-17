@@ -29,21 +29,22 @@ class StartMiddle(BaseMiddleware):
     - Проверяет реферальный код или UTM-метку.
     - Регистрирует пользователя в БД.
     """
+
     async def __call__(
         self,
         handler: Callable[[TelegramObject, Dict[str, Any]], Awaitable[Any]],
         event: TelegramObject,
-        data: Dict[str, Any]
+        data: Dict[str, Any],
     ) -> Any:
         # Применяем только к Message
         if not isinstance(event, types.Message):
             return await handler(event, data)
 
         message: types.Message = event
-        command: CommandObject = data.get('command')
+        command: CommandObject = data.get("command")
 
         # Если это не команда или не команда start, просто передаем управление дальше
-        if not command or command.command != 'start':
+        if not command or command.command != "start":
             return await handler(message, data)
 
         user_obj = message.from_user
@@ -63,8 +64,8 @@ class StartMiddle(BaseMiddleware):
                         referral_id = int(start_utm)
                 # Проверка на UTM метку
                 else:
-                    if 'utm' in start_utm:
-                        ads_tag = start_utm.replace('utm-', "")
+                    if "utm" in start_utm:
+                        ads_tag = start_utm.replace("utm-", "")
                         tag = await db.ad_tag.get_ad_tag(ads_tag)
 
                         if not tag:
@@ -75,10 +76,13 @@ class StartMiddle(BaseMiddleware):
                     id=user_obj.id,
                     is_premium=user_obj.is_premium or False,
                     referral_id=referral_id,
-                    ads_tag=ads_tag
+                    ads_tag=ads_tag,
                 )
             except Exception as e:
-                logger.error(f"Ошибка при регистрации пользователя {user_obj.id}: {e}", exc_info=True)
+                logger.error(
+                    f"Ошибка при регистрации пользователя {user_obj.id}: {e}",
+                    exc_info=True,
+                )
 
         return await handler(message, data)
 
@@ -89,32 +93,35 @@ class GetUserMiddleware(BaseMiddleware):
 
     Работает для Message и CallbackQuery.
     """
+
     async def __call__(
         self,
         handler: Callable[[TelegramObject, Dict[str, Any]], Awaitable[Any]],
         event: TelegramObject,
-        data: Dict[str, Any]
+        data: Dict[str, Any],
     ) -> Any:
         user_id = None
-        if isinstance(event, types.Update): # Проверка типа на всякий случай, хотя middleware принимает event как Update обычно в aiogram 3 но здесь BaseMiddleware
-             # В Aiogram 3 BaseMiddleware получает event который может быть Update или сразу Message/Callback (в зависимости от того где зарегистрирован)
-             # Здесь предполагается outer middleware, получающая Update? Нет, GetUserMiddleware обычно вешается на router.message/callback_query
-             # Если она вешается на диспетчер как outer, то event это Update. Если как inner, то Message.
-             # Судя по event.message в коде, это Update.
-             if event.message:
+        if isinstance(
+            event, types.Update
+        ):  # Проверка типа на всякий случай, хотя middleware принимает event как Update обычно в aiogram 3 но здесь BaseMiddleware
+            # В Aiogram 3 BaseMiddleware получает event который может быть Update или сразу Message/Callback (в зависимости от того где зарегистрирован)
+            # Здесь предполагается outer middleware, получающая Update? Нет, GetUserMiddleware обычно вешается на router.message/callback_query
+            # Если она вешается на диспетчер как outer, то event это Update. Если как inner, то Message.
+            # Судя по event.message в коде, это Update.
+            if event.message:
                 user_id = event.message.from_user.id
-             elif event.callback_query:
+            elif event.callback_query:
                 user_id = event.callback_query.from_user.id
         elif isinstance(event, types.Message):
             user_id = event.from_user.id
         elif isinstance(event, types.CallbackQuery):
-             user_id = event.from_user.id
+            user_id = event.from_user.id
 
         if not user_id:
             return await handler(event, data)
 
         user = await db.user.get_user(user_id)
-        data['user'] = user
+        data["user"] = user
 
         return await handler(event, data)
 
@@ -125,20 +132,18 @@ class ErrorMiddleware(BaseMiddleware):
 
     Ловит необработанные исключения в хендлерах и логирует их.
     """
+
     async def __call__(
         self,
         handler: Callable[[TelegramObject, Dict[str, Any]], Awaitable[Any]],
         event: TelegramObject,
-        data: Dict[str, Any]
+        data: Dict[str, Any],
     ) -> Any:
         try:
             return await handler(event, data)
         except Exception as e:
-            handler_name = getattr(handler, '__name__', 'unknown_handler')
-            logger.error(
-                f"Ошибка в обработчике {handler_name}: {e}",
-                exc_info=True
-            )
+            handler_name = getattr(handler, "__name__", "unknown_handler")
+            logger.error(f"Ошибка в обработчике {handler_name}: {e}", exc_info=True)
 
 
 class VersionCheckMiddleware(BaseMiddleware):
@@ -154,7 +159,7 @@ class VersionCheckMiddleware(BaseMiddleware):
         self,
         handler: Callable[[TelegramObject, Dict[str, Any]], Awaitable[Any]],
         event: TelegramObject,
-        data: Dict[str, Any]
+        data: Dict[str, Any],
     ) -> Any:
 
         state = data.get("state")

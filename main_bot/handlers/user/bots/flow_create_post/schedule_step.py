@@ -6,6 +6,7 @@
 - Настройка параметров удаления поста
 - Финальный обзор настроек (получатели, время, текст)
 """
+
 import time
 import logging
 from datetime import datetime, timedelta
@@ -19,7 +20,7 @@ from main_bot.utils.message_utils import answer_bot_post
 from main_bot.utils.lang.language import text
 from main_bot.keyboards import keyboards
 from main_bot.states.user import Bots
-from main_bot.utils.error_handler import safe_handler
+from utils.error_handler import safe_handler
 
 logger = logging.getLogger(__name__)
 
@@ -110,7 +111,7 @@ async def finish_params(call: types.CallbackQuery, state: FSMContext) -> None:
         )
 
 
-@safe_handler("Bots Choice Delete Time")
+@safe_handler("Боты: выбор времени удаления")
 async def choice_delete_time(call: types.CallbackQuery, state: FSMContext) -> None:
     """
     Выбор времени автоудаления поста.
@@ -150,7 +151,7 @@ async def choice_delete_time(call: types.CallbackQuery, state: FSMContext) -> No
             username = (await call.bot.get_chat(post.admin_id)).username or "Unknown"
         except Exception:
             pass
-            
+
         await call.message.edit_text(
             text("bot_post:content").format(
                 (
@@ -187,7 +188,7 @@ async def choice_delete_time(call: types.CallbackQuery, state: FSMContext) -> No
     )
 
 
-@safe_handler("Bots Send Time Inline")
+@safe_handler("Боты: выбор времени отправки (инлайн)")
 async def send_time_inline(call: types.CallbackQuery, state: FSMContext) -> None:
     """
     Обработка навигации по календарю выбора даты отправки.
@@ -266,7 +267,7 @@ async def send_time_inline(call: types.CallbackQuery, state: FSMContext) -> None
         )
 
 
-@safe_handler("Bots Get Send Time")
+@safe_handler("Боты: получение времени отправки")
 async def get_send_time(message: types.Message, state: FSMContext) -> None:
     """
     Обработка ввода времени отправки (текстом).
@@ -417,7 +418,7 @@ async def get_send_time(message: types.Message, state: FSMContext) -> None:
     )
 
 
-@safe_handler("Bots Back Send Time")
+@safe_handler("Боты: возврат к времени отправки")
 async def back_send_time(call: types.CallbackQuery, state: FSMContext) -> None:
     """
     Возврат из меню настройки времени к общим параметрам.

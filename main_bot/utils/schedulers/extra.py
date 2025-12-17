@@ -4,16 +4,22 @@
 Этот модуль содержит функции для:
 - Обновления курсов валют
 """
+
 import asyncio
 import logging
 from datetime import datetime, timezone, timedelta
 
 from main_bot.database.db import db
-from main_bot.utils.exchange_rates import get_update_of_exchange_rates, get_exchange_rates_from_json
+from main_bot.utils.exchange_rates import (
+    get_update_of_exchange_rates,
+    get_exchange_rates_from_json,
+)
+from utils.error_handler import safe_handler
 
 logger = logging.getLogger(__name__)
 
 
+@safe_handler("Валюта: обновление курсов (Background)")
 async def update_exchange_rates_in_db() -> None:
     """
     Периодическая задача: обновление курсов валют в БД.
@@ -35,7 +41,9 @@ async def update_exchange_rates_in_db() -> None:
         except Exception as e:
             logger.error(f"Попытка {attempt+1} не удалась при получении курсов: {e}")
 
-        logger.warning(f"Попытка {attempt+1}: Все курсы нулевые или ошибка. Повтор через 5с...")
+        logger.warning(
+            f"Попытка {attempt+1}: Все курсы нулевые или ошибка. Повтор через 5с..."
+        )
         await asyncio.sleep(5)
 
     logger.info(f"Получены курсы валют: {new_update}")
@@ -51,7 +59,7 @@ async def update_exchange_rates_in_db() -> None:
                 id=ed_id,
                 name=exchange_rate["name"],
                 rate=new_update.get(ed_id, 0.0),
-                last_update=last_update
+                last_update=last_update,
             )
     else:
         # Обновление существующих курсов
@@ -60,5 +68,5 @@ async def update_exchange_rates_in_db() -> None:
                 await db.exchange_rate.update_exchange_rate(
                     exchange_rate_id=er_id,
                     rate=new_update[er_id],
-                    last_update=last_update
+                    last_update=last_update,
                 )

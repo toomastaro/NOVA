@@ -9,7 +9,7 @@ from main_bot.states.user import AddChannel
 from main_bot.utils.functions import get_editors
 from main_bot.utils.lang.language import text
 import logging
-from main_bot.utils.error_handler import safe_handler
+from utils.error_handler import safe_handler
 from main_bot.utils.session_manager import SessionManager
 
 logger = logging.getLogger(__name__)
@@ -142,7 +142,7 @@ async def render_channel_info(
             raise e
 
 
-@safe_handler("Posting Channel Choice")
+@safe_handler("Постинг: выбор канала")
 async def choice(call: types.CallbackQuery, state: FSMContext):
     """Выбор канала для управления или добавления."""
     temp = call.data.split("|")
@@ -186,7 +186,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
     await render_channel_info(call, state, channel_id)
 
 
-@safe_handler("Posting Channel Cancel")
+@safe_handler("Постинг: отмена канала")
 async def cancel(call: types.CallbackQuery):
     """Отмена действий и возврат к списку каналов."""
     channels = await db.channel.get_user_channels(
@@ -200,7 +200,7 @@ async def cancel(call: types.CallbackQuery):
     )
 
 
-@safe_handler("Posting Manage Channel")
+@safe_handler("Постинг: управление каналом")
 async def manage_channel(call: types.CallbackQuery, state: FSMContext):
     """Управление настройками канала (удаление, права, добавление помощника)."""
     temp = call.data.split("|")
@@ -272,7 +272,9 @@ async def manage_channel(call: types.CallbackQuery, state: FSMContext):
                         await db.mt_client.update_mt_client(
                             mt_client.id, alias=me.username
                         )
-                        mt_client.alias = me.username  # Обновление локального объекта для отображения
+                        mt_client.alias = (
+                            me.username
+                        )  # Обновление локального объекта для отображения
                 except Exception as e:
                     logger.error(f"Join error: {e}")
 

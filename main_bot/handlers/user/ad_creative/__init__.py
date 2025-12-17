@@ -3,6 +3,7 @@
 
 Объединяет роутеры для управления креативами, меню и процессом покупки.
 """
+
 from aiogram import Router
 
 from . import handlers, menu, purchase, purchase_menu

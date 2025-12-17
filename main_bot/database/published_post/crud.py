@@ -84,7 +84,9 @@ class PublishedPostCrud(DatabaseMixin):
             )
         )
 
-    async def get_published_post(self, chat_id: int, message_id: int) -> PublishedPost | None:
+    async def get_published_post(
+        self, chat_id: int, message_id: int
+    ) -> PublishedPost | None:
         """
         Получает опубликованный пост по чату и ID сообщения.
 

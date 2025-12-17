@@ -6,10 +6,10 @@ logger = logging.getLogger(__name__)
 
 # Определяем путь к директории с языковыми файлами относительно текущего файла
 CURRENT_DIR = pathlib.Path(__file__).parent.resolve()
-RU_JSON_PATH = CURRENT_DIR / 'ru.json'
+RU_JSON_PATH = CURRENT_DIR / "ru.json"
 
 try:
-    with open(RU_JSON_PATH, 'r', encoding='utf-8') as r_f:
+    with open(RU_JSON_PATH, "r", encoding="utf-8") as r_f:
         ru_text = json.load(r_f)
 except FileNotFoundError:
     logger.critical(f"Файл локализации не найден: {RU_JSON_PATH}")
@@ -23,14 +23,14 @@ except Exception as e:
 
 
 languages = {
-    'RU': ru_text,
+    "RU": ru_text,
 }
 
 
-def text(key: str, user_lang: str = 'RU') -> str | dict:
+def text(key: str, user_lang: str = "RU") -> str | dict:
     """
     Получить текст по ключу.
     Если ключ не найден, возвращает сам ключ.
     """
-    lang_data = languages.get(user_lang, languages['RU'])
+    lang_data = languages.get(user_lang, languages["RU"])
     return lang_data.get(key, key)

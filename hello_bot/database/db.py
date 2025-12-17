@@ -13,6 +13,7 @@ class Database(
 
     Объединяет в себе CRUD-методы для различных сущностей.
     """
+
     async def create_tables(self):
         """Создает таблицы и схему базы данных."""
         async with engine.begin() as conn:

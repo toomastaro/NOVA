@@ -18,7 +18,7 @@ from main_bot.utils.lang.language import text
 from main_bot.utils.backup_utils import send_to_backup
 from main_bot.keyboards import keyboards
 from main_bot.states.user import Posting
-from main_bot.utils.error_handler import safe_handler
+from utils.error_handler import safe_handler
 
 logger = logging.getLogger(__name__)
 
@@ -148,12 +148,12 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
         try:
             # Генерируем клавиатуру для превью, чтобы кнопки точно были
             reply_markup = keyboards.post_kb(post=post)
-            
+
             await call.bot.copy_message(
                 chat_id=call.from_user.id,
                 from_chat_id=backup_chat_id,
                 message_id=backup_message_id,
-                reply_markup=reply_markup
+                reply_markup=reply_markup,
             )
             preview_sent = True
         except Exception as e:

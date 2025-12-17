@@ -61,9 +61,7 @@ class BotManager:
         if not self.bot:
             self.bot = Bot(
                 token=self.token,
-                default=DefaultBotProperties(
-                    parse_mode=ParseMode.HTML
-                )
+                default=DefaultBotProperties(parse_mode=ParseMode.HTML),
             )
 
     async def close(self) -> None:
@@ -142,7 +140,7 @@ class BotManager:
                         "chat_member",
                         "my_chat_member",
                         "chat_join_request",
-                    ]
+                    ],
                 )
                 return result
             # Если delete=True, мы уже удалили его выше.

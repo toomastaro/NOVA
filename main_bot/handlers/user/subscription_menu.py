@@ -6,6 +6,7 @@
 - Отображением баланса и пополнения
 - Меню выравнивания сроков подписок
 """
+
 import logging
 import time
 
@@ -14,7 +15,7 @@ from aiogram.fsm.context import FSMContext
 
 from main_bot.keyboards.common import Reply
 from main_bot.keyboards import keyboards
-from main_bot.utils.error_handler import safe_handler
+from utils.error_handler import safe_handler
 from main_bot.utils.lang.language import text
 from main_bot.database.db import db
 from main_bot.handlers.user.profile.balance import show_top_up
@@ -159,7 +160,7 @@ async def show_transfer_sub_menu(call: types.CallbackQuery, state: FSMContext) -
     await transfer_menu(call, state)
 
 
-@safe_handler("Show Info Menu")
+@safe_handler("Инфо: главное меню")
 async def show_info_menu(call: types.CallbackQuery) -> None:
     """
     Показать меню информации.

@@ -30,7 +30,9 @@ class AdCreativeCrud(DatabaseMixin):
         Возвращает:
             int: ID созданного креатива.
         """
-        logger.debug(f"Создание креатива. Owner: {kwargs.get('owner_id')}, Name: {kwargs.get('name')}")
+        logger.debug(
+            f"Создание креатива. Owner: {kwargs.get('owner_id')}, Name: {kwargs.get('name')}"
+        )
         query = insert(AdCreative).values(**kwargs).returning(AdCreative.id)
         res = await self.fetchrow(query, commit=True)
         logger.info(f"Креатив создан: {res}")
@@ -78,7 +80,7 @@ class AdCreativeCrud(DatabaseMixin):
         """
         if not slots:
             return
-        
+
         logger.debug(f"Создание слотов для креатива {creative_id}. Count: {len(slots)}")
         values = [{**slot, "creative_id": creative_id} for slot in slots]
         query = insert(AdCreativeLinkSlot).values(values)

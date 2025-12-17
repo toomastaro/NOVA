@@ -82,7 +82,9 @@ class NovaStatCrud(DatabaseMixin):
             select(Collection).where(Collection.id == collection_id)
         )
 
-    async def get_collection_channels(self, collection_id: int) -> list[CollectionChannel]:
+    async def get_collection_channels(
+        self, collection_id: int
+    ) -> list[CollectionChannel]:
         """
         Получает список каналов в коллекции.
         """

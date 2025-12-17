@@ -33,6 +33,7 @@ class User(Base):
         referral_signature_active (bool): Включена ли реф. подпись.
         referral_signature_text (str | None): Текст реф. подписи.
     """
+
     __tablename__ = "users"
 
     # Основные данные

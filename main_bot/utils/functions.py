@@ -24,6 +24,7 @@ from main_bot.utils.message_utils import (
     answer_post,
     answer_story,
 )
+
 # Дубликаты функций из schedulers/bots.py (УСТАРЕЛО)
 # IMPORTS REMOVED TO AVOID CIRCULAR DEPENDENCY
 # ИМПОРТЫ УДАЛЕНЫ ВО ИЗБЕЖАНИЕ ЦИКЛИЧЕСКОЙ ЗАВИСИМОСТИ
@@ -43,27 +44,23 @@ from main_bot.utils.tg_utils import (
 
 __all__ = [
     # file_utils (утилиты файлов)
-    'get_mode',
-    'get_color',
-    'get_path',
-    'get_path_video',
-
+    "get_mode",
+    "get_color",
+    "get_path",
+    "get_path_video",
     # text_utils (утилиты текста)
-    'get_protect_tag',
-
+    "get_protect_tag",
     # message_utils (утилиты сообщений)
-    'answer_bot_post',
-    'answer_post',
-    'answer_story',
-    'answer_message_bot',
-    'answer_message',
-
+    "answer_bot_post",
+    "answer_post",
+    "answer_story",
+    "answer_message_bot",
+    "answer_message",
     # tg_utils (утилиты телеграм)
-    'create_emoji',
-    'get_editors',
-    'set_channel_session',
-    'background_join_channel',
-
+    "create_emoji",
+    "get_editors",
+    "set_channel_session",
+    "background_join_channel",
     # Устарело (из schedulers.bots)
     # 'send_bot_messages',
     # 'process_bot',

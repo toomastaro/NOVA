@@ -37,6 +37,9 @@ from main_bot.utils.schedulers import update_exchange_rates_in_db
 from main_bot.utils.subscribe_service import grant_subscription
 
 # Настройка логирования при старте модуля
+
+from utils.error_handler import safe_handler
+
 setup_logging()
 logger = logging.getLogger(__name__)
 
@@ -74,7 +77,7 @@ async def lifespan(_app: FastAPI):
     - Старт: Настройка часового пояса, роутеров, БД, планировщика, вебхуков.
     - Стоп: Удаление вебхуков.
     """
-    os.environ['TZ'] = 'Europe/Moscow'
+    os.environ["TZ"] = "Europe/Moscow"
     time.tzset()
 
     set_main_routers()
@@ -95,14 +98,14 @@ async def lifespan(_app: FastAPI):
     # Настройка Webhook для основного бота
     await bot.delete_webhook(drop_pending_updates=True)
     await bot.set_webhook(
-        url=Config.WEBHOOK_DOMAIN + '/webhook/main',
+        url=Config.WEBHOOK_DOMAIN + "/webhook/main",
         allowed_updates=[
-            'message',
-            'callback_query',
-            'pre_checkout_query',
-            'chat_member',
-            'my_chat_member',
-        ]
+            "message",
+            "callback_query",
+            "pre_checkout_query",
+            "chat_member",
+            "my_chat_member",
+        ],
     )
 
     yield
@@ -113,7 +116,8 @@ async def lifespan(_app: FastAPI):
 app = FastAPI(lifespan=lifespan)
 
 
-@app.get('/health')
+@app.get("/health")
+@safe_handler("API: Health Check")
 async def health_check():
     """
     Проверка работоспособности сервиса (Health Check).
@@ -124,7 +128,8 @@ async def health_check():
     return {"status": "ok", "message": "Service is running"}
 
 
-@app.post('/webhook/main')
+@app.post("/webhook/main")
+@safe_handler("API: webhook main — приём update")
 async def main_update(request: Request):
     """
     Обработчик вебхуков для основного бота.
@@ -135,13 +140,11 @@ async def main_update(request: Request):
     data = await request.json()
     update = types.Update.model_validate(data)
 
-    await dp.feed_update(
-        bot=bot,
-        update=update
-    )
+    await dp.feed_update(bot=bot, update=update)
 
 
 @app.post("/webhook/platega")
+@safe_handler("API: webhook Platega — обработка платежа")
 async def platega_webhook(request: Request):
     """
     Обработчик вебхуков платежной системы Platega.
@@ -155,14 +158,18 @@ async def platega_webhook(request: Request):
         dict: Результат обработки.
     """
     headers = request.headers
-    merchant_id = headers.get('X-MerchantId')
-    secret = headers.get('X-Secret')
+    merchant_id = headers.get("X-MerchantId")
+    secret = headers.get("X-Secret")
 
     # Логируем входящий запрос
-    logger.info(f"Platega Callback: MerchantId={merchant_id}, Secret={'***' if secret else 'None'}")
+    logger.info(
+        f"Platega Callback: MerchantId={merchant_id}, Secret={'***' if secret else 'None'}"
+    )
 
     if merchant_id != Config.PLATEGA_MERCHANT or secret != Config.PLATEGA_SECRET:
-        logger.warning(f"Platega: Неверные учетные данные. Ожидалось: {Config.PLATEGA_MERCHANT}, Получено: {merchant_id}")
+        logger.warning(
+            f"Platega: Неверные учетные данные. Ожидалось: {Config.PLATEGA_MERCHANT}, Получено: {merchant_id}"
+        )
         return {"status": "error", "message": "Invalid credentials"}
 
     try:
@@ -173,8 +180,8 @@ async def platega_webhook(request: Request):
 
     logger.info(f"Platega Payload: {data}")
 
-    order_id = data.get('id')
-    status = data.get('status')
+    order_id = data.get("id")
+    status = data.get("status")
 
     if not order_id or not status:
         logger.warning("Platega: Некорректная нагрузка: нет id или status")
@@ -195,8 +202,7 @@ async def platega_webhook(request: Request):
         await db.payment_link.update_payment_link_status(order_id, "PAID")
 
         await process_successful_payment(
-            user_id=int(payment_link.user_id),
-            payload=payment_link.payload
+            user_id=int(payment_link.user_id), payload=payment_link.payload
         )
 
     return {"status": "ok"}
@@ -211,12 +217,12 @@ async def process_successful_payment(user_id: int, payload: dict, amount: float 
         payload (dict): Данные платежа (тип, метод и т.д.).
         amount (float, optional): Сумма платежа. Если не передана, пытаемся взять из payload.
     """
-    payment_type = payload.get('type')
+    payment_type = payload.get("type")
 
     # Логика пополнения баланса
-    if payment_type == 'balance':
+    if payment_type == "balance":
         if amount is None:
-            amount = payload.get('amount')
+            amount = payload.get("amount")
 
         if not amount:
             logger.error(f"Платеж {payment_type} для пользователя {user_id} без суммы!")
@@ -229,11 +235,11 @@ async def process_successful_payment(user_id: int, payload: dict, amount: float 
         if user:
             await db.user.update_user(user_id=user.id, balance=user.balance + amount)
 
-            method_str = payload.get('method', 'UNKNOWN')
+            method_str = payload.get("method", "UNKNOWN")
 
-            if method_str == 'CRYPTO_BOT':
+            if method_str == "CRYPTO_BOT":
                 method = PaymentMethod.CRYPTO_BOT
-            elif method_str == 'PLATEGA':
+            elif method_str == "PLATEGA":
                 method = PaymentMethod.PLATEGA
             else:
                 method = PaymentMethod.PLATEGA
@@ -241,24 +247,24 @@ async def process_successful_payment(user_id: int, payload: dict, amount: float 
             await db.payment.add_payment(user_id=user.id, amount=amount, method=method)
 
             try:
-                await bot.send_message(user_id, text('success_payment').format(amount))
+                await bot.send_message(user_id, text("success_payment").format(amount))
             except Exception as e:
                 logger.error(f"Не удалось отправить сообщение об успехе {user_id}: {e}")
 
     # Логика подписки
-    elif payment_type == 'subscribe':
+    elif payment_type == "subscribe":
         logger.info(f"Выдача подписки пользователю {user_id}")
 
-        chosen = payload.get('chosen')
-        total_days = payload.get('total_days')
-        service_name = payload.get('service')
-        object_type = payload.get('object_type')
-        total_price = payload.get('total_price')
+        chosen = payload.get("chosen")
+        total_days = payload.get("total_days")
+        service_name = payload.get("service")
+        object_type = payload.get("object_type")
+        total_price = payload.get("total_price")
 
         await grant_subscription(user_id, chosen, total_days, service_name, object_type)
 
         # Реферальная логика
-        referral_id = payload.get('referral_id')
+        referral_id = payload.get("referral_id")
 
         if referral_id:
             ref_user = await db.user.get_user(referral_id)
@@ -269,43 +275,43 @@ async def process_successful_payment(user_id: int, payload: dict, amount: float 
                     percent = 15 if has_purchase else 60
                     total_ref_earn = int(total_price / 100 * percent)
 
-                    logger.info(f"Реферальный бонус {total_ref_earn} для {referral_id} (percent={percent}%)")
+                    logger.info(
+                        f"Реферальный бонус {total_ref_earn} для {referral_id} (percent={percent}%)"
+                    )
 
                     await db.user.update_user(
                         user_id=ref_user.id,
                         balance=ref_user.balance + total_ref_earn,
-                        referral_earned=ref_user.referral_earned + total_ref_earn
+                        referral_earned=ref_user.referral_earned + total_ref_earn,
                     )
                 except Exception as e:
                     logger.error(f"Ошибка реферальной логики: {e}")
 
         # Записываем покупку
-        method_str = payload.get('method', 'PLATEGA')
-        if method_str == 'CRYPTO_BOT':
+        method_str = payload.get("method", "PLATEGA")
+        if method_str == "CRYPTO_BOT":
             method = PaymentMethod.CRYPTO_BOT
         else:
             method = PaymentMethod.PLATEGA
 
         service_enum = Service.POSTING
-        if service_name == 'stories':
+        if service_name == "stories":
             service_enum = Service.STORIES
-        elif object_type == 'bots':
+        elif object_type == "bots":
             service_enum = Service.BOTS
 
         await db.purchase.add_purchase(
-            user_id=user_id,
-            amount=total_price,
-            method=method,
-            service=service_enum
+            user_id=user_id, amount=total_price, method=method, service=service_enum
         )
 
         try:
-            await bot.send_message(user_id, text('success_subscribe_pay'))
+            await bot.send_message(user_id, text("success_subscribe_pay"))
         except Exception as e:
             logger.error(f"Не удалось отправить сообщение об успехе {user_id}: {e}")
 
 
 @app.post("/webhook/cryptobot")
+@safe_handler("API: webhook CryptoBot — обработка платежа")
 async def cryptobot_webhook(request: Request):
     """
     Обработчик вебхуков CryptoBot.
@@ -326,7 +332,7 @@ async def cryptobot_webhook(request: Request):
         return {"ok": False}
 
     # Проверка подписи
-    signature = request.headers.get('crypto-pay-api-signature')
+    signature = request.headers.get("crypto-pay-api-signature")
     if not signature:
         logger.warning("CryptoBot: Отсутствует подпись")
         return {"ok": False}
@@ -336,15 +342,17 @@ async def cryptobot_webhook(request: Request):
     hmac_digest = hmac.new(secret, body, hashlib.sha256).hexdigest()
 
     if hmac_digest != signature:
-        logger.warning(f"CryptoBot: Неверная подпись. Получено: {signature}, Вычислено: {hmac_digest}")
+        logger.warning(
+            f"CryptoBot: Неверная подпись. Получено: {signature}, Вычислено: {hmac_digest}"
+        )
         return {"ok": False}
 
-    if data.get('update_type') != 'invoice_paid':
+    if data.get("update_type") != "invoice_paid":
         return {"ok": True}
 
     # Извлечение данных из payload
-    invoice = data.get('payload', {})
-    custom_payload_str = invoice.get('payload')
+    invoice = data.get("payload", {})
+    custom_payload_str = invoice.get("payload")
 
     if not custom_payload_str:
         logger.warning("CryptoBot: Отсутствует custom_payload в инвойсе")
@@ -356,7 +364,7 @@ async def cryptobot_webhook(request: Request):
         logger.error(f"CryptoBot: Ошибка JSON в payload: {e}")
         return {"ok": True}
 
-    user_id = custom_payload.get('user_id')
+    user_id = custom_payload.get("user_id")
     if not user_id:
         logger.error("CryptoBot: Нет user_id в payload")
         return {"ok": True}
@@ -366,13 +374,14 @@ async def cryptobot_webhook(request: Request):
     await process_successful_payment(
         user_id=int(user_id),
         payload=custom_payload,
-        amount=float(invoice.get('amount', 0))
+        amount=float(invoice.get("amount", 0)),
     )
 
     return {"ok": True}
 
 
 @app.post("/webhook/{token}")
+@safe_handler("API: webhook UserBot — приём update")
 async def other_update(request: Request, token: str):
     """
     Обработчик вебхуков для пользовательских ботов.
@@ -390,10 +399,7 @@ async def other_update(request: Request, token: str):
 
     try:
         other_bot = Bot(
-            token=token,
-            default=DefaultBotProperties(
-                parse_mode=ParseMode.HTML
-            )
+            token=token, default=DefaultBotProperties(parse_mode=ParseMode.HTML)
         )
     except Exception as e:
         logger.error(f"Ошибка создания бота для токена {token}: {e}", exc_info=True)
@@ -403,5 +409,5 @@ async def other_update(request: Request, token: str):
     await other_dp.feed_update(other_bot, update)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8099, log_level="warning", access_log=False)

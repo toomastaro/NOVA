@@ -54,7 +54,9 @@ class Database(DatabaseMixin):
         self.ad_tag: AdTagCrud = AdTagCrud()
         self.bot_post: BotPostCrud = BotPostCrud()
         self.channel: ChannelCrud = ChannelCrud()
-        self.channel_bot_captcha: ChannelCaptchaMessageCrud = ChannelCaptchaMessageCrud()
+        self.channel_bot_captcha: ChannelCaptchaMessageCrud = (
+            ChannelCaptchaMessageCrud()
+        )
         self.channel_bot_hello: ChannelHelloMessageCrud = ChannelHelloMessageCrud()
         self.channel_bot_settings: ChannelBotSettingCrud = ChannelBotSettingCrud()
         self.exchange_rate: ExchangeRateCrud = ExchangeRateCrud()

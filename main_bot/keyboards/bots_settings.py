@@ -1,6 +1,7 @@
 """
 Клавиатуры для настроек ботов: капча, приветствия, клонер, авто-прием и т.д.
 """
+
 from typing import List
 
 from aiogram.types import InlineKeyboardButton
@@ -17,23 +18,19 @@ from main_bot.keyboards.base import _parse_button
 
 class InlineBotSetting(InlineKeyboardBuilder):
     """Клавиатуры для настроек ботов"""
-    
+
     @classmethod
     def choice_cleaner_type(cls):
         kb = cls()
 
         kb.button(
             text=text("cleaner:application:button"),
-            callback_data="ChoiceCleanerType|application"
+            callback_data="ChoiceCleanerType|application",
         )
         kb.button(
-            text=text("cleaner:ban:button"),
-            callback_data="ChoiceCleanerType|ban"
+            text=text("cleaner:ban:button"), callback_data="ChoiceCleanerType|ban"
         )
-        kb.button(
-            text=text("back:button"),
-            callback_data="ChoiceCleanerType|cancel"
-        )
+        kb.button(text=text("back:button"), callback_data="ChoiceCleanerType|cancel")
 
         kb.adjust(1)
         return kb.as_markup()
@@ -53,27 +50,25 @@ class InlineBotSetting(InlineKeyboardBuilder):
             if key in chosen:
                 value = "✅ " + value
 
-            kb.button(
-                text=value,
-                callback_data=f"ChoiceClonerSetting|{key}"
-            )
+            kb.button(text=value, callback_data=f"ChoiceClonerSetting|{key}")
 
         kb.adjust(1)
 
         kb.row(
             InlineKeyboardButton(
-                text=text("back:button"),
-                callback_data="ChoiceClonerSetting|cancel"
+                text=text("back:button"), callback_data="ChoiceClonerSetting|cancel"
             ),
             InlineKeyboardButton(
                 text=text("clone:start:button"),
-                callback_data="ChoiceClonerSetting|clone"
-            )
+                callback_data="ChoiceClonerSetting|clone",
+            ),
         )
         return kb.as_markup()
 
     @classmethod
-    def choice_channel_for_cloner(cls, channels: List[Channel], chosen: list, remover: int = 0):
+    def choice_channel_for_cloner(
+        cls, channels: List[Channel], chosen: list, remover: int = 0
+    ):
         kb = cls()
         count_rows = 7
 
@@ -87,7 +82,7 @@ class InlineBotSetting(InlineKeyboardBuilder):
                 kb.add(
                     InlineKeyboardButton(
                         text=button_text,
-                        callback_data=f'ChoiceClonerTarget|{channels[idx].chat_id}|{remover}'
+                        callback_data=f"ChoiceClonerTarget|{channels[idx].chat_id}|{remover}",
                     )
                 )
 
@@ -99,59 +94,68 @@ class InlineBotSetting(InlineKeyboardBuilder):
         elif len(channels) > count_rows > remover:
             kb.row(
                 InlineKeyboardButton(
-                    text='➡️',
-                    callback_data=f'ChoiceClonerTarget|next|{remover + count_rows}'
+                    text="➡️",
+                    callback_data=f"ChoiceClonerTarget|next|{remover + count_rows}",
                 )
             )
         elif remover + count_rows >= len(channels):
             kb.row(
                 InlineKeyboardButton(
-                    text='⬅️',
-                    callback_data=f'ChoiceClonerTarget|back|{remover - count_rows}'
+                    text="⬅️",
+                    callback_data=f"ChoiceClonerTarget|back|{remover - count_rows}",
                 )
             )
         else:
             kb.row(
                 InlineKeyboardButton(
-                    text='⬅️',
-                    callback_data=f'ChoiceClonerTarget|back|{remover - count_rows}'
+                    text="⬅️",
+                    callback_data=f"ChoiceClonerTarget|back|{remover - count_rows}",
                 ),
                 InlineKeyboardButton(
-                    text='➡️',
-                    callback_data=f'ChoiceClonerTarget|next|{remover + count_rows}'
-                )
+                    text="➡️",
+                    callback_data=f"ChoiceClonerTarget|next|{remover + count_rows}",
+                ),
             )
 
         if channels:
             kb.row(
                 InlineKeyboardButton(
-                    text=text('chosen:cancel_all') if len(chosen) == len(channels) else text('chosen:choice_all'),
-                    callback_data=f'ChoiceClonerTarget|choice_all|{remover}'
+                    text=(
+                        text("chosen:cancel_all")
+                        if len(chosen) == len(channels)
+                        else text("chosen:choice_all")
+                    ),
+                    callback_data=f"ChoiceClonerTarget|choice_all|{remover}",
                 )
             )
 
         kb.row(
             InlineKeyboardButton(
-                text=text('back:button'),
-                callback_data='ChoiceClonerTarget|cancel'
+                text=text("back:button"), callback_data="ChoiceClonerTarget|cancel"
             ),
             InlineKeyboardButton(
-                text=text('next:button'),
-                callback_data='ChoiceClonerTarget|next_step'
-            )
+                text=text("next:button"), callback_data="ChoiceClonerTarget|next_step"
+            ),
         )
 
         return kb.as_markup()
 
     @classmethod
-    def choice_channel_captcha(cls, channel_captcha_list: List[ChannelCaptcha], active_captcha: int, remover: int = 0):
+    def choice_channel_captcha(
+        cls,
+        channel_captcha_list: List[ChannelCaptcha],
+        active_captcha: int,
+        remover: int = 0,
+    ):
         kb = cls()
         count_rows = 7
 
         for a, idx in enumerate(range(remover, len(channel_captcha_list))):
             if a < count_rows:
                 captcha_obj = CaptchaObj.from_orm(channel_captcha_list[idx])
-                button_text = captcha_obj.message.text or captcha_obj.message.caption or "Медиа"
+                button_text = (
+                    captcha_obj.message.text or captcha_obj.message.caption or "Медиа"
+                )
                 setting_text = "Настроить"
 
                 if active_captcha == channel_captcha_list[idx].id:
@@ -161,12 +165,12 @@ class InlineBotSetting(InlineKeyboardBuilder):
                 kb.row(
                     InlineKeyboardButton(
                         text=button_text,
-                        callback_data=f'ChoiceCaptcha|choice|{channel_captcha_list[idx].id}'
+                        callback_data=f"ChoiceCaptcha|choice|{channel_captcha_list[idx].id}",
                     ),
                     InlineKeyboardButton(
                         text=setting_text,
-                        callback_data=f'ChoiceCaptcha|change|{channel_captcha_list[idx].id}'
-                    )
+                        callback_data=f"ChoiceCaptcha|change|{channel_captcha_list[idx].id}",
+                    ),
                 )
 
         kb.adjust(2)
@@ -177,39 +181,33 @@ class InlineBotSetting(InlineKeyboardBuilder):
         elif len(channel_captcha_list) > count_rows > remover:
             kb.row(
                 InlineKeyboardButton(
-                    text='➡️',
-                    callback_data=f'ChoiceCaptcha|next|{remover + count_rows}'
+                    text="➡️", callback_data=f"ChoiceCaptcha|next|{remover + count_rows}"
                 )
             )
         elif remover + count_rows >= len(channel_captcha_list):
             kb.row(
                 InlineKeyboardButton(
-                    text='⬅️',
-                    callback_data=f'ChoiceCaptcha|back|{remover - count_rows}'
+                    text="⬅️", callback_data=f"ChoiceCaptcha|back|{remover - count_rows}"
                 )
             )
         else:
             kb.row(
                 InlineKeyboardButton(
-                    text='⬅️',
-                    callback_data=f'ChoiceCaptcha|back|{remover - count_rows}'
+                    text="⬅️", callback_data=f"ChoiceCaptcha|back|{remover - count_rows}"
                 ),
                 InlineKeyboardButton(
-                    text='➡️',
-                    callback_data=f'ChoiceCaptcha|next|{remover + count_rows}'
-                )
+                    text="➡️", callback_data=f"ChoiceCaptcha|next|{remover + count_rows}"
+                ),
             )
 
         kb.row(
             InlineKeyboardButton(
-                text=text("add:button"),
-                callback_data="ChoiceCaptcha|add"
+                text=text("add:button"), callback_data="ChoiceCaptcha|add"
             )
         )
         kb.row(
             InlineKeyboardButton(
-                text=text('back:button'),
-                callback_data='ChoiceCaptcha|cancel'
+                text=text("back:button"), callback_data="ChoiceCaptcha|cancel"
             )
         )
 
@@ -220,23 +218,12 @@ class InlineBotSetting(InlineKeyboardBuilder):
         kb = cls()
 
         kb.button(
-            text=text("application:delay:button").format(
-                captcha.delay
-            ),
-            callback_data="ManageCaptcha|delay"
+            text=text("application:delay:button").format(captcha.delay),
+            callback_data="ManageCaptcha|delay",
         )
-        kb.button(
-            text=text("change:button"),
-            callback_data="ManageCaptcha|change"
-        )
-        kb.button(
-            text=text("delete:button"),
-            callback_data="ManageCaptcha|delete"
-        )
-        kb.button(
-            text=text("back:button"),
-            callback_data="ManageCaptcha|cancel"
-        )
+        kb.button(text=text("change:button"), callback_data="ManageCaptcha|change")
+        kb.button(text=text("delete:button"), callback_data="ManageCaptcha|delete")
+        kb.button(text=text("back:button"), callback_data="ManageCaptcha|cancel")
 
         kb.adjust(1)
         return kb.as_markup()
@@ -265,14 +252,13 @@ class InlineBotSetting(InlineKeyboardBuilder):
             if current == seconds:
                 label = "✅ " + label
 
-            kb.button(
-                text=label,
-                callback_data=f"ChoiceCaptchaDelay|{seconds}"
-            )
+            kb.button(text=label, callback_data=f"ChoiceCaptchaDelay|{seconds}")
 
         kb.adjust(3)
         kb.row(
-            InlineKeyboardButton(text=text("back:button"), callback_data="ChoiceCaptchaDelay|cancel"),
+            InlineKeyboardButton(
+                text=text("back:button"), callback_data="ChoiceCaptchaDelay|cancel"
+            ),
         )
 
         return kb.as_markup()
@@ -281,24 +267,16 @@ class InlineBotSetting(InlineKeyboardBuilder):
     def manage_captcha_post(cls, resize: bool = True):
         kb = cls()
 
+        kb.button(text="Кнопки", callback_data="ManagePostCaptcha|reply_buttons")
         kb.button(
-            text="Кнопки",
-            callback_data="ManagePostCaptcha|reply_buttons"
-        )
-        kb.button(
-            text="Широкие кнопки: {}".format(
-                "✅" if not resize else "❌"
-            ),
-            callback_data="ManagePostCaptcha|resize"
+            text="Широкие кнопки: {}".format("✅" if not resize else "❌"),
+            callback_data="ManagePostCaptcha|resize",
         )
         kb.button(
             text=text("manage:hello:edit:desc:button"),
-            callback_data="ManagePostCaptcha|message"
+            callback_data="ManagePostCaptcha|message",
         )
-        kb.button(
-            text=text('back:button'),
-            callback_data='ManagePostCaptcha|cancel'
-        )
+        kb.button(text=text("back:button"), callback_data="ManagePostCaptcha|cancel")
 
         kb.adjust(1)
         return kb.as_markup()
@@ -309,32 +287,21 @@ class InlineBotSetting(InlineKeyboardBuilder):
 
         kb.button(
             text=text("on" if hello_message.is_active else "off"),
-            callback_data="ManageHelloMessage|on"
+            callback_data="ManageHelloMessage|on",
         )
         kb.button(
-            text=text("application:delay:button").format(
-                hello_message.delay
-            ),
-            callback_data="ManageHelloMessage|delay"
+            text=text("application:delay:button").format(hello_message.delay),
+            callback_data="ManageHelloMessage|delay",
         )
         kb.button(
             text=text("manage_hello_msg:text_with_name:button").format(
                 "✅" if hello_message.text_with_name else "❌"
             ),
-            callback_data="ManageHelloMessage|text_with_name"
+            callback_data="ManageHelloMessage|text_with_name",
         )
-        kb.button(
-            text=text("change:button"),
-            callback_data="ManageHelloMessage|change"
-        )
-        kb.button(
-            text=text("delete:button"),
-            callback_data="ManageHelloMessage|delete"
-        )
-        kb.button(
-            text=text("back:button"),
-            callback_data="ManageHelloMessage|cancel"
-        )
+        kb.button(text=text("change:button"), callback_data="ManageHelloMessage|change")
+        kb.button(text=text("delete:button"), callback_data="ManageHelloMessage|delete")
+        kb.button(text=text("back:button"), callback_data="ManageHelloMessage|cancel")
 
         kb.adjust(1)
         return kb.as_markup()
@@ -345,15 +312,14 @@ class InlineBotSetting(InlineKeyboardBuilder):
 
         kb.button(
             text=text("manage:post:add:url_buttons:button"),
-            callback_data="ManagePostHelloMessage|url_buttons"
+            callback_data="ManagePostHelloMessage|url_buttons",
         )
         kb.button(
             text=text("manage:hello:edit:desc:button"),
-            callback_data="ManagePostHelloMessage|message"
+            callback_data="ManagePostHelloMessage|message",
         )
         kb.button(
-            text=text('back:button'),
-            callback_data='ManagePostHelloMessage|cancel'
+            text=text("back:button"), callback_data="ManagePostHelloMessage|cancel"
         )
 
         kb.adjust(1)
@@ -363,9 +329,9 @@ class InlineBotSetting(InlineKeyboardBuilder):
     def hello_kb(cls, buttons: str):
         kb = cls()
 
-        for row in buttons.split('\n'):
+        for row in buttons.split("\n"):
             row_buttons = []
-            for button in row.split('|'):
+            for button in row.split("|"):
                 btn_text, btn_url = _parse_button(button)
                 if btn_url:  # Только если есть URL
                     row_buttons.append(InlineKeyboardButton(text=btn_text, url=btn_url))
@@ -384,7 +350,7 @@ class InlineBotSetting(InlineKeyboardBuilder):
                 kb.add(
                     InlineKeyboardButton(
                         text=invite_urls[idx],
-                        callback_data=f'ChoiceInviteUrlApplication|{invite_urls[idx]}'
+                        callback_data=f"ChoiceInviteUrlApplication|{invite_urls[idx]}",
                     )
                 )
 
@@ -396,40 +362,45 @@ class InlineBotSetting(InlineKeyboardBuilder):
         elif len(invite_urls) > count_rows > remover:
             kb.row(
                 InlineKeyboardButton(
-                    text='➡️',
-                    callback_data=f'ChoiceInviteUrlApplication|next|{remover + count_rows}'
+                    text="➡️",
+                    callback_data=f"ChoiceInviteUrlApplication|next|{remover + count_rows}",
                 )
             )
         elif remover + count_rows >= len(invite_urls):
             kb.row(
                 InlineKeyboardButton(
-                    text='⬅️',
-                    callback_data=f'ChoiceInviteUrlApplication|back|{remover - count_rows}'
+                    text="⬅️",
+                    callback_data=f"ChoiceInviteUrlApplication|back|{remover - count_rows}",
                 )
             )
         else:
             kb.row(
                 InlineKeyboardButton(
-                    text='⬅️',
-                    callback_data=f'ChoiceInviteUrlApplication|back|{remover - count_rows}'
+                    text="⬅️",
+                    callback_data=f"ChoiceInviteUrlApplication|back|{remover - count_rows}",
                 ),
                 InlineKeyboardButton(
-                    text='➡️',
-                    callback_data=f'ChoiceInviteUrlApplication|next|{remover + count_rows}'
-                )
+                    text="➡️",
+                    callback_data=f"ChoiceInviteUrlApplication|next|{remover + count_rows}",
+                ),
             )
 
         kb.row(
             InlineKeyboardButton(
-                text=text('back:button'),
-                callback_data='ChoiceInviteUrlApplication|cancel'
+                text=text("back:button"),
+                callback_data="ChoiceInviteUrlApplication|cancel",
             )
         )
 
         return kb.as_markup()
 
     @classmethod
-    def choice_channel_for_setting(cls, channels: List[Channel], data: str = "ChoiceBotSettingChannel", remover: int = 0):
+    def choice_channel_for_setting(
+        cls,
+        channels: List[Channel],
+        data: str = "ChoiceBotSettingChannel",
+        remover: int = 0,
+    ):
         kb = cls()
         count_rows = 7
 
@@ -438,7 +409,7 @@ class InlineBotSetting(InlineKeyboardBuilder):
                 kb.add(
                     InlineKeyboardButton(
                         text=channels[idx].title,
-                        callback_data=f'{data}|{channels[idx].chat_id}'
+                        callback_data=f"{data}|{channels[idx].chat_id}",
                     )
                 )
 
@@ -450,33 +421,28 @@ class InlineBotSetting(InlineKeyboardBuilder):
         elif len(channels) > count_rows > remover:
             kb.row(
                 InlineKeyboardButton(
-                    text='➡️',
-                    callback_data=f'{data}|next|{remover + count_rows}'
+                    text="➡️", callback_data=f"{data}|next|{remover + count_rows}"
                 )
             )
         elif remover + count_rows >= len(channels):
             kb.row(
                 InlineKeyboardButton(
-                    text='⬅️',
-                    callback_data=f'{data}|back|{remover - count_rows}'
+                    text="⬅️", callback_data=f"{data}|back|{remover - count_rows}"
                 )
             )
         else:
             kb.row(
                 InlineKeyboardButton(
-                    text='⬅️',
-                    callback_data=f'{data}|back|{remover - count_rows}'
+                    text="⬅️", callback_data=f"{data}|back|{remover - count_rows}"
                 ),
                 InlineKeyboardButton(
-                    text='➡️',
-                    callback_data=f'{data}|next|{remover + count_rows}'
-                )
+                    text="➡️", callback_data=f"{data}|next|{remover + count_rows}"
+                ),
             )
 
         kb.row(
             InlineKeyboardButton(
-                text=text('back:button'),
-                callback_data=f'{data}|cancel'
+                text=text("back:button"), callback_data=f"{data}|cancel"
             )
         )
 
@@ -487,13 +453,10 @@ class InlineBotSetting(InlineKeyboardBuilder):
         kb = cls()
 
         kb.button(
-            text=text('add_channel:button'),
-            url=f't.me/{bot_username}?startchannel&admin=change_info+post_messages+edit_messages+delete_messages+post_stories+edit_stories+delete_stories+promote_members+invite_users'
+            text=text("add_channel:button"),
+            url=f"t.me/{bot_username}?startchannel&admin=change_info+post_messages+edit_messages+delete_messages+post_stories+edit_stories+delete_stories+promote_members+invite_users",
         )
-        kb.button(
-            text=text('add_channel_later:button'),
-            callback_data=f'{data}|menu'
-        )
+        kb.button(text=text("add_channel_later:button"), callback_data=f"{data}|menu")
 
         kb.adjust(1)
         return kb.as_markup()
@@ -509,46 +472,29 @@ class InlineBotSetting(InlineKeyboardBuilder):
             text=text("bot_menu:application").format(
                 "✅" if channel_settings.auto_approve else "❌"
             ),
-            callback_data="BotSettingMenu|application"
+            callback_data="BotSettingMenu|application",
         )
-        kb.button(
-            text=text("bot_menu:hello"),
-            callback_data="BotSettingMenu|hello"
-        )
-        
+        kb.button(text=text("bot_menu:hello"), callback_data="BotSettingMenu|hello")
+
         # Ряд 2: Капча + Прощание
         kb.button(
             text=text("bot_menu:captcha").format(
                 "✅" if channel_settings.active_captcha_id else "❌"
             ),
-            callback_data="BotSettingMenu|captcha"
+            callback_data="BotSettingMenu|captcha",
         )
         kb.button(
-            text=text("bot_menu:bye").format(
-                "✅" if bye.active else "❌"
-            ),
-            callback_data="BotSettingMenu|bye"
+            text=text("bot_menu:bye").format("✅" if bye.active else "❌"),
+            callback_data="BotSettingMenu|bye",
         )
-        
+
         # Ряд 3: Клонировать + Чистка
-        kb.button(
-            text=text("bot_menu:cloner"),
-            callback_data="BotSettingMenu|clone"
-        )
-        kb.button(
-            text=text("bot_menu:cleaner"),
-            callback_data="BotSettingMenu|cleaner"
-        )
-        
+        kb.button(text=text("bot_menu:cloner"), callback_data="BotSettingMenu|clone")
+        kb.button(text=text("bot_menu:cleaner"), callback_data="BotSettingMenu|cleaner")
+
         # Ряд 4: Назад + Обновить данные
-        kb.button(
-            text=text("back:button"),
-            callback_data="BotSettingMenu|back"
-        )
-        kb.button(
-            text=text("bot_menu:update"),
-            callback_data="BotSettingMenu|update"
-        )
+        kb.button(text=text("back:button"), callback_data="BotSettingMenu|back")
+        kb.button(text=text("bot_menu:update"), callback_data="BotSettingMenu|update")
 
         kb.adjust(2, 2, 2, 2)
         return kb.as_markup()
@@ -557,14 +503,8 @@ class InlineBotSetting(InlineKeyboardBuilder):
     def param_answers_back(cls, data: str = "BackAddAnswer"):
         kb = cls()
 
-        kb.button(
-            text=text('back:step'),
-            callback_data=f"{data}|step"
-        )
-        kb.button(
-            text=text('back:button'),
-            callback_data=F"{data}|cancel"
-        )
+        kb.button(text=text("back:step"), callback_data=f"{data}|step")
+        kb.button(text=text("back:button"), callback_data=f"{data}|cancel")
 
         kb.adjust(1)
         return kb.as_markup()
@@ -575,26 +515,22 @@ class InlineBotSetting(InlineKeyboardBuilder):
 
         kb.button(
             text=text("{}:button".format("on" if obj.active else "off")),
-            callback_data=f"{data}|active"
+            callback_data=f"{data}|active",
         )
         kb.button(
             text=text("{}:button".format("add" if not obj.message else "delete")),
-            callback_data=f"{data}|message"
+            callback_data=f"{data}|message",
         )
-        kb.button(
-            text=text("check:button"),
-            callback_data=f"{data}|check"
-        )
-        kb.button(
-            text=text("back:button"),
-            callback_data=f"{data}|cancel"
-        )
+        kb.button(text=text("check:button"), callback_data=f"{data}|check")
+        kb.button(text=text("back:button"), callback_data=f"{data}|cancel")
 
         kb.adjust(2, 1)
         return kb.as_markup()
 
     @classmethod
-    def manage_hello_messages(cls, hello_messages: List[ChannelHelloMessage], remover: int = 0):
+    def manage_hello_messages(
+        cls, hello_messages: List[ChannelHelloMessage], remover: int = 0
+    ):
         kb = cls()
         count_rows = 7
 
@@ -603,15 +539,13 @@ class InlineBotSetting(InlineKeyboardBuilder):
                 hello = HelloAnswer.from_orm(hello_messages[idx])
 
                 button_text = "{} сообщение {} Задержка: {}".format(
-                    a + 1,
-                    "✅" if hello.is_active else "❌",
-                    hello.delay
+                    a + 1, "✅" if hello.is_active else "❌", hello.delay
                 )
 
                 kb.add(
                     InlineKeyboardButton(
                         text=button_text,
-                        callback_data=f'ChoiceHelloMessage|{hello_messages[idx].id}|{a + 1}'
+                        callback_data=f"ChoiceHelloMessage|{hello_messages[idx].id}|{a + 1}",
                     )
                 )
 
@@ -623,39 +557,37 @@ class InlineBotSetting(InlineKeyboardBuilder):
         elif len(hello_messages) > count_rows > remover:
             kb.row(
                 InlineKeyboardButton(
-                    text='➡️',
-                    callback_data=f'ChoiceHelloMessage|next|{remover + count_rows}'
+                    text="➡️",
+                    callback_data=f"ChoiceHelloMessage|next|{remover + count_rows}",
                 )
             )
         elif remover + count_rows >= len(hello_messages):
             kb.row(
                 InlineKeyboardButton(
-                    text='⬅️',
-                    callback_data=f'ChoiceHelloMessage|back|{remover - count_rows}'
+                    text="⬅️",
+                    callback_data=f"ChoiceHelloMessage|back|{remover - count_rows}",
                 )
             )
         else:
             kb.row(
                 InlineKeyboardButton(
-                    text='⬅️',
-                    callback_data=f'ChoiceHelloMessage|back|{remover - count_rows}'
+                    text="⬅️",
+                    callback_data=f"ChoiceHelloMessage|back|{remover - count_rows}",
                 ),
                 InlineKeyboardButton(
-                    text='➡️',
-                    callback_data=f'ChoiceHelloMessage|next|{remover + count_rows}'
-                )
+                    text="➡️",
+                    callback_data=f"ChoiceHelloMessage|next|{remover + count_rows}",
+                ),
             )
 
         kb.row(
             InlineKeyboardButton(
-                text=text("add:button"),
-                callback_data="ChoiceHelloMessage|add"
+                text=text("add:button"), callback_data="ChoiceHelloMessage|add"
             )
         )
         kb.row(
             InlineKeyboardButton(
-                text=text('back:button'),
-                callback_data='ChoiceHelloMessage|cancel'
+                text=text("back:button"), callback_data="ChoiceHelloMessage|cancel"
             )
         )
 
@@ -686,37 +618,36 @@ class InlineBotSetting(InlineKeyboardBuilder):
             if current == seconds:
                 label = "✅ " + label
 
-            kb.button(
-                text=label,
-                callback_data=f"ChoiceHelloMessageDelay|{seconds}"
-            )
+            kb.button(text=label, callback_data=f"ChoiceHelloMessageDelay|{seconds}")
 
         kb.adjust(3)
         kb.row(
-            InlineKeyboardButton(text=text("back:button"), callback_data="ChoiceHelloMessageDelay|cancel"),
+            InlineKeyboardButton(
+                text=text("back:button"), callback_data="ChoiceHelloMessageDelay|cancel"
+            ),
         )
 
         return kb.as_markup()
 
     @classmethod
-    def manage_application(cls, not_approve_count: int, auto_approve: bool, delay_approve: int):
+    def manage_application(
+        cls, not_approve_count: int, auto_approve: bool, delay_approve: int
+    ):
         kb = cls()
 
         kb.button(
-            text=text("application:count:button").format(
-                not_approve_count
-            ),
-            callback_data="ManageApplication|..."
+            text=text("application:count:button").format(not_approve_count),
+            callback_data="ManageApplication|...",
         )
         kb.button(
             text=text("application:approve:button").format(
                 "✅" if auto_approve else "❌"
             ),
-            callback_data="ManageApplication|auto_approve"
+            callback_data="ManageApplication|auto_approve",
         )
         kb.button(
             text=text("application:manual_approve:button"),
-            callback_data="ManageApplication|manual_approve"
+            callback_data="ManageApplication|manual_approve",
         )
 
         variants_dict = {
@@ -737,15 +668,10 @@ class InlineBotSetting(InlineKeyboardBuilder):
         }
 
         kb.button(
-            text=text("application:delay:button").format(
-                variants_dict[delay_approve]
-            ),
-            callback_data="ManageApplication|delay"
+            text=text("application:delay:button").format(variants_dict[delay_approve]),
+            callback_data="ManageApplication|delay",
         )
-        kb.button(
-            text=text("back:button"),
-            callback_data="ManageApplication|cancel"
-        )
+        kb.button(text=text("back:button"), callback_data="ManageApplication|cancel")
 
         kb.adjust(1)
         return kb.as_markup()
@@ -775,14 +701,13 @@ class InlineBotSetting(InlineKeyboardBuilder):
             if current == seconds:
                 label = "✅ " + label
 
-            kb.button(
-                text=label,
-                callback_data=f"ChoiceApplicationDelay|{seconds}"
-            )
+            kb.button(text=label, callback_data=f"ChoiceApplicationDelay|{seconds}")
 
         kb.adjust(3)
         kb.row(
-            InlineKeyboardButton(text=text("back:button"), callback_data="ChoiceApplicationDelay|cancel"),
+            InlineKeyboardButton(
+                text=text("back:button"), callback_data="ChoiceApplicationDelay|cancel"
+            ),
         )
 
         return kb.as_markup()
@@ -793,20 +718,17 @@ class InlineBotSetting(InlineKeyboardBuilder):
 
         kb.button(
             text=text("application:manual_approve:all"),
-            callback_data="ChoiceManualApprove|all"
+            callback_data="ChoiceManualApprove|all",
         )
         kb.button(
             text=text("application:manual_approve:part"),
-            callback_data="ChoiceManualApprove|part"
+            callback_data="ChoiceManualApprove|part",
         )
         kb.button(
             text=text("application:manual_approve:invite_url"),
-            callback_data="ChoiceManualApprove|invite_url"
+            callback_data="ChoiceManualApprove|invite_url",
         )
-        kb.button(
-            text=text("back:button"),
-            callback_data="ChoiceManualApprove|cancel"
-        )
+        kb.button(text=text("back:button"), callback_data="ChoiceManualApprove|cancel")
 
         kb.adjust(2, 1)
         return kb.as_markup()

@@ -35,6 +35,7 @@ class BotPost(Base):
         error_send (int): Количество ошибок.
         message_ids (dict): Сохраненные ID отправленных сообщений (для удаления).
     """
+
     __tablename__ = "bot_posts"
 
     # Данные

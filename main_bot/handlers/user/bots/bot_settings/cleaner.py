@@ -6,6 +6,7 @@
 - Указание временного периода для очистки
 - Асинхронный процесс очистки
 """
+
 import asyncio
 import logging
 from datetime import datetime
@@ -21,16 +22,18 @@ from main_bot.states.user import Cleaner
 from main_bot.utils.bot_manager import BotManager
 from main_bot.utils.lang.language import text
 from main_bot.keyboards import keyboards
-from main_bot.utils.error_handler import safe_handler
+from utils.error_handler import safe_handler
 
 logger = logging.getLogger(__name__)
 
 
 @safe_handler("Bots Cleaner Choice")
-async def choice(call: types.CallbackQuery, state: FSMContext, db_obj: Database) -> None:
+async def choice(
+    call: types.CallbackQuery, state: FSMContext, db_obj: Database
+) -> None:
     """
     Выбор типа очистки.
-    
+
     Аргументы:
         call (types.CallbackQuery): Callback запрос.
         state (FSMContext): Контекст состояния.
@@ -57,7 +60,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext, db_obj: Database)
 async def back(call: types.CallbackQuery, state: FSMContext) -> None:
     """
     Возврат в меню очистки.
-    
+
     Аргументы:
         call (types.CallbackQuery): Callback запрос.
         state (FSMContext): Контекст состояния.
@@ -73,10 +76,12 @@ async def back(call: types.CallbackQuery, state: FSMContext) -> None:
     )
 
 
-async def start_clean(user_bot: UserBot, cleaner_type: str, users: List[Any], chat_id: int) -> None:
+async def start_clean(
+    user_bot: UserBot, cleaner_type: str, users: List[Any], chat_id: int
+) -> None:
     """
     Асинхронная задача очистки пользователей.
-    
+
     Аргументы:
         user_bot (UserBot): Бот, выполняющий очистку.
         cleaner_type (str): Тип очистки ('ban' или отклонение заявок).
@@ -100,7 +105,9 @@ async def start_clean(user_bot: UserBot, cleaner_type: str, users: List[Any], ch
 
 
 @safe_handler("Bots Cleaner Get Period")
-async def get_period(message: types.Message, state: FSMContext, db_obj: Database) -> None:
+async def get_period(
+    message: types.Message, state: FSMContext, db_obj: Database
+) -> None:
     """
     Обработка ввода периода очистки пользователем.
     Запускает процесс очистки в фоне.

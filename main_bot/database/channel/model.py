@@ -33,6 +33,7 @@ class Channel(Base):
         novastat_48h (int): Просмотры за 48 часов.
         novastat_72h (int): Просмотры за 72 часа.
     """
+
     __tablename__ = "channels"
     __table_args__ = (
         UniqueConstraint("chat_id", "admin_id", name="uix_channel_admin"),

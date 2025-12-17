@@ -22,6 +22,7 @@ class UserFolder(Base):
         type (FolderType): Тип папки (например, CHANNEL).
         content (list): Список ID каналов/чатов в папке.
     """
+
     __tablename__ = "user_folders"
 
     # Данные

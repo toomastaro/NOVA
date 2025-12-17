@@ -16,6 +16,7 @@ class Stats(Base):
         bot_count (int): Количество ботов.
         channel_count (int): Количество каналов.
     """
+
     __tablename__ = "stats"
 
     # Данные

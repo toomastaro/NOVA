@@ -20,6 +20,7 @@ class ChannelHelloMessage(Base):
         text_with_name (bool): Подставлять ли имя пользователя.
         is_active (bool): Активно ли сообщение.
     """
+
     __tablename__ = "channel_hello_messages"
 
     # Данные

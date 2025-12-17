@@ -29,7 +29,7 @@ from main_bot.utils.lang.language import text
 from main_bot.utils.mt_client_utils import reset_client_task
 from main_bot.utils.session_manager import SessionManager
 from main_bot.utils.support_log import send_support_alert, SupportAlert
-from main_bot.utils.error_handler import safe_handler
+from utils.error_handler import safe_handler
 
 logger = logging.getLogger(__name__)
 
@@ -424,7 +424,9 @@ async def admin_session_back(call: types.CallbackQuery, state: FSMContext) -> No
         if number:
             app: Optional[SessionManager] = apps.get(number)
             if app:
-                if isinstance(app.session_path, (str, Path)) and os.path.exists(app.session_path):
+                if isinstance(app.session_path, (str, Path)) and os.path.exists(
+                    app.session_path
+                ):
                     os.remove(app.session_path)
                 await app.close()
     except Exception as e:
@@ -505,7 +507,9 @@ async def get_code(message: types.Message, state: FSMContext) -> None:
     data = await state.get_data()
     number = data.get("number")
     hash_code = data.get("hash_code")
-    pool_type = data.get("pool_type", "internal")  # По умолчанию internal, если отсутствует
+    pool_type = data.get(
+        "pool_type", "internal"
+    )  # По умолчанию internal, если отсутствует
 
     app: Optional[SessionManager] = apps.get(number)
     if not app:
@@ -520,7 +524,9 @@ async def get_code(message: types.Message, state: FSMContext) -> None:
         logger.error(f"Error signing in: {e}")
         await app.close()
         try:
-            if isinstance(app.session_path, (str, Path)) and os.path.exists(app.session_path):
+            if isinstance(app.session_path, (str, Path)) and os.path.exists(
+                app.session_path
+            ):
                 os.remove(app.session_path)
         except Exception:
             pass

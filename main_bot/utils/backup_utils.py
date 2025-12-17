@@ -31,24 +31,58 @@ def _prepare_send_options(message_options: MessageOptions) -> tuple[Any, dict]:
     """
     if message_options.text:
         cor = bot.send_message
-        options = message_options.model_dump(exclude={"photo", "video", "animation", "show_caption_above_media", "has_spoiler", "caption", "reply_markup"})
+        options = message_options.model_dump(
+            exclude={
+                "photo",
+                "video",
+                "animation",
+                "show_caption_above_media",
+                "has_spoiler",
+                "caption",
+                "reply_markup",
+            }
+        )
     elif message_options.photo:
         cor = bot.send_photo
-        options = message_options.model_dump(exclude={"video", "animation", "text", "disable_web_page_preview", "reply_markup"})
-        if hasattr(message_options.photo, 'file_id'):
+        options = message_options.model_dump(
+            exclude={
+                "video",
+                "animation",
+                "text",
+                "disable_web_page_preview",
+                "reply_markup",
+            }
+        )
+        if hasattr(message_options.photo, "file_id"):
             options["photo"] = message_options.photo.file_id
     elif message_options.video:
         cor = bot.send_video
-        options = message_options.model_dump(exclude={"photo", "animation", "text", "disable_web_page_preview", "reply_markup"})
-        if hasattr(message_options.video, 'file_id'):
+        options = message_options.model_dump(
+            exclude={
+                "photo",
+                "animation",
+                "text",
+                "disable_web_page_preview",
+                "reply_markup",
+            }
+        )
+        if hasattr(message_options.video, "file_id"):
             options["video"] = message_options.video.file_id
-    else: # animation
+    else:  # animation
         cor = bot.send_animation
-        options = message_options.model_dump(exclude={"photo", "video", "text", "disable_web_page_preview", "reply_markup"})
-        if hasattr(message_options.animation, 'file_id'):
+        options = message_options.model_dump(
+            exclude={
+                "photo",
+                "video",
+                "text",
+                "disable_web_page_preview",
+                "reply_markup",
+            }
+        )
+        if hasattr(message_options.animation, "file_id"):
             options["animation"] = message_options.animation.file_id
 
-    options['parse_mode'] = 'HTML'
+    options["parse_mode"] = "HTML"
     return cor, options
 
 
@@ -70,35 +104,41 @@ async def send_to_backup(post: Post | Story | BotPost) -> tuple[int | None, int 
         reply_markup = keyboards.post_kb(post=post)
     elif isinstance(post, Story):
         # Фильтрация полей для соответствия MessageOptions
-        story_dump = post.story_options.copy() if hasattr(post.story_options, 'copy') else dict(post.story_options)
+        story_dump = (
+            post.story_options.copy()
+            if hasattr(post.story_options, "copy")
+            else dict(post.story_options)
+        )
         valid_fields = MessageOptions.model_fields.keys()
-        filtered_story_options = {k: v for k, v in story_dump.items() if k in valid_fields}
+        filtered_story_options = {
+            k: v for k, v in story_dump.items() if k in valid_fields
+        }
 
         message_options = MessageOptions(**filtered_story_options)
         reply_markup = keyboards.story_kb(post=post)
     elif isinstance(post, BotPost):
         from main_bot.utils.schemas import MessageOptionsHello
+
         message_options = MessageOptionsHello(**post.message)
         reply_markup = keyboards.bot_post_kb(post=post)
     else:
         return None, None
 
     cor, options = _prepare_send_options(message_options)
-    options['chat_id'] = Config.BACKUP_CHAT_ID
+    options["chat_id"] = Config.BACKUP_CHAT_ID
     # reply_markup передается отдельно, чтобы избежать путаницы с pop/clean, если словарь изменяется на месте
 
     try:
-        backup_msg = await cor(
-            **options,
-            reply_markup=reply_markup
-        )
+        backup_msg = await cor(**options, reply_markup=reply_markup)
         return Config.BACKUP_CHAT_ID, backup_msg.message_id
     except Exception as e:
         logger.error(f"Ошибка отправки в резервный канал: {e}", exc_info=True)
         return None, None
 
 
-async def edit_backup_message(post: Post | PublishedPost | Story | BotPost, message_options: MessageOptions = None) -> None:
+async def edit_backup_message(
+    post: Post | PublishedPost | Story | BotPost, message_options: MessageOptions = None
+) -> None:
     """
     Обновляет сообщение в резервном канале в соответствии с текущим состоянием поста.
 
@@ -117,7 +157,11 @@ async def edit_backup_message(post: Post | PublishedPost | Story | BotPost, mess
             reply_markup = keyboards.post_kb(post=post)
         elif isinstance(post, Story):
             # Фильтрация полей
-            story_dump = post.story_options.copy() if hasattr(post.story_options, 'copy') else dict(post.story_options)
+            story_dump = (
+                post.story_options.copy()
+                if hasattr(post.story_options, "copy")
+                else dict(post.story_options)
+            )
             valid_fields = MessageOptions.model_fields.keys()
             filtered = {k: v for k, v in story_dump.items() if k in valid_fields}
 
@@ -125,18 +169,19 @@ async def edit_backup_message(post: Post | PublishedPost | Story | BotPost, mess
             reply_markup = keyboards.manage_story(post=post)
         elif isinstance(post, BotPost):
             from main_bot.utils.schemas import MessageOptionsHello
+
             message_options = MessageOptionsHello(**post.message)
             reply_markup = keyboards.manage_bot_post(post=post)
     else:
         # Если message_options передан, нам все равно нужна правильная клавиатура
         if isinstance(post, (Post, PublishedPost)):
-             reply_markup = keyboards.post_kb(post=post)
+            reply_markup = keyboards.post_kb(post=post)
         elif isinstance(post, Story):
-             reply_markup = keyboards.manage_story(post=post)
+            reply_markup = keyboards.manage_story(post=post)
         elif isinstance(post, BotPost):
-             reply_markup = keyboards.manage_bot_post(post=post)
+            reply_markup = keyboards.manage_bot_post(post=post)
         else:
-             reply_markup = None
+            reply_markup = None
 
     chat_id = post.backup_chat_id
     message_id = post.backup_message_id
@@ -147,9 +192,9 @@ async def edit_backup_message(post: Post | PublishedPost | Story | BotPost, mess
                 chat_id=chat_id,
                 message_id=message_id,
                 text=message_options.text,
-                parse_mode='HTML',
+                parse_mode="HTML",
                 disable_web_page_preview=message_options.disable_web_page_preview,
-                reply_markup=reply_markup
+                reply_markup=reply_markup,
             )
         else:
             # Медиа сообщение
@@ -158,29 +203,31 @@ async def edit_backup_message(post: Post | PublishedPost | Story | BotPost, mess
                     chat_id=chat_id,
                     message_id=message_id,
                     caption=message_options.caption,
-                    parse_mode='HTML',
-                    reply_markup=reply_markup
+                    parse_mode="HTML",
+                    reply_markup=reply_markup,
                 )
             else:
                 # Обновляем только клавиатуру, если подпись не изменилась
                 await bot.edit_message_reply_markup(
-                    chat_id=chat_id,
-                    message_id=message_id,
-                    reply_markup=reply_markup
+                    chat_id=chat_id, message_id=message_id, reply_markup=reply_markup
                 )
 
     except Exception as e:
-        logger.error(f"Ошибка редактирования сообщения бэкапа {message_id} в {chat_id}: {e}. Попытка отката (удаление и повторная отправка).")
+        logger.error(
+            f"Ошибка редактирования сообщения бэкапа {message_id} в {chat_id}: {e}. Попытка отката (удаление и повторная отправка)."
+        )
         try:
             # Откат: Удаление и повторная отправка в бэкап
             try:
                 await bot.delete_message(chat_id, message_id)
             except Exception as del_e:
-                logger.warning(f"Не удалось удалить сообщение бэкапа {message_id}: {del_e}")
+                logger.warning(
+                    f"Не удалось удалить сообщение бэкапа {message_id}: {del_e}"
+                )
 
             # Отправка нового сообщения в бэкап с использованием хелпера
             cor, send_options = _prepare_send_options(message_options)
-            send_options['chat_id'] = chat_id
+            send_options["chat_id"] = chat_id
 
             new_backup_msg = await cor(**send_options, reply_markup=reply_markup)
             new_backup_message_id = new_backup_msg.message_id
@@ -190,29 +237,41 @@ async def edit_backup_message(post: Post | PublishedPost | Story | BotPost, mess
 
             # Обновление поста
             if isinstance(post, Story):
-                 await db.story.update_story(post.id, backup_message_id=new_backup_message_id)
+                await db.story.update_story(
+                    post.id, backup_message_id=new_backup_message_id
+                )
             elif isinstance(post, BotPost):
-                 await db.bot_post.update_bot_post(post.id, backup_message_id=new_backup_message_id)
+                await db.bot_post.update_bot_post(
+                    post.id, backup_message_id=new_backup_message_id
+                )
             elif isinstance(post, (Post, PublishedPost)):
-                 # Обновление поста
+                # Обновление поста
                 await db.post.update_post(
-                    post_id=post_id,
-                    backup_message_id=new_backup_message_id
+                    post_id=post_id, backup_message_id=new_backup_message_id
                 )
 
                 # Обновление всех опубликованных постов
                 await db.published_post.update_published_posts_by_post_id(
-                    post_id=post_id,
-                    backup_message_id=new_backup_message_id
+                    post_id=post_id, backup_message_id=new_backup_message_id
                 )
 
-            logger.info(f"Откат бэкапа успешен: Заменено {message_id} на {new_backup_message_id} для поста {post_id}")
+            logger.info(
+                f"Откат бэкапа успешен: Заменено {message_id} на {new_backup_message_id} для поста {post_id}"
+            )
 
         except Exception as fallback_e:
-            logger.error(f"Ошибка отката бэкапа для поста {post.id if hasattr(post, 'id') else '?'}: {fallback_e}", exc_info=True)
+            logger.error(
+                f"Ошибка отката бэкапа для поста {post.id if hasattr(post, 'id') else '?'}: {fallback_e}",
+                exc_info=True,
+            )
 
 
-async def _update_single_live_message(post: PublishedPost, message_options: MessageOptions, reply_markup, semaphore: asyncio.Semaphore) -> None:
+async def _update_single_live_message(
+    post: PublishedPost,
+    message_options: MessageOptions,
+    reply_markup,
+    semaphore: asyncio.Semaphore,
+) -> None:
     """
     Хелпер для обновления одного живого сообщения с семафором.
 
@@ -231,9 +290,9 @@ async def _update_single_live_message(post: PublishedPost, message_options: Mess
                     chat_id=post.chat_id,
                     message_id=post.message_id,
                     text=message_options.text,
-                    parse_mode='HTML',
+                    parse_mode="HTML",
                     disable_web_page_preview=message_options.disable_web_page_preview,
-                    reply_markup=reply_markup
+                    reply_markup=reply_markup,
                 )
             else:
                 if message_options.caption is not None:
@@ -241,23 +300,27 @@ async def _update_single_live_message(post: PublishedPost, message_options: Mess
                         chat_id=post.chat_id,
                         message_id=post.message_id,
                         caption=message_options.caption,
-                        parse_mode='HTML',
-                        reply_markup=reply_markup
+                        parse_mode="HTML",
+                        reply_markup=reply_markup,
                     )
                 else:
                     await bot.edit_message_reply_markup(
                         chat_id=post.chat_id,
                         message_id=post.message_id,
-                        reply_markup=reply_markup
+                        reply_markup=reply_markup,
                     )
         except Exception as e:
-            logger.error(f"Ошибка обновления живого сообщения {post.message_id} в {post.chat_id}: {e}. Попытка отката (удаление и репост).")
+            logger.error(
+                f"Ошибка обновления живого сообщения {post.message_id} в {post.chat_id}: {e}. Попытка отката (удаление и репост)."
+            )
             try:
                 # Откат: Удаление и копирование из бэкапа
                 try:
                     await bot.delete_message(post.chat_id, post.message_id)
                 except Exception as del_e:
-                    logger.warning(f"Не удалось удалить сообщение {post.message_id} в {post.chat_id}: {del_e}")
+                    logger.warning(
+                        f"Не удалось удалить сообщение {post.message_id} в {post.chat_id}: {del_e}"
+                    )
 
                 if post.backup_chat_id and post.backup_message_id:
                     new_msg = await bot.copy_message(
@@ -265,23 +328,30 @@ async def _update_single_live_message(post: PublishedPost, message_options: Mess
                         from_chat_id=post.backup_chat_id,
                         message_id=post.backup_message_id,
                         reply_markup=reply_markup,
-                        parse_mode='HTML'
+                        parse_mode="HTML",
                     )
 
                     # Обновление PublishedPost с новым message_id
                     await db.published_post.update_published_post(
-                        post_id=post.id,
-                        message_id=new_msg.message_id
+                        post_id=post.id, message_id=new_msg.message_id
                     )
-                    logger.info(f"Откат успешен: Заменено сообщение {post.message_id} на {new_msg.message_id} в {post.chat_id}")
+                    logger.info(
+                        f"Откат успешен: Заменено сообщение {post.message_id} на {new_msg.message_id} в {post.chat_id}"
+                    )
                 else:
-                    logger.error(f"Ошибка отката: Нет информации о бэкапе для поста {post.id}")
+                    logger.error(
+                        f"Ошибка отката: Нет информации о бэкапе для поста {post.id}"
+                    )
 
             except Exception as fallback_e:
-                logger.error(f"Ошибка отката для {post.chat_id}: {fallback_e}", exc_info=True)
+                logger.error(
+                    f"Ошибка отката для {post.chat_id}: {fallback_e}", exc_info=True
+                )
 
 
-async def update_live_messages(post_id: int, message_options: MessageOptions, reply_markup=None) -> None:
+async def update_live_messages(
+    post_id: int, message_options: MessageOptions, reply_markup=None
+) -> None:
     """
     Обновляет все опубликованные сообщения (live/channels) для указанного поста.
 

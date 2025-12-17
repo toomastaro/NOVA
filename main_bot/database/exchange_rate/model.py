@@ -20,6 +20,7 @@ class ExchangeRate(Base):
         rate (float): Текущий курс.
         last_update (datetime): Время последнего обновления.
     """
+
     __tablename__ = "exchange_rate"
 
     id: Mapped[int] = mapped_column(primary_key=True)

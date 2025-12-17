@@ -71,96 +71,96 @@ def init_scheduler(scheduler: AsyncIOScheduler) -> None:
     # Отправка отложенных постов (каждые 10 секунд)
     scheduler.add_job(
         func=send_posts,
-        trigger=CronTrigger(second='*/10'),
+        trigger=CronTrigger(second="*/10"),
         id="send_posts_periodic",
         replace_existing=True,
-        name="Отправка отложенных постов"
+        name="Отправка отложенных постов",
     )
 
     # Открепление постов (каждые 10 секунд)
     scheduler.add_job(
         func=unpin_posts,
-        trigger=CronTrigger(second='*/10'),
+        trigger=CronTrigger(second="*/10"),
         id="unpin_posts_periodic",
         replace_existing=True,
-        name="Открепление постов"
+        name="Открепление постов",
     )
 
     # Удаление постов (каждые 10 секунд)
     scheduler.add_job(
         func=delete_posts,
-        trigger=CronTrigger(second='*/10'),
+        trigger=CronTrigger(second="*/10"),
         id="delete_posts_periodic",
         replace_existing=True,
-        name="Удаление постов по расписанию"
+        name="Удаление постов по расписанию",
     )
 
     # Проверка CPM отчетов (каждые 10 секунд)
     scheduler.add_job(
         func=check_cpm_reports,
-        trigger=CronTrigger(second='*/10'),
+        trigger=CronTrigger(second="*/10"),
         id="check_cpm_reports_periodic",
         replace_existing=True,
-        name="Проверка CPM отчетов 24/48/72ч"
+        name="Проверка CPM отчетов 24/48/72ч",
     )
 
     # === СТОРИС ===
     # Отправка отложенных сторис (каждые 10 секунд)
     scheduler.add_job(
         func=send_stories,
-        trigger=CronTrigger(second='*/10'),
+        trigger=CronTrigger(second="*/10"),
         id="send_stories_periodic",
         replace_existing=True,
-        name="Отправка отложенных сторис"
+        name="Отправка отложенных сторис",
     )
 
     # === БОТЫ ===
     # Отправка постов через ботов (каждые 10 секунд)
     scheduler.add_job(
         func=send_bot_posts,
-        trigger=CronTrigger(second='*/10'),
+        trigger=CronTrigger(second="*/10"),
         id="send_bot_posts_periodic",
         replace_existing=True,
-        name="Отправка постов через ботов"
+        name="Отправка постов через ботов",
     )
 
     # Удаление сообщений ботов (каждые 10 секунд)
     scheduler.add_job(
         func=start_delete_bot_posts,
-        trigger=CronTrigger(second='*/10'),
+        trigger=CronTrigger(second="*/10"),
         id="delete_bot_posts_periodic",
         replace_existing=True,
-        name="Удаление сообщений ботов"
+        name="Удаление сообщений ботов",
     )
 
     # === ОЧИСТКА И ОБСЛУЖИВАНИЕ ===
     # Проверка подписок (каждые 10 секунд)
     scheduler.add_job(
         func=check_subscriptions,
-        trigger=CronTrigger(second='*/10'),
+        trigger=CronTrigger(second="*/10"),
         id="check_subscriptions_periodic",
         replace_existing=True,
-        name="Проверка подписок"
+        name="Проверка подписок",
     )
 
     # Самопроверка MT клиентов (каждый день в 3:00 по Москве)
     scheduler.add_job(
         func=mt_clients_self_check,
-        trigger=CronTrigger(hour='3', minute='0', timezone='Europe/Moscow'),
+        trigger=CronTrigger(hour="3", minute="0", timezone="Europe/Moscow"),
         id="mt_clients_self_check_daily",
         replace_existing=True,
-        name="Самопроверка MT клиентов"
+        name="Самопроверка MT клиентов",
     )
 
     # === ВСПОМОГАТЕЛЬНЫЕ ===
     # Обновление курсов валют
-    rub_usdt_timer = int(os.getenv('RUBUSDTTIMER', '3600'))
+    rub_usdt_timer = int(os.getenv("RUBUSDTTIMER", "3600"))
     scheduler.add_job(
         func=update_exchange_rates_in_db,
         trigger=IntervalTrigger(seconds=rub_usdt_timer),
         id="update_exchange_rates_periodic",
         replace_existing=True,
-        name="Обновление курсов валют"
+        name="Обновление курсов валют",
     )
 
     # === AD STATS ===
@@ -174,7 +174,7 @@ def init_scheduler(scheduler: AsyncIOScheduler) -> None:
         trigger=IntervalTrigger(seconds=ad_timer),
         id="process_ad_stats_periodic",
         replace_existing=True,
-        name="Сбор статистики рекламы (Admin Log)"
+        name="Сбор статистики рекламы (Admin Log)",
     )
 
     logger.info("✅ Зарегистрированы все системные задачи планировщика")
@@ -184,27 +184,21 @@ def init_scheduler(scheduler: AsyncIOScheduler) -> None:
 __all__ = [
     # Инициализация
     "init_scheduler",
-
     # Посты
     "send_posts",
     "unpin_posts",
     "delete_posts",
     "check_cpm_reports",
-
     # Сторис
     "send_stories",
-
     # Боты
     "send_bot_posts",
     "start_delete_bot_posts",
-
     # Очистка и обслуживание
     "check_subscriptions",
     "mt_clients_self_check",
-
     # Вспомогательные
     "update_exchange_rates_in_db",
-
     # Channels
     "register_channel_jobs",
     "update_channel_stats",

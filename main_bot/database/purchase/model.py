@@ -23,6 +23,7 @@ class Purchase(Base):
         service (Service): Услуга (POSTING, BOTS и т.д.).
         created_timestamp (int): Время покупки.
     """
+
     __tablename__ = "purchases"
 
     # Данные

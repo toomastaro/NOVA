@@ -7,6 +7,7 @@
 - Отображение настроек ботов
 - Отображение контент-плана
 """
+
 import logging
 
 
@@ -17,7 +18,7 @@ from main_bot.database.db import db
 from main_bot.keyboards import keyboards
 from main_bot.states.user import Bots
 from main_bot.utils.lang.language import text
-from main_bot.utils.error_handler import safe_handler
+from utils.error_handler import safe_handler
 from main_bot.utils.user_settings import get_user_view_mode
 
 logger = logging.getLogger(__name__)
@@ -105,10 +106,7 @@ async def show_choice_channel(message: types.Message, state: FSMContext) -> None
     # Фильтрация списков для отображения
     if view_mode == "folders":
         # Показываем только папки, в которых есть каналы, доступные для рассылки (привязанные к боту)
-        kb_folders = [
-            f for f in folders 
-            if f.content
-        ]
+        kb_folders = [f for f in folders if f.content]
         kb_resources = []
     else:
         kb_resources = objects
@@ -143,7 +141,7 @@ async def show_choice_channel(message: types.Message, state: FSMContext) -> None
 async def show_create_post(message: types.Message, state: FSMContext) -> None:
     """
     Переход к вводу сообщения для поста.
-    
+
     Аргументы:
         message (types.Message): Сообщение пользователя.
         state (FSMContext): Контекст состояния.
@@ -158,7 +156,7 @@ async def show_create_post(message: types.Message, state: FSMContext) -> None:
 async def show_settings(message: types.Message) -> None:
     """
     Отображение списка ботов для настроек.
-    
+
     Аргументы:
         message (types.Message): Сообщение пользователя.
     """
@@ -175,7 +173,7 @@ async def show_settings(message: types.Message) -> None:
 async def show_content(message: types.Message) -> None:
     """
     Отображение контент-плана (выбор канала).
-    
+
     Аргументы:
         message (types.Message): Сообщение пользователя.
     """
@@ -196,7 +194,7 @@ async def show_content(message: types.Message) -> None:
 async def back_to_main(message: types.Message) -> None:
     """
     Возврат в главное меню бота.
-    
+
     Аргументы:
         message (types.Message): Сообщение пользователя.
     """

@@ -42,6 +42,7 @@ class PublishedPost(Base):
         report_48h_sent (bool): Отчет 48ч отправлен.
         report_72h_sent (bool): Отчет 72ч отправлен.
     """
+
     __tablename__ = "published_posts"
 
     # Основные данные

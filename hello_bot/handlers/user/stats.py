@@ -3,6 +3,7 @@
 
 Обрабатывает кнопку "Назад" в разделе статистики.
 """
+
 from aiogram import types, F, Router
 from loguru import logger
 
@@ -17,10 +18,7 @@ async def choice(call: types.CallbackQuery):
     :param call: CallbackQuery
     """
     logger.debug(f"Stats back choice: {call.data}")
-    await call.message.edit_text(
-        text("start_text"),
-        reply_markup=keyboards.menu()
-    )
+    await call.message.edit_text(text("start_text"), reply_markup=keyboards.menu())
 
 
 def hand_add():

@@ -6,6 +6,7 @@
 - Обработку реферальных параметров (deep linking) для отслеживания рекламы
 - Отображение версии бота (для администраторов)
 """
+
 import logging
 
 from aiogram import Router, types
@@ -15,14 +16,14 @@ from aiogram.fsm.context import FSMContext
 from config import Config
 from main_bot.database.db import db
 from main_bot.keyboards import keyboards
-from main_bot.utils.error_handler import safe_handler
+from utils.error_handler import safe_handler
 from main_bot.utils.lang.language import text
 from main_bot.utils.middlewares import StartMiddle
 
 logger = logging.getLogger(__name__)
 
 
-@safe_handler("Start Command")
+@safe_handler("Команда: /start — начало работы")
 async def start(message: types.Message, state: FSMContext) -> None:
     """
     Обработчик команды /start.

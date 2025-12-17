@@ -3,6 +3,7 @@
 
 Позволяет настраивать автоприем заявок, защиту от ботов (арабских/китайских) и задержку одобрения.
 """
+
 from aiogram import types, F, Router
 from aiogram.fsm.context import FSMContext
 from loguru import logger
@@ -25,14 +26,13 @@ async def choice(call: types.CallbackQuery, state: FSMContext, db: Database, set
     :param db: Database instance
     :param settings: Channel settings
     """
-    temp = call.data.split('|')
+    temp = call.data.split("|")
     protect = Protect(**settings.protect)
     logger.debug(f"Application choice: {temp}")
 
     if temp[1] == "cancel":
         return await call.message.edit_text(
-            text("start_text"),
-            reply_markup=keyboards.menu()
+            text("start_text"), reply_markup=keyboards.menu()
         )
 
     if temp[1] in ["protect_arab", "protect_china", "auto_approve"]:
@@ -46,9 +46,11 @@ async def choice(call: types.CallbackQuery, state: FSMContext, db: Database, set
         settings = await db.update_setting(
             return_obj=True,
             protect=protect.model_dump(),
-            auto_approve=settings.auto_approve
+            auto_approve=settings.auto_approve,
         )
-        logger.info(f"Application settings updated: auto_approve={settings.auto_approve}, protect={protect.model_dump()}")
+        logger.info(
+            f"Application settings updated: auto_approve={settings.auto_approve}, protect={protect.model_dump()}"
+        )
 
         await call.message.delete()
         return await show_application(call.message, settings)
@@ -56,9 +58,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext, db: Database, set
     if temp[1] == "delay_approve":
         await call.message.edit_text(
             text("input_delay_approve"),
-            reply_markup=keyboards.back(
-                data="AddDelayBack"
-            )
+            reply_markup=keyboards.back(data="AddDelayBack"),
         )
         await state.set_state(Application.delay)
 
@@ -77,14 +77,9 @@ async def get_message(message: types.Message, state: FSMContext, db: Database):
     try:
         delay = int(message.text)
     except ValueError:
-        return await message.answer(
-            text('error_input')
-        )
+        return await message.answer(text("error_input"))
 
-    settings = await db.update_setting(
-        return_obj=True,
-        delay_approve=delay
-    )
+    settings = await db.update_setting(return_obj=True, delay_approve=delay)
     logger.info(f"Delay approve updated to {delay}")
 
     await state.clear()

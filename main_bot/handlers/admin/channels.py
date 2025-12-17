@@ -7,6 +7,7 @@
 - Просмотр детальной информации о канале
 - Просмотр администраторов канала
 """
+
 import logging
 
 from aiogram import Router, F, types
@@ -15,7 +16,7 @@ from aiogram.fsm.context import FSMContext
 from main_bot.database.db import db
 from main_bot.keyboards import keyboards
 from main_bot.states.admin import AdminChannels
-from main_bot.utils.error_handler import safe_handler
+from utils.error_handler import safe_handler
 
 logger = logging.getLogger(__name__)
 
@@ -184,7 +185,9 @@ async def view_channel_details(call: types.CallbackQuery) -> None:
 
 
 @safe_handler("Admin Channels Callback")
-async def channels_callback_handler(call: types.CallbackQuery, state: FSMContext) -> None:
+async def channels_callback_handler(
+    call: types.CallbackQuery, state: FSMContext
+) -> None:
     """
     Общий обработчик для всех callback'ов каналов.
     Маршрутизирует действия (list, search, view) на соответствующие функции.

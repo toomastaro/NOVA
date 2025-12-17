@@ -9,11 +9,11 @@ class SettingCrud(DatabaseMixin):
 
     async def get_setting(self) -> Setting:
         """Получает текущие настройки."""
-        return await self.fetchrow(
-            select(Setting)
-        )
+        return await self.fetchrow(select(Setting))
 
-    async def update_setting(self, return_obj: bool = False, **kwargs) -> Setting | None:
+    async def update_setting(
+        self, return_obj: bool = False, **kwargs
+    ) -> Setting | None:
         """
         Обновляет настройки.
 
@@ -32,4 +32,4 @@ class SettingCrud(DatabaseMixin):
         else:
             operation = self.execute
 
-        return await operation(stmt, **{'commit': return_obj} if return_obj else {})
+        return await operation(stmt, **{"commit": return_obj} if return_obj else {})

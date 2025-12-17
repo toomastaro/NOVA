@@ -7,6 +7,7 @@
 - Управление запланированными постами (просмотр, редактирование, удаление)
 - Формирование отчетов по дням
 """
+
 from datetime import datetime, timedelta
 import logging
 from typing import Dict, Any, Optional
@@ -22,7 +23,7 @@ from main_bot.keyboards import keyboards
 from main_bot.utils.functions import answer_bot_post
 from main_bot.utils.lang.language import text
 from main_bot.utils.backup_utils import send_to_backup
-from main_bot.utils.error_handler import safe_handler
+from utils.error_handler import safe_handler
 
 logger = logging.getLogger(__name__)
 
@@ -30,10 +31,10 @@ logger = logging.getLogger(__name__)
 def serialize_channel(channel: Any) -> Optional[Dict[str, Any]]:
     """
     Сериализует объект канала в словарь.
-    
+
     Аргументы:
         channel: Объект канала.
-        
+
     Возвращает:
         dict: Данные канала или None.
     """
@@ -52,10 +53,10 @@ def serialize_channel(channel: Any) -> Optional[Dict[str, Any]]:
 def serialize_bot_post(post: Any) -> Optional[Dict[str, Any]]:
     """
     Сериализует объект поста бота в словарь.
-    
+
     Аргументы:
         post: Объект поста.
-        
+
     Возвращает:
         dict: Данные поста или None.
     """
@@ -80,7 +81,9 @@ def serialize_bot_post(post: Any) -> Optional[Dict[str, Any]]:
     }
 
 
-async def get_days_with_bot_posts(bot_id: int, year: int, month: int) -> Dict[int, Dict[str, bool]]:
+async def get_days_with_bot_posts(
+    bot_id: int, year: int, month: int
+) -> Dict[int, Dict[str, bool]]:
     """
     Получает информацию о днях месяца с рассылками и их статусах.
 
@@ -375,7 +378,7 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext) -> No
 async def choice_time_objects(call: types.CallbackQuery, state: FSMContext) -> None:
     """
     Выбор конкретного поста из списка time objects.
-    
+
     Аргументы:
         call (types.CallbackQuery): Callback запрос.
         state (FSMContext): Контекст состояния.
@@ -535,7 +538,9 @@ async def manage_remain_post(call: types.CallbackQuery, state: FSMContext) -> No
 
 
 @safe_handler("Bots Accept Delete Post")
-async def accept_delete_row_content(call: types.CallbackQuery, state: FSMContext) -> None:
+async def accept_delete_row_content(
+    call: types.CallbackQuery, state: FSMContext
+) -> None:
     """
     Подтверждение удаления поста.
     Удаляет пост из базы данных и возвращает пользователя в календарь.

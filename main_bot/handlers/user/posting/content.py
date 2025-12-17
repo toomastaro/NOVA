@@ -12,7 +12,7 @@ from main_bot.handlers.user.posting.menu import show_content
 from main_bot.keyboards import keyboards
 from main_bot.utils.functions import answer_post
 from main_bot.utils.lang.language import text
-from main_bot.utils.error_handler import safe_handler
+from utils.error_handler import safe_handler
 
 
 logger = logging.getLogger(__name__)
@@ -239,7 +239,7 @@ async def generate_post_info_text(post_obj, is_published: bool = False) -> str:
             )
 
 
-@safe_handler("Posting Choice Channel")
+@safe_handler("Постинг: выбор канала")
 async def choice_channel(call: types.CallbackQuery, state: FSMContext):
     """Выбор канала для просмотра контент-плана."""
     temp = call.data.split("|")
@@ -259,7 +259,9 @@ async def choice_channel(call: types.CallbackQuery, state: FSMContext):
         return await start_posting(call.message)
 
     chat_id = int(temp[1])
-    logger.info(f"Пользователь {call.from_user.id} выбрал канал {chat_id} для просмотра контента")
+    logger.info(
+        f"Пользователь {call.from_user.id} выбрал канал {chat_id} для просмотра контента"
+    )
     channel = await db.channel.get_channel_by_chat_id(chat_id)
 
     day = datetime.today()
@@ -294,7 +296,7 @@ async def choice_channel(call: types.CallbackQuery, state: FSMContext):
     )
 
 
-@safe_handler("Posting Choice Row Content")
+@safe_handler("Постинг: выбор строки контента")
 async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
     """Навигация по контент-плану (выбор дня, поста)."""
     temp = call.data.split("|")
@@ -388,7 +390,9 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
     # Обработка PublishedPost
     if call.data.startswith("ContentPublishedPost"):
         post_id = int(temp[1])
-        logger.info(f"Пользователь {call.from_user.id} просматривает опубликованный пост {post_id}")
+        logger.info(
+            f"Пользователь {call.from_user.id} просматривает опубликованный пост {post_id}"
+        )
         post = await db.published_post.get_published_post_by_id(post_id)
 
         # Подготовка значений даты
@@ -446,13 +450,13 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
 
     # Генерация нового текста
     info_text = await generate_post_info_text(post, is_published=False)
-    
+
     await call.message.answer(
         info_text, reply_markup=keyboards.manage_remain_post(post=post)
     )
 
 
-@safe_handler("Posting Choice Time Objects")
+@safe_handler("Постинг: выбор времени")
 async def choice_time_objects(call: types.CallbackQuery, state: FSMContext):
     """Просмотр списка запланированных постов."""
     temp = call.data.split("|")
@@ -503,7 +507,7 @@ async def choice_time_objects(call: types.CallbackQuery, state: FSMContext):
         )
 
 
-@safe_handler("Posting Manage Remain Post")
+@safe_handler("Постинг: управление остатком постов")
 async def manage_remain_post(call: types.CallbackQuery, state: FSMContext):
     """Управление запланированным (или черновиком) постом."""
     temp = call.data.split("|")
@@ -514,7 +518,11 @@ async def manage_remain_post(call: types.CallbackQuery, state: FSMContext):
 
     channel_data = data.get("channel")
     day_str = data.get("day")
-    day = datetime.fromisoformat(day_str) if isinstance(day_str, str) else datetime.today()
+    day = (
+        datetime.fromisoformat(day_str)
+        if isinstance(day_str, str)
+        else datetime.today()
+    )
 
     if temp[1] == "cancel":
         posts = await db.post.get_posts(channel_data["chat_id"], day)
@@ -571,7 +579,7 @@ async def manage_remain_post(call: types.CallbackQuery, state: FSMContext):
         # Нужен объект для клавиатуры, data['post'] сейчас dict
         # Клавиатура вероятно ожидает объект.
         # Quick fix: передаем dict, проверяем клавиатуру.
-        
+
         reply_markup = keyboards.manage_post(
             post=data.get("post"), is_edit=data.get("is_edit")
         )
@@ -591,7 +599,7 @@ async def manage_remain_post(call: types.CallbackQuery, state: FSMContext):
         return
 
 
-@safe_handler("Posting Accept Delete Row Content")
+@safe_handler("Постинг: подтверждение удаления контента")
 async def accept_delete_row_content(call: types.CallbackQuery, state: FSMContext):
     """Подтверждение удаления поста."""
     # ... logic existing ...
@@ -661,7 +669,7 @@ async def accept_delete_row_content(call: types.CallbackQuery, state: FSMContext
         )
 
 
-@safe_handler("Posting Manage Published Post")
+@safe_handler("Постинг: управление опубликованными")
 async def manage_published_post(call: types.CallbackQuery, state: FSMContext):
     """Управление уже опубликованным постом (отчеты, удаление)."""
     temp = call.data.split("|")
@@ -781,8 +789,6 @@ async def manage_published_post(call: types.CallbackQuery, state: FSMContext):
                 ),
             )
 
-
-        
         # Возврат к списку контента
         days_with_posts = await get_days_with_posts(
             data.get("channel").chat_id, day.year, day.month
@@ -859,7 +865,7 @@ async def manage_published_post(call: types.CallbackQuery, state: FSMContext):
         return
 
 
-@safe_handler("Posting Accept Delete Published Post")
+@safe_handler("Постинг: удаление опубликованного")
 async def accept_delete_published_post(call: types.CallbackQuery, state: FSMContext):
     """Подтверждение удаления опубликованного поста (удаление из каналов и БД)."""
     temp = call.data.split("|")

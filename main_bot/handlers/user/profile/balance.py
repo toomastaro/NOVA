@@ -1,6 +1,7 @@
 """
 Обработчики баланса пользователя.
 """
+
 import logging
 from aiogram import types, Router, F
 from aiogram.fsm.context import FSMContext
@@ -8,41 +9,37 @@ from aiogram.fsm.context import FSMContext
 from main_bot.database.db import db
 from main_bot.keyboards import keyboards
 from main_bot.utils.lang.language import text
-from main_bot.utils.error_handler import safe_handler
+from utils.error_handler import safe_handler
 
 logger = logging.getLogger(__name__)
 
 
-@safe_handler("Balance Choice")
+@safe_handler("Баланс: выбор действия")
 async def choice(call: types.CallbackQuery, state: FSMContext):
     """Маршрутизатор меню баланса."""
-    temp = call.data.split('|')
+    temp = call.data.split("|")
     await call.message.delete()
 
-    if temp[1] == 'back':
+    if temp[1] == "back":
         # Возврат в меню подписки с информацией о балансе
         user = await db.user.get_user(user_id=call.from_user.id)
         await call.message.answer(
             text("balance_text").format(user.balance),
             reply_markup=keyboards.subscription_menu(),
-            parse_mode="HTML"
+            parse_mode="HTML",
         )
 
-    if temp[1] == 'top_up':
+    if temp[1] == "top_up":
         await show_top_up(call.message, state)
 
 
-@safe_handler("Show Top Up")
+@safe_handler("Баланс: меню пополнения")
 async def show_top_up(message: types.Message, state: FSMContext):
     """Показать методы пополнения баланса."""
-    await state.update_data(
-        payment_to='balance'
-    )
+    await state.update_data(payment_to="balance")
     await message.answer(
-        text('choice_top_up_method'),
-        reply_markup=keyboards.choice_payment_method(
-            data='ChoicePaymentMethod'
-        )
+        text("choice_top_up_method"),
+        reply_markup=keyboards.choice_payment_method(data="ChoicePaymentMethod"),
     )
 
 

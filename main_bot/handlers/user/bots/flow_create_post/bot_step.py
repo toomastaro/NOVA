@@ -7,6 +7,7 @@
 - Статистику охвата (доступные пользователи)
 - Навигацию по папкам
 """
+
 import logging
 from typing import List, Tuple, Union
 
@@ -20,7 +21,7 @@ from main_bot.handlers.user.bots.menu import show_create_post
 from main_bot.utils.lang.language import text
 from main_bot.keyboards import keyboards
 from main_bot.utils.user_settings import get_user_view_mode, set_user_view_mode
-from main_bot.utils.error_handler import safe_handler
+from utils.error_handler import safe_handler
 
 logger = logging.getLogger(__name__)
 
@@ -360,10 +361,9 @@ async def choice_bots(call: types.CallbackQuery, state: FSMContext) -> None:
     )
 
     if current_folder_id and folder_title:
-        msg_text = (
-            f"📂 <b>Папка: {folder_title}</b>\n\n"
-            + text("choice_bots:post").format(len(chosen), list_text, available)
-        )
+        msg_text = f"📂 <b>Папка: {folder_title}</b>\n\n" + text(
+            "choice_bots:post"
+        ).format(len(chosen), list_text, available)
     else:
         msg_text = text("choice_bots:post").format(len(chosen), list_text, available)
 
@@ -374,9 +374,7 @@ async def choice_bots(call: types.CallbackQuery, state: FSMContext) -> None:
             chosen=chosen,
             folders=folders,
             chosen_folders=chosen_folders,
-            remover=(
-                remover_value if "remover_value" in locals() else int(temp[2])
-            ),
+            remover=(remover_value if "remover_value" in locals() else int(temp[2])),
             data="ChoicePostBots",
             view_mode=view_mode,
             is_inside_folder=bool(current_folder_id),

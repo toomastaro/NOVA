@@ -6,6 +6,7 @@
 - Изменение прав администраторов
 - Отслеживание статуса бота и пользователей
 """
+
 import asyncio
 import logging
 from typing import Optional
@@ -25,12 +26,14 @@ from main_bot.utils.schedulers import (
 )
 from main_bot.utils.functions import create_emoji, set_channel_session
 from main_bot.utils.lang.language import text
-from main_bot.utils.error_handler import safe_handler
+from utils.error_handler import safe_handler
 
 logger = logging.getLogger(__name__)
 
 
-def _get_instruction_text(chat_title: str, username: str, first_name: str = "Assistant") -> str:
+def _get_instruction_text(
+    chat_title: str, username: str, first_name: str = "Assistant"
+) -> str:
     """
     Формирует текст инструкции по добавлению помощника.
 
@@ -63,7 +66,11 @@ def _get_instruction_text(chat_title: str, username: str, first_name: str = "Ass
 
 @safe_handler("Set Admins")
 async def set_admins(
-    bot: Bot, chat_id: int, chat_title: str, emoji_id: str, user_id: Optional[int] = None
+    bot: Bot,
+    chat_id: int,
+    chat_title: str,
+    emoji_id: str,
+    user_id: Optional[int] = None,
 ) -> None:
     """
     Добавляет администраторов канала в базу данных.

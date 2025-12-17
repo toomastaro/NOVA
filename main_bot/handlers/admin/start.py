@@ -6,6 +6,7 @@
 - Главное меню панели администратора
 - Навигацию по разделам (сессии, промокоды)
 """
+
 import logging
 import os
 
@@ -17,12 +18,12 @@ from config import Config
 from main_bot.keyboards import keyboards
 from main_bot.states.admin import Promo
 from main_bot.utils.lang.language import text
-from main_bot.utils.error_handler import safe_handler
+from utils.error_handler import safe_handler
 
 logger = logging.getLogger(__name__)
 
 
-@safe_handler("Admin Menu Command")
+@safe_handler("Админ: меню — команда /admin")
 async def admin_menu(message: types.Message) -> None:
     """
     Показать главное меню администратора.
@@ -34,7 +35,7 @@ async def admin_menu(message: types.Message) -> None:
     await message.answer(text("admin:menu:title"), reply_markup=keyboards.admin())
 
 
-@safe_handler("Admin Menu Choice")
+@safe_handler("Админ: меню — навигация")
 async def choice(call: types.CallbackQuery, state: FSMContext) -> None:
     """
     Обработка нажатий в админ-меню.

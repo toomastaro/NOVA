@@ -31,6 +31,7 @@ class MtClient(Base):
         usage_count (int): Счетчик использований.
         last_used_at (int): Время последнего использования.
     """
+
     __tablename__ = "mt_clients"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)

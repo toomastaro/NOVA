@@ -6,6 +6,7 @@ Pydantic схемы для валидации данных и типов API.
 - Кнопок (скрытие, реакции)
 - Приветствий и капчи
 """
+
 from typing import Optional, List
 
 from aiogram.types import InlineKeyboardMarkup, ReplyKeyboardMarkup

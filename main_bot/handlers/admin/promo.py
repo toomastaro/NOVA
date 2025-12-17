@@ -5,6 +5,7 @@
 - Создание новых промокодов
 - Валидацию параметров промокода
 """
+
 import logging
 
 from aiogram import Router, F, types
@@ -14,7 +15,7 @@ from main_bot.database.db import db
 from main_bot.keyboards import keyboards
 from main_bot.states.admin import Promo
 from main_bot.utils.lang.language import text
-from main_bot.utils.error_handler import safe_handler
+from utils.error_handler import safe_handler
 
 logger = logging.getLogger(__name__)
 

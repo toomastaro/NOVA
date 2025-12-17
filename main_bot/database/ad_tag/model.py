@@ -19,6 +19,7 @@ class AdTag(Base):
         click_count (int): Общее количество кликов.
         unic_click_count (int): Количество уникальных кликов.
     """
+
     __tablename__ = "ad_tags"
 
     # Данные

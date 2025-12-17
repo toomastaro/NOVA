@@ -1,6 +1,7 @@
 """
 Middleware для настройки контекста (DB, бот) и обработки ошибок.
 """
+
 from aiogram import BaseMiddleware
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Update
@@ -22,6 +23,7 @@ class SetCrud(BaseMiddleware):
 
     Создает подключение к схеме конкретного бота и добавляет его в data.
     """
+
     async def __call__(self, handler, event, data):
         db_bot = await db.user_bot.get_bot_by_id(event.bot.id)
 
@@ -33,9 +35,9 @@ class SetCrud(BaseMiddleware):
 
         await other_db.create_tables()
 
-        data['db'] = other_db
-        data['db_bot'] = db_bot
-        data['owner_id'] = db_bot.admin_id
+        data["db"] = other_db
+        data["db_bot"] = db_bot
+        data["owner_id"] = db_bot.admin_id
 
         return await handler(event, data)
 
@@ -47,6 +49,7 @@ class SetCrudMain(BaseMiddleware):
     Настраивает контекст (db_obj, db_bot) для админки управления ботами.
     Кэширует созданные объекты БД.
     """
+
     async def __call__(self, handler, event, data):
         state: FSMContext = data.get("state")
         state_data = await state.get_data()
@@ -61,8 +64,10 @@ class SetCrudMain(BaseMiddleware):
                 data[key] = value
 
                 if state_data.get("chat_id"):
-                    channel_settings = await db.channel_bot_settings.get_channel_bot_setting(
-                        chat_id=state_data.get("chat_id")
+                    channel_settings = (
+                        await db.channel_bot_settings.get_channel_bot_setting(
+                            chat_id=state_data.get("chat_id")
+                        )
                     )
                     data["channel_settings"] = channel_settings
 
@@ -84,10 +89,10 @@ class SetCrudMain(BaseMiddleware):
 
         await other_db.create_tables()
 
-        data['db_obj'] = other_db
-        data['db_bot'] = db_bot
-        data['owner_id'] = db_bot.admin_id
-        data['channel_settings'] = channel_settings
+        data["db_obj"] = other_db
+        data["db_bot"] = db_bot
+        data["owner_id"] = db_bot.admin_id
+        data["channel_settings"] = channel_settings
 
         created_db_objects[bot_id] = {
             "db_obj": other_db,
@@ -105,11 +110,12 @@ class AnswerMiddleware(BaseMiddleware):
 
     Проверяет текст сообщения на совпадение с ключевыми словами и отправляет ответ.
     """
+
     async def __call__(self, handler, event: Update, data):
-        other_db = data['db']
+        other_db = data["db"]
         settings = await other_db.get_setting()
 
-        data['settings'] = settings
+        data["settings"] = settings
         if not event.message:
             return await handler(event, data)
 
@@ -132,11 +138,9 @@ class ErrorMiddleware(BaseMiddleware):
     """
     Глобальный обработчик ошибок в middleware.
     """
+
     async def __call__(self, handler, event: Update, data):
         try:
             return await handler(event, data)
         except Exception:
-            logger.error(
-                f"Ошибка в обработчике {handler}",
-                exc_info=True
-            )
+            logger.error(f"Ошибка в обработчике {handler}", exc_info=True)

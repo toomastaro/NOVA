@@ -31,6 +31,7 @@ class AdPurchase(Base):
         status (str): Статус закупки (active, deleted).
         created_timestamp (int): Время создания.
     """
+
     __tablename__ = "ad_purchases"
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     owner_id: Mapped[int] = mapped_column(BigInteger, index=True)
@@ -62,6 +63,7 @@ class AdPurchaseLinkMapping(Base):
         last_scanned_id (int): ID последнего сканированного события (для JoinRequest).
         created_timestamp (int): Время создания.
     """
+
     __tablename__ = "ad_purchase_link_mappings"
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     ad_purchase_id: Mapped[int] = mapped_column(index=True)
@@ -90,6 +92,7 @@ class AdLead(Base):
         ref_param (str): Использованный реф. параметр.
         created_timestamp (int): Время перехода.
     """
+
     __tablename__ = "ad_leads"
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(BigInteger, index=True)
@@ -116,6 +119,7 @@ class AdSubscription(Base):
         left_timestamp (int): Время отписки.
         created_timestamp (int): Время подписки.
     """
+
     __tablename__ = "ad_subscriptions"
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(BigInteger, index=True)

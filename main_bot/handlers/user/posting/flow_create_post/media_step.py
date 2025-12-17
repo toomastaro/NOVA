@@ -20,12 +20,12 @@ from main_bot.utils.backup_utils import edit_backup_message, update_live_message
 from main_bot.keyboards import keyboards
 from main_bot.keyboards.posting import ensure_obj
 from main_bot.states.user import Posting
-from main_bot.utils.error_handler import safe_handler
+from utils.error_handler import safe_handler
 
 logger = logging.getLogger(__name__)
 
 
-@safe_handler("Posting Manage Post")
+@safe_handler("Постинг: управление постом")
 async def manage_post(call: types.CallbackQuery, state: FSMContext):
     """
     Управление постом - обработка различных действий с постом.
@@ -77,7 +77,6 @@ async def manage_post(call: types.CallbackQuery, state: FSMContext):
                 )
 
                 info_text = await generate_post_info_text(post, is_published=False)
-
 
                 return await call.message.answer(
                     info_text,
@@ -206,7 +205,9 @@ async def manage_post(call: types.CallbackQuery, state: FSMContext):
         if data.get("is_published"):
             await update_live_messages(post.post_id, message_options)
 
-        post_dict = {col.name: getattr(post, col.name) for col in post.__table__.columns}
+        post_dict = {
+            col.name: getattr(post, col.name) for col in post.__table__.columns
+        }
         await state.update_data(post=post_dict)
 
         await call.message.delete()
@@ -231,7 +232,7 @@ async def manage_post(call: types.CallbackQuery, state: FSMContext):
         )
 
 
-@safe_handler("Posting Cancel Value")
+@safe_handler("Постинг: отмена значения")
 async def cancel_value(call: types.CallbackQuery, state: FSMContext):
     """
     Отмена редактирования параметра или удаление значения параметра.
@@ -285,7 +286,9 @@ async def cancel_value(call: types.CallbackQuery, state: FSMContext):
         post = await db.post.update_post(
             post_id=data.get("post").id, return_obj=True, **kwargs
         )
-        post_dict = {col.name: getattr(post, col.name) for col in post.__table__.columns}
+        post_dict = {
+            col.name: getattr(post, col.name) for col in post.__table__.columns
+        }
         await state.update_data(post=post_dict)
         data = await state.get_data()
 
@@ -314,7 +317,7 @@ async def cancel_value(call: types.CallbackQuery, state: FSMContext):
     await answer_post(call.message, state)
 
 
-@safe_handler("Posting Get Value")
+@safe_handler("Постинг: получение значения")
 async def get_value(message: types.Message, state: FSMContext):
     """
     Получение нового значения параметра от пользователя.

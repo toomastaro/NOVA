@@ -6,6 +6,7 @@
 - Навигацию по разделам настроек (автоприем, капча, приветствие, и т.д.)
 - Отображение статусов настроек
 """
+
 import logging
 
 from aiogram import types, F, Router
@@ -18,7 +19,7 @@ from main_bot.handlers.user.bots.settings import show_bot_manage
 from main_bot.utils.lang.language import text
 from main_bot.keyboards import keyboards
 from main_bot.utils.schemas import HelloAnswer, ByeAnswer
-from main_bot.utils.error_handler import safe_handler
+from utils.error_handler import safe_handler
 
 logger = logging.getLogger(__name__)
 
@@ -62,7 +63,7 @@ async def choice_channel(
 ) -> None:
     """
     Обработка выбора канала для перехода к настройкам.
-    
+
     Аргументы:
         call (types.CallbackQuery): Callback запрос.
         state (FSMContext): Контекст состояния.
@@ -90,9 +91,7 @@ async def choice_channel(
     await call.message.delete()
 
     if temp[1] == "cancel":
-        await show_bot_manage(
-            message=call.message, user_bot=data.get("user_bot")
-        )
+        await show_bot_manage(message=call.message, user_bot=data.get("user_bot"))
         return
 
     await state.update_data(chat_id=int(temp[1]))
@@ -100,7 +99,9 @@ async def choice_channel(
 
 
 @safe_handler("Bots Setting Choice")
-async def choice(call: types.CallbackQuery, state: FSMContext, db_obj: Database) -> None:
+async def choice(
+    call: types.CallbackQuery, state: FSMContext, db_obj: Database
+) -> None:
     """
     Маршрутизация по разделам настроек (Автоприем, Капча, Приветствие и т.д.).
 
@@ -179,7 +180,7 @@ async def show_application(
 ) -> None:
     """
     Показывает меню автоприема заявок.
-    
+
     Аргументы:
         message (types.Message): Сообщение для ответа.
         setting (ChannelBotSetting): Настройки канала.
@@ -203,7 +204,7 @@ async def show_captcha(
 ) -> None:
     """
     Показывает меню капчи.
-    
+
     Аргументы:
         message (types.Message): Сообщение для ответа.
         setting (ChannelBotSetting): Настройки канала.
@@ -227,7 +228,7 @@ async def show_captcha(
 async def show_hello(message: types.Message, setting: ChannelBotSetting) -> None:
     """
     Показывает меню приветствий.
-    
+
     Аргументы:
         message (types.Message): Сообщение для ответа.
         setting (ChannelBotSetting): Настройки канала.
@@ -253,7 +254,7 @@ async def show_hello(message: types.Message, setting: ChannelBotSetting) -> None
 async def show_bye(message: types.Message, setting: ChannelBotSetting) -> None:
     """
     Показывает меню прощания.
-    
+
     Аргументы:
         message (types.Message): Сообщение для ответа.
         setting (ChannelBotSetting): Настройки канала.
@@ -273,7 +274,7 @@ async def show_bye(message: types.Message, setting: ChannelBotSetting) -> None:
 async def show_cloner(message: types.Message, state: FSMContext) -> None:
     """
     Показывает меню клонирования настроек.
-    
+
     Аргументы:
         message (types.Message): Сообщение для ответа.
         state (FSMContext): Контекст состояния.
@@ -301,7 +302,7 @@ async def show_cloner(message: types.Message, state: FSMContext) -> None:
 async def show_cleaner(message: types.Message) -> None:
     """
     Показывает меню очистки участников.
-    
+
     Аргументы:
         message (types.Message): Сообщение для ответа.
     """

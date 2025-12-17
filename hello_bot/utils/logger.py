@@ -1,6 +1,7 @@
 """
 Настройка логгера (loguru) для hello_bot.
 """
+
 import sys
 
 from loguru import logger
@@ -11,13 +12,13 @@ logger.configure(
             "sink": "logs/app.log",
             "rotation": "10 MB",
             "level": "INFO",
-            "backtrace": True
+            "backtrace": True,
         },
         {
             "sink": sys.stderr,
             "format": "<red>{time:HH:mm:ss}</red> | {level} | <level>{message}</level>",
-            "level": "INFO"
-        }
+            "level": "INFO",
+        },
     ]
 )
 

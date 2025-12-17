@@ -26,6 +26,7 @@ class UserBot(Base):
         emoji_id (str): Emoji ID.
         created_timestamp (int): Дата создания.
     """
+
     __tablename__ = "user_bots"
 
     # Основные данные

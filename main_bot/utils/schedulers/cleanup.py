@@ -5,6 +5,7 @@
 - Проверки подписок и уведомлений пользователей
 - Самопроверки MT клиентов
 """
+
 import logging
 import time
 from pathlib import Path
@@ -85,7 +86,9 @@ async def check_subscriptions() -> None:
                 # Добавляем в set отправленных уведомлений
                 _sent_notifications.add(notification_key)
             except Exception as e:
-                logger.error(f"Ошибка уведомления [{text_prefix.upper()}] для {channel.title}: {e}")
+                logger.error(
+                    f"Ошибка уведомления [{text_prefix.upper()}] для {channel.title}: {e}"
+                )
 
 
 async def mt_clients_self_check() -> None:
@@ -179,7 +182,7 @@ async def mt_clients_self_check() -> None:
                             updates["flood_wait_until"] = current_time + 300
                         updates["is_active"] = True
 
-                        wait_time = updates['flood_wait_until'] - current_time
+                        wait_time = updates["flood_wait_until"] - current_time
                         await send_support_alert(
                             bot,
                             SupportAlert(
@@ -210,7 +213,9 @@ async def mt_clients_self_check() -> None:
                 await db.mt_client.update_mt_client(client_id=client.id, **updates)
 
         except Exception as e:
-            logger.error(f"Ошибка при проверке MT клиента {client.id}: {e}", exc_info=True)
+            logger.error(
+                f"Ошибка при проверке MT клиента {client.id}: {e}", exc_info=True
+            )
             await db.mt_client.update_mt_client(
                 client_id=client.id,
                 status="ERROR",

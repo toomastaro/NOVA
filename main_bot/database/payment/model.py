@@ -22,6 +22,7 @@ class Payment(Base):
         method (PaymentMethod): Метод оплаты.
         created_timestamp (int): Время создания.
     """
+
     __tablename__ = "payments"
 
     # Данные

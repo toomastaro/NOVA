@@ -4,6 +4,7 @@
 Содержит абстракцию над SQLAlchemy и asyncpg для выполнения SQL-запросов
 с поддержкой повторных попыток (retries) и логирования медленных запросов.
 """
+
 import asyncio
 import logging
 import time
@@ -85,6 +86,7 @@ class DatabaseMixin:
     - Управления транзакциями
     - Обработки таймаутов
     """
+
     def __init__(self):
         self.schema = None
 
@@ -121,7 +123,8 @@ class DatabaseMixin:
             raise
         except Exception as e:
             logger.error(
-                f"Database error in execute() (schema={self.schema}): {e}", exc_info=True
+                f"Database error in execute() (schema={self.schema}): {e}",
+                exc_info=True,
             )
             raise
 

@@ -1,6 +1,7 @@
 """
 Вспомогательные функции для отправки сообщений ботом.
 """
+
 from aiogram import types, Bot
 from loguru import logger
 
@@ -29,7 +30,9 @@ def get_protect_tag(protect: Protect):
     return protect_tag
 
 
-async def answer_message_bot(bot: Bot, chat_id: int, message_options: MessageOptions, reply):
+async def answer_message_bot(
+    bot: Bot, chat_id: int, message_options: MessageOptions, reply
+):
     """
     Отправляет сообщение от имени бота.
 
@@ -55,7 +58,7 @@ async def answer_message_bot(bot: Bot, chat_id: int, message_options: MessageOpt
         message_options.animation = message_options.animation.file_id
 
     dump = message_options.model_dump()
-    dump['chat_id'] = chat_id
+    dump["chat_id"] = chat_id
 
     if message_options.text:
         dump.pop("photo")
@@ -80,16 +83,12 @@ async def answer_message_bot(bot: Bot, chat_id: int, message_options: MessageOpt
         dump.pop("disable_web_page_preview")
 
     try:
-        post_message = await cor(
-            **dump,
-            reply_markup=reply
-        )
+        post_message = await cor(**dump, reply_markup=reply)
     except Exception as e:
         logger.error(f"Ошибка при отправке сообщения ботом: {e}")
         return None
 
     return post_message
-
 
 
 async def answer_message(message: types.Message, message_options: MessageOptions):

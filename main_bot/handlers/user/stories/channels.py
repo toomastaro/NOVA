@@ -9,7 +9,7 @@ from main_bot.keyboards import keyboards
 from main_bot.utils.functions import get_editors
 from main_bot.utils.lang.language import text
 import logging
-from main_bot.utils.error_handler import safe_handler
+from utils.error_handler import safe_handler
 from main_bot.utils.session_manager import SessionManager
 from main_bot.states.user import AddChannel
 
@@ -144,7 +144,7 @@ async def render_channel_info(
             raise e
 
 
-@safe_handler("Stories Channel Choice")
+@safe_handler("Сторис: выбор канала")
 async def choice(call: types.CallbackQuery, state: FSMContext):
     """Выбор канала для управления или добавления."""
     logger.info(f"Вызван хендлер выбора каналов сторис. Data: {call.data}")
@@ -192,7 +192,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
     await render_channel_info(call, state, channel_id)
 
 
-@safe_handler("Stories Channel Cancel")
+@safe_handler("Сторис: отмена канала")
 async def cancel(call: types.CallbackQuery):
     """Отмена действий и возврат к списку каналов."""
     channels = await db.channel.get_user_channels(
@@ -204,7 +204,7 @@ async def cancel(call: types.CallbackQuery):
     )
 
 
-@safe_handler("Stories Manage Channel")
+@safe_handler("Сторис: управление каналом")
 async def manage_channel(call: types.CallbackQuery, state: FSMContext):
     """Управление настройками канала (удаление, права, добавление помощника)."""
     logger.info(
@@ -410,7 +410,7 @@ async def manage_channel(call: types.CallbackQuery, state: FSMContext):
             )
 
 
-@safe_handler("Stories Cancel Add Channel")
+@safe_handler("Сторис: отмена добавления")
 async def cancel_add_channel(call: types.CallbackQuery, state: FSMContext):
     """Возврат в меню сториз при отмене добавления канала."""
 

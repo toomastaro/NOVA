@@ -15,7 +15,7 @@ from main_bot.database.user.model import User
 from main_bot.database.channel.model import Channel
 from main_bot.keyboards import keyboards
 from main_bot.utils.lang.language import text
-from main_bot.utils.error_handler import safe_handler
+from utils.error_handler import safe_handler
 from main_bot.utils.user_settings import get_user_view_mode, set_user_view_mode
 
 logger = logging.getLogger(__name__)
@@ -107,7 +107,7 @@ async def get_pay_info_text(state: FSMContext, user: User) -> str:
     )
 
 
-@safe_handler("Subscribe Choice")
+@safe_handler("Подписка: выбор")
 async def choice(call: types.CallbackQuery, state: FSMContext, user: User):
     """Маршрутизатор выбора типа подписки (каналы/боты)."""
     temp = call.data.split("|")
@@ -147,7 +147,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext, user: User):
     )
 
 
-@safe_handler("Subscribe Choice Period")
+@safe_handler("Подписка: выбор периода")
 async def choice_period(call: types.CallbackQuery, state: FSMContext, user: User):
     """Выбор периода подписки."""
     temp = call.data.split("|")
@@ -199,7 +199,7 @@ async def choice_period(call: types.CallbackQuery, state: FSMContext, user: User
                 user_id=user.id
             )
         # Для ботов пока нет папок
-        
+
     await call.message.edit_text(
         text(f"subscribe:chosen:{object_type}").format(""),
         reply_markup=keyboards.choice_objects(
@@ -213,7 +213,7 @@ async def choice_period(call: types.CallbackQuery, state: FSMContext, user: User
     )
 
 
-@safe_handler("Subscribe Choice Object")
+@safe_handler("Подписка: выбор объекта")
 async def choice_object_subscribe(
     call: types.CallbackQuery, state: FSMContext, user: User
 ):
@@ -321,11 +321,8 @@ async def choice_object_subscribe(
     # ВЫБРАТЬ ВСЕ
     if temp[1] == "choice_all":
         # Получаем ID текущих объектов
-        visible_ids = [
-            o.chat_id if isinstance(o, Channel) else o.id
-            for o in objects
-        ]
-        
+        visible_ids = [o.chat_id if isinstance(o, Channel) else o.id for o in objects]
+
         if all(i in chosen for i in visible_ids):
             # Снять выбор со всех видимых
             for i in visible_ids:
@@ -367,7 +364,7 @@ async def choice_object_subscribe(
 
     # Обработка НАЗАД (Навигация по папкам или Меню)
     is_inside_folder = False
-    
+
     if current_folder_id:
         is_inside_folder = True
 
@@ -376,14 +373,14 @@ async def choice_object_subscribe(
         await state.update_data(current_folder_id=None)
         current_folder_id = None
         is_inside_folder = False
-        
+
         raw_folders = await db.user_folder.get_folders(user_id=user.id)
         folders = [f for f in raw_folders if f.content]
         objects = await db.channel.get_user_channels_without_folders(user_id=user.id)
         # Сброс пагинации
         if len(temp) > 2:
             temp[2] = "0"
-            
+
     # ЗАКРЫТЬ ПАПКУ (Явное действие закрытия)
     if temp[1] == "cancel" and current_folder_id:
         # Выход из папки так же, как назад
@@ -391,7 +388,7 @@ async def choice_object_subscribe(
         await state.update_data(current_folder_id=None)
         current_folder_id = None
         is_inside_folder = False
-        
+
         raw_folders = await db.user_folder.get_folders(user_id=user.id)
         folders = [f for f in raw_folders if f.content]
         objects = await db.channel.get_user_channels_without_folders(user_id=user.id)
@@ -441,7 +438,9 @@ async def choice_object_subscribe(
     if current_folder_id:
         folder_obj = await db.user_folder.get_folder_by_id(current_folder_id)
         if folder_obj:
-            folder_text = text("choice_channels:folder").format(folder_obj.title) + "\n\n"
+            folder_text = (
+                text("choice_channels:folder").format(folder_obj.title) + "\n\n"
+            )
 
     try:
         await call.message.edit_text(

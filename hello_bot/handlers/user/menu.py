@@ -3,6 +3,7 @@
 
 Содержит функции для отображения разделов меню (статистика, ответы, приветствие, прощание, заявки).
 """
+
 from datetime import datetime
 
 from loguru import logger
@@ -28,30 +29,28 @@ async def choice(call: types.CallbackQuery, state: FSMContext, db: Database, set
     :param settings: Channel settings
     """
     await state.clear()
-    temp = call.data.split('|')
+    temp = call.data.split("|")
     logger.debug(f"Menu choice: {temp}")
 
     menu = {
-        'stats': {
-            'cor': show_stats,
-            'args': (call.message, db, settings,)
+        "stats": {
+            "cor": show_stats,
+            "args": (
+                call.message,
+                db,
+                settings,
+            ),
         },
-        'answer': {
-            'cor': show_answers,
-            'args': (call.message, settings,)
+        "answer": {
+            "cor": show_answers,
+            "args": (
+                call.message,
+                settings,
+            ),
         },
-        'hello': {
-            'cor': show_hello,
-            'args': (call.message, settings)
-        },
-        'bye': {
-            'cor': show_bye,
-            'args': (call.message, settings)
-        },
-        'application': {
-            'cor': show_application,
-            'args': (call.message, settings)
-        },
+        "hello": {"cor": show_hello, "args": (call.message, settings)},
+        "bye": {"cor": show_bye, "args": (call.message, settings)},
+        "application": {"cor": show_application, "args": (call.message, settings)},
     }
 
     cor, args = menu[temp[1]].values()
@@ -70,21 +69,16 @@ async def show_stats(message: types.Message, db: Database, setting):
             *count_users.values(),
             setting.input_messages,
             setting.output_messages,
-            datetime.now().strftime("%d.%m.%Y %H:%M")
+            datetime.now().strftime("%d.%m.%Y %H:%M"),
         ),
-        reply_markup=keyboards.back(
-            data="StatsBack"
-        )
+        reply_markup=keyboards.back(data="StatsBack"),
     )
 
 
 async def show_answers(message: types.Message, setting):
     """Показывает меню управления автоответами."""
     await message.answer(
-        text("answer_text"),
-        reply_markup=keyboards.answers(
-            settings=setting
-        )
+        text("answer_text"), reply_markup=keyboards.answers(settings=setting)
     )
 
 
@@ -97,9 +91,7 @@ async def show_hello(message: types.Message, setting):
             text("{}added".format("" if hello.message else "no_")),
             text("on" if hello.active else "off"),
         ),
-        reply_markup=keyboards.manage_answer_user(
-            obj=hello
-        )
+        reply_markup=keyboards.manage_answer_user(obj=hello),
     )
 
 
@@ -112,10 +104,7 @@ async def show_bye(message: types.Message, setting):
             text("{}added".format("" if hello.message else "no_")),
             text("on" if hello.active else "off"),
         ),
-        reply_markup=keyboards.manage_answer_user(
-            obj=hello,
-            data="ManageBye"
-        )
+        reply_markup=keyboards.manage_answer_user(obj=hello, data="ManageBye"),
     )
 
 
@@ -129,11 +118,9 @@ async def show_application(message: types.Message, setting):
             text("on" if setting.auto_approve else "off"),
             text("on" if protect.arab or protect.china else "off"),
             text("protect:{}".format(protect_tag)) if protect_tag else "",
-            setting.delay_approve
+            setting.delay_approve,
         ),
-        reply_markup=keyboards.manage_application(
-            setting=setting
-        )
+        reply_markup=keyboards.manage_application(setting=setting),
     )
 
 

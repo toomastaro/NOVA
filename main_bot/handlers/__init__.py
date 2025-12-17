@@ -7,6 +7,7 @@
 - Регистрацию роутеров (user, admin)
 - Инициализацию планировщика задач с персистентностью в PostgreSQL
 """
+
 import logging
 
 from aiogram import Dispatcher
@@ -106,4 +107,6 @@ async def set_scheduler() -> None:
 
     sch.start()
     logger.info("Планировщик задач запущен")
-    logger.debug("Зарегистрированные задачи планировщика: %s", [job.id for job in sch.get_jobs()])
+    logger.debug(
+        "Зарегистрированные задачи планировщика: %s", [job.id for job in sch.get_jobs()]
+    )

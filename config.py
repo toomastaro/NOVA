@@ -21,29 +21,30 @@ class Config:
     Хранит настройки бота, базы данных, Redis, платежных систем
     и другие параметры, загружаемые из переменных окружения.
     """
+
     VERSION = "1.0.699"
 
     # Настройки бота
-    BOT_TOKEN = os.getenv('BOT_TOKEN')
-    BOT_LINK = os.getenv('BOT_LINK', 'https://t.me/novatg')
+    BOT_TOKEN = os.getenv("BOT_TOKEN")
+    BOT_LINK = os.getenv("BOT_LINK", "https://t.me/novatg")
     # ID чата для бэкапов. Если не задан - 0
-    BACKUP_CHAT_ID = int(os.getenv('NOVA_BKP')) if os.getenv('NOVA_BKP') else 0
+    BACKUP_CHAT_ID = int(os.getenv("NOVA_BKP")) if os.getenv("NOVA_BKP") else 0
     ADMIN_SUPPORT = int(os.getenv("ADMIN_SUPPORT"))
 
     # Настройки базы данных (PostgreSQL)
-    PG_USER = os.getenv('PG_USER')
-    PG_PASS = os.getenv('PG_PASS')
-    PG_HOST = os.getenv('PG_HOST')
-    PG_DATABASE = os.getenv('PG_DATABASE')
-    
+    PG_USER = os.getenv("PG_USER")
+    PG_PASS = os.getenv("PG_PASS")
+    PG_HOST = os.getenv("PG_HOST")
+    PG_DATABASE = os.getenv("PG_DATABASE")
+
     # Настройки Webhook
     WEBHOOK_DOMAIN = os.getenv("WEBHOOK_DOMAIN")
     WEBHOOK_URL_BOT = os.getenv("WEBHOOK_URL_BOT")
 
     # Настройки Redis
-    REDIS_HOST = os.getenv('REDIS_HOST', 'redis')
-    REDIS_PORT = int(os.getenv('REDIS_PORT', 6379))
-    REDIS_PASS = os.getenv('REDIS_PASSWORD')
+    REDIS_HOST = os.getenv("REDIS_HOST", "redis")
+    REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
+    REDIS_PASS = os.getenv("REDIS_PASSWORD")
 
     # Пул соединений базы данных
     DB_POOL_SIZE = int(os.getenv("DB_POOL_SIZE", 30))
@@ -55,14 +56,14 @@ class Config:
     # Telegram API
     API_ID = int(os.getenv("API_ID"))
     API_HASH = os.getenv("API_HASH")
-    
+
     # Планировщик
     zakup_timer = int(os.getenv("zakup_timer", 600))
 
     # Платежные системы
-    CRYPTO_BOT_TOKEN = os.getenv('CRYPTO_BOT_TOKEN')
-    PLATEGA_MERCHANT = os.getenv('PLATEGA_MERCHANT')
-    PLATEGA_SECRET = os.getenv('PLATEGA_SECRET')
+    CRYPTO_BOT_TOKEN = os.getenv("CRYPTO_BOT_TOKEN")
+    PLATEGA_MERCHANT = os.getenv("PLATEGA_MERCHANT")
+    PLATEGA_SECRET = os.getenv("PLATEGA_SECRET")
 
     # Фичи
     ENABLE_AD_BUY_MODULE = os.getenv("ENABLE_AD_BUY_MODULE", "false").lower() == "true"
@@ -70,13 +71,7 @@ class Config:
     # Администраторы и тарифы
     ADMINS = [int(i) for i in os.getenv("ADMINS").split(",")]
     TARIFFS = {
-        'subscribe': {
-            0: {
-                'name': '99₽ (2̶9̶9̶₽̶) за 30 дней',
-                'period': 30,
-                'amount': 99
-            }
-        }
+        "subscribe": {0: {"name": "99₽ (2̶9̶9̶₽̶) за 30 дней", "period": 30, "amount": 99}}
     }
 
 

@@ -8,6 +8,7 @@
 - Боты и реклама
 - Поддержка и команды
 """
+
 from aiogram import Router
 
 from . import (

@@ -10,7 +10,7 @@ from main_bot.handlers.user.stories.menu import show_content
 from main_bot.keyboards import keyboards
 from main_bot.utils.functions import answer_story
 from main_bot.utils.lang.language import text
-from main_bot.utils.error_handler import safe_handler
+from utils.error_handler import safe_handler
 from main_bot.utils.backup_utils import send_to_backup
 import logging
 
@@ -98,7 +98,7 @@ async def get_days_with_stories(channel_chat_id: int, year: int, month: int) -> 
     return days_with_stories
 
 
-@safe_handler("Stories Choice Channel")
+@safe_handler("Сторис: выбор канала")
 async def choice_channel(call: types.CallbackQuery, state: FSMContext):
     """Выбор канала для просмотра контент-плана историй."""
     logger.info(f"Выбор канала для контента сторис: {call.data}")
@@ -162,7 +162,7 @@ async def choice_channel(call: types.CallbackQuery, state: FSMContext):
     )
 
 
-@safe_handler("Stories Choice Row Content")
+@safe_handler("Сторис: выбор строки")
 async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
     """Навигация по контент-плану (выбор дня, истории)."""
     logger.info(f"Навигация по контенту сторис: {call.data}")
@@ -303,7 +303,7 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
     )
 
 
-@safe_handler("Stories Choice Time Objects")
+@safe_handler("Сторис: выбор времени")
 async def choice_time_objects(call: types.CallbackQuery, state: FSMContext):
     """Просмотр списка всех историй."""
     temp = call.data.split("|")
@@ -355,7 +355,7 @@ async def choice_time_objects(call: types.CallbackQuery, state: FSMContext):
         )
 
 
-@safe_handler("Stories Manage Remain Post")
+@safe_handler("Сторис: управление остатком")
 async def manage_remain_post(call: types.CallbackQuery, state: FSMContext):
     """Управление опубликованной/запланированной историей."""
     temp = call.data.split("|")
@@ -428,7 +428,7 @@ async def manage_remain_post(call: types.CallbackQuery, state: FSMContext):
                 pass
 
 
-@safe_handler("Stories Accept Delete Row Content")
+@safe_handler("Сторис: удаление строки")
 async def accept_delete_row_content(call: types.CallbackQuery, state: FSMContext):
     """Подтверждение удаления истории."""
     temp = call.data.split("|")

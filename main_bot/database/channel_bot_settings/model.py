@@ -22,6 +22,7 @@ class ChannelBotSetting(Base):
         bye (dict | None): Конфигурация прощальных сообщений.
         active_captcha_id (int | None): ID активной капчи.
     """
+
     __tablename__ = "channels_bot_settings"
 
     # Данные

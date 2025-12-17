@@ -6,6 +6,7 @@
 - Настройку задержки одобрения
 - Ручное одобрение заявок (всех, части, по ссылке)
 """
+
 import asyncio
 import logging
 import time
@@ -26,7 +27,7 @@ from main_bot.states.user import Application
 from main_bot.utils.bot_manager import BotManager
 from main_bot.utils.lang.language import text
 from main_bot.keyboards import keyboards
-from main_bot.utils.error_handler import safe_handler
+from utils.error_handler import safe_handler
 
 logger = logging.getLogger(__name__)
 
@@ -95,7 +96,7 @@ async def back(
 ) -> None:
     """
     Возврат в меню автоприема из подменю.
-    
+
     Аргументы:
         call (types.CallbackQuery): Callback запрос.
         channel_settings (ChannelBotSetting): Настройки канала.
@@ -111,7 +112,7 @@ async def choice_application_delay(
 ) -> None:
     """
     Выбор задержки одобрения заявки.
-    
+
     Аргументы:
         call (types.CallbackQuery): Callback запрос.
         db_obj (Database): Объект базы данных бота.
@@ -140,10 +141,12 @@ async def choice_application_delay(
     )
 
 
-async def approve(user_bot: UserBot, chat_id: int, users: List[Any], db_obj: Database) -> None:
+async def approve(
+    user_bot: UserBot, chat_id: int, users: List[Any], db_obj: Database
+) -> None:
     """
     Асинхронная задача одобрения заявок.
-    
+
     Аргументы:
         user_bot (UserBot): Бот, от имени которого одобряем.
         chat_id (int): ID канала.
@@ -235,7 +238,7 @@ async def input_back(
 ) -> None:
     """
     Возврат из ввода количества заявок к выбору режима одобрения.
-    
+
     Аргументы:
         call (types.CallbackQuery): Callback запрос.
         state (FSMContext): Контекст состояния.
@@ -304,7 +307,7 @@ async def choice_invite_url(
 ) -> None:
     """
     Запуск одобрения заявок для конкретной пригласительной ссылки.
-    
+
     Аргументы:
         call (types.CallbackQuery): Callback запрос.
         state (FSMContext): Контекст состояния.

@@ -18,7 +18,7 @@ from main_bot.database.db import db
 from main_bot.keyboards import keyboards
 from main_bot.keyboards.common import Reply
 from main_bot.states.user import Support
-from main_bot.utils.error_handler import safe_handler
+from utils.error_handler import safe_handler
 from main_bot.utils.lang.language import text
 
 logger = logging.getLogger(__name__)
@@ -252,7 +252,7 @@ async def privetka_choice_channel(call: types.CallbackQuery, state: FSMContext) 
     )
 
     bot_id = channel_setting.bot_id if channel_setting else None
-    
+
     user_bot = None
     await state.update_data(chat_id=chat_id)
     if bot_id:

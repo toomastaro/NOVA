@@ -7,6 +7,7 @@
 - Расчет стоимости рекламы по CPM
 - Настройки глубины анализа
 """
+
 import asyncio
 import logging
 from datetime import datetime
@@ -153,7 +154,9 @@ async def novastat_collections(call: types.CallbackQuery) -> None:
 
 
 @router.callback_query(F.data == "NovaStat|col_create")
-async def novastat_create_col_start(call: types.CallbackQuery, state: FSMContext) -> None:
+async def novastat_create_col_start(
+    call: types.CallbackQuery, state: FSMContext
+) -> None:
     """
     Начало создания новой коллекции.
     """
@@ -216,7 +219,9 @@ async def novastat_delete_col(call: types.CallbackQuery) -> None:
 
 
 @router.callback_query(F.data.startswith("NovaStat|col_rename|"))
-async def novastat_rename_col_start(call: types.CallbackQuery, state: FSMContext) -> None:
+async def novastat_rename_col_start(
+    call: types.CallbackQuery, state: FSMContext
+) -> None:
     """
     Начало переименования коллекции.
     """
@@ -262,7 +267,9 @@ async def novastat_rename_col_finish(message: types.Message, state: FSMContext) 
 
 
 @router.callback_query(F.data.startswith("NovaStat|col_add_channel|"))
-async def novastat_add_channel_start(call: types.CallbackQuery, state: FSMContext) -> None:
+async def novastat_add_channel_start(
+    call: types.CallbackQuery, state: FSMContext
+) -> None:
     """
     Начало добавления канала в коллекцию.
     """
@@ -276,7 +283,9 @@ async def novastat_add_channel_start(call: types.CallbackQuery, state: FSMContex
 
 
 @router.message(NovaStatStates.waiting_for_channel_to_add)
-async def novastat_add_channel_finish(message: types.Message, state: FSMContext) -> None:
+async def novastat_add_channel_finish(
+    message: types.Message, state: FSMContext
+) -> None:
     """
     Завершение добавления канала(ов) в коллекцию.
     """
@@ -298,7 +307,6 @@ async def novastat_add_channel_finish(message: types.Message, state: FSMContext)
         added_count += 1
 
     await message.answer(f"Добавлено каналов: {added_count}")
-
 
     # Возврат к просмотру коллекции
     collection = await db.novastat.get_collection(col_id)
@@ -354,7 +362,9 @@ async def novastat_del_channel(call: types.CallbackQuery) -> None:
 
 
 # --- Analysis Logic ---
-async def process_analysis(message: types.Message, channels: List[str], state: FSMContext) -> None:
+async def process_analysis(
+    message: types.Message, channels: List[str], state: FSMContext
+) -> None:
     """
     Запускает анализ каналов (синхронно или в фоне в зависимости от количества).
 
@@ -395,7 +405,7 @@ async def run_analysis_background(
     except Exception:
         logger.exception(
             "Фоновый анализ завершился ошибкой для пользователя %s",
-            message.from_user.id
+            message.from_user.id,
         )
         # Лучше не спамить пользователю об ошибках фона, если он уже ушел,
         # но в рамках MVP можно уведомить
@@ -482,8 +492,6 @@ async def run_analysis_logic(
                 link_preview_options=types.LinkPreviewOptions(is_disabled=True),
             )
 
-
-
         # 2. Сбор статистики (параллельно с ограничением)
         results = []
 
@@ -510,16 +518,12 @@ async def run_analysis_logic(
             else:
                 failed.append(ch_id)
 
-
-
     # 3. Анализ
     if status_msg:
         await status_msg.edit_text(
             "🔄 Анализирую данные...",
             link_preview_options=types.LinkPreviewOptions(is_disabled=True),
         )
-
-
 
     # Расчет сумм просмотров и средних значений ER
     total_views = {h: 0 for h in HOURS_TO_ANALYZE}
@@ -530,8 +534,6 @@ async def run_analysis_logic(
         for h in HOURS_TO_ANALYZE:
             total_views[h] += res["views"][h]
             total_er[h] += res["er"][h]
-
-
 
     # Просмотры суммируются (Итого), ER усредняется
     final_views = total_views
@@ -604,7 +606,9 @@ async def novastat_analyze_text(message: types.Message, state: FSMContext) -> No
 
 
 @router.callback_query(F.data.startswith("NovaStat|col_analyze|"))
-async def novastat_analyze_collection(call: types.CallbackQuery, state: FSMContext) -> None:
+async def novastat_analyze_collection(
+    call: types.CallbackQuery, state: FSMContext
+) -> None:
     """
     Запуск анализа для сохраненной коллекции.
     """

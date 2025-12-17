@@ -26,6 +26,7 @@ class PaymentLink(Base):
         payload (dict): Контекстные данные (тип услуги, параметры).
         created_timestamp (int): Время создания.
     """
+
     __tablename__ = "payment_links"
 
     # PK - это строка (UUID), чтобы легко соответствовать требованию order_id в Platega

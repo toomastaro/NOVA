@@ -15,14 +15,14 @@ from main_bot.database.story.model import Story
 from main_bot.utils.lang.language import text
 from main_bot.keyboards import keyboards
 from main_bot.states.user import Stories
-from main_bot.utils.error_handler import safe_handler
+from utils.error_handler import safe_handler
 from .schedule_step import get_story_report_text
 from main_bot.utils.backup_utils import send_to_backup, edit_backup_message
 
 logger = logging.getLogger(__name__)
 
 
-@safe_handler("Stories Accept")
+@safe_handler("Сторис: подтверждение")
 async def accept(call: types.CallbackQuery, state: FSMContext):
     """
     Подтверждение и сохранение stories.

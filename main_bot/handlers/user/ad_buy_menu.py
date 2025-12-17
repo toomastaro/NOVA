@@ -5,6 +5,7 @@
 - Рекламные креативы
 - Рекламные закупы
 """
+
 import logging
 from typing import Union
 
@@ -12,7 +13,7 @@ from aiogram import Router, F, types
 
 from main_bot.keyboards import InlineAdCreative, InlineAdPurchase
 from main_bot.keyboards.common import Reply
-from main_bot.utils.error_handler import safe_handler
+from utils.error_handler import safe_handler
 
 logger = logging.getLogger(__name__)
 

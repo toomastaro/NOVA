@@ -195,7 +195,9 @@ async def novastat_collections(call: types.CallbackQuery) -> None:
 
 
 @router.callback_query(F.data == "NovaStat|col_create")
-async def novastat_create_col_start(call: types.CallbackQuery, state: FSMContext) -> None:
+async def novastat_create_col_start(
+    call: types.CallbackQuery, state: FSMContext
+) -> None:
     """
     Начало создания новой коллекции.
 
@@ -270,7 +272,9 @@ async def novastat_delete_col(call: types.CallbackQuery) -> None:
 
 
 @router.callback_query(F.data.startswith("NovaStat|col_rename|"))
-async def novastat_rename_col_start(call: types.CallbackQuery, state: FSMContext) -> None:
+async def novastat_rename_col_start(
+    call: types.CallbackQuery, state: FSMContext
+) -> None:
     """
     Начало переименования коллекции.
 
@@ -319,7 +323,9 @@ async def novastat_rename_col_finish(message: types.Message, state: FSMContext) 
 
 
 @router.callback_query(F.data.startswith("NovaStat|col_add_channel|"))
-async def novastat_add_channel_start(call: types.CallbackQuery, state: FSMContext) -> None:
+async def novastat_add_channel_start(
+    call: types.CallbackQuery, state: FSMContext
+) -> None:
     """
     Начало добавления каналов в коллекцию.
 
@@ -337,7 +343,9 @@ async def novastat_add_channel_start(call: types.CallbackQuery, state: FSMContex
 
 
 @router.message(NovaStatStates.waiting_for_channel_to_add)
-async def novastat_add_channel_finish(message: types.Message, state: FSMContext) -> None:
+async def novastat_add_channel_finish(
+    message: types.Message, state: FSMContext
+) -> None:
     """
     Завершение добавления каналов в коллекцию.
 
@@ -419,8 +427,6 @@ async def novastat_del_channel(call: types.CallbackQuery) -> None:
 
     await db.novastat.remove_channel_from_collection(channel_db_id)
     await call.answer("Канал удален")
-
-
 
     # Обновление списка
     channels = await db.novastat.get_collection_channels(col_id)
@@ -678,7 +684,9 @@ async def novastat_analyze_text(message: types.Message, state: FSMContext) -> No
 
 
 @router.callback_query(F.data.startswith("NovaStat|col_analyze|"))
-async def novastat_analyze_collection(call: types.CallbackQuery, state: FSMContext) -> None:
+async def novastat_analyze_collection(
+    call: types.CallbackQuery, state: FSMContext
+) -> None:
     """
     Запуск анализа для всей коллекции.
 
@@ -892,7 +900,9 @@ async def novastat_my_channels(call: types.CallbackQuery, state: FSMContext) -> 
 
 
 @router.callback_query(F.data.startswith("ChoiceNovaStatChannels"))
-async def novastat_choice_channels(call: types.CallbackQuery, state: FSMContext) -> None:
+async def novastat_choice_channels(
+    call: types.CallbackQuery, state: FSMContext
+) -> None:
     """
     Обработчик выбора каналов/папок в меню "Мои каналы".
     Поддерживает пагинацию, вход в папки, переключение вида.

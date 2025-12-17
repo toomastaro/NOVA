@@ -5,6 +5,7 @@
 - Отслеживание рекламных лидов через заявки на вступление
 - Проверку маппинга инвайт-ссылок к рекламным закупкам
 """
+
 import logging
 
 from aiogram import Router, types
@@ -12,7 +13,7 @@ from sqlalchemy import select
 
 from main_bot.database.ad_purchase.model import AdPurchaseLinkMapping
 from main_bot.database.db import db
-from main_bot.utils.error_handler import safe_handler
+from utils.error_handler import safe_handler
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +33,9 @@ async def on_join_request(request: types.ChatJoinRequest) -> None:
     user_id = request.from_user.id
     invite_link = request.invite_link.invite_link
 
-    logger.info("Получена заявка на вступление от %s по ссылке %s", user_id, invite_link)
+    logger.info(
+        "Получена заявка на вступление от %s по ссылке %s", user_id, invite_link
+    )
 
     try:
         # Поиск маппинга ссылки к рекламной закупке

@@ -6,6 +6,7 @@
 - Пересылку сообщений админу
 - Ответ администратора пользователю через reply
 """
+
 import logging
 
 from aiogram import types, Router, F
@@ -15,7 +16,7 @@ from config import Config
 from main_bot.keyboards import keyboards
 from main_bot.states.user import Support
 from main_bot.utils.lang.language import text
-from main_bot.utils.error_handler import safe_handler
+from utils.error_handler import safe_handler
 
 logger = logging.getLogger(__name__)
 
@@ -74,9 +75,7 @@ async def get_user_message(message: types.Message, state: FSMContext) -> None:
         )
 
     await state.clear()
-    await message.answer(
-        text("success_msg_support")
-    )
+    await message.answer(text("success_msg_support"))
 
 
 @safe_handler("Get Support Message")
@@ -98,7 +97,9 @@ async def get_support_message(message: types.Message) -> None:
             else message.reply_to_message.text.split("ID: ")[1]
         )
     except Exception:
-        logger.error("Ошибка парсинга ID пользователя из сообщения поддержки", exc_info=True)
+        logger.error(
+            "Ошибка парсинга ID пользователя из сообщения поддержки", exc_info=True
+        )
         return
 
     # Импортируем Reply клавиатуру для главного меню

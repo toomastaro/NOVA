@@ -69,7 +69,9 @@ DB_MAX_RETRY_ATTEMPTS = Config.DB_MAX_RETRY_ATTEMPTS
 
 
 @asynccontextmanager
-async def log_slow_query(query_info: Any, threshold: float = 1.0) -> AsyncGenerator[None, None]:
+async def log_slow_query(
+    query_info: Any, threshold: float = 1.0
+) -> AsyncGenerator[None, None]:
     """
     Контекстный менеджер для логирования медленных запросов.
 

@@ -14,7 +14,7 @@ def get_router():
         # stats.hand_add(),
     ]
 
-    router = Router(name='User')
+    router = Router(name="User")
     router.include_routers(*routers)
 
     return router

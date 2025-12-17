@@ -27,7 +27,7 @@ async def get_crypto_bot_usdt_rub_rate() -> float:
     Возвращает:
         float: Курс обмена. 0 при ошибке.
     """
-    api_token = os.getenv('CRYPTO_BOT_API_TOKEN') or os.getenv('CRYPTO_BOT_TOKEN')
+    api_token = os.getenv("CRYPTO_BOT_API_TOKEN") or os.getenv("CRYPTO_BOT_TOKEN")
 
     if not api_token:
         logger.error("CRYPTO_BOT_API_TOKEN не найден в переменных окружения")
@@ -44,10 +44,10 @@ async def get_crypto_bot_usdt_rub_rate() -> float:
             async with session.get(url, headers=headers) as response:
                 data = await response.json()
 
-                if data.get('ok'):
-                    for rate in data.get('result', []):
-                        if rate.get('source') == 'USDT' and rate.get('target') == 'RUB':
-                            return float(rate.get('rate'))
+                if data.get("ok"):
+                    for rate in data.get("result", []):
+                        if rate.get("source") == "USDT" and rate.get("target") == "RUB":
+                            return float(rate.get("rate"))
     except Exception as e:
         logger.error(f"Ошибка получения курсов Crypto Bot: {e}", exc_info=True)
 
@@ -64,14 +64,14 @@ async def get_best_change_usdt_rub_rate() -> Dict[str, float]:
             - 'buy': средний курс покупки (RUB->USDT)
             - 'average': (sell + buy) / 2
     """
-    api_key = os.getenv('BEST_EXCHANGE_API')
+    api_key = os.getenv("BEST_EXCHANGE_API")
     if not api_key:
         logger.warning("BEST_EXCHANGE_API не найден в переменных окружения")
-        return {'sell': 0, 'buy': 0, 'average': 0}
+        return {"sell": 0, "buy": 0, "average": 0}
 
     sources_data = get_rates_sources_from_json()
     if not sources_data:
-        return {'sell': 0, 'buy': 0, 'average': 0}
+        return {"sell": 0, "buy": 0, "average": 0}
 
     # Безопасное получение данных, предполагая структуру JSON
     try:
@@ -81,7 +81,7 @@ async def get_best_change_usdt_rub_rate() -> Dict[str, float]:
         rub_ids = [x["id"] for x in rub]
     except (IndexError, KeyError, ValueError) as e:
         logger.error(f"Ошибка парсинга rates_sources.json: {e}")
-        return {'sell': 0, 'buy': 0, 'average': 0}
+        return {"sell": 0, "buy": 0, "average": 0}
 
     # Создаем пары: USDT->RUB (продажа) и RUB->USDT (покупка)
     sell_pairs = [f"{usdt_id}-{rub_id}" for usdt_id in usdt_ids for rub_id in rub_ids]
@@ -92,10 +92,12 @@ async def get_best_change_usdt_rub_rate() -> Dict[str, float]:
 
     async with aiohttp.ClientSession() as session:
         try:
-            async with session.get(url, timeout=aiohttp.ClientTimeout(total=10)) as response:
+            async with session.get(
+                url, timeout=aiohttp.ClientTimeout(total=10)
+            ) as response:
                 if response.status != 200:
                     logger.warning(f"BestChange API вернул статус: {response.status}")
-                    return {'sell': 0, 'buy': 0, 'average': 0}
+                    return {"sell": 0, "buy": 0, "average": 0}
 
                 data = await response.json()
 
@@ -109,7 +111,13 @@ async def get_best_change_usdt_rub_rate() -> Dict[str, float]:
                             pair_rates = rates_data[pair_key]
                             if isinstance(pair_rates, list) and len(pair_rates) > 0:
                                 # Извлекаем курс от каждого обменника
-                                sell_rates.extend([float(item["rate"]) for item in pair_rates if "rate" in item])
+                                sell_rates.extend(
+                                    [
+                                        float(item["rate"])
+                                        for item in pair_rates
+                                        if "rate" in item
+                                    ]
+                                )
 
                     # Извлекаем курсы для пар покупки (RUB->USDT)
                     buy_rates = []
@@ -118,7 +126,13 @@ async def get_best_change_usdt_rub_rate() -> Dict[str, float]:
                             pair_rates = rates_data[pair_key]
                             if isinstance(pair_rates, list) and len(pair_rates) > 0:
                                 # Извлекаем курс от каждого обменника
-                                buy_rates.extend([float(item["rate"]) for item in pair_rates if "rate" in item])
+                                buy_rates.extend(
+                                    [
+                                        float(item["rate"])
+                                        for item in pair_rates
+                                        if "rate" in item
+                                    ]
+                                )
 
                     # Вычисляем средние значения
 
@@ -127,17 +141,13 @@ async def get_best_change_usdt_rub_rate() -> Dict[str, float]:
                     buy = sum(buy_rates) / len(buy_rates) if buy_rates else 0
                     average = ((sell + buy) / 2) if sell and buy else 0
 
-                    return {
-                        'sell': sell,
-                        'buy': buy,
-                        'average': average
-                    }
+                    return {"sell": sell, "buy": buy, "average": average}
 
         except (aiohttp.ClientError, asyncio.TimeoutError, ValueError, KeyError) as e:
             logger.error(f"Ошибка получения курсов BestChange: {e}")
             pass
 
-    return {'sell': 0, 'buy': 0, 'average': 0}
+    return {"sell": 0, "buy": 0, "average": 0}
 
 
 async def get_p2p_bybit_usdt_rub_rate() -> Dict[str, float]:
@@ -152,21 +162,35 @@ async def get_p2p_bybit_usdt_rub_rate() -> Dict[str, float]:
     headers = {"User-Agent": "Mozilla/5.0", "Content-Type": "application/json"}
 
     base_payload = {
-        "userId": "", "tokenId": "USDT", "currencyId": "RUB",
-        "payment": [], "size": "20", "page": "1", "amount": "10000",
-        "authMaker": False, "canTrade": False, "itemRegion": 2
+        "userId": "",
+        "tokenId": "USDT",
+        "currencyId": "RUB",
+        "payment": [],
+        "size": "20",
+        "page": "1",
+        "amount": "10000",
+        "authMaker": False,
+        "canTrade": False,
+        "itemRegion": 2,
     }
 
     async def fetch_rates(side: str) -> list[float]:
         payload = {**base_payload, "side": side}
         try:
             async with aiohttp.ClientSession() as session:
-                async with session.post(url, json=payload, headers=headers,
-                                        timeout=aiohttp.ClientTimeout(total=10)) as response:
+                async with session.post(
+                    url,
+                    json=payload,
+                    headers=headers,
+                    timeout=aiohttp.ClientTimeout(total=10),
+                ) as response:
                     if response.status == 200:
                         data = await response.json()
-                        return [float(ad["price"]) for ad in data.get("result", {}).get("items", [])
-                                if isinstance(ad.get("price"), (int, float, str))]
+                        return [
+                            float(ad["price"])
+                            for ad in data.get("result", {}).get("items", [])
+                            if isinstance(ad.get("price"), (int, float, str))
+                        ]
         except (aiohttp.ClientError, asyncio.TimeoutError, ValueError) as e:
             logger.error(f"Ошибка получения курсов Bybit (side={side}): {e}")
             pass
@@ -179,9 +203,9 @@ async def get_p2p_bybit_usdt_rub_rate() -> Dict[str, float]:
     buy = sum(buy_rates) / len(buy_rates) if buy_rates else 0
 
     return {
-        'sell': sell,
-        'buy': buy,
-        'average': ((sell + buy) / 2) if sell and buy else 0
+        "sell": sell,
+        "buy": buy,
+        "average": ((sell + buy) / 2) if sell and buy else 0,
     }
 
 
@@ -230,7 +254,11 @@ def get_exchange_rates_from_json() -> Any:
         Any: Загруженные данные (список или словарь).
     """
     try:
-        with open(current_dir / "exchange_rate_data/exchange_rates.json", "r", encoding='utf-8') as file:
+        with open(
+            current_dir / "exchange_rate_data/exchange_rates.json",
+            "r",
+            encoding="utf-8",
+        ) as file:
             return json.load(file)
     except Exception as e:
         logger.error(f"Ошибка чтения exchange_rates.json: {e}")
@@ -245,7 +273,9 @@ def get_rates_sources_from_json() -> Any:
         Any: Загруженные данные (список или словарь).
     """
     try:
-        with open(current_dir / "exchange_rate_data/rates_sources.json", "r", encoding='utf-8') as file:
+        with open(
+            current_dir / "exchange_rate_data/rates_sources.json", "r", encoding="utf-8"
+        ) as file:
             return json.load(file)
     except Exception as e:
         logger.error(f"Ошибка чтения rates_sources.json: {e}")
@@ -265,6 +295,5 @@ if __name__ == "__main__":
 
         rate_bc = await get_best_change_usdt_rub_rate()
         logger.info(f"BestChange: {rate_bc}")
-
 
     asyncio.run(test())

@@ -16,8 +16,5 @@ from config import Config
 
 # Инициализация бота с HTML парсингом по умолчанию
 bot = Bot(
-    token=Config.BOT_TOKEN,
-    default=DefaultBotProperties(
-        parse_mode=ParseMode.HTML
-    )
+    token=Config.BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML)
 )

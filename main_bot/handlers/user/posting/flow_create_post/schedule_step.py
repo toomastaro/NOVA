@@ -25,7 +25,7 @@ from main_bot.utils.lang.language import text
 from main_bot.keyboards import keyboards
 from main_bot.keyboards.posting import ensure_obj
 from main_bot.states.user import Posting
-from main_bot.utils.error_handler import safe_handler
+from utils.error_handler import safe_handler
 from main_bot.utils.user_settings import get_user_view_mode, set_user_view_mode
 from main_bot.utils.redis_client import redis_client
 import json
@@ -198,12 +198,14 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
             await state.update_data(current_folder_id=None)
             # Обновляем локальную переменную
             current_folder_id = None
-            
+
             # Перезагружаем данные корневого уровня
             try:
                 if view_mode == "folders":
                     objects = []
-                    raw_folders = await db.user_folder.get_folders(user_id=call.from_user.id)
+                    raw_folders = await db.user_folder.get_folders(
+                        user_id=call.from_user.id
+                    )
                     folders = [f for f in raw_folders if f.content]
                 else:
                     objects, folders = await asyncio.gather(
@@ -223,7 +225,7 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
                 return
             # Сбрасываем remover при выходе из папки
             remover_value = 0
-            
+
             # Подтверждаем действие для снятия спиннера
             try:
                 await call.answer()
@@ -314,7 +316,7 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
             await state.update_data(current_folder_id=resource_id)
             # Обновляем локальную переменную для корректного отображения
             current_folder_id = resource_id
-            
+
             # Перезагружаем данные папки (батчинг)
             try:
                 folder = await db.user_folder.get_folder_by_id(resource_id)
@@ -386,7 +388,7 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
             # Выше мы уже делали get_folder_by_id(current_folder_id), но переменную folder не сохранили в scope.
             # Повторный вызов get_folder_by_id - это cheap (db call).
             # Однако, в блоке "if current_folder_id:" переменная folder локальна.
-            
+
             # Загружаем для отображения названия
             folder_obj = await db.user_folder.get_folder_by_id(current_folder_id)
             if folder_obj:
@@ -396,7 +398,9 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
 
     try:
         msg_text = (
-            text("choice_channels:folder").format(folder_title, len(chosen), channels_list)
+            text("choice_channels:folder").format(
+                folder_title, len(chosen), channels_list
+            )
             if current_folder_id and folder_title
             else text("choice_channels:post").format(len(chosen), channels_list)
         )

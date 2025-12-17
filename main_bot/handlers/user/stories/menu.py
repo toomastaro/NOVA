@@ -6,12 +6,12 @@ from main_bot.keyboards import keyboards
 from main_bot.utils.lang.language import text
 from main_bot.utils.user_settings import get_user_view_mode
 import logging
-from main_bot.utils.error_handler import safe_handler
+from utils.error_handler import safe_handler
 
 logger = logging.getLogger(__name__)
 
 
-@safe_handler("Stories Menu Choice")
+@safe_handler("Сторис: выбор меню")
 async def choice(call: types.CallbackQuery, state: FSMContext):
     """Главное меню историй (создать, каналы, контент-план)."""
     await state.clear()
@@ -40,7 +40,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
     await cor(*args)
 
 
-@safe_handler("Stories Show Create Post")
+@safe_handler("Сторис: создание поста")
 async def show_create_post(message: types.Message, state: FSMContext):
     """
     Начало создания истории.
@@ -77,7 +77,7 @@ async def show_create_post(message: types.Message, state: FSMContext):
         # Фильтрация пустых папок
         kb_folders = [f for f in folders if f.content]
     else:
-        # В режиме каналов показываем все каналы (как в постинге), 
+        # В режиме каналов показываем все каналы (как в постинге),
         # но валидация подписки происходит при выборе
         kb_resources = channels
         kb_folders = []
@@ -95,7 +95,7 @@ async def show_create_post(message: types.Message, state: FSMContext):
     )
 
 
-@safe_handler("Stories Show Settings")
+@safe_handler("Сторис: настройки")
 async def show_settings(message: types.Message):
     """Показывает меню управления каналами для историй."""
     channels = await db.channel.get_user_channels(
@@ -107,7 +107,7 @@ async def show_settings(message: types.Message):
     )
 
 
-@safe_handler("Stories Show Content")
+@safe_handler("Сторис: контент")
 async def show_content(message: types.Message):
     """Показывает меню выбора канала для контент-плана историй."""
     channels = await db.channel.get_user_channels(user_id=message.chat.id)
@@ -119,7 +119,7 @@ async def show_content(message: types.Message):
     )
 
 
-@safe_handler("Stories Back To Main")
+@safe_handler("Сторис: назад в главное")
 async def back_to_main(message: types.Message):
     """Возврат в главное меню"""
     from main_bot.keyboards.common import Reply

@@ -6,6 +6,7 @@
 - Обновление статуса поста в БД
 - Отправку черновика в канал бэкапа
 """
+
 import logging
 
 from aiogram import types
@@ -17,7 +18,7 @@ from main_bot.database.db_types import Status
 from main_bot.utils.lang.language import text
 from main_bot.keyboards import keyboards
 from main_bot.states.user import Bots
-from main_bot.utils.error_handler import safe_handler
+from utils.error_handler import safe_handler
 from main_bot.utils.backup_utils import send_to_backup, edit_backup_message
 
 logger = logging.getLogger(__name__)

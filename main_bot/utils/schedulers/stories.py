@@ -24,6 +24,7 @@ from main_bot.utils.lang.language import text
 from main_bot.utils.schemas import StoryOptions
 from main_bot.utils.session_manager import SessionManager
 from main_bot.utils.support_log import send_support_alert, SupportAlert
+from utils.error_handler import safe_handler
 
 logger = logging.getLogger(__name__)
 
@@ -304,6 +305,7 @@ async def send_story(story: Story):
         )
 
 
+@safe_handler("Сторис: отправка отложенных (Background)")
 async def send_stories():
     """
     Периодическая задача: отправка отложенных сторис.

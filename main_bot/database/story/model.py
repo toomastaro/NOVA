@@ -29,6 +29,7 @@ class Story(Base):
         status (Status): Статус публикации (PENDING, FINISH, ERROR).
         delete_time (int | None): Время автоудаления.
     """
+
     __tablename__ = "stories"
 
     # Данные

@@ -7,6 +7,7 @@
 - Реферальной системы
 - Настроек аккаунта (часовой пояс, отчеты)
 """
+
 from aiogram import Router
 from . import (
     profile,
@@ -41,7 +42,7 @@ def get_router():
         report_settings.get_router(),
     ]
 
-    router = Router(name='Profile')
+    router = Router(name="Profile")
     router.include_routers(*routers)
 
     return router

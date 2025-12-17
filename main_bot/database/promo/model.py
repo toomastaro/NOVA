@@ -19,6 +19,7 @@ class Promo(Base):
         amount (int | None): Фиксированная сумма бонуса/скидки.
         discount (int | None): Процент скидки.
     """
+
     __tablename__ = "promo"
 
     # Данные

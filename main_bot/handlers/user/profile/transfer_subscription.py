@@ -2,6 +2,7 @@
 Обработчики для переноса подписки между каналами.
 Позволяет пользователю перенести оплаченные дни подписки с одного канала (донора) на другие.
 """
+
 import time
 from datetime import datetime
 import logging
@@ -13,188 +14,165 @@ from main_bot.database.db import db
 from main_bot.database.user.model import User
 from main_bot.keyboards import keyboards
 from main_bot.utils.lang.language import text
-from main_bot.utils.error_handler import safe_handler
+from utils.error_handler import safe_handler
 
 logger = logging.getLogger(__name__)
 
 
-@safe_handler("Show Transfer Subscription Menu")
+@safe_handler("Перенос: меню подписок")
 async def show_transfer_sub_menu(call: types.CallbackQuery, state: FSMContext):
     """Показать меню выбора канала-донора для переноса подписки"""
     user = await db.user.get_user(user_id=call.from_user.id)
     all_channels = await db.channel.get_subscribe_channels(user_id=user.id)
-    
+
     # Фильтруем только активные подписки (не истекшие)
     now = int(time.time())
-    channels = [
-        ch for ch in all_channels 
-        if ch.subscribe and ch.subscribe > now
-    ]
-    
+    channels = [ch for ch in all_channels if ch.subscribe and ch.subscribe > now]
+
     if not channels:
-        return await call.answer(
-            text("error_transfer_no_channels"),
-            show_alert=True
-        )
-    
-    await state.update_data(
-        transfer_chosen_recipients=[]
-    )
-    
+        return await call.answer(text("error_transfer_no_channels"), show_alert=True)
+
+    await state.update_data(transfer_chosen_recipients=[])
+
     await call.message.answer(
         text("transfer_sub:choose_donor"),
-        reply_markup=keyboards.transfer_sub_choose_donor(
-            channels=channels
-        )
+        reply_markup=keyboards.transfer_sub_choose_donor(channels=channels),
     )
 
 
-@safe_handler("Choose Transfer Donor")
+@safe_handler("Перенос: выбор донора")
 async def choose_donor(call: types.CallbackQuery, state: FSMContext, user: User):
     """Обработчик выбора канала-донора"""
-    
-    temp = call.data.split('|')
-    
-    if temp[1] == 'cancel':
+
+    temp = call.data.split("|")
+
+    if temp[1] == "cancel":
         # Возврат в меню подписки с информацией о балансе
         await call.message.delete()
         return await call.message.answer(
             text("balance_text").format(user.balance),
             reply_markup=keyboards.subscription_menu(),
-            parse_mode="HTML"
+            parse_mode="HTML",
         )
-    
+
     # Навигация
-    if temp[1] in ['next', 'back']:
+    if temp[1] in ["next", "back"]:
         all_channels = await db.channel.get_subscribe_channels(user_id=user.id)
         # Фильтруем только активные подписки
         now = int(time.time())
-        channels = [
-            ch for ch in all_channels 
-            if ch.subscribe and ch.subscribe > now
-        ]
+        channels = [ch for ch in all_channels if ch.subscribe and ch.subscribe > now]
         return await call.message.edit_reply_markup(
             reply_markup=keyboards.transfer_sub_choose_donor(
-                channels=channels,
-                remover=int(temp[2])
+                channels=channels, remover=int(temp[2])
             )
         )
-    
+
     # Выбран канал-донор
     donor_chat_id = int(temp[1])
     donor_channel = await db.channel.get_channel_by_chat_id(chat_id=donor_chat_id)
-    
+
     if not donor_channel or not donor_channel.subscribe:
-        return await call.answer(
-            text("error_transfer_no_days"),
-            show_alert=True
-        )
-    
+        return await call.answer(text("error_transfer_no_days"), show_alert=True)
+
     # Проверяем, есть ли дни для переноса
     now = int(time.time())
     days_left = max(0, round((donor_channel.subscribe - now) / 86400))
-    
+
     if days_left <= 0:
-        return await call.answer(
-            text("error_transfer_no_days"),
-            show_alert=True
-        )
-    
+        return await call.answer(text("error_transfer_no_days"), show_alert=True)
+
     # Получаем все каналы пользователя кроме донора
     all_channels = await db.channel.get_user_channels(user_id=user.id)
     recipient_channels = [ch for ch in all_channels if ch.chat_id != donor_chat_id]
-    
+
     if not recipient_channels:
         return await call.answer(
-            "❌ Нет других каналов для переноса подписки",
-            show_alert=True
+            "❌ Нет других каналов для переноса подписки", show_alert=True
         )
-    
+
     # Сохраняем данные в state
     await state.update_data(
         transfer_donor_chat_id=donor_chat_id,
         transfer_donor_title=donor_channel.title,
         transfer_days_available=days_left,
-        transfer_chosen_recipients=[]
+        transfer_chosen_recipients=[],
     )
-    
+
     await call.message.delete()
     await call.message.answer(
         text("transfer_sub:choose_recipients").format(
-            donor_channel.title,
-            days_left,
-            ""
+            donor_channel.title, days_left, ""
         ),
         reply_markup=keyboards.transfer_sub_choose_recipients(
-            channels=recipient_channels,
-            chosen=[]
-        )
+            channels=recipient_channels, chosen=[]
+        ),
     )
 
 
-@safe_handler("Choose Transfer Recipients")
+@safe_handler("Перенос: выбор получателя")
 async def choose_recipients(call: types.CallbackQuery, state: FSMContext, user: User):
     """Обработчик выбора каналов-получателей"""
-    
-    temp = call.data.split('|')
+
+    temp = call.data.split("|")
     data = await state.get_data()
-    
+
     if not data:
-        await call.answer(text('keys_data_error'))
+        await call.answer(text("keys_data_error"))
         return await call.message.delete()
-    
-    donor_chat_id = data.get('transfer_donor_chat_id')
-    donor_title = data.get('transfer_donor_title')
-    days_available = data.get('transfer_days_available')
-    chosen: list = data.get('transfer_chosen_recipients', [])
-    
+
+    donor_chat_id = data.get("transfer_donor_chat_id")
+    donor_title = data.get("transfer_donor_title")
+    days_available = data.get("transfer_days_available")
+    chosen: list = data.get("transfer_chosen_recipients", [])
+
     # Получаем каналы-получатели (все кроме донора)
     all_channels = await db.channel.get_user_channels(user_id=user.id)
     recipient_channels = [ch for ch in all_channels if ch.chat_id != donor_chat_id]
-    
-    if temp[1] == 'cancel':
+
+    if temp[1] == "cancel":
         # Возврат к выбору донора
         channels = await db.channel.get_subscribe_channels(user_id=user.id)
         await call.message.delete()
         return await call.message.answer(
             text("transfer_sub:choose_donor"),
-            reply_markup=keyboards.transfer_sub_choose_donor(
-                channels=channels
-            )
+            reply_markup=keyboards.transfer_sub_choose_donor(channels=channels),
         )
-    
+
     # Навигация
-    if temp[1] in ['next', 'back']:
-        chosen_text = "\n".join(
-            f"📺 {ch.title}" for ch in recipient_channels
-            if ch.chat_id in chosen[:10]
-        ) if chosen else ""
-        
+    if temp[1] in ["next", "back"]:
+        chosen_text = (
+            "\n".join(
+                f"📺 {ch.title}"
+                for ch in recipient_channels
+                if ch.chat_id in chosen[:10]
+            )
+            if chosen
+            else ""
+        )
+
         return await call.message.edit_text(
             text("transfer_sub:choose_recipients").format(
-                donor_title,
-                days_available,
-                chosen_text
+                donor_title, days_available, chosen_text
             ),
             reply_markup=keyboards.transfer_sub_choose_recipients(
-                channels=recipient_channels,
-                chosen=chosen,
-                remover=int(temp[2])
-            )
+                channels=recipient_channels, chosen=chosen, remover=int(temp[2])
+            ),
         )
-    
+
     # Выбрать всё / Отменить всё
-    if temp[1] == 'choice_all':
-        logger.info(f"Перенос: нажато выбрать все, сейчас выбрано: {len(chosen)}, всего каналов: {len(recipient_channels)}")
+    if temp[1] == "choice_all":
+        logger.info(
+            f"Перенос: нажато выбрать все, сейчас выбрано: {len(chosen)}, всего каналов: {len(recipient_channels)}"
+        )
         if len(chosen) == len(recipient_channels):
             chosen.clear()
         else:
             chosen.clear()
             chosen.extend([ch.chat_id for ch in recipient_channels])
         logger.info(f"Перенос: после выбрать все, выбрано: {chosen}")
-    
+
     # Выбор/отмена выбора канала (может быть отрицательным ID)
-    elif temp[1].lstrip('-').isdigit():
+    elif temp[1].lstrip("-").isdigit():
         channel_id = int(temp[1])
         logger.info(f"Перенос: нажат канал {channel_id}, сейчас выбрано: {chosen}")
         if channel_id in chosen:
@@ -203,82 +181,78 @@ async def choose_recipients(call: types.CallbackQuery, state: FSMContext, user: 
         else:
             chosen.append(channel_id)
             logger.info(f"Перенос: добавлен {channel_id}")
-    
+
     # Перенести подписку
-    elif temp[1] == 'transfer':
+    elif temp[1] == "transfer":
         logger.info(f"Перенос: нажата кнопка переноса, выбрано: {chosen}")
         if not chosen:
             logger.warning("Перенос: не выбраны каналы")
             return await call.answer(
-                text("error_transfer_min_recipients"),
-                show_alert=True
+                text("error_transfer_min_recipients"), show_alert=True
             )
-        
+
         logger.info(f"Перенос: выполнение переноса для {len(chosen)} каналов")
         await execute_transfer(call, state, user, chosen)
         return
-    
+
     # Обновляем state ПЕРЕД обновлением UI
-    await state.update_data(
-        transfer_chosen_recipients=chosen
+    await state.update_data(transfer_chosen_recipients=chosen)
+
+    chosen_text = (
+        "\n".join(
+            f"📺 {ch.title}" for ch in recipient_channels if ch.chat_id in chosen[:10]
+        )
+        if chosen
+        else ""
     )
-    
-    chosen_text = "\n".join(
-        f"📺 {ch.title}" for ch in recipient_channels
-        if ch.chat_id in chosen[:10]
-    ) if chosen else ""
-    
+
     try:
         await call.message.edit_text(
             text("transfer_sub:choose_recipients").format(
-                donor_title,
-                days_available,
-                chosen_text
+                donor_title, days_available, chosen_text
             ),
             reply_markup=keyboards.transfer_sub_choose_recipients(
-                channels=recipient_channels,
-                chosen=chosen,
-                remover=int(temp[2])
-            )
+                channels=recipient_channels, chosen=chosen, remover=int(temp[2])
+            ),
         )
     except Exception:
         # Игнорируем ошибку если сообщение не изменилось
         pass
 
 
-@safe_handler("Execute Subscription Transfer")
-async def execute_transfer(call: types.CallbackQuery, state: FSMContext, user: User, chosen: list):
+@safe_handler("Перенос: выполнение")
+async def execute_transfer(
+    call: types.CallbackQuery, state: FSMContext, user: User, chosen: list
+):
     """Выполнить перенос подписки"""
     data = await state.get_data()
-    
-    donor_chat_id = data.get('transfer_donor_chat_id')
-    donor_title = data.get('transfer_donor_title')
-    days_available = data.get('transfer_days_available')
-    
+
+    donor_chat_id = data.get("transfer_donor_chat_id")
+    donor_title = data.get("transfer_donor_title")
+    days_available = data.get("transfer_days_available")
+
     # Получаем канал-донор
     await db.channel.get_channel_by_chat_id(chat_id=donor_chat_id)
-    
+
     # Вычисляем конец сегодняшнего дня (23:59:59)
     now = datetime.now()
     end_of_today = datetime(now.year, now.month, now.day, 23, 59, 59)
     end_of_today_timestamp = int(end_of_today.timestamp())
-    
+
     # Обнуляем подписку донора до конца сегодняшнего дня
     await db.channel.update_channel_by_chat_id(
-        chat_id=donor_chat_id,
-        subscribe=end_of_today_timestamp
+        chat_id=donor_chat_id, subscribe=end_of_today_timestamp
     )
-    
+
     # Распределяем дни между получателями
     days_per_recipient = days_available // len(chosen)
     seconds_per_recipient = days_per_recipient * 86400
-    
+
     # Получаем каналы-получатели
     recipient_channels = await db.channel.get_user_channels(
-        user_id=user.id,
-        from_array=chosen
+        user_id=user.id, from_array=chosen
     )
-    
+
     recipients_info = []
     for channel in recipient_channels:
         # Добавляем дни к текущей подписке или создаем новую
@@ -286,37 +260,40 @@ async def execute_transfer(call: types.CallbackQuery, state: FSMContext, user: U
             new_subscribe = channel.subscribe + seconds_per_recipient
         else:
             new_subscribe = int(time.time()) + seconds_per_recipient
-        
+
         await db.channel.update_channel_by_chat_id(
-            chat_id=channel.chat_id,
-            subscribe=new_subscribe
+            chat_id=channel.chat_id, subscribe=new_subscribe
         )
-        
+
         # Форматируем дату для отображения
-        new_date = datetime.fromtimestamp(new_subscribe).strftime('%d.%m.%Y')
-        recipients_info.append(f"📺 {channel.title} — подписка до {new_date} (+{days_per_recipient} дн.)")
-    
+        new_date = datetime.fromtimestamp(new_subscribe).strftime("%d.%m.%Y")
+        recipients_info.append(
+            f"📺 {channel.title} — подписка до {new_date} (+{days_per_recipient} дн.)"
+        )
+
     # Форматируем дату донора
-    donor_date = end_of_today.strftime('%d.%m.%Y')
-    
+    donor_date = end_of_today.strftime("%d.%m.%Y")
+
     # Очищаем state
     await state.clear()
-    
+
     # Показываем результат
     await call.message.delete()
     await call.message.answer(
         text("transfer_sub:success").format(
-            donor_title,
-            donor_date,
-            "\n".join(recipients_info)
+            donor_title, donor_date, "\n".join(recipients_info)
         ),
-        reply_markup=keyboards.subscription_menu()
+        reply_markup=keyboards.subscription_menu(),
     )
 
 
 def get_router():
     """Регистрация роутеров переноса подписки."""
     router = Router()
-    router.callback_query.register(choose_donor, F.data.split("|")[0] == "TransferSubDonor")
-    router.callback_query.register(choose_recipients, F.data.split("|")[0] == "TransferSubRecipients")
+    router.callback_query.register(
+        choose_donor, F.data.split("|")[0] == "TransferSubDonor"
+    )
+    router.callback_query.register(
+        choose_recipients, F.data.split("|")[0] == "TransferSubRecipients"
+    )
     return router

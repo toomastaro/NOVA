@@ -7,7 +7,8 @@ from hello_bot.database import Base
 
 class Setting(Base):
     """Модель настроек hello_bot."""
-    __tablename__ = 'settings'
+
+    __tablename__ = "settings"
 
     # Data
     id: Mapped[int] = mapped_column(autoincrement=True, primary_key=True)

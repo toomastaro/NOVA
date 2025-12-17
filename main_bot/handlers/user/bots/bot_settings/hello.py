@@ -6,6 +6,7 @@
 - Настройку задержки, текста с именем, активности
 - Редактирование контента и кнопок приветствия
 """
+
 import logging
 
 from aiogram import types, F, Router
@@ -25,7 +26,7 @@ from main_bot.utils.schemas import (
     MessageOptionsHello,
 )
 from main_bot.utils.functions import answer_message
-from main_bot.utils.error_handler import safe_handler
+from utils.error_handler import safe_handler
 
 logger = logging.getLogger(__name__)
 
@@ -51,7 +52,9 @@ async def show_manage_hello_message(message: types.Message, state: FSMContext) -
 
 
 @safe_handler("Bots Hello Choice")
-async def choice(call: types.CallbackQuery, state: FSMContext, db_obj: Database) -> None:
+async def choice(
+    call: types.CallbackQuery, state: FSMContext, db_obj: Database
+) -> None:
     """
     Выбор приветственного сообщения из списка или создание нового.
 
@@ -158,7 +161,9 @@ async def manage_hello_message(call: types.CallbackQuery, state: FSMContext) -> 
 
 
 @safe_handler("Bots Manage Hello Message Post")
-async def manage_hello_message_post(call: types.CallbackQuery, state: FSMContext) -> None:
+async def manage_hello_message_post(
+    call: types.CallbackQuery, state: FSMContext
+) -> None:
     """
     Редактирование поста приветственного сообщения (изменение текста/кнопок).
 
@@ -196,7 +201,9 @@ async def manage_hello_message_post(call: types.CallbackQuery, state: FSMContext
 
 
 @safe_handler("Bots Choice Hello Message Delay")
-async def choice_hello_message_delay(call: types.CallbackQuery, state: FSMContext) -> None:
+async def choice_hello_message_delay(
+    call: types.CallbackQuery, state: FSMContext
+) -> None:
     """
     Выбор задержки отправки приветствия.
 
@@ -228,7 +235,7 @@ async def choice_hello_message_delay(call: types.CallbackQuery, state: FSMContex
 async def back(call: types.CallbackQuery, state: FSMContext) -> None:
     """
     Возврат в меню приветствий из подменю.
-    
+
     Аргументы:
         call (types.CallbackQuery): Callback запрос.
         state (FSMContext): Контекст состояния.

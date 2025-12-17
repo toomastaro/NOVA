@@ -7,6 +7,7 @@
 - Предпросмотр сообщения
 - Обработку ввода контента сообщения
 """
+
 import logging
 
 
@@ -23,7 +24,7 @@ from hello_bot.utils.functions import answer_message
 from main_bot.database.channel_bot_settings.model import ChannelBotSetting
 from main_bot.database.db import db
 from main_bot.handlers.user.bots.bot_settings.menu import show_channel_setting
-from main_bot.utils.error_handler import safe_handler
+from utils.error_handler import safe_handler
 
 logger = logging.getLogger(__name__)
 
@@ -101,7 +102,7 @@ async def back(
 ) -> None:
     """
     Возврат в меню настройки прощаний из подменю (ввод текста).
-    
+
     Аргументы:
         call (types.CallbackQuery): Callback запрос.
         state (FSMContext): Контекст состояния.

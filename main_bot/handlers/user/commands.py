@@ -6,6 +6,7 @@
 - /posting, /stories, /bots - переход в разделы
 - /profile, /support, /subscription, /settings - настройки и поддержка
 """
+
 import logging
 from typing import Dict, Any
 
@@ -24,13 +25,15 @@ from main_bot.handlers.user.menu import (
 from main_bot.handlers.user.posting.menu import show_create_post as post_create
 from main_bot.handlers.user.profile.profile import show_setting, show_subscribe
 from main_bot.handlers.user.stories.menu import show_create_post as story_create
-from main_bot.utils.error_handler import safe_handler
+from utils.error_handler import safe_handler
 
 logger = logging.getLogger(__name__)
 
 
 @safe_handler("Commands Handler")
-async def commands(message: types.Message, command: CommandObject, state: FSMContext) -> None:
+async def commands(
+    message: types.Message, command: CommandObject, state: FSMContext
+) -> None:
     """
     Обработчик slash-команд.
     Маршрутизирует команду на соответствующий обработчик.

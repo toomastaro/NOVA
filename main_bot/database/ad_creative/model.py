@@ -25,6 +25,7 @@ class AdCreative(Base):
         created_timestamp (int): Время создания.
         status (str): Статус креатива (active, deleted).
     """
+
     __tablename__ = "ad_creatives"
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     owner_id: Mapped[int] = mapped_column(BigInteger, index=True)
@@ -50,6 +51,7 @@ class AdCreativeLinkSlot(Base):
         location_meta (dict): Метаданные размещения (позиция и т.д.).
         created_timestamp (int): Время создания.
     """
+
     __tablename__ = "ad_creative_link_slots"
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     creative_id: Mapped[int] = mapped_column(index=True)

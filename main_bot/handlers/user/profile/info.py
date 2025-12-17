@@ -1,37 +1,36 @@
 """
 Обработчики для раздела информации (политика конфиденциальности, пользовательское соглашение)
 """
+
 from aiogram import Router, F, types
 
 from main_bot.database.db import db
 from main_bot.keyboards import keyboards
 from main_bot.utils.lang.language import text
-from main_bot.utils.error_handler import safe_handler
+from utils.error_handler import safe_handler
 
 
-@safe_handler("Show Info Menu")
+@safe_handler("Инфо: главное меню")
 async def show_info_menu(call: types.CallbackQuery):
     """Показать меню информации"""
     await call.message.answer(
-        text("info:menu"),
-        reply_markup=keyboards.info_menu(),
-        parse_mode="HTML"
+        text("info:menu"), reply_markup=keyboards.info_menu(), parse_mode="HTML"
     )
 
 
-@safe_handler("Info Choice")
+@safe_handler("Инфо: выбор раздела")
 async def choice(call: types.CallbackQuery):
     """Обработчик выбора в меню информации"""
-    temp = call.data.split('|')
-    
-    if temp[1] == 'back':
+    temp = call.data.split("|")
+
+    if temp[1] == "back":
         # Возврат в меню подписки с информацией о балансе
         user = await db.user.get_user(user_id=call.from_user.id)
         await call.message.delete()
         return await call.message.answer(
             text("balance_text").format(user.balance),
             reply_markup=keyboards.subscription_menu(),
-            parse_mode="HTML"
+            parse_mode="HTML",
         )
 
 

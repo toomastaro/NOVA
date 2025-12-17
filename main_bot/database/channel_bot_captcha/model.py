@@ -18,6 +18,7 @@ class ChannelCaptcha(Base):
         message (dict): Сообщение (JSON).
         delay (int): Задержка отправки в секундах.
     """
+
     __tablename__ = "channel_captcha"
 
     # Данные

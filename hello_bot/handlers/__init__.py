@@ -1,6 +1,7 @@
 """
 Настройка роутеров и диспетчера для hello_bot.
 """
+
 from aiogram import Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
 
@@ -17,19 +18,11 @@ def set_routers():
     Returns:
         Dispatcher: Настроенный диспетчер.
     """
-    dp = Dispatcher(
-        storage=MemoryStorage()
-    )
-    dp.update.middleware.register(
-        SetCrud()
-    )
+    dp = Dispatcher(storage=MemoryStorage())
+    dp.update.middleware.register(SetCrud())
     # dp.update.middleware.register(
     #     AnswerMiddleware()
     # )
-    dp.update.middleware.register(
-        ErrorMiddleware()
-    )
-    dp.include_routers(
-        user_router()
-    )
+    dp.update.middleware.register(ErrorMiddleware())
+    dp.include_routers(user_router())
     return dp

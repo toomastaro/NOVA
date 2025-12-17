@@ -17,7 +17,7 @@ from main_bot.handlers.user.menu import start_posting
 from main_bot.utils.message_utils import answer_post
 from main_bot.utils.lang.language import text
 from main_bot.utils.schemas import MessageOptions, Media
-from main_bot.utils.error_handler import safe_handler
+from utils.error_handler import safe_handler
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +41,7 @@ async def cancel_message(call: types.CallbackQuery, state: FSMContext):
 async def get_message(message: types.Message, state: FSMContext):
     """
     Получение первичного сообщения для создания поста.
-    
+
     Обрабатывает текст, медиа и inline-кнопки из сообщения пользователя.
     Создает запись поста в БД и формирует превью.
 

@@ -30,7 +30,9 @@ from main_bot.utils.schemas import (
 logger = logging.getLogger(__name__)
 
 
-async def answer_bot_post(message: types.Message, state: FSMContext, from_edit: bool = False) -> types.Message:
+async def answer_bot_post(
+    message: types.Message, state: FSMContext, from_edit: bool = False
+) -> types.Message:
     """
     Отправляет превью бот-поста пользователю.
 
@@ -44,8 +46,8 @@ async def answer_bot_post(message: types.Message, state: FSMContext, from_edit: 
     """
     data = await state.get_data()
 
-    post = ensure_obj(data.get('post'))
-    is_edit: bool = data.get('is_edit')
+    post = ensure_obj(data.get("post"))
+    is_edit: bool = data.get("is_edit")
     message_options = MessageOptionsHello(**post.message)
 
     # Определяем тип сообщения и соответствующую функцию
@@ -62,21 +64,17 @@ async def answer_bot_post(message: types.Message, state: FSMContext, from_edit: 
         message_options.animation = message_options.animation.file_id
 
     if not from_edit:
-        reply_markup = keyboards.manage_bot_post(
-            post=post,
-            is_edit=is_edit
-        )
+        reply_markup = keyboards.manage_bot_post(post=post, is_edit=is_edit)
         message_options.reply_markup = reply_markup
 
-    post_message = await cor(
-        **message_options.model_dump(),
-        parse_mode='HTML'
-    )
+    post_message = await cor(**message_options.model_dump(), parse_mode="HTML")
 
     return post_message
 
 
-async def answer_post(message: types.Message, state: FSMContext, from_edit: bool = False) -> types.Message:
+async def answer_post(
+    message: types.Message, state: FSMContext, from_edit: bool = False
+) -> types.Message:
     """
     Отправляет превью поста пользователю.
 
@@ -93,8 +91,8 @@ async def answer_post(message: types.Message, state: FSMContext, from_edit: bool
     """
     data = await state.get_data()
 
-    post = ensure_obj(data.get('post'))
-    is_edit: bool = data.get('is_edit')
+    post = ensure_obj(data.get("post"))
+    is_edit: bool = data.get("is_edit")
     message_options = MessageOptions(**post.message_options)
 
     # Определяем тип сообщения и соответствующую функцию
@@ -111,18 +109,14 @@ async def answer_post(message: types.Message, state: FSMContext, from_edit: bool
         message_options.animation = message_options.animation.file_id
 
     if from_edit:
-        reply_markup = keyboards.post_kb(
-            post=post
-        )
+        reply_markup = keyboards.post_kb(post=post)
     else:
         reply_markup = keyboards.manage_post(
-            post=post,
-            show_more=data.get('show_more'),
-            is_edit=is_edit
+            post=post, show_more=data.get("show_more"), is_edit=is_edit
         )
 
     # Логика загрузки превью из бэкапа
-    backup_msg_id = getattr(post, 'backup_message_id', None)
+    backup_msg_id = getattr(post, "backup_message_id", None)
     if backup_msg_id and Config.BACKUP_CHAT_ID:
         try:
             post_message = await message.bot.copy_message(
@@ -130,25 +124,30 @@ async def answer_post(message: types.Message, state: FSMContext, from_edit: bool
                 from_chat_id=Config.BACKUP_CHAT_ID,
                 message_id=backup_msg_id,
                 reply_markup=reply_markup,
-                parse_mode='HTML'
+                parse_mode="HTML",
             )
-            logger.info(f"Превью для поста {post.id} загружено из бэкапа (msg {backup_msg_id})")
+            logger.info(
+                f"Превью для поста {post.id} загружено из бэкапа (msg {backup_msg_id})"
+            )
             return post_message
         except Exception as e:
-            logger.error(f"Не удалось загрузить превью из бэкапа для поста {post.id}: {e}", exc_info=True)
+            logger.error(
+                f"Не удалось загрузить превью из бэкапа для поста {post.id}: {e}",
+                exc_info=True,
+            )
             # Возврат к локальной генерации
 
     post_message = await cor(
-        **message_options.model_dump(),
-        reply_markup=reply_markup,
-        parse_mode='HTML'
+        **message_options.model_dump(), reply_markup=reply_markup, parse_mode="HTML"
     )
     logger.info(f"Превью для поста {post.id} сгенерировано локально")
 
     return post_message
 
 
-async def answer_story(message: types.Message, state: FSMContext, from_edit: bool = False) -> types.Message:
+async def answer_story(
+    message: types.Message, state: FSMContext, from_edit: bool = False
+) -> types.Message:
     """
     Отправляет превью сторис пользователю.
 
@@ -162,8 +161,8 @@ async def answer_story(message: types.Message, state: FSMContext, from_edit: boo
     """
     data = await state.get_data()
 
-    post = ensure_obj(data.get('post'))
-    is_edit: bool = data.get('is_edit')
+    post = ensure_obj(data.get("post"))
+    is_edit: bool = data.get("is_edit")
     story_options = StoryOptions(**post.story_options)
 
     # Сторис может быть только фото или видео
@@ -177,13 +176,10 @@ async def answer_story(message: types.Message, state: FSMContext, from_edit: boo
     if from_edit:
         reply_markup = None
     else:
-        reply_markup = keyboards.manage_story(
-            post=post,
-            is_edit=is_edit
-        )
+        reply_markup = keyboards.manage_story(post=post, is_edit=is_edit)
 
     # Логика загрузки превью из бэкапа
-    backup_msg_id = getattr(post, 'backup_message_id', None)
+    backup_msg_id = getattr(post, "backup_message_id", None)
     if backup_msg_id and Config.BACKUP_CHAT_ID:
         try:
             post_message = await message.bot.copy_message(
@@ -191,18 +187,20 @@ async def answer_story(message: types.Message, state: FSMContext, from_edit: boo
                 from_chat_id=Config.BACKUP_CHAT_ID,
                 message_id=backup_msg_id,
                 reply_markup=reply_markup,
-                parse_mode='HTML'
+                parse_mode="HTML",
             )
-            logger.info(f"Превью для сторис {post.id} загружено из бэкапа (msg {backup_msg_id})")
+            logger.info(
+                f"Превью для сторис {post.id} загружено из бэкапа (msg {backup_msg_id})"
+            )
             return post_message
         except Exception as e:
-            logger.error(f"Не удалось загрузить превью из бэкапа для сторис {post.id}: {e}", exc_info=True)
+            logger.error(
+                f"Не удалось загрузить превью из бэкапа для сторис {post.id}: {e}",
+                exc_info=True,
+            )
             # Возврат к локальной генерации
 
-    post_message = await cor(
-        **story_options.model_dump(),
-        reply_markup=reply_markup
-    )
+    post_message = await cor(**story_options.model_dump(), reply_markup=reply_markup)
 
     return post_message
 
@@ -210,7 +208,7 @@ async def answer_story(message: types.Message, state: FSMContext, from_edit: boo
 async def answer_message_bot(
     bot: Bot,
     chat_id: int,
-    message_options: Union[MessageOptionsHello, MessageOptionsCaptcha]
+    message_options: Union[MessageOptionsHello, MessageOptionsCaptcha],
 ) -> Optional[types.Message]:
     """
     Отправляет сообщение через бота в указанный чат.
@@ -239,9 +237,12 @@ async def answer_message_bot(
     # Ищем file_id медиафайла
     attrs = ["photo", "video", "animation"]
     file_id = next(
-        (getattr(message_options, attr).file_id for attr in attrs
-         if getattr(message_options, attr)),
-        None
+        (
+            getattr(message_options, attr).file_id
+            for attr in attrs
+            if getattr(message_options, attr)
+        ),
+        None,
     )
 
     # Скачиваем медиафайл если есть
@@ -261,8 +262,8 @@ async def answer_message_bot(
         return None
 
     dump = message_options.model_dump()
-    dump['chat_id'] = chat_id
-    dump['parse_mode'] = 'HTML'
+    dump["chat_id"] = chat_id
+    dump["parse_mode"] = "HTML"
 
     # Удаляем специфичные поля для капчи
     if isinstance(message_options, MessageOptionsCaptcha):
@@ -317,7 +318,10 @@ async def answer_message_bot(
     return post_message
 
 
-async def answer_message(message: types.Message, message_options: Union[MessageOptionsHello, MessageOptionsCaptcha]) -> types.Message:
+async def answer_message(
+    message: types.Message,
+    message_options: Union[MessageOptionsHello, MessageOptionsCaptcha],
+) -> types.Message:
     """
     Отвечает на сообщение пользователя с указанными опциями.
 
@@ -341,9 +345,6 @@ async def answer_message(message: types.Message, message_options: Union[MessageO
         cor = message.answer_animation
         message_options.animation = message_options.animation.file_id
 
-    post_message = await cor(
-        **message_options.model_dump(),
-        parse_mode='HTML'
-    )
+    post_message = await cor(**message_options.model_dump(), parse_mode="HTML")
 
     return post_message

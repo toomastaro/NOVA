@@ -30,6 +30,7 @@ class MtClientChannel(Base):
         last_error_code (str | None): Последняя ошибка при взаимодействии.
         last_error_at (int | None): Время последней ошибки.
     """
+
     __tablename__ = "mt_client_channels"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)

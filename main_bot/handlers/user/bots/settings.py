@@ -6,6 +6,7 @@
 - Получение токена и валидацию
 - Импорт/экспорт базы пользователей бота
 """
+
 import csv
 import logging
 import os
@@ -26,13 +27,14 @@ from main_bot.keyboards import keyboards
 from main_bot.utils.bot_manager import BotManager
 from main_bot.utils.functions import create_emoji
 from main_bot.utils.lang.language import text
-from main_bot.utils.error_handler import safe_handler
+from utils.error_handler import safe_handler
 
 logger = logging.getLogger(__name__)
 
 
 class DictObj:
     """Вспомогательный класс для преобразования ключей словаря в атрибуты."""
+
     def __init__(self, in_dict: Dict[str, Any]):
         for key, val in in_dict.items():
             setattr(self, key, val)
@@ -54,7 +56,9 @@ def ensure_bot_obj(bot: Union[UserBot, Dict[str, Any]]) -> Union[UserBot, DictOb
 
 
 @safe_handler("Bots Show Bot Manage")
-async def show_bot_manage(message: types.Message, user_bot: Union[UserBot, Dict[str, Any]]) -> None:
+async def show_bot_manage(
+    message: types.Message, user_bot: Union[UserBot, Dict[str, Any]]
+) -> None:
     """
     Отображение панели управления конкретным ботом.
     Показывает инфо о боте, статистику пользователей, каналы и статус.
@@ -102,7 +106,7 @@ async def show_bot_manage(message: types.Message, user_bot: Union[UserBot, Dict[
 async def choice(call: types.CallbackQuery, state: FSMContext) -> None:
     """
     Выбор бота для настройки или добавления нового.
-    
+
     Аргументы:
         call (types.CallbackQuery): Callback запрос.
         state (FSMContext): Контекст состояния.
@@ -146,7 +150,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext) -> None:
 async def cancel(call: types.CallbackQuery, state: FSMContext) -> None:
     """
     Отмена действия и возврат к списку ботов.
-    
+
     Аргументы:
         call (types.CallbackQuery): Callback запрос.
         state (FSMContext): Контекст состояния.
@@ -167,7 +171,7 @@ async def cancel(call: types.CallbackQuery, state: FSMContext) -> None:
 async def get_token(message: types.Message, state: FSMContext) -> None:
     """
     Обработка введенного токена бота.
-    Валидирует токен, проверяет существование, устанавливает вебхук 
+    Валидирует токен, проверяет существование, устанавливает вебхук
     и добавляет бота в систему.
 
     Аргументы:
@@ -543,7 +547,7 @@ async def choice_export(call: types.CallbackQuery, state: FSMContext) -> None:
     try:
         # Create directory if not exists
         os.makedirs(os.path.dirname(filepath), exist_ok=True)
-        
+
         if temp[1] in ["xlsx", "csv"]:
             # Для xlsx сначала пишем csv, потом конвертируем
             with open(filepath, "w", encoding="utf-8", newline="") as export_file:
@@ -558,7 +562,7 @@ async def choice_export(call: types.CallbackQuery, state: FSMContext) -> None:
                 # Меняем расширение на xlsx
                 filepath_xlsx = filepath.replace(".csv", ".xlsx")
                 csv_file.to_excel(filepath_xlsx, index=False, header=True)
-                os.remove(filepath) # Remove csv
+                os.remove(filepath)  # Remove csv
                 filepath = filepath_xlsx
         else:
             with open(filepath, "w", encoding="utf-8") as export_file:

@@ -35,17 +35,14 @@ class Inline(
     InlineAdmin,
 ):
     """Объединенный класс всех inline-клавиатур"""
+
     pass
 
 
 # Главный класс клавиатур (объединяет Reply и Inline + рекламные модули)
-class Keyboards(
-    Reply,
-    Inline,
-    InlineAdCreative,
-    InlineAdPurchase
-):
+class Keyboards(Reply, Inline, InlineAdCreative, InlineAdPurchase):
     """Главный класс клавиатур, объединяющий все типы клавиатур"""
+
     pass
 
 
@@ -56,29 +53,25 @@ keyboards = Keyboards()
 # Экспортируем все необходимые классы и экземпляр
 __all__ = [
     # Базовые утилиты
-    '_parse_button',
-    
+    "_parse_button",
     # Общие клавиатуры
-    'Reply',
-    'InlineCommon',
-    
+    "Reply",
+    "InlineCommon",
     # Тематические клавиатуры
-    'InlineExchangeRate',
-    'InlinePosting',
-    'InlineStories',
-    'InlineBots',
-    'InlineBotSetting',
-    'InlineProfile',
-    'InlineAdmin',
-    'InlineNovaStat',
-    'InlineAdCreative',
-    'InlineAdPurchase',
-    'InlineContent',
-    
+    "InlineExchangeRate",
+    "InlinePosting",
+    "InlineStories",
+    "InlineBots",
+    "InlineBotSetting",
+    "InlineProfile",
+    "InlineAdmin",
+    "InlineNovaStat",
+    "InlineAdCreative",
+    "InlineAdPurchase",
+    "InlineContent",
     # Объединенные классы
-    'Inline',
-    'Keyboards',
-    
+    "Inline",
+    "Keyboards",
     # Экземпляр для использования
-    'keyboards',
+    "keyboards",
 ]
