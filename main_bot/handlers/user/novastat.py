@@ -624,9 +624,9 @@ async def calculate_and_show_price(
     ).replace(".", ",")
 
     report += "\n👁️ <b>Ожидаемые просмотры:</b>\n"
-    report += f"├ 24 часа: {views[24]}\n"
-    report += f"├ 48 часов: {views[48]}\n"
-    report += f"└ 72 часа: {views[72]}\n\n"
+    report += f"├ 24 часа: {views.get(24) or views.get('24') or 0}\n"
+    report += f"├ 48 часов: {views.get(48) or views.get('48') or 0}\n"
+    report += f"└ 72 часа: {views.get(72) or views.get('72') or 0}\n\n"
 
     report += f"Дата расчёта: {date_str}"
 
