@@ -185,7 +185,8 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
         await state.update_data(chosen=chosen)
 
         # Переходим к вводу контента
-        await call.message.edit_text(
+        await call.message.delete()
+        await call.message.answer(
             text("input_message"), reply_markup=keyboards.cancel(data="InputPostCancel")
         )
         await state.set_state(Posting.input_message)
@@ -543,7 +544,8 @@ async def finish_params(call: types.CallbackQuery, state: FSMContext):
     # Выбор времени отправки
     if temp[1] == "send_time":
 
-        await call.message.edit_text(
+        await call.message.delete()
+        await call.message.answer(
             text("manage:post:new:send_time"),
             reply_markup=keyboards.back(data="BackSendTimePost"),
         )

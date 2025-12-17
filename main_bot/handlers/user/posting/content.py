@@ -774,7 +774,8 @@ async def manage_published_post(call: types.CallbackQuery, state: FSMContext):
 
     if temp[1] == "cancel":
         day = data.get("day")
-        posts = await db.post.get_posts(data.get("channel").chat_id, day)
+        channel_data = data.get("channel")
+        posts = await db.post.get_posts(channel_data["chat_id"], day)
 
         post_message = data.get("post_message")
         if isinstance(post_message, types.Message):
@@ -791,12 +792,12 @@ async def manage_published_post(call: types.CallbackQuery, state: FSMContext):
 
         # Возврат к списку контента
         days_with_posts = await get_days_with_posts(
-            data.get("channel").chat_id, day.year, day.month
+            channel_data["chat_id"], day.year, day.month
         )
 
         return await call.message.edit_text(
             text("channel:content").format(
-                data.get("channel").title,
+                channel_data["title"],
                 *data.get("day_values"),
                 (
                     text("no_content")
