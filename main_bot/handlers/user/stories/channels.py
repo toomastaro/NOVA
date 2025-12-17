@@ -82,10 +82,10 @@ async def render_channel_info(
 
         status_post = "✅" if can_post else "❌"
         status_story = "✅" if can_stories else "❌"
-        # Mailing depends on posting logic TBD
+        # Рассылка зависит от логики постинга (TBD)
         status_mail = "❌"
 
-        # Check welcome messages
+        # Проверка приветственных сообщений
         hello_msgs = await db.channel_bot_hello.get_hello_messages(
             channel.chat_id, active=True
         )
@@ -182,11 +182,11 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
             ),
         )
 
-    # Store channel_id to state or pass through callback
+    # Сохраняем channel_id в состояние или передаем через callback
     channel_id = int(temp[1])
     logger.info(f"Выбран канал сторис: {channel_id}")
 
-    # Store in FSM for refresh
+    # Сохраняем в FSM для обновления
     await state.update_data(current_channel_id=channel_id)
 
     await render_channel_info(call, state, channel_id)
@@ -250,7 +250,7 @@ async def manage_channel(call: types.CallbackQuery, state: FSMContext):
                 # Возвращаемся на экран информации о канале
                 return await render_channel_info(call, state, channel_id)
 
-        # Get client
+        # Получаем клиента
         if not client_row or not client_row[0].client:
             await call.answer("❌ Нет назначенного помощника", show_alert=True)
             return
@@ -265,19 +265,19 @@ async def manage_channel(call: types.CallbackQuery, state: FSMContext):
         await call.answer("⏳ Создаю ссылку и добавляю помощника...", show_alert=False)
 
         try:
-            # 1. Create Invite Link
+            # 1. Создаем ссылку приглашения
             invite = await call.bot.create_chat_invite_link(
                 chat_id=channel.chat_id,
                 name="Nova Assistant",
                 creates_join_request=False,
             )
 
-            # 2. Join process
+            # 2. Процесс вступления
             success = False
             async with SessionManager(session_path) as manager:
                 try:
                     success = await manager.join(invite.invite_link, max_attempts=5)
-                    # Update username if possible
+                    # Обновляем username, если возможно
                     me = await manager.me()
                     if me and me.username:
                         await db.mt_client.update_mt_client(
@@ -287,7 +287,7 @@ async def manage_channel(call: types.CallbackQuery, state: FSMContext):
                 except Exception as e:
                     logger.error(f"Join error: {e}")
 
-            # 3. Handle Result
+            # 3. Обработка результата
             if success:
                 import html
 
@@ -342,11 +342,11 @@ async def manage_channel(call: types.CallbackQuery, state: FSMContext):
 
         await call.answer("⏳ Проверяем права...", show_alert=False)
 
-        # 1. Get client
+        # 1. Получаем клиента
         client_row = await db.mt_client_channel.get_my_membership(channel.chat_id)
 
         if not client_row:
-            # Try assign
+            # Пытаемся назначить
             from main_bot.handlers.user.set_resource import set_channel_session
 
             await set_channel_session(channel.chat_id)
@@ -361,7 +361,7 @@ async def manage_channel(call: types.CallbackQuery, state: FSMContext):
             await call.answer("❌ Ошибка клиента", show_alert=True)
             return
 
-        # 2. Check permissions
+        # 2. Проверяем права
         session_path = Path(mt_client.session_path)
         if not session_path.exists():
             await call.answer("❌ Ошибка сессии помощника", show_alert=True)
@@ -380,7 +380,7 @@ async def manage_channel(call: types.CallbackQuery, state: FSMContext):
             await call.answer(f"❌ {error_msg}", show_alert=True)
             return
 
-        # 3. Update DB
+        # 3. Обновляем БД
         is_admin = perms.get("is_admin", False)
         can_stories = perms.get("can_post_stories", False)
 
@@ -399,7 +399,7 @@ async def manage_channel(call: types.CallbackQuery, state: FSMContext):
             preferred_for_stats=client_row[0].preferred_for_stats,
         )
 
-        # 4. Refresh view
+        # 4. Обновляем вид
         await render_channel_info(call, state, channel_id)
 
         if is_admin and (can_stories or not perms.get("can_post_stories")):

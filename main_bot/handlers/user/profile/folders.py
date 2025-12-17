@@ -60,8 +60,8 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
     await call.message.delete()
 
     if temp[1] == 'create':
-        # Direct flow for creating channel collection
-        # Start with inputting name
+        # Прямой поток создания коллекции каналов
+        # Начинаем с ввода названия
         await call.message.answer(
             text('input_folder_name'),
             reply_markup=keyboards.back(
@@ -84,14 +84,13 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
     await show_manage_folder(call.message, state)
 
 
-# Deprecated/Removed choice_type handler logic, but keeping function signature if needed or removing it. 
-# Since we removed the call to it in `choice`, we can remove it or leave it as dead code for now.
-# Better to remove it to clean up.
+# Устаревшая логика выбора типа, но оставляем сигнатуру или удаляем
+# Лучше удалить для чистоты, но пока оставляем как заглушку
 
 @safe_handler("Folders Choice Type")
 async def choice_type(call: types.CallbackQuery, state: FSMContext, user: User):
     """Заглушка для выбора типа папки (устаревшее)."""
-    # This handler is no longer used in the new flow
+    # Этот хендлер больше не используется в новом потоке
     pass
 
 
@@ -104,7 +103,7 @@ async def choice_object(call: types.CallbackQuery, state: FSMContext, user: User
         await call.answer(text('keys_data_error'))
         return await call.message.delete()
 
-    # Always channels
+    # Всегда каналы
     cor = db.channel.get_user_channels
     object_type = 'channels'
     chosen: list = data.get('chosen')
@@ -114,7 +113,7 @@ async def choice_object(call: types.CallbackQuery, state: FSMContext, user: User
         await call.message.delete()
 
         if not folder_edit:
-            # Cancel creation -> go back to settings
+            # Отмена создания -> назад к настройкам
             return await call.message.answer(
                 text('start_profile_text'),
                 reply_markup=keyboards.profile_menu(),
@@ -147,17 +146,13 @@ async def choice_object(call: types.CallbackQuery, state: FSMContext, user: User
         )
 
     if temp[1] == 'next_step':
-        # If editing, save content. If creating, we are done (since name is already input)
-        # Wait, original flow was Name -> Content.
-        # New flow: Name -> Content -> Save?
-        # The user said: "After creating collection immediately propose content management".
-        # So: Input Name -> Save Folder (empty) -> Manage Folder -> Content.
-        # But here we are in choice_object.
-        # If we are here, it means we are selecting content.
+        # Если редактирование - сохраняем контент. Если создание, мы закончили (так как имя уже введено).
+        # Но подождите, оригинальный поток был Имя -> Контент.
+        # Новый поток: Имя -> Контент -> Сохранить?
+        # Ввод имени -> Сохранить папку (пустую) -> Управление папкой -> Контент.
         
         if not folder_edit:
-            # This block shouldn't be reached if we follow "Name -> Save -> Manage" flow strictly.
-            # But if we want "Name -> Content -> Save", then:
+            # Этот блок не должен быть достигнут, если строго следовать потоку "Имя -> Сохранить -> Управление".
             pass
         else:
             await db.user_folder.update_folder(
@@ -169,17 +164,17 @@ async def choice_object(call: types.CallbackQuery, state: FSMContext, user: User
         return
 
     if temp[1] == 'choice_all':
-        # objects are Channels, they have chat_id
+        # objects это каналы, у них есть chat_id
         current_ids = [i.chat_id for i in objects]
         if len(current_ids) == len(chosen):
             chosen.clear()
         else:
-            # Add all that are not in chosen
+            # Добавляем все, которых нет в chosen
             for i in objects:
                 if i.chat_id not in chosen:
                     chosen.append(i.chat_id)
 
-    if temp[1].lstrip('-').isdigit(): # chat_id can be negative
+    if temp[1].lstrip('-').isdigit(): # chat_id может быть отрицательным
         resource_id = int(temp[1])
         if resource_id in chosen:
             chosen.remove(resource_id)
@@ -219,11 +214,11 @@ async def cancel(call: types.CallbackQuery, state: FSMContext, user: User):
     
     folder_edit = data.get('folder_edit')
     if folder_edit:
-        # Restore folder_id
+        # Восстанавливаем folder_id
         await state.update_data(folder_id=data.get('folder_id'))
         await show_manage_folder(call.message, state)
     else:
-        # Cancel creation -> back to settings
+        # Отмена создания -> назад в настройки
         await call.message.answer(
             text('start_profile_text'),
             reply_markup=keyboards.profile_menu(),
@@ -250,7 +245,7 @@ async def get_folder_name(message: types.Message, state: FSMContext, user: User)
     folder_edit = data.get('folder_edit')
 
     if not folder_edit:
-        # Creating new folder
+        # Создание новой папки
         await db.user_folder.add_folder(
             user_id=user.id,
             title=title,
