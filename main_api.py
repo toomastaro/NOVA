@@ -129,7 +129,7 @@ async def health_check():
 
 
 @app.post("/webhook/main")
-@safe_handler("API: webhook main — приём update")
+@safe_handler("API: webhook main — приём update", log_start=False)
 async def main_update(request: Request):
     """
     Обработчик вебхуков для основного бота.

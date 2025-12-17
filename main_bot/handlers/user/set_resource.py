@@ -192,7 +192,7 @@ async def set_channel(call: types.ChatMemberUpdated) -> None:
     )
 
 
-@safe_handler("Set Admin")
+@safe_handler("Set Admin", log_start=False)
 async def set_admin(call: types.ChatMemberUpdated) -> None:
     """
     Обработчик изменения прав участников канала.
