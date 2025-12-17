@@ -1,8 +1,17 @@
+"""
+Модуль настройки приветственных сообщений.
+
+Реализует:
+- Управление несколькими приветствиями (список, добавление, удаление)
+- Настройку задержки, текста с именем, активности
+- Редактирование контента и кнопок приветствия
+"""
+import logging
+
 from aiogram import types, F, Router
 from aiogram.fsm.context import FSMContext
 
 from hello_bot.database.db import Database
-
 from main_bot.database.db import db
 from main_bot.handlers.user.bots.bot_settings.menu import (
     show_channel_setting,
@@ -17,14 +26,19 @@ from main_bot.utils.schemas import (
 )
 from main_bot.utils.functions import answer_message
 from main_bot.utils.error_handler import safe_handler
-import logging
 
 logger = logging.getLogger(__name__)
 
 
 @safe_handler("Bots Show Manage Hello Message")
-async def show_manage_hello_message(message: types.Message, state: FSMContext):
-    """Отображение меню управления приветственным сообщением."""
+async def show_manage_hello_message(message: types.Message, state: FSMContext) -> None:
+    """
+    Показывает меню управления конкретным приветственным сообщением.
+
+    Аргументы:
+        message (types.Message): Сообщение для ответа.
+        state (FSMContext): Контекст состояния.
+    """
     data = await state.get_data()
 
     hello_message = await db.channel_bot_hello.get_hello_message(
@@ -37,20 +51,29 @@ async def show_manage_hello_message(message: types.Message, state: FSMContext):
 
 
 @safe_handler("Bots Hello Choice")
-async def choice(call: types.CallbackQuery, state: FSMContext, db_obj: Database):
-    """Выбор приветственного сообщения для настройки."""
+async def choice(call: types.CallbackQuery, state: FSMContext, db_obj: Database) -> None:
+    """
+    Выбор приветственного сообщения из списка или создание нового.
+
+    Аргументы:
+        call (types.CallbackQuery): Callback запрос.
+        state (FSMContext): Контекст состояния.
+        db_obj (Database): БД бота.
+    """
     temp = call.data.split("|")
     await call.message.delete()
 
     if temp[1] == "cancel":
-        return await show_channel_setting(call.message, db_obj, state)
+        await show_channel_setting(call.message, db_obj, state)
+        return
 
     if temp[1] == "add":
         await call.message.answer(
             text("input_hello_message"),
             reply_markup=keyboards.back(data="AddHelloBack"),
         )
-        return await state.set_state(Hello.message)
+        await state.set_state(Hello.message)
+        return
 
     hello_message_id = int(temp[1])
     await state.update_data(idx=temp[2], hello_message_id=hello_message_id)
@@ -59,8 +82,14 @@ async def choice(call: types.CallbackQuery, state: FSMContext, db_obj: Database)
 
 
 @safe_handler("Bots Manage Hello Message")
-async def manage_hello_message(call: types.CallbackQuery, state: FSMContext):
-    """Управление настройками приветственного сообщения (вкл/выкл, задержка)."""
+async def manage_hello_message(call: types.CallbackQuery, state: FSMContext) -> None:
+    """
+    Управление настройками приветствия (активность, задержка, удаление).
+
+    Аргументы:
+        call (types.CallbackQuery): Callback запрос.
+        state (FSMContext): Контекст состояния.
+    """
     temp = call.data.split("|")
     data = await state.get_data()
 
@@ -73,7 +102,8 @@ async def manage_hello_message(call: types.CallbackQuery, state: FSMContext):
         cs = await db.channel_bot_settings.get_channel_bot_setting(data.get("chat_id"))
 
         await call.message.delete()
-        return await show_hello(call.message, cs)
+        await show_hello(call.message, cs)
+        return
 
     hello_message = await db.channel_bot_hello.get_hello_message(
         message_id=data.get("hello_message_id")
@@ -88,6 +118,7 @@ async def manage_hello_message(call: types.CallbackQuery, state: FSMContext):
 
         await call.message.delete()
         await show_manage_hello_message(call.message, state)
+        return
 
     if temp[1] == "delay":
         await call.message.delete()
@@ -97,6 +128,7 @@ async def manage_hello_message(call: types.CallbackQuery, state: FSMContext):
                 current=hello_message.delay
             ),
         )
+        return
 
     if temp[1] == "text_with_name":
         hello_message = await db.channel_bot_hello.get_hello_message(
@@ -110,6 +142,7 @@ async def manage_hello_message(call: types.CallbackQuery, state: FSMContext):
 
         await call.message.delete()
         await show_manage_hello_message(call.message, state)
+        return
 
     if temp[1] == "change":
         await call.message.delete()
@@ -125,8 +158,14 @@ async def manage_hello_message(call: types.CallbackQuery, state: FSMContext):
 
 
 @safe_handler("Bots Manage Hello Message Post")
-async def manage_hello_message_post(call: types.CallbackQuery, state: FSMContext):
-    """Редактирование поста приветствия (кнопки, текст)."""
+async def manage_hello_message_post(call: types.CallbackQuery, state: FSMContext) -> None:
+    """
+    Редактирование поста приветственного сообщения (изменение текста/кнопок).
+
+    Аргументы:
+        call (types.CallbackQuery): Callback запрос.
+        state (FSMContext): Контекст состояния.
+    """
     temp = call.data.split("|")
     data = await state.get_data()
 
@@ -135,7 +174,8 @@ async def manage_hello_message_post(call: types.CallbackQuery, state: FSMContext
         await call.bot.delete_message(call.from_user.id, data.get("post_id"))
 
         await call.message.delete()
-        return await show_manage_hello_message(call.message, state)
+        await show_manage_hello_message(call.message, state)
+        return
 
     await call.message.delete()
 
@@ -144,25 +184,33 @@ async def manage_hello_message_post(call: types.CallbackQuery, state: FSMContext
             text("manage:post:new:buttons"),
             reply_markup=keyboards.back(data="AddHelloBack"),
         )
-        return await state.set_state(Hello.buttons)
+        await state.set_state(Hello.buttons)
+        return
 
     if temp[1] == "message":
         await call.message.answer(
             text("input_hello_message"),
             reply_markup=keyboards.back(data="AddHelloBack"),
         )
-        return await state.set_state(Hello.message)
+        await state.set_state(Hello.message)
 
 
 @safe_handler("Bots Choice Hello Message Delay")
-async def choice_hello_message_delay(call: types.CallbackQuery, state: FSMContext):
-    """Выбор задержки приветственного сообщения."""
+async def choice_hello_message_delay(call: types.CallbackQuery, state: FSMContext) -> None:
+    """
+    Выбор задержки отправки приветствия.
+
+    Аргументы:
+        call (types.CallbackQuery): Callback запрос.
+        state (FSMContext): Контекст состояния.
+    """
     temp = call.data.split("|")
     data = await state.get_data()
 
     if temp[1] == "cancel":
         await call.message.delete()
-        return await show_manage_hello_message(call.message, state)
+        await show_manage_hello_message(call.message, state)
+        return
 
     delay = int(temp[1])
     hello_message = await db.channel_bot_hello.update_hello_message(
@@ -177,8 +225,14 @@ async def choice_hello_message_delay(call: types.CallbackQuery, state: FSMContex
 
 
 @safe_handler("Bots Hello Back")
-async def back(call: types.CallbackQuery, state: FSMContext):
-    """Возврат в меню приветствий."""
+async def back(call: types.CallbackQuery, state: FSMContext) -> None:
+    """
+    Возврат в меню приветствий из подменю.
+    
+    Аргументы:
+        call (types.CallbackQuery): Callback запрос.
+        state (FSMContext): Контекст состояния.
+    """
     data = await state.get_data()
     await state.clear()
     await state.update_data(**data)
@@ -191,15 +245,23 @@ async def back(call: types.CallbackQuery, state: FSMContext):
         )
     else:
         cs = await db.channel_bot_settings.get_channel_bot_setting(data.get("chat_id"))
-        return await show_hello(call.message, cs)
+        await show_hello(call.message, cs)
 
 
 @safe_handler("Bots Hello Get Message")
-async def get_message(message: types.Message, state: FSMContext):
-    """Обработка ввода приветственного сообщения."""
+async def get_message(message: types.Message, state: FSMContext) -> None:
+    """
+    Обработка ввода сообщения приветствия.
+    Сохраняет контент сообщения (текст, медиа).
+
+    Аргументы:
+        message (types.Message): Сообщение от пользователя.
+        state (FSMContext): Контекст состояния.
+    """
     message_text_length = len(message.caption or message.text or "")
     if message_text_length > 1024:
-        return await message.answer(text("error_length_text"))
+        await message.answer(text("error_length_text"))
+        return
 
     dump_message = message.model_dump()
     if dump_message.get("photo"):
@@ -228,7 +290,7 @@ async def get_message(message: types.Message, state: FSMContext):
         await state.clear()
         await state.update_data(post_id=post_id.message_id, **data)
 
-        return await message.answer(
+        await message.answer(
             text("edit_hello"), reply_markup=keyboards.manage_hello_message_post()
         )
 
@@ -242,25 +304,33 @@ async def get_message(message: types.Message, state: FSMContext):
         await state.update_data(hello_message_id=next_id)
         data = await state.get_data()
 
-    await state.clear()
-    await state.update_data(**data)
+        await state.clear()
+        await state.update_data(**data)
 
-    await message.answer(text("success_add_hello"))
+        await message.answer(text("success_add_hello"))
 
-    cs = await db.channel_bot_settings.get_channel_bot_setting(data.get("chat_id"))
-    await show_hello(message, cs)
+        cs = await db.channel_bot_settings.get_channel_bot_setting(data.get("chat_id"))
+        await show_hello(message, cs)
 
 
 @safe_handler("Bots Hello Get Buttons")
-async def get_buttons(message: types.Message, state: FSMContext):
-    """Обработка ввода кнопок для приветствия."""
+async def get_buttons(message: types.Message, state: FSMContext) -> None:
+    """
+    Обработка кнопок для приветствия.
+    Парсит и сохраняет клавиатуру.
+
+    Аргументы:
+        message (types.Message): Сообщение с кнопками.
+        state (FSMContext): Контекст состояния.
+    """
     try:
         reply_markup = keyboards.hello_kb(message.text)
         r = await message.answer("...", reply_markup=reply_markup)
         await r.delete()
     except Exception as e:
         logger.error(f"Error parsing buttons: {e}", exc_info=True)
-        return await message.answer(text("error_input"))
+        await message.answer(text("error_input"))
+        return
 
     data = await state.get_data()
     hello_obj = await db.channel_bot_hello.get_hello_message(
@@ -286,7 +356,13 @@ async def get_buttons(message: types.Message, state: FSMContext):
     )
 
 
-def get_router():
+def get_router() -> Router:
+    """
+    Регистрация роутеров модуля приветствий.
+
+    Возвращает:
+        Router: Роутер с зарегистрированными хендлерами.
+    """
     router = Router()
     router.callback_query.register(choice, F.data.split("|")[0] == "ChoiceHelloMessage")
     router.callback_query.register(

@@ -1,3 +1,14 @@
+"""
+Модуль клонирования настроек бота между каналами.
+
+Реализует:
+- Выбор целевых каналов для клонирования
+- Выбор настроек для копирования (автоприем, капча, приветствие, прощание)
+- Процесс клонирования настроек
+"""
+import logging
+from typing import List
+
 from aiogram import types, F, Router
 from aiogram.fsm.context import FSMContext
 
@@ -7,7 +18,6 @@ from main_bot.handlers.user.bots.bot_settings.menu import show_channel_setting
 from main_bot.utils.lang.language import text
 from main_bot.keyboards import keyboards
 from main_bot.utils.error_handler import safe_handler
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -15,8 +25,15 @@ logger = logging.getLogger(__name__)
 @safe_handler("Bots Cloner Choice Channel")
 async def choice_channel(
     call: types.CallbackQuery, state: FSMContext, db_obj: Database
-):
-    """Выбор канала для клонирования настроек."""
+) -> None:
+    """
+    Выбор канала-цели для клонирования настроек текущего канала.
+    
+    Аргументы:
+        call (types.CallbackQuery): Callback запрос.
+        state (FSMContext): Контекст состояния.
+        db_obj (Database): БД бота.
+    """
     temp = call.data.split("|")
     data = await state.get_data()
 
@@ -31,27 +48,31 @@ async def choice_channel(
     ]
 
     if temp[1] in ["next", "back"]:
-        return await call.message.edit_reply_markup(
+        await call.message.edit_reply_markup(
             reply_markup=keyboards.choice_channel_for_cloner(
                 channels=channels, chosen=chosen, remover=int(temp[2])
             )
         )
+        return
 
     if temp[1] == "cancel":
         await call.message.delete()
-        return await show_channel_setting(call.message, db_obj, state)
+        await show_channel_setting(call.message, db_obj, state)
+        return
 
     if temp[1] == "next_step":
         if not chosen:
-            return await call.answer("Выберите минимум 1 ресурс!")
+            await call.answer("Выберите минимум 1 ресурс!")
+            return
 
         await state.update_data(chosen_settings=[])
 
         await call.message.delete()
-        return await call.message.answer(
+        await call.message.answer(
             text("choice_setting"),
             reply_markup=keyboards.choice_cloner_setting(chosen=[]),
         )
+        return
 
     if temp[1] == "choice_all":
         if len(chosen) == len(channels):
@@ -70,14 +91,22 @@ async def choice_channel(
 
     await state.update_data(chosen=chosen)
 
-    return await call.message.edit_reply_markup(
+    await call.message.edit_reply_markup(
         reply_markup=keyboards.choice_channel_for_cloner(
             channels=channels, chosen=chosen, remover=int(temp[2])
         )
     )
 
 
-async def start_clone(settings: list[int], chat_ids: list[int], current_chat: int):
+async def start_clone(settings: List[int], chat_ids: List[int], current_chat: int) -> None:
+    """
+    Выполняет клонирование выбранных настроек из текущего канала в целевые.
+    
+    Аргументы:
+        settings (List[int]): Список ID выбранных настроек.
+        chat_ids (List[int]): Список ID целевых каналов.
+        current_chat (int): ID исходного канала.
+    """
     channel = await db.channel_bot_settings.get_channel_bot_setting(
         chat_id=current_chat
     )
@@ -85,7 +114,7 @@ async def start_clone(settings: list[int], chat_ids: list[int], current_chat: in
     captcha_list = await db.channel_bot_captcha.get_all_captcha(chat_id=channel.id)
 
     # application / bye
-    if 0 or 3 in settings:
+    if 0 in settings or 3 in settings:
         kwargs = {}
 
         if 0 in settings:
@@ -135,8 +164,15 @@ async def start_clone(settings: list[int], chat_ids: list[int], current_chat: in
 
 
 @safe_handler("Bots Cloner Choice")
-async def choice(call: types.CallbackQuery, state: FSMContext, db_obj: Database):
-    """Меню выбора настроек для клонирования."""
+async def choice(call: types.CallbackQuery, state: FSMContext, db_obj: Database) -> None:
+    """
+    Меню выбора конкретных настроек для клонирования (галочки).
+    
+    Аргументы:
+        call (types.CallbackQuery): Callback запрос.
+        state (FSMContext): Контекст состояния.
+        db_obj (Database): БД бота.
+    """
     data = await state.get_data()
     temp = call.data.split("|")
 
@@ -154,23 +190,26 @@ async def choice(call: types.CallbackQuery, state: FSMContext, db_obj: Database)
         ]
 
         await call.message.delete()
-        return await call.message.answer(
+        await call.message.answer(
             text("cloner"),
             reply_markup=keyboards.choice_channel_for_cloner(
                 channels=channels, chosen=chosen
             ),
         )
+        return
 
     if temp[1] == "clone":
         if not chosen_settings:
-            return await call.answer("Выберите минимум 1 настройку!")
+            await call.answer("Выберите минимум 1 настройку!")
+            return
 
         await start_clone(chosen_settings, chosen, data.get("chat_id"))
 
         await call.message.delete()
         await call.message.answer(text("success_clone"))
 
-        return await show_channel_setting(call.message, db_obj, state)
+        await show_channel_setting(call.message, db_obj, state)
+        return
 
     setting_key = int(temp[1])
     if setting_key in chosen_settings:
@@ -185,7 +224,13 @@ async def choice(call: types.CallbackQuery, state: FSMContext, db_obj: Database)
     )
 
 
-def get_router():
+def get_router() -> Router:
+    """
+    Регистрация роутеров модуля клонировани.
+
+    Возвращает:
+        Router: Роутер с зарегистрированными хендлерами.
+    """
     router = Router()
     router.callback_query.register(
         choice_channel, F.data.split("|")[0] == "ChoiceClonerTarget"

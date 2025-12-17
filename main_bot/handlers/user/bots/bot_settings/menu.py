@@ -1,3 +1,13 @@
+"""
+Модуль меню настроек бота для канала.
+
+Реализует:
+- Главное меню настроек канала
+- Навигацию по разделам настроек (автоприем, капча, приветствие, и т.д.)
+- Отображение статусов настроек
+"""
+import logging
+
 from aiogram import types, F, Router
 from aiogram.fsm.context import FSMContext
 
@@ -9,7 +19,6 @@ from main_bot.utils.lang.language import text
 from main_bot.keyboards import keyboards
 from main_bot.utils.schemas import HelloAnswer, ByeAnswer
 from main_bot.utils.error_handler import safe_handler
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -17,8 +26,16 @@ logger = logging.getLogger(__name__)
 @safe_handler("Bots Show Channel Setting")
 async def show_channel_setting(
     message: types.Message, db_obj: Database, state: FSMContext
-):
-    """Отображение настроек конкретного канала (статистика и меню)."""
+) -> None:
+    """
+    Отображение меню настроек конкретного канала.
+    Показывает статистику и кнопки управления модулями.
+
+    Аргументы:
+        message (types.Message): Сообщение для ответа.
+        db_obj (Database): БД бота.
+        state (FSMContext): Контекст состояния.
+    """
     data = await state.get_data()
 
     channel = await db.channel.get_channel_by_chat_id(chat_id=data.get("chat_id"))
@@ -42,8 +59,15 @@ async def show_channel_setting(
 @safe_handler("Bots Setting Choice Channel")
 async def choice_channel(
     call: types.CallbackQuery, state: FSMContext, db_obj: Database
-):
-    """Выбор канала для настройки."""
+) -> None:
+    """
+    Обработка выбора канала для перехода к настройкам.
+    
+    Аргументы:
+        call (types.CallbackQuery): Callback запрос.
+        state (FSMContext): Контекст состояния.
+        db_obj (Database): БД бота.
+    """
     temp = call.data.split("|")
     data = await state.get_data()
 
@@ -56,26 +80,35 @@ async def choice_channel(
             for chat in channel_ids_in_bot
         ]
 
-        return await call.message.edit_reply_markup(
+        await call.message.edit_reply_markup(
             reply_markup=keyboards.choice_channel_for_setting(
                 channels=channels, remover=int(temp[2])
             )
         )
+        return
 
     await call.message.delete()
 
     if temp[1] == "cancel":
-        return await show_bot_manage(
+        await show_bot_manage(
             message=call.message, user_bot=data.get("user_bot")
         )
+        return
 
     await state.update_data(chat_id=int(temp[1]))
     await show_channel_setting(call.message, db_obj, state)
 
 
 @safe_handler("Bots Setting Choice")
-async def choice(call: types.CallbackQuery, state: FSMContext, db_obj: Database):
-    """Главное меню выбора настроек (приветствия, капча и т.д.)."""
+async def choice(call: types.CallbackQuery, state: FSMContext, db_obj: Database) -> None:
+    """
+    Маршрутизация по разделам настроек (Автоприем, Капча, Приветствие и т.д.).
+
+    Аргументы:
+        call (types.CallbackQuery): Callback запрос.
+        state (FSMContext): Контекст состояния.
+        db_obj (Database): БД бота.
+    """
     data = await state.get_data()
     await state.clear()
     await state.update_data(**data)
@@ -89,13 +122,14 @@ async def choice(call: types.CallbackQuery, state: FSMContext, db_obj: Database)
             channels = await db.channel.get_user_channels(
                 call.from_user.id, from_array=[i.id for i in channels_raw]
             )
-            return await call.message.edit_text(
+            await call.message.edit_text(
                 text("privetka_text"),
                 reply_markup=keyboards.choice_channel_for_setting(
                     channels=channels, data="PrivetkaChannel"
                 ),
                 parse_mode="HTML",
             )
+            return
 
         channel_ids_in_bot = await db.channel_bot_settings.get_all_channels_in_bot_id(
             bot_id=data.get("bot_id")
@@ -104,13 +138,15 @@ async def choice(call: types.CallbackQuery, state: FSMContext, db_obj: Database)
             await db.channel.get_channel_by_chat_id(chat.id)
             for chat in channel_ids_in_bot
         ]
-        return await call.message.edit_reply_markup(
+        await call.message.edit_reply_markup(
             reply_markup=keyboards.choice_channel_for_setting(channels=channels)
         )
+        return
 
     if temp[1] == "update":
         await call.message.delete()
-        return await show_channel_setting(call.message, db_obj, state)
+        await show_channel_setting(call.message, db_obj, state)
+        return
 
     channel_setting = await db.channel_bot_settings.get_channel_bot_setting(
         chat_id=data.get("chat_id")
@@ -140,8 +176,15 @@ async def choice(call: types.CallbackQuery, state: FSMContext, db_obj: Database)
 @safe_handler("Bots Show Application")
 async def show_application(
     message: types.Message, setting: ChannelBotSetting, db_obj: Database
-):
-    """Меню настроек автоприема."""
+) -> None:
+    """
+    Показывает меню автоприема заявок.
+    
+    Аргументы:
+        message (types.Message): Сообщение для ответа.
+        setting (ChannelBotSetting): Настройки канала.
+        db_obj (Database): БД бота.
+    """
     not_approve_count = await db_obj.get_count_not_approve_users(chat_id=setting.id)
 
     await message.answer(
@@ -157,8 +200,15 @@ async def show_application(
 @safe_handler("Bots Show Captcha")
 async def show_captcha(
     message: types.Message, setting: ChannelBotSetting, db_obj: Database
-):
-    """Меню настроек капчи."""
+) -> None:
+    """
+    Показывает меню капчи.
+    
+    Аргументы:
+        message (types.Message): Сообщение для ответа.
+        setting (ChannelBotSetting): Настройки канала.
+        db_obj (Database): БД бота.
+    """
     channel_captcha_list = await db.channel_bot_captcha.get_all_captcha(
         chat_id=setting.id
     )
@@ -174,8 +224,14 @@ async def show_captcha(
 
 
 @safe_handler("Bots Show Hello")
-async def show_hello(message: types.Message, setting: ChannelBotSetting):
-    """Меню настроек приветствий."""
+async def show_hello(message: types.Message, setting: ChannelBotSetting) -> None:
+    """
+    Показывает меню приветствий.
+    
+    Аргументы:
+        message (types.Message): Сообщение для ответа.
+        setting (ChannelBotSetting): Настройки канала.
+    """
     hello_messages = await db.channel_bot_hello.get_hello_messages(chat_id=setting.id)
 
     await message.answer(
@@ -194,8 +250,14 @@ async def show_hello(message: types.Message, setting: ChannelBotSetting):
 
 
 @safe_handler("Bots Show Bye")
-async def show_bye(message: types.Message, setting: ChannelBotSetting):
-    """Меню настроек прощания."""
+async def show_bye(message: types.Message, setting: ChannelBotSetting) -> None:
+    """
+    Показывает меню прощания.
+    
+    Аргументы:
+        message (types.Message): Сообщение для ответа.
+        setting (ChannelBotSetting): Настройки канала.
+    """
     hello = ByeAnswer(**setting.bye)
 
     await message.answer(
@@ -208,8 +270,14 @@ async def show_bye(message: types.Message, setting: ChannelBotSetting):
 
 
 @safe_handler("Bots Show Cloner")
-async def show_cloner(message: types.Message, state: FSMContext):
-    """Меню клонирования настроек."""
+async def show_cloner(message: types.Message, state: FSMContext) -> None:
+    """
+    Показывает меню клонирования настроек.
+    
+    Аргументы:
+        message (types.Message): Сообщение для ответа.
+        state (FSMContext): Контекст состояния.
+    """
     data = await state.get_data()
 
     channel_ids_in_bot = await db.channel_bot_settings.get_all_channels_in_bot_id(
@@ -230,12 +298,23 @@ async def show_cloner(message: types.Message, state: FSMContext):
 
 
 @safe_handler("Bots Show Cleaner")
-async def show_cleaner(message: types.Message):
-    """Меню очистки (чистки) участников."""
+async def show_cleaner(message: types.Message) -> None:
+    """
+    Показывает меню очистки участников.
+    
+    Аргументы:
+        message (types.Message): Сообщение для ответа.
+    """
     await message.answer(text("cleaner"), reply_markup=keyboards.choice_cleaner_type())
 
 
-def get_router():
+def get_router() -> Router:
+    """
+    Регистрация роутеров меню настроек.
+
+    Возвращает:
+        Router: Роутер с зарегистрированными хендлерами.
+    """
     router = Router()
     router.callback_query.register(
         choice_channel, F.data.split("|")[0] == "ChoiceBotSettingChannel"

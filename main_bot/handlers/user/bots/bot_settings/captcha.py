@@ -1,9 +1,19 @@
+"""
+Модуль настройки капчи.
+
+Реализует:
+- Управление вариантами капчи для канала
+- Настройку сообщения и задержки капчи
+- Редактирование кнопок и контента капчи
+- Включение/выключение активной капчи
+"""
+import logging
+
 from aiogram import types, F, Router
 from aiogram.fsm.context import FSMContext
 
 from hello_bot.database.db import Database
 from main_bot.database.channel_bot_settings.model import ChannelBotSetting
-
 from main_bot.database.db import db
 from main_bot.handlers.user.bots.bot_settings.menu import (
     show_channel_setting,
@@ -15,14 +25,19 @@ from main_bot.keyboards import keyboards
 from main_bot.utils.schemas import Media, MessageOptionsCaptcha
 from main_bot.utils.functions import answer_message
 from main_bot.utils.error_handler import safe_handler
-import logging
 
 logger = logging.getLogger(__name__)
 
 
 @safe_handler("Bots Show Manage Captcha")
-async def show_manage_captcha(message: types.Message, state: FSMContext):
-    """Отображение меню управления капчей."""
+async def show_manage_captcha(message: types.Message, state: FSMContext) -> None:
+    """
+    Отображение меню управления конкретной капчей.
+    
+    Аргументы:
+        message (types.Message): Сообщение для ответа.
+        state (FSMContext): Контекст состояния.
+    """
     data = await state.get_data()
     captcha = await db.channel_bot_captcha.get_captcha(
         message_id=data.get("captcha_id")
@@ -39,8 +54,17 @@ async def choice(
     state: FSMContext,
     db_obj: Database,
     channel_settings: ChannelBotSetting,
-):
-    """Выбор капчи для настройки или добавления."""
+) -> None:
+    """
+    Выбор капчи из списка или создание новой.
+    Также позволяет выбрать активную капчу для канала.
+
+    Аргументы:
+        call (types.CallbackQuery): Callback запрос.
+        state (FSMContext): Контекст состояния.
+        db_obj (Database): БД бота.
+        channel_settings (ChannelBotSetting): Настройки канала.
+    """
     temp = call.data.split("|")
     data = await state.get_data()
     await call.message.delete()
@@ -49,23 +73,26 @@ async def choice(
         channel_captcha_list = await db.channel_bot_captcha.get_all_captcha(
             chat_id=channel_settings.id
         )
-        return await call.message.edit_reply_markup(
+        await call.message.edit_reply_markup(
             reply_markup=keyboards.choice_channel_captcha(
                 channel_captcha_list=channel_captcha_list,
                 active_captcha=channel_settings.active_captcha_id,
                 remover=int(temp[2]),
             )
         )
+        return
 
     if temp[1] == "cancel":
-        return await show_channel_setting(call.message, db_obj, state)
+        await show_channel_setting(call.message, db_obj, state)
+        return
 
     if temp[1] == "add":
         await call.message.answer(
             text("input_captcha_message"),
             reply_markup=keyboards.back(data="AddCaptchaBack"),
         )
-        return await state.set_state(Captcha.message)
+        await state.set_state(Captcha.message)
+        return
 
     captcha_id = int(temp[2])
     await state.update_data(captcha_id=captcha_id)
@@ -81,7 +108,8 @@ async def choice(
             chat_id=data.get("chat_id"),
         )
 
-        return await show_captcha(call.message, channel_settings, db_obj)
+        await show_captcha(call.message, channel_settings, db_obj)
+        return
 
     if temp[1] == "change":
         await show_manage_captcha(call.message, state)
@@ -90,8 +118,15 @@ async def choice(
 @safe_handler("Bots Manage Hello Message")
 async def manage_hello_message(
     call: types.CallbackQuery, state: FSMContext, db_obj: Database
-):
-    """Действия с приветственным сообщением капчи."""
+) -> None:
+    """
+    Управление сообщением капчи (удаление, задержка, изменение).
+
+    Аргументы:
+        call (types.CallbackQuery): Callback запрос.
+        state (FSMContext): Контекст состояния.
+        db_obj (Database): БД бота.
+    """
     temp = call.data.split("|")
     data = await state.get_data()
 
@@ -102,7 +137,8 @@ async def manage_hello_message(
         cs = await db.channel_bot_settings.get_channel_bot_setting(data.get("chat_id"))
 
         await call.message.delete()
-        return await show_captcha(call.message, cs, db_obj)
+        await show_captcha(call.message, cs, db_obj)
+        return
 
     captcha = await db.channel_bot_captcha.get_captcha(
         message_id=data.get("captcha_id")
@@ -114,6 +150,7 @@ async def manage_hello_message(
             text("application:delay"),
             reply_markup=keyboards.choice_captcha_delay(current=captcha.delay),
         )
+        return
 
     if temp[1] == "change":
         await call.message.delete()
@@ -129,18 +166,29 @@ async def manage_hello_message(
 
 
 @safe_handler("Bots Manage Hello Message Post")
-async def manage_hello_message_post(call: types.CallbackQuery, state: FSMContext):
-    """Редактирование поста капчи (кнопки, превью)."""
+async def manage_hello_message_post(call: types.CallbackQuery, state: FSMContext) -> None:
+    """
+    Редактирование свойств поста капчи (кнопки, размер, текст).
+
+    Аргументы:
+        call (types.CallbackQuery): Callback запрос.
+        state (FSMContext): Контекст состояния.
+    """
     temp = call.data.split("|")
     data = await state.get_data()
 
     if temp[1] == "cancel":
         await state.update_data(is_edit=None)
-        await call.bot.delete_message(call.from_user.id, data.get("post_id"))
+        try:
+            await call.bot.delete_message(call.from_user.id, data.get("post_id"))
+        except Exception:
+            pass
+            
         await call.message.answer("✅ Меню возвращено", reply_markup=keyboards.menu())
 
         await call.message.delete()
-        return await show_manage_captcha(call.message, state)
+        await show_manage_captcha(call.message, state)
+        return
 
     if temp[1] == "reply_buttons":
         await call.message.delete()
@@ -148,7 +196,8 @@ async def manage_hello_message_post(call: types.CallbackQuery, state: FSMContext
             text("manage:captcha:new:buttons"),
             reply_markup=keyboards.back(data="AddCaptchaBack"),
         )
-        return await state.set_state(Captcha.buttons)
+        await state.set_state(Captcha.buttons)
+        return
 
     if temp[1] == "resize":
         captcha = await db.channel_bot_captcha.get_captcha(
@@ -157,7 +206,8 @@ async def manage_hello_message_post(call: types.CallbackQuery, state: FSMContext
 
         message_obj = MessageOptionsCaptcha(**captcha.message)
         if not message_obj.reply_markup:
-            return await call.answer("Сначала добавьте кнопки!")
+            await call.answer("Сначала добавьте кнопки!")
+            return
 
         message_obj.resize_markup = not message_obj.resize_markup
         message_obj.reply_markup = keyboards.captcha_kb(
@@ -172,7 +222,11 @@ async def manage_hello_message_post(call: types.CallbackQuery, state: FSMContext
             captcha_id=captcha.id, return_obj=True, message=message_obj.model_dump()
         )
 
-        await call.bot.delete_message(call.from_user.id, data.get("post_id"))
+        try:
+            await call.bot.delete_message(call.from_user.id, data.get("post_id"))
+        except Exception:
+            pass
+            
         post_id = await answer_message(call.message, message_obj)
 
         await state.update_data(post_id=post_id.message_id, is_edit=True)
@@ -184,6 +238,7 @@ async def manage_hello_message_post(call: types.CallbackQuery, state: FSMContext
                 resize=message_obj.resize_markup
             ),
         )
+        return
 
     if temp[1] == "message":
         await call.message.delete()
@@ -191,18 +246,25 @@ async def manage_hello_message_post(call: types.CallbackQuery, state: FSMContext
             text("input_captcha_message"),
             reply_markup=keyboards.back(data="AddCaptchaBack"),
         )
-        return await state.set_state(Captcha.message)
+        await state.set_state(Captcha.message)
 
 
 @safe_handler("Bots Choice Hello Message Delay")
-async def choice_hello_message_delay(call: types.CallbackQuery, state: FSMContext):
-    """Выбор задержки капчи."""
+async def choice_hello_message_delay(call: types.CallbackQuery, state: FSMContext) -> None:
+    """
+    Выбор задержки капчи.
+
+    Аргументы:
+        call (types.CallbackQuery): Callback запрос.
+        state (FSMContext): Контекст состояния.
+    """
     temp = call.data.split("|")
     data = await state.get_data()
 
     if temp[1] == "cancel":
         await call.message.delete()
-        return await show_manage_captcha(call.message, state)
+        await show_manage_captcha(call.message, state)
+        return
 
     delay = int(temp[1])
     captcha = await db.channel_bot_captcha.update_captcha(
@@ -217,8 +279,15 @@ async def choice_hello_message_delay(call: types.CallbackQuery, state: FSMContex
 
 
 @safe_handler("Bots Captcha Back")
-async def back(call: types.CallbackQuery, state: FSMContext, db_obj: Database):
-    """Возврат в меню капчи."""
+async def back(call: types.CallbackQuery, state: FSMContext, db_obj: Database) -> None:
+    """
+    Возврат в меню капчи из подменю.
+
+    Аргументы:
+        call (types.CallbackQuery): Callback запрос.
+        state (FSMContext): Контекст состояния.
+        db_obj (Database): БД бота.
+    """
     data = await state.get_data()
     await state.clear()
     await state.update_data(**data)
@@ -239,15 +308,24 @@ async def back(call: types.CallbackQuery, state: FSMContext, db_obj: Database):
         )
     else:
         cs = await db.channel_bot_settings.get_channel_bot_setting(data.get("chat_id"))
-        return await show_captcha(call.message, cs, db_obj)
+        await show_captcha(call.message, cs, db_obj)
 
 
 @safe_handler("Bots Captcha Get Message")
-async def get_message(message: types.Message, state: FSMContext, db_obj: Database):
-    """Обработка ввода сообщения капчи."""
+async def get_message(message: types.Message, state: FSMContext, db_obj: Database) -> None:
+    """
+    Обработка ввода сообщения капчи.
+    Сохраняет новое сообщение или обновляет существующее.
+
+    Аргументы:
+        message (types.Message): Сообщение пользователя.
+        state (FSMContext): Контекст состояния.
+        db_obj (Database): БД бота.
+    """
     message_text_length = len(message.caption or message.text or "")
     if message_text_length > 1024:
-        return await message.answer(text("error_length_text"))
+        await message.answer(text("error_length_text"))
+        return
 
     dump_message = message.model_dump()
     if dump_message.get("photo"):
@@ -269,14 +347,18 @@ async def get_message(message: types.Message, state: FSMContext, db_obj: Databas
             captcha_id=data.get("captcha_id"), message=message_options.model_dump()
         )
 
-        await message.bot.delete_message(message.from_user.id, data.get("post_id"))
+        try:
+            await message.bot.delete_message(message.from_user.id, data.get("post_id"))
+        except Exception:
+            pass
+            
         post_id = await answer_message(message, message_options)
 
         data.pop("post_id")
         await state.clear()
         await state.update_data(post_id=post_id.message_id, **data)
 
-        return await message.answer(
+        await message.answer(
             text("edit_hello"),
             reply_markup=keyboards.manage_captcha_post(
                 resize=message_options.resize_markup
@@ -289,18 +371,25 @@ async def get_message(message: types.Message, state: FSMContext, db_obj: Databas
         )
         data = await state.get_data()
 
-    await state.clear()
-    await state.update_data(**data)
+        await state.clear()
+        await state.update_data(**data)
 
-    await message.answer(text("success_add_captcha"))
+        await message.answer(text("success_add_captcha"))
 
-    cs = await db.channel_bot_settings.get_channel_bot_setting(data.get("chat_id"))
-    await show_captcha(message, cs, db_obj)
+        cs = await db.channel_bot_settings.get_channel_bot_setting(data.get("chat_id"))
+        await show_captcha(message, cs, db_obj)
 
 
 @safe_handler("Bots Captcha Get Buttons")
-async def get_buttons(message: types.Message, state: FSMContext):
-    """Обработка ввода кнопок для капчи."""
+async def get_buttons(message: types.Message, state: FSMContext) -> None:
+    """
+    Обработка ввода кнопок для капчи.
+    Обновляет клавиатуру сообщения капчи.
+
+    Аргументы:
+        message (types.Message): Сообщение с кнопками.
+        state (FSMContext): Контекст состояния.
+    """
     data = await state.get_data()
     hello_obj = await db.channel_bot_captcha.get_captcha(
         message_id=data.get("captcha_id")
@@ -314,7 +403,8 @@ async def get_buttons(message: types.Message, state: FSMContext):
         await r.delete()
     except Exception as e:
         logger.error(f"Error parsing buttons: {e}", exc_info=True)
-        return await message.answer(text("error_input"))
+        await message.answer(text("error_input"))
+        return
 
     hello_message = MessageOptionsCaptcha(**hello_obj.message)
     hello_message.reply_markup = reply_markup
@@ -323,7 +413,11 @@ async def get_buttons(message: types.Message, state: FSMContext):
         captcha_id=hello_obj.id, message=hello_message.model_dump()
     )
 
-    await message.bot.delete_message(message.from_user.id, data.get("post_id"))
+    try:
+        await message.bot.delete_message(message.from_user.id, data.get("post_id"))
+    except Exception:
+        pass
+        
     post_id = await answer_message(message, hello_message)
 
     data.pop("post_id")
@@ -336,7 +430,13 @@ async def get_buttons(message: types.Message, state: FSMContext):
     )
 
 
-def get_router():
+def get_router() -> Router:
+    """
+    Регистрация роутеров модуля капчи.
+
+    Возвращает:
+        Router: Роутер с зарегистрированными хендлерами.
+    """
     router = Router()
     router.callback_query.register(choice, F.data.split("|")[0] == "ChoiceCaptcha")
     router.callback_query.register(

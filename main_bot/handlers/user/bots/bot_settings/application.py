@@ -1,5 +1,15 @@
+"""
+Модуль настроек автоприема заявок.
+
+Реализует:
+- Включение/отключение автоприема
+- Настройку задержки одобрения
+- Ручное одобрение заявок (всех, части, по ссылке)
+"""
 import asyncio
+import logging
 import time
+from typing import Any, List
 
 from aiogram import types, F, Router
 from aiogram.fsm.context import FSMContext
@@ -17,7 +27,6 @@ from main_bot.utils.bot_manager import BotManager
 from main_bot.utils.lang.language import text
 from main_bot.keyboards import keyboards
 from main_bot.utils.error_handler import safe_handler
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -28,17 +37,28 @@ async def choice(
     state: FSMContext,
     db_obj: Database,
     channel_settings: ChannelBotSetting,
-):
-    """Настройки автоприема заявок."""
+) -> None:
+    """
+    Обработчик меню настроек автоприема.
+    Позволяет включить автоприем, настроить задержку или перейти к ручному одобрению.
+
+    Аргументы:
+        call (types.CallbackQuery): Callback запрос.
+        state (FSMContext): Контекст состояния.
+        db_obj (Database): Объект базы данных бота.
+        channel_settings (ChannelBotSetting): Настройки канала.
+    """
     temp = call.data.split("|")
 
     if temp[1] == "...":
-        return await call.answer()
+        await call.answer()
+        return
 
     await call.message.delete()
 
     if temp[1] == "cancel":
-        return await show_channel_setting(call.message, db_obj, state)
+        await show_channel_setting(call.message, db_obj, state)
+        return
 
     if temp[1] == "auto_approve":
         await db.channel_bot_settings.update_channel_bot_setting(
@@ -47,7 +67,8 @@ async def choice(
         channel_settings = await db.channel_bot_settings.get_channel_bot_setting(
             chat_id=channel_settings.id
         )
-        return await show_application(call.message, channel_settings, db_obj)
+        await show_application(call.message, channel_settings, db_obj)
+        return
 
     if temp[1] == "delay":
         await call.message.answer(
@@ -56,6 +77,7 @@ async def choice(
                 current=channel_settings.delay_approve
             ),
         )
+        return
 
     if temp[1] == "manual_approve":
         not_approve_count = await db_obj.get_count_not_approve_users(
@@ -70,22 +92,37 @@ async def choice(
 @safe_handler("Bots Application Back")
 async def back(
     call: types.CallbackQuery, channel_settings: ChannelBotSetting, db_obj: Database
-):
-    """Возврат в меню автоприема."""
+) -> None:
+    """
+    Возврат в меню автоприема из подменю.
+    
+    Аргументы:
+        call (types.CallbackQuery): Callback запрос.
+        channel_settings (ChannelBotSetting): Настройки канала.
+        db_obj (Database): Объект базы данных бота.
+    """
     await call.message.delete()
-    return await show_application(call.message, channel_settings, db_obj)
+    await show_application(call.message, channel_settings, db_obj)
 
 
 @safe_handler("Bots Application Delay Choice")
 async def choice_application_delay(
     call: types.CallbackQuery, db_obj: Database, channel_settings: ChannelBotSetting
-):
-    """Выбор задержки одобрения заявки."""
+) -> None:
+    """
+    Выбор задержки одобрения заявки.
+    
+    Аргументы:
+        call (types.CallbackQuery): Callback запрос.
+        db_obj (Database): Объект базы данных бота.
+        channel_settings (ChannelBotSetting): Настройки канала.
+    """
     temp = call.data.split("|")
     await call.message.delete()
 
     if temp[1] == "cancel":
-        return await show_application(call.message, channel_settings, db_obj)
+        await show_application(call.message, channel_settings, db_obj)
+        return
 
     delay_approve = int(temp[1])
 
@@ -103,7 +140,16 @@ async def choice_application_delay(
     )
 
 
-async def approve(user_bot: UserBot, chat_id: int, users, db_obj: Database):
+async def approve(user_bot: UserBot, chat_id: int, users: List[Any], db_obj: Database) -> None:
+    """
+    Асинхронная задача одобрения заявок.
+    
+    Аргументы:
+        user_bot (UserBot): Бот, от имени которого одобряем.
+        chat_id (int): ID канала.
+        users (List[Any]): Список пользователей для одобрения.
+        db_obj (Database): Объект базы данных бота.
+    """
     async with BotManager(token=user_bot.token) as manager:
         if not manager.bot:
             return
@@ -127,14 +173,24 @@ async def choice_manual_approve(
     db_obj: Database,
     db_bot: UserBot,
     channel_settings: ChannelBotSetting,
-):
-    """Ручное одобрение заявок."""
+) -> None:
+    """
+    Меню выбора режима ручного одобрения (все, часть, по ссылке).
+
+    Аргументы:
+        call (types.CallbackQuery): Callback запрос.
+        state (FSMContext): Контекст состояния.
+        db_obj (Database): БД бота.
+        db_bot (UserBot): Объект бота.
+        channel_settings (ChannelBotSetting): Настройки канала.
+    """
     temp = call.data.split("|")
     data = await state.get_data()
 
     if temp[1] == "cancel":
         await call.message.delete()
-        return await show_application(call.message, channel_settings, db_obj)
+        await show_application(call.message, channel_settings, db_obj)
+        return
 
     not_approve_users = await db_obj.get_not_approve_users_by_chat_id(
         chat_id=data.get("chat_id")
@@ -149,6 +205,7 @@ async def choice_manual_approve(
 
         await call.message.delete()
         await show_application(call.message, channel_settings, db_obj)
+        return
 
     if temp[1] == "part":
         await call.message.delete()
@@ -157,6 +214,7 @@ async def choice_manual_approve(
             reply_markup=keyboards.back(data="InputApproveCountBack"),
         )
         await state.set_state(Application.part)
+        return
 
     if temp[1] == "invite_url":
         invite_urls = await db_obj.get_invite_urls(data.get("chat_id"))
@@ -174,8 +232,14 @@ async def input_back(
     state: FSMContext,
     db_obj: Database,
     channel_settings: ChannelBotSetting,
-):
-    """Возврат из ввода количества заявок."""
+) -> None:
+    """
+    Возврат из ввода количества заявок к выбору режима одобрения.
+    
+    Аргументы:
+        call (types.CallbackQuery): Callback запрос.
+        state (FSMContext): Контекст состояния.
+    """
     data = await state.get_data()
     await state.clear()
     await state.update_data(**data)
@@ -198,8 +262,14 @@ async def get_count_part(
     db_obj: Database,
     db_bot: UserBot,
     channel_settings: ChannelBotSetting,
-):
-    """Обработка ввода количества заявок для одобрения."""
+) -> None:
+    """
+    Обработка ввода количества заявок для частичного одобрения.
+
+    Аргументы:
+        message (types.Message): Сообщение пользователя.
+        state (FSMContext): Контекст состояния.
+    """
     data = await state.get_data()
 
     try:
@@ -208,7 +278,8 @@ async def get_count_part(
             raise ValueError()
 
     except ValueError:
-        return await message.answer(text("error_input"))
+        await message.answer(text("error_input"))
+        return
 
     await state.clear()
     await state.update_data(**data)
@@ -230,8 +301,14 @@ async def choice_invite_url(
     db_obj: Database,
     db_bot: UserBot,
     channel_settings: ChannelBotSetting,
-):
-    """Одобрение по конкретной пригласительной ссылке."""
+) -> None:
+    """
+    Запуск одобрения заявок для конкретной пригласительной ссылки.
+    
+    Аргументы:
+        call (types.CallbackQuery): Callback запрос.
+        state (FSMContext): Контекст состояния.
+    """
     temp = call.data.split("|")
     data = await state.get_data()
 
@@ -241,10 +318,11 @@ async def choice_invite_url(
         )
 
         await call.message.delete()
-        return await call.message.answer(
+        await call.message.answer(
             text("application:manual_approve").format(not_approve_count),
             reply_markup=keyboards.choice_manual_approve(),
         )
+        return
 
     not_approve_users = await db_obj.get_not_approve_users_by_chat_id(
         chat_id=channel_settings.id, invite_url=temp[1]
@@ -257,7 +335,13 @@ async def choice_invite_url(
     await show_application(call.message, channel_settings, db_obj)
 
 
-def get_router():
+def get_router() -> Router:
+    """
+    Регистрация роутеров модуля заявок.
+
+    Возвращает:
+        Router: Роутер с зарегистрированными хендлерами.
+    """
     router = Router()
     router.callback_query.register(choice, F.data.split("|")[0] == "ManageApplication")
     router.callback_query.register(back, F.data.split("|")[0] == "AddDelayBack")

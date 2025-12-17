@@ -1,5 +1,15 @@
+"""
+Модуль очистки подписчиков или заявок.
+
+Реализует:
+- Выбор типа очистки (бан или отклонение заявок)
+- Указание временного периода для очистки
+- Асинхронный процесс очистки
+"""
 import asyncio
+import logging
 from datetime import datetime
+from typing import Any, List
 
 from aiogram import types, F, Router
 from aiogram.fsm.context import FSMContext
@@ -12,19 +22,26 @@ from main_bot.utils.bot_manager import BotManager
 from main_bot.utils.lang.language import text
 from main_bot.keyboards import keyboards
 from main_bot.utils.error_handler import safe_handler
-import logging
 
 logger = logging.getLogger(__name__)
 
 
 @safe_handler("Bots Cleaner Choice")
-async def choice(call: types.CallbackQuery, state: FSMContext, db_obj: Database):
-    """Выбор типа очистки (удаление/бан)."""
+async def choice(call: types.CallbackQuery, state: FSMContext, db_obj: Database) -> None:
+    """
+    Выбор типа очистки.
+    
+    Аргументы:
+        call (types.CallbackQuery): Callback запрос.
+        state (FSMContext): Контекст состояния.
+        db_obj (Database): БД бота.
+    """
     temp = call.data.split("|")
 
     if temp[1] == "cancel":
         await call.message.delete()
-        return await show_channel_setting(call.message, db_obj, state)
+        await show_channel_setting(call.message, db_obj, state)
+        return
 
     await state.update_data(cleaner_type=temp[1])
 
@@ -37,8 +54,14 @@ async def choice(call: types.CallbackQuery, state: FSMContext, db_obj: Database)
 
 
 @safe_handler("Bots Cleaner Back")
-async def back(call: types.CallbackQuery, state: FSMContext):
-    """Возврат в меню очистки."""
+async def back(call: types.CallbackQuery, state: FSMContext) -> None:
+    """
+    Возврат в меню очистки.
+    
+    Аргументы:
+        call (types.CallbackQuery): Callback запрос.
+        state (FSMContext): Контекст состояния.
+    """
     data = await state.get_data()
 
     await state.clear()
@@ -50,7 +73,16 @@ async def back(call: types.CallbackQuery, state: FSMContext):
     )
 
 
-async def start_clean(user_bot: UserBot, cleaner_type: str, users, chat_id: int):
+async def start_clean(user_bot: UserBot, cleaner_type: str, users: List[Any], chat_id: int) -> None:
+    """
+    Асинхронная задача очистки пользователей.
+    
+    Аргументы:
+        user_bot (UserBot): Бот, выполняющий очистку.
+        cleaner_type (str): Тип очистки ('ban' или отклонение заявок).
+        users (List[Any]): Список пользователей для очистки.
+        chat_id (int): ID канала.
+    """
     async with BotManager(user_bot.token) as manager:
         if not manager.bot:
             return
@@ -68,16 +100,26 @@ async def start_clean(user_bot: UserBot, cleaner_type: str, users, chat_id: int)
 
 
 @safe_handler("Bots Cleaner Get Period")
-async def get_period(message: types.Message, state: FSMContext, db_obj: Database):
-    """Обработка ввода периода очистки."""
+async def get_period(message: types.Message, state: FSMContext, db_obj: Database) -> None:
+    """
+    Обработка ввода периода очистки пользователем.
+    Запускает процесс очистки в фоне.
+
+    Аргументы:
+        message (types.Message): Сообщение с периодом.
+        state (FSMContext): Контекст состояния.
+        db_obj (Database): БД бота.
+    """
     try:
         start, end = message.text.split("-")
         start_date = datetime.strptime(start.strip(), "%d.%m.%Y %H:%M")
         end_date = datetime.strptime(end.strip(), "%d.%m.%Y %H:%M")
     except ValueError:
-        return await message.answer(text("error_input"))
+        await message.answer(text("error_input"))
+        return
 
     data = await state.get_data()
+    # Получаем пользователей по времени (participant=True для бана, False для заявок)
     users = await db_obj.get_time_users(
         chat_id=data.get("chat_id"),
         start_time=start_date.timestamp(),
@@ -98,7 +140,13 @@ async def get_period(message: types.Message, state: FSMContext, db_obj: Database
     await show_channel_setting(message, db_obj, state)
 
 
-def get_router():
+def get_router() -> Router:
+    """
+    Регистрация роутеров модуля очистки.
+
+    Возвращает:
+        Router: Роутер с зарегистрированными хендлерами.
+    """
     router = Router()
     router.callback_query.register(choice, F.data.split("|")[0] == "ChoiceCleanerType")
     router.callback_query.register(back, F.data.split("|")[0] == "InputCleanerPeriod")
