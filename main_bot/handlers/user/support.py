@@ -6,6 +6,8 @@
 - Пересылку сообщений админу
 - Ответ администратора пользователю через reply
 """
+import logging
+
 from aiogram import types, Router, F
 from aiogram.fsm.context import FSMContext
 
@@ -13,15 +15,20 @@ from config import Config
 from main_bot.keyboards import keyboards
 from main_bot.states.user import Support
 from main_bot.utils.lang.language import text
-import logging
 from main_bot.utils.error_handler import safe_handler
 
 logger = logging.getLogger(__name__)
 
 
 @safe_handler("Support Back")
-async def support_back(call: types.CallbackQuery, state: FSMContext):
-    """Возврат из меню поддержки в профиль."""
+async def support_back(call: types.CallbackQuery, state: FSMContext) -> None:
+    """
+    Возврат из меню поддержки в профиль.
+
+    Аргументы:
+        call (types.CallbackQuery): Callback запрос.
+        state (FSMContext): Контекст состояния.
+    """
     await state.clear()
 
     await call.message.delete()
@@ -35,10 +42,14 @@ async def support_back(call: types.CallbackQuery, state: FSMContext):
 
 
 @safe_handler("Get User Message")
-async def get_user_message(message: types.Message, state: FSMContext):
+async def get_user_message(message: types.Message, state: FSMContext) -> None:
     """
     Принимает сообщение от пользователя и отправляет его админу поддержки.
     Поддерживает текст и фото.
+
+    Аргументы:
+        message (types.Message): Сообщение пользователя.
+        state (FSMContext): Контекст состояния.
     """
     if message.photo:
         await message.bot.send_photo(
@@ -69,10 +80,14 @@ async def get_user_message(message: types.Message, state: FSMContext):
 
 
 @safe_handler("Get Support Message")
-async def get_support_message(message: types.Message):
+async def get_support_message(message: types.Message) -> None:
     """
     Обработчик ответа администратора пользователю.
     Работает через reply на сообщение, пересланное от пользователя.
+    Ожидает ID пользователя в определенном формате в тексте исходного сообщения.
+
+    Аргументы:
+        message (types.Message): Сообщение администратора.
     """
     try:
         # ВНИМАНИЕ: Парсинг ID зависит от формата сообщения в user_support_msg ("ID: 12345")
@@ -83,7 +98,7 @@ async def get_support_message(message: types.Message):
             else message.reply_to_message.text.split("ID: ")[1]
         )
     except Exception:
-        logger.error("Ошибка парсинга ID пользователя из сообщения поддержки")
+        logger.error("Ошибка парсинга ID пользователя из сообщения поддержки", exc_info=True)
         return
 
     # Импортируем Reply клавиатуру для главного меню
@@ -104,8 +119,13 @@ async def get_support_message(message: types.Message):
         )
 
 
-def get_router():
-    """Регистрация роутеров поддержки."""
+def get_router() -> Router:
+    """
+    Регистрация роутеров поддержки.
+
+    Возвращает:
+        Router: Роутер с зарегистрированными хендлерами.
+    """
     router = Router()
     router.message.register(get_user_message, Support.message, F.text | F.photo)
     router.message.register(

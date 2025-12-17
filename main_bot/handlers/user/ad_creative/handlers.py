@@ -1,11 +1,19 @@
 """
 Модуль обработчиков для управления рекламными креативами.
+
 Позволяет создавать, просматривать и удалять креативы.
+Модуль обеспечивает:
+- Парсинг контента из сообщений для создания слотов
+- CRUD операции над креативами
+- Навигацию по списку креативов
 """
 import json
+from typing import List, Dict, Any
+
 from aiogram import Router, F, types
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, CallbackQuery
+from sqlalchemy import update
 
 from main_bot.database.db import db
 from main_bot.database.ad_creative.model import AdCreative
@@ -19,8 +27,15 @@ router = Router(name="AdCreative")
 
 @router.callback_query(F.data == "AdCreative|create")
 @safe_handler("Create Creative Start")
-async def create_creative_start(call: CallbackQuery, state: FSMContext):
-    """Начало создания креатива."""
+async def create_creative_start(call: CallbackQuery, state: FSMContext) -> None:
+    """
+    Начало процесса создания креатива.
+    Переводит пользователя в состояние ожидания контента.
+
+    Аргументы:
+        call (CallbackQuery): Callback запрос.
+        state (FSMContext): Контекст состояния.
+    """
     await call.message.edit_text(
         text('ad_creative:create_start_text'),
         reply_markup=InlineAdCreative.create_creative_cancel()
@@ -31,20 +46,26 @@ async def create_creative_start(call: CallbackQuery, state: FSMContext):
 
 @router.message(AdCreativeStates.waiting_for_content)
 @safe_handler("Process Creative Content")
-async def process_creative_content(message: Message, state: FSMContext):
-    """Обработка пересланного контента для создания креатива."""
+async def process_creative_content(message: Message, state: FSMContext) -> None:
+    """
+    Обработка пересланного контента для создания креатива.
+    Парсит сущности (ссылки, text_link) и кнопки из сообщения.
 
+    Аргументы:
+        message (Message): Сообщение с контентом.
+        state (FSMContext): Контекст состояния.
+    """
     raw_message = json.loads(message.model_dump_json(exclude_defaults=True))
-    
 
     if message.entities:
         raw_message['entities'] = [e.model_dump(mode='json') for e in message.entities]
     if message.caption_entities:
         raw_message['caption_entities'] = [e.model_dump(mode='json') for e in message.caption_entities]
-    slots = []
+    
+    slots: List[Dict[str, Any]] = []
     slot_index = 1
     
-    def add_slot(url, loc_type, meta):
+    def add_slot(url: str, loc_type: str, meta: Dict[str, Any]):
         nonlocal slot_index
         slots.append({
             "slot_index": slot_index,
@@ -109,8 +130,15 @@ async def process_creative_content(message: Message, state: FSMContext):
 
 @router.message(AdCreativeStates.waiting_for_name)
 @safe_handler("Process Creative Name")
-async def process_creative_name(message: Message, state: FSMContext):
-    """Обработка ввода имени креатива."""
+async def process_creative_name(message: Message, state: FSMContext) -> None:
+    """
+    Обработка ввода имени креатива.
+    Завершает создание креатива.
+
+    Аргументы:
+        message (Message): Сообщение с именем.
+        state (FSMContext): Контекст состояния.
+    """
     name = message.text.strip()
     if not name:
         await message.answer(text('ad_creative:empty_name'))
@@ -119,9 +147,6 @@ async def process_creative_name(message: Message, state: FSMContext):
     data = await state.get_data()
     creative_id = data.get("creative_id")
     
-
-    
-    from sqlalchemy import update
     query = update(AdCreative).where(AdCreative.id == creative_id).values(name=name)
     await db.execute(query)
     
@@ -134,10 +159,14 @@ async def process_creative_name(message: Message, state: FSMContext):
 
 @router.callback_query(F.data == "AdCreative|list")
 @safe_handler("List Creatives")
-async def list_creatives(call: CallbackQuery):
-    """Список креативов пользователя."""
-    creatives = await db.ad_creative.get_user_creatives(call.from_user.id)
+async def list_creatives(call: CallbackQuery) -> None:
+    """
+    Отображение списка креативов пользователя.
 
+    Аргументы:
+        call (CallbackQuery): Callback запрос.
+    """
+    creatives = await db.ad_creative.get_user_creatives(call.from_user.id)
     
     creatives_with_slots = []
     for c in creatives:
@@ -160,8 +189,14 @@ async def list_creatives(call: CallbackQuery):
 
 @router.callback_query(F.data == "AdCreative|cancel_creation")
 @safe_handler("Cancel Creative Creation")
-async def cancel_creation(call: CallbackQuery, state: FSMContext):
-    """Отмена создания креатива."""
+async def cancel_creation(call: CallbackQuery, state: FSMContext) -> None:
+    """
+    Отмена создания креатива.
+
+    Аргументы:
+        call (CallbackQuery): Callback запрос.
+        state (FSMContext): Контекст состояния.
+    """
     await state.clear()
     await call.message.edit_text(
         text('ad_creative:cancelled'),
@@ -171,8 +206,13 @@ async def cancel_creation(call: CallbackQuery, state: FSMContext):
 
 @router.callback_query(F.data.startswith("AdCreative|delete|"))
 @safe_handler("Delete Creative")
-async def delete_creative(call: CallbackQuery):
-    """Удаление креатива (Soft Delete)."""
+async def delete_creative(call: CallbackQuery) -> None:
+    """
+    Удаление креатива (Soft Delete - пометка удаленным).
+
+    Аргументы:
+        call (CallbackQuery): Callback запрос.
+    """
     creative_id = int(call.data.split("|")[2])
     await db.ad_creative.update_creative_status(creative_id, "deleted")
     await call.answer(text('ad_creative:deleted'))
@@ -180,7 +220,6 @@ async def delete_creative(call: CallbackQuery):
     # Check remaining
     creatives = await db.ad_creative.get_user_creatives(call.from_user.id)
     if not creatives:
-  
         await call.message.edit_text(
             text('ad_creative:menu_title'),
             reply_markup=InlineAdCreative.menu()
@@ -191,8 +230,13 @@ async def delete_creative(call: CallbackQuery):
 
 @router.callback_query(F.data.startswith("AdCreative|view|"))
 @safe_handler("View Creative")
-async def view_creative(call: CallbackQuery):
-    """Просмотр деталей креатива."""
+async def view_creative(call: CallbackQuery) -> None:
+    """
+    Просмотр подробной информации о креативе.
+
+    Аргументы:
+        call (CallbackQuery): Callback запрос.
+    """
     creative_id = int(call.data.split("|")[2])
     creative = await db.ad_creative.get_creative(creative_id)
     if not creative:
@@ -218,8 +262,13 @@ async def view_creative(call: CallbackQuery):
 
 @router.callback_query(F.data == "AdCreative|back")
 @safe_handler("Back To Ad Menu")
-async def back_to_menu(call: CallbackQuery):
-    """Возврат в меню закупки рекламы."""
+async def back_to_menu(call: CallbackQuery) -> None:
+    """
+    Возврат в меню закупки рекламы.
+
+    Аргументы:
+        call (CallbackQuery): Callback запрос.
+    """
     # Navigate back to Ad Buy Menu
     kb = types.InlineKeyboardMarkup(inline_keyboard=[
         [types.InlineKeyboardButton(text=text("btn_ad_creatives"), callback_data="AdBuyMenu|creatives")],
@@ -233,8 +282,13 @@ async def back_to_menu(call: CallbackQuery):
 
 @router.callback_query(F.data == "AdCreative|menu")
 @safe_handler("Ad Creative Menu")
-async def back_to_ad_menu(call: CallbackQuery):
-    """Возврат в главное меню креативов."""
+async def back_to_ad_menu(call: CallbackQuery) -> None:
+    """
+    Возврат в меню управления креативами.
+
+    Аргументы:
+        call (CallbackQuery): Callback запрос.
+    """
     await call.message.edit_text(
         text('ad_creative:menu_title'),
         reply_markup=InlineAdCreative.menu()
