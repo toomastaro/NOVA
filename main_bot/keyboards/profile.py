@@ -131,7 +131,7 @@ class InlineProfile(InlineKeyboardBuilder):
                     )
                 )
 
-        kb.adjust(2)
+        kb.adjust(1)
 
         if len(sub_objects) <= count_rows:
             pass
@@ -268,7 +268,7 @@ class InlineProfile(InlineKeyboardBuilder):
     @classmethod
     def folders(cls, folders: List[UserFolder], remover: int = 0):
         kb = cls()
-        count_rows = 6
+        count_rows = 7
 
         for a, idx in enumerate(range(remover, len(folders))):
             if a < count_rows:
@@ -279,7 +279,7 @@ class InlineProfile(InlineKeyboardBuilder):
                     )
                 )
 
-        kb.adjust(2)
+        kb.adjust(1)
 
         if len(folders) <= count_rows:
             pass
@@ -326,7 +326,7 @@ class InlineProfile(InlineKeyboardBuilder):
         cls, resources: List[Channel], chosen: List[int], remover: int = 0
     ):
         kb = cls()
-        count_rows = 6
+        count_rows = 7
 
         for a, idx in enumerate(range(remover, len(resources))):
             if a < count_rows:
@@ -339,7 +339,7 @@ class InlineProfile(InlineKeyboardBuilder):
                     )
                 )
 
-        kb.adjust(2)
+        kb.adjust(1)
 
         if len(resources) <= count_rows:
             pass
