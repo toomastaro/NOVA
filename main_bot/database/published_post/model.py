@@ -1,17 +1,47 @@
+"""
+Модель данных опубликованного поста.
+"""
+
 import time
 from typing import List, Optional
 
-from main_bot.database import Base
 from sqlalchemy import JSON, BigInteger
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import Mapped, mapped_column
+
+from main_bot.database import Base
 
 
 class PublishedPost(Base):
     """
     Модель опубликованного поста (хранит историю и статистику).
-    """
 
+    Атрибуты:
+        id (int): Уникальный ID записи (PK).
+        post_id (int): ID родительского поста (Post.id).
+        message_id (int): ID сообщения в канале Telegram.
+        chat_id (int): ID канала/чата.
+        admin_id (int): ID админа, опубликовавшего пост.
+        message_options (dict): Контент сообщения.
+        reaction (dict | None): Реакции.
+        hide (List[dict] | None): Скрытый контент.
+        buttons (str | None): Кнопки.
+        unpin_time (int | None): Время автоматического открепления.
+        delete_time (int | None): Время автоматического удаления.
+        report (bool): Включен ли отчет.
+        cpm_price (int | None): Цена CPM.
+        backup_chat_id (int | None): ID бэкап-канала.
+        backup_message_id (int | None): ID бэкап-сообщения.
+        created_timestamp (int): Время публикации.
+        status (str): Статус ('active' или 'deleted').
+        deleted_at (int | None): Время удаления.
+        views_24h (int | None): Просмотры через 24ч.
+        views_48h (int | None): Просмотры через 48ч.
+        views_72h (int | None): Просмотры через 72ч.
+        report_24h_sent (bool): Отчет 24ч отправлен.
+        report_48h_sent (bool): Отчет 48ч отправлен.
+        report_72h_sent (bool): Отчет 72ч отправлен.
+    """
     __tablename__ = "published_posts"
 
     # Основные данные
@@ -58,7 +88,6 @@ class PublishedPost(Base):
         default=None, comment="Время удаления"
     )
 
-    # Данные отчетов CPM (Views Reporting)
     # Данные отчетов CPM (Views Reporting)
     views_24h: Mapped[Optional[int]] = mapped_column(default=0)
     views_48h: Mapped[Optional[int]] = mapped_column(default=0)

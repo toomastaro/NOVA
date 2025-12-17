@@ -1,15 +1,43 @@
+"""
+Модель данных поста (планировщик).
+"""
+
 import time
 from typing import List, Optional
 
-from main_bot.database import Base
 from sqlalchemy import JSON, BigInteger
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import Mapped, mapped_column
+
+from main_bot.database import Base
 
 
 class Post(Base):
     """
     Модель поста (черновик или запланированный).
+
+    Атрибуты:
+        id (int): Уникальный ID поста (PK).
+        chat_ids (List[int]): Список ID чатов/каналов для публикации.
+        admin_id (int): ID админа, создавшего пост.
+        message_options (dict): Контент сообщения (текст, медиа, разметка).
+        buttons (str | None): JSON-строка с клавиатурой.
+        send_time (int | None): Время запланированной отправки (UNIX timestamp).
+        reaction (dict | None): Настройки реакций.
+        hide (List[dict] | None): Скрытый контент (спойлеры).
+        pin_time (int | None): Время закрепления в канале.
+        delete_time (int | None): Время автоудаления из канала.
+        report (bool): Включен ли отчет о просмотре (CPM).
+        cpm_price (int | None): Цена за просмотр (если это реклама).
+        backup_chat_id (int | None): ID чата для бэкапа (если удалили).
+        backup_message_id (int | None): ID сообщения в бэкапе.
+        views_24h (int | None): Просмотры за 24ч (для отчета).
+        views_48h (int | None): Просмотры за 48ч.
+        views_72h (int | None): Просмотры за 72ч.
+        report_24h_sent (bool): Отправлен ли отчет за 24ч.
+        report_48h_sent (bool): Отправлен ли отчет за 48ч.
+        report_72h_sent (bool): Отправлен ли отчет за 72ч.
+        created_timestamp (int): Время создания поста.
     """
 
     __tablename__ = "posts"

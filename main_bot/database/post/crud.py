@@ -1,23 +1,36 @@
+"""
+Модуль операций базы данных для управления постами.
+"""
+
 import logging
 import time
 from datetime import datetime
 from typing import List
 
+from sqlalchemy import delete, func, insert, select, update
+
 from main_bot.database import DatabaseMixin
 from main_bot.database.post.model import Post
 from main_bot.database.published_post.model import PublishedPost
-from sqlalchemy import delete, func, insert, select, update
 
 logger = logging.getLogger(__name__)
 
 
 class PostCrud(DatabaseMixin):
+    """
+    Класс для управления постами (черновики, запланированные, работа с историей).
+    """
+
     async def add_post(self, return_obj: bool = False, **kwargs) -> Post | None:
         """
         Добавляет новый пост в базу данных (черновик или запланированный).
-        :param return_obj: Если True, возвращает созданный объект Post.
-        :param kwargs: Поля модели Post.
-        :return: Объект Post или None.
+
+        Аргументы:
+            return_obj (bool): Если True, возвращает созданный объект Post.
+            **kwargs: Поля модели Post.
+
+        Возвращает:
+            Post | None: Объект Post или None.
         """
         stmt = insert(Post).values(**kwargs)
 
@@ -32,8 +45,12 @@ class PostCrud(DatabaseMixin):
     async def get_post(self, post_id: int) -> Post | None:
         """
         Получает пост по ID.
-        :param post_id: ID поста.
-        :return: Объект Post.
+
+        Аргументы:
+            post_id (int): ID поста.
+
+        Возвращает:
+            Post | None: Объект Post или None.
         """
         return await self.fetchrow(select(Post).where(Post.id == post_id))
 
@@ -42,10 +59,14 @@ class PostCrud(DatabaseMixin):
     ) -> Post | None:
         """
         Обновляет существующий пост.
-        :param post_id: ID поста.
-        :param return_obj: Возвращать ли обновленный объект.
-        :param kwargs: Поля для обновления.
-        :return: Обновленный Post или None.
+
+        Аргументы:
+            post_id (int): ID поста.
+            return_obj (bool): Возвращать ли обновленный объект.
+            **kwargs: Поля для обновления.
+
+        Возвращает:
+            Post | None: Обновленный Post или None.
         """
         stmt = update(Post).where(Post.id == post_id).values(**kwargs)
 
@@ -60,20 +81,23 @@ class PostCrud(DatabaseMixin):
     async def delete_post(self, post_id: int) -> None:
         """
         Удаляет пост по ID.
-        :param post_id: ID поста.
         """
-        logger.info(f"Deleting post {post_id}")
-        return await self.execute(delete(Post).where(Post.id == post_id))
+        logger.info(f"Удаление поста {post_id}")
+        await self.execute(delete(Post).where(Post.id == post_id))
 
     async def get_posts(
         self, chat_id: int, current_day: datetime = None, only_scheduled: bool = False
     ) -> List[Post | PublishedPost]:
         """
         Получает список постов (запланированных и опубликованных) для конкретного чата.
-        :param chat_id: ID канала/чата.
-        :param current_day: День для фильтрации (по умолчанию None - все).
-        :param only_scheduled: Если True, возвращает только запланированные (Post).
-        :return: Список постов, отсортированный по времени отправки.
+
+        Аргументы:
+            chat_id (int): ID канала/чата.
+            current_day (datetime): День для фильтрации (по умолчанию None - все).
+            only_scheduled (bool): Если True, возвращает только запланированные (Post).
+
+        Возвращает:
+            List[Post | PublishedPost]: Список постов, отсортированный по времени отправки.
         """
         # Запланированные посты (Post)
         stmt_posts = (
@@ -155,7 +179,9 @@ class PostCrud(DatabaseMixin):
     async def get_post_for_send(self) -> List[Post]:
         """
         Получает посты, готовые к отправке (время отправки наступило).
-        :return: Список постов для отправки.
+
+        Возвращает:
+            List[Post]: Список постов для отправки.
         """
         current_time = int(time.time())
 
@@ -170,7 +196,9 @@ class PostCrud(DatabaseMixin):
     async def clear_posts(self, post_ids: List[int]) -> None:
         """
         Удаляет список постов по их ID.
-        :param post_ids: Список ID постов.
+
+        Аргументы:
+            post_ids (List[int]): Список ID постов.
         """
-        logger.info(f"Clearing posts: {post_ids}")
+        logger.info(f"Массовое удаление постов: {post_ids}")
         await self.execute(delete(Post).where(Post.id.in_(post_ids)))
