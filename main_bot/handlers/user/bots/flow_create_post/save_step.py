@@ -1,12 +1,13 @@
 """
-Модуль подтверждения и сохранения поста для ботов.
+Модуль финального сохранения поста для ботов.
 
-Содержит логику:
-- Подтверждение публикации поста
-- Сохранение поста в БД с выбранными ботами и временем
+Реализует:
+- Подтверждение публикации (сразу или отложенно)
+- Обновление статуса поста в БД
+- Отправку черновика в канал бэкапа
 """
-
 import logging
+
 from aiogram import types
 from aiogram.fsm.context import FSMContext
 
@@ -16,7 +17,6 @@ from main_bot.database.db_types import Status
 from main_bot.utils.lang.language import text
 from main_bot.keyboards import keyboards
 from main_bot.states.user import Bots
-
 from main_bot.utils.error_handler import safe_handler
 from main_bot.utils.backup_utils import send_to_backup, edit_backup_message
 
@@ -24,26 +24,28 @@ logger = logging.getLogger(__name__)
 
 
 @safe_handler("Bots Accept")
-async def accept(call: types.CallbackQuery, state: FSMContext):
+async def accept(call: types.CallbackQuery, state: FSMContext) -> None:
     """
-    Confirms and saves the post for bots.
+    Финальное подтверждение создания поста.
+    Либо публикует сразу, либо планирует отправку, либо возвращает к редактированию.
 
-    Actions:
-    - cancel: returns to the previous step
-    - send_time: saves with delayed publication
-    - public: immediate publication
+    Аргументы:
+        call (types.CallbackQuery): Callback запрос.
+        state (FSMContext): Контекст состояния.
     """
     temp = call.data.split("|")
     data = await state.get_data()
     if not data:
         await call.answer(text("keys_data_error"))
-        return await call.message.delete()
+        await call.message.delete()
+        return
 
     post: BotPost = data.get("post")
 
     if not post:
         await call.answer(text("keys_data_error"))
-        return await call.message.delete()
+        await call.message.delete()
+        return
 
     chosen: list = data.get("chosen", post.chat_ids)
     send_time: int = data.get("send_time")
@@ -79,7 +81,8 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
             )
             reply_markup = keyboards.manage_remain_bot_post(post=data.get("post"))
 
-        return await call.message.edit_text(message_text, reply_markup=reply_markup)
+        await call.message.edit_text(message_text, reply_markup=reply_markup)
+        return
 
     # Обработка кнопки "Изменить дату/время"
     if temp[1] == "change_time":

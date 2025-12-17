@@ -70,7 +70,7 @@ async def process_ad_stats() -> None:
         AdPurchase.owner_id.in_(admin_ids),
         AdPurchase.status == "active"
     )
-    active_purchases = await db.fetch_all(query)
+    active_purchases = await db.fetch(query)
 
     if not active_purchases:
         return
