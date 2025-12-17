@@ -22,18 +22,36 @@ logger = logging.getLogger(__name__)
 async def show_ad_buy_menu(event: Union[types.Message, types.CallbackQuery]) -> None:
     """
     Показать меню закупов с рекламными креативами и закупами.
+    Требуется наличие хотя бы одного канала с активной подпиской.
 
     Аргументы:
         event (Union[types.Message, types.CallbackQuery]): Событие (сообщение или коллбек).
     """
+    # Импортируем для проверки подписки
+    from main_bot.database.db import db
+    from main_bot.utils.lang.language import text
+    
+    # Проверка наличия каналов с активной подпиской
+    user_id = event.from_user.id
+    channels = await db.channel.get_user_enabled_channels(user_id)
+    
+    if not channels:
+        error_text = text("error_no_subscription_ad_buy")
+        if isinstance(event, types.Message):
+            return await event.answer(error_text)
+        else:
+            return await event.answer(error_text, show_alert=True)
+    
+    # Показ меню закупов
+    menu_text = text("ad_buy_menu:title")
     if isinstance(event, types.Message):
         await event.answer(
-            "🛒 <b>Закуп</b>\n\nВыберите раздел:",
+            menu_text,
             reply_markup=InlineAdPurchase.ad_buy_main_menu(),
         )
     else:
         await event.message.edit_text(
-            "🛒 <b>Закуп</b>\n\nВыберите раздел:",
+            menu_text,
             reply_markup=InlineAdPurchase.ad_buy_main_menu(),
         )
 
