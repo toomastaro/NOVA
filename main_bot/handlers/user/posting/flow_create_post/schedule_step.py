@@ -75,7 +75,7 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
         if len(temp) > 2:
             view_mode = temp[2]
         else:
-            # Fallback (не должно происходить с новыми кнопками)
+            # Резервный вариант (не должно происходить с новыми кнопками)
             view_mode = "channels" if view_mode == "folders" else "folders"
 
         await set_user_view_mode(call.from_user.id, view_mode)
@@ -336,7 +336,6 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
                 )
                 return
             # Сбрасываем remover
-            temp = list(temp)
             if len(temp) > 2:
                 temp[2] = "0"
             else:
@@ -381,11 +380,11 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
     folder_title = ""
     if current_folder_id:
         try:
-            # Пытаемся найти папку в списке загруженных folders (если есть) или загружаем
-            # Но folders здесь может быть пустым списком если мы внутри папки (см логику выше).
+            # Попытка найти папку в списке загруженных folders (если есть) или загружаем
+            # Но folders здесь может быть пустым списком если мы внутри папки.
             # Лучше загрузить отдельно или найти эффективный способ.
-            # Выше мы уже делали get_folder_by_id(current_folder_id), но переменную folder не сохранили в scope для использования здесь.
-            # Повторный вызов get_folder_by_id - это cheap (db call), но лучше оптимизировать если возможно.
+            # Выше мы уже делали get_folder_by_id(current_folder_id), но переменную folder не сохранили в scope.
+            # Повторный вызов get_folder_by_id - это cheap (db call).
             # Однако, в блоке "if current_folder_id:" переменная folder локальна.
             
             # Загружаем для отображения названия

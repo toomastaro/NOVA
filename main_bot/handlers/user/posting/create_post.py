@@ -1,5 +1,5 @@
 """
-DEPRECATED: Этот файл сохранен для обратной совместимости.
+УСТАРЕЛО: Этот файл сохранен для обратной совместимости.
 
 Логика создания поста теперь находится в модуле flow_create_post.
 Используйте: from main_bot.handlers.user.posting.flow_create_post import get_router

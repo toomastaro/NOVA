@@ -51,13 +51,13 @@ def serialize_post(post):
         "views_24h": getattr(post, "views_24h", 0),
         "views_48h": getattr(post, "views_48h", 0),
         "views_72h": getattr(post, "views_72h", 0),
-        # Keyboard specific fields
+        # Поля клавиатуры
         "buttons": getattr(post, "buttons", None),
         "hide": getattr(post, "hide", None),
         "reaction": getattr(post, "reaction", None),
         "pin_time": getattr(post, "pin_time", None),
         "unpin_time": getattr(post, "unpin_time", None),
-        "report": getattr(post, "report", False),  # Assuming default False
+        "report": getattr(post, "report", False),  # По умолчанию False
         "is_published": isinstance(post, PublishedPost),
     }
     return data
@@ -185,11 +185,11 @@ async def generate_post_info_text(post_obj, is_published: bool = False) -> str:
             )
 
     else:
-        # Post (Scheduled or Deleted)
+        # Пост (Запланирован или Удален)
         status = getattr(post_obj, "status", "active")
 
         if status == "deleted":
-            # DELETED REPORT
+            # ОТЧЕТ ОБ УДАЛЕНИИ
             deleted_at = getattr(post_obj, "deleted_at", None)
             deleted_str = (
                 datetime.fromtimestamp(deleted_at).strftime("%d %B %Y г. в %H:%M")
@@ -214,7 +214,7 @@ async def generate_post_info_text(post_obj, is_published: bool = False) -> str:
             )
 
         else:
-            # SCHEDULED
+            # ЗАПЛАНИРОВАН
             date_str = datetime.fromtimestamp(post_obj.send_time).strftime(
                 "%d %B %Y г. в %H:%M"
             )
@@ -259,7 +259,7 @@ async def choice_channel(call: types.CallbackQuery, state: FSMContext):
         return await start_posting(call.message)
 
     chat_id = int(temp[1])
-    logger.info(f"User {call.from_user.id} selected channel {chat_id} for content view")
+    logger.info(f"Пользователь {call.from_user.id} выбрал канал {chat_id} для просмотра контента")
     channel = await db.channel.get_channel_by_chat_id(chat_id)
 
     day = datetime.today()
@@ -301,7 +301,7 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
     data = await state.get_data()
     if not data:
         logger.warning(
-            f"No state data found for user {call.from_user.id} in choice_row_content"
+            f"Нет данных состояния для пользователя {call.from_user.id} в choice_row_content"
         )
         await call.answer(text("keys_data_error"))
         return await call.message.delete()
@@ -385,13 +385,13 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
     if temp[1] == "...":
         return await call.answer()
 
-    # Handle PublishedPost
+    # Обработка PublishedPost
     if call.data.startswith("ContentPublishedPost"):
         post_id = int(temp[1])
-        logger.info(f"User {call.from_user.id} viewing published post {post_id}")
+        logger.info(f"Пользователь {call.from_user.id} просматривает опубликованный пост {post_id}")
         post = await db.published_post.get_published_post_by_id(post_id)
 
-        # Prepare date values matching the expected format
+        # Подготовка значений даты
         dt = datetime.fromtimestamp(post.created_timestamp)
         send_date_values = (
             dt.day,
@@ -444,9 +444,9 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
 
     await call.message.delete()
 
-    # New Text Generation
+    # Генерация нового текста
     info_text = await generate_post_info_text(post, is_published=False)
-
+    
     await call.message.answer(
         info_text, reply_markup=keyboards.manage_remain_post(post=post)
     )
@@ -522,7 +522,7 @@ async def manage_remain_post(call: types.CallbackQuery, state: FSMContext):
         post_message = data.get("post_message")
         if isinstance(post_message, types.Message):
             await post_message.delete()
-        elif post_message:  # Check if exists before using
+        elif post_message:  # Проверка существования перед использованием
             await call.bot.delete_message(
                 call.message.chat.id,
                 (
@@ -566,11 +566,12 @@ async def manage_remain_post(call: types.CallbackQuery, state: FSMContext):
         await call.message.delete()
         post_message = data.get("post_message")
 
-        # Need object for keyboard, data['post'] is dict now
-        # Keyboard likely expects object. Check keyboard later.
-        # Ideally we refactor keyboard too, or reconstruct object.
-        # Quick fix: pass dict, check keyboard.
+        post_message = data.get("post_message")
 
+        # Нужен объект для клавиатуры, data['post'] сейчас dict
+        # Клавиатура вероятно ожидает объект.
+        # Quick fix: передаем dict, проверяем клавиатуру.
+        
         reply_markup = keyboards.manage_post(
             post=data.get("post"), is_edit=data.get("is_edit")
         )
@@ -612,7 +613,7 @@ async def accept_delete_row_content(call: types.CallbackQuery, state: FSMContext
     post = data.get("post")
 
     if temp[1] == "cancel":
-        # New Text Generation
+        # Генерация нового текста
         info_text = await generate_post_info_text(
             post, is_published=data.get("is_published")
         )
@@ -723,17 +724,17 @@ async def manage_published_post(call: types.CallbackQuery, state: FSMContext):
         )
         channels_text = f"<blockquote expandable>{channels_text_inner}</blockquote>"
 
-        # Extract Text Preview
+        # Получение превью текста
         opts = post.message_options or {}
         raw_text = opts.get("text") or opts.get("caption") or "Без текста"
-        # Strip HTML tags to prevent broken tags in preview
+        # Очистка HTML тегов
         clean_text = re.sub(r"<[^>]+>", "", raw_text)
         preview_text_raw = (
             clean_text[:50] + "..." if len(clean_text) > 50 else clean_text
         )
         preview_text = f"«{html.escape(preview_text_raw)}»"
 
-        # Using basic cpm:report format
+        # Использование формата отчета CPM
         report_text = text("cpm:report").format(
             preview_text,
             channels_text,
@@ -745,10 +746,10 @@ async def manage_published_post(call: types.CallbackQuery, state: FSMContext):
             exch_update,
         )
 
-        # Signature
+        # Подпись
         report_text += await get_report_signatures(user, "cpm", call.bot)
 
-        # Keyboard with Back button to Post Details
+        # Клавиатура с кнопкой Назад к деталям поста
         from aiogram.utils.keyboard import InlineKeyboardBuilder
 
         kb = InlineKeyboardBuilder()
@@ -780,7 +781,9 @@ async def manage_published_post(call: types.CallbackQuery, state: FSMContext):
                 ),
             )
 
-        # FIX: return to content list should look right
+            )
+        
+        # Возврат к списку контента
         days_with_posts = await get_days_with_posts(
             data.get("channel").chat_id, day.year, day.month
         )

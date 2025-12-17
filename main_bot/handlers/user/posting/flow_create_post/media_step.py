@@ -56,7 +56,7 @@ async def manage_post(call: types.CallbackQuery, state: FSMContext):
             post_message = await answer_post(call.message, state, from_edit=True)
             await state.update_data(post_message=post_message, show_more=False)
             await call.message.delete()
-            # Back logic
+            # Логика возврата
             await state.update_data(show_more=False)
 
             if data.get("is_published"):
@@ -176,7 +176,7 @@ async def manage_post(call: types.CallbackQuery, state: FSMContext):
 
         # Обновление в БД
         if data.get("is_published"):
-            # Update all published posts with same post_id
+            # Обновление всех опубликованных постов с одинаковым post_id
             update_kwargs = {}
             if temp[1] == "pin_time":
                 update_kwargs["unpin_time"] = new_pin_value
@@ -423,9 +423,10 @@ async def get_value(message: types.Message, state: FSMContext):
 
     # Update backup message if content changed
     if param in ["text", "media", "buttons", "reaction"]:
+        # Обновление бекапа сообщения если контент изменился
         await edit_backup_message(post)
 
-        # Refresh post object to get updated backup_message_id if fallback occurred
+        # Обновление объекта поста, чтобы получить новый backup_message_id если произошел фоллбек
         if data.get("is_published"):
             post = (
                 await db.published_post.get_published_post_by_id(post.id)
@@ -435,7 +436,7 @@ async def get_value(message: types.Message, state: FSMContext):
         else:
             post = await db.post.get_post(post.id) if post else None
 
-        # Update live messages if published
+        # Обновление live-сообщений если опубликовано
         if data.get("is_published"):
             message_options = MessageOptions(**post.message_options)
             reply_markup = keyboards.post_kb(post=post)

@@ -25,7 +25,7 @@ async def render_channel_info(
 
     channel = await db.channel.get_channel_by_chat_id(channel_id)
     if not channel:
-        # Fallback if channel deleted
+        # Если канал удален
         return await call.message.edit_text(
             text=text("channels_text"),
             reply_markup=keyboards.channels(channels=channels),
@@ -80,10 +80,10 @@ async def render_channel_info(
 
         status_post = "✅" if can_post else "❌"
         status_story = "✅" if can_stories else "❌"
-        # Mailing depends on posting logic TBD
+        # Рассылка зависит от логики постинга (TODO)
         status_mail = "❌"
 
-        # Check welcome messages
+        # Проверка приветственных сообщений
         hello_msgs = await db.channel_bot_hello.get_hello_messages(
             channel.chat_id, active=True
         )
@@ -178,9 +178,9 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
             ),
         )
 
-    # Store channel_id to state or pass through callback
+    # Сохранение ID канала в состояние или передача через callback
     channel_id = int(temp[1])
-    # Store in FSM for refresh
+    # Сохранение в FSM для обновления
     await state.update_data(current_channel_id=channel_id)
 
     await render_channel_info(call, state, channel_id)
@@ -239,7 +239,7 @@ async def manage_channel(call: types.CallbackQuery, state: FSMContext):
                 # Возвращаемся на экран информации о канале
                 return await render_channel_info(call, state, channel_id)
 
-        # Get client
+        # Получение клиента
         if not client_row or not client_row[0].client:
             await call.answer("❌ Нет назначенного помощника", show_alert=True)
             return
@@ -254,33 +254,33 @@ async def manage_channel(call: types.CallbackQuery, state: FSMContext):
         await call.answer("⏳ Создаю ссылку и добавляю помощника...", show_alert=False)
 
         try:
-            # 1. Create Invite Link
+            # 1. Создание пригласительной ссылки
             invite = await call.bot.create_chat_invite_link(
                 chat_id=channel.chat_id,
                 name="Nova Assistant",
                 creates_join_request=False,
             )
 
-            # 2. Join process
+            # 2. Процесс вступления
             success = False
             async with SessionManager(session_path) as manager:
                 try:
                     success = await manager.join(invite.invite_link, max_attempts=5)
-                    # Update username if possible
+                    # Обновление юзернейма если возможно
                     me = await manager.me()
                     if me and me.username:
                         await db.mt_client.update_mt_client(
                             mt_client.id, alias=me.username
                         )
-                        mt_client.alias = me.username  # Update local obj for display
+                        mt_client.alias = me.username  # Обновление локального объекта для отображения
                 except Exception as e:
                     logger.error(f"Join error: {e}")
 
-            # 3. Handle Result
+            # 3. Обработка результата
             if success:
                 import html
 
-                username = mt_client.alias.replace("@", "")  # Clean just in case
+                username = mt_client.alias.replace("@", "")  # Очистка на всякий случай
 
                 msg = (
                     f"✅ <b>Помощник успешно добавился в канал!</b>\n\n"
@@ -321,12 +321,7 @@ async def manage_channel(call: types.CallbackQuery, state: FSMContext):
         channel_id = data.get("current_channel_id")
 
         if not channel_id:
-            # Fallback attempt to find channel ID from previous step if state lost?
-            # Or just error.
-            # Actually, choice stores channel_id in DB selection usually.
-            # Let's try to get it from context or just fail
-            # Try to get from call.message text maybe? No.
-            # Let's hope state works. If not, user has to re-select channel.
+            # Попытка восстановления состояния
             await call.answer("Ошибка: выберите канал заново", show_alert=True)
             return await cancel(call)
 
@@ -337,15 +332,15 @@ async def manage_channel(call: types.CallbackQuery, state: FSMContext):
 
         await call.answer("⏳ Проверяем права...", show_alert=False)
 
-        # 1. Get client
+        # 1. Получение клиента
         client_row = await db.mt_client_channel.get_my_membership(channel.chat_id)
 
         if not client_row:
-            # No client assigned? Try to assign one.
+            # Клиент не назначен? Попытка назначения.
             from main_bot.handlers.user.set_resource import set_channel_session
 
             await set_channel_session(channel.chat_id)
-            # Retry fetch
+            # Повторное получение
             client_row = await db.mt_client_channel.get_my_membership(channel.chat_id)
 
         if not client_row:
@@ -358,7 +353,7 @@ async def manage_channel(call: types.CallbackQuery, state: FSMContext):
             await call.answer("❌ Ошибка клиента", show_alert=True)
             return
 
-        # 2. Check permissions
+        # 2. Проверка прав
         session_path = Path(mt_client.session_path)
         if not session_path.exists():
             await call.answer("❌ Ошибка сессии помощника", show_alert=True)
@@ -377,11 +372,11 @@ async def manage_channel(call: types.CallbackQuery, state: FSMContext):
             await call.answer(f"❌ {error_msg}", show_alert=True)
             return
 
-        # 3. Update DB
+        # 3. Обновление БД
         is_admin = perms.get("is_admin", False)
         can_stories = perms.get("can_post_stories", False)
 
-        # Update client alias if username is available
+        # Обновление алиаса клиента
         me = perms.get("me")
         if me and me.username:
             await db.mt_client.update_mt_client(mt_client.id, alias=me.username)
@@ -395,14 +390,14 @@ async def manage_channel(call: types.CallbackQuery, state: FSMContext):
             last_joined_at=int(time.time()),
             preferred_for_stats=client_row[
                 0
-            ].preferred_for_stats,  # Keep existing preference
+            ].preferred_for_stats,  # Сохранение существующего предпочтения
         )
 
-        # 4. Refresh view
+        # 4. Обновление отображения
         await render_channel_info(call, state, channel.chat_id)
 
         if is_admin and (can_stories or not perms.get("can_post_stories")):
-            # Notify success
+            # Уведомление об успехе
             await call.answer("✅ Права успешно обновлены!", show_alert=True)
         else:
             await call.answer(
