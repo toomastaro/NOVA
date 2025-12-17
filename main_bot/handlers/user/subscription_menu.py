@@ -1,7 +1,11 @@
 """
-Обработчики для меню подписки (баланс, подписка, реферальная система)
-"""
+Обработчики для меню подписки (баланс, подписка, реферальная система).
 
+Модуль управляет:
+- Навигацией по меню подписки
+- Отображением баланса и пополнения
+- Меню выравнивания сроков подписок
+"""
 import logging
 import time
 
@@ -27,8 +31,15 @@ router = Router()
 
 @router.callback_query(F.data.split("|")[0] == "MenuSubscription")
 @safe_handler("Subscription Menu Choice")
-async def choice(call: types.CallbackQuery, state: FSMContext):
-    """Обработчик выбора в меню подписки"""
+async def choice(call: types.CallbackQuery, state: FSMContext) -> None:
+    """
+    Обработчик выбора в меню подписки.
+    Маршрутизирует запросы к соответствующим подменю.
+
+    Аргументы:
+        call (types.CallbackQuery): Callback запрос.
+        state (FSMContext): Контекст состояния.
+    """
     temp = call.data.split("|")
     await call.message.delete()
 
@@ -66,32 +77,59 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
         "back": {"cor": back_to_main, "args": (call.message,)},
     }
 
-    handler_data = menu[temp[1]]
-    await handler_data["cor"](*handler_data["args"])
+    if temp[1] in menu:
+        handler_data = menu[temp[1]]
+        await handler_data["cor"](*handler_data["args"])
+    else:
+        logger.warning(f"Неизвестное действие меню подписки: {temp[1]}")
 
 
 @safe_handler("Show Top Up Menu")
-async def show_top_up_menu(call: types.CallbackQuery, state: FSMContext):
-    """Показать меню пополнения баланса"""
+async def show_top_up_menu(call: types.CallbackQuery, state: FSMContext) -> None:
+    """
+    Показать меню пополнения баланса.
+
+    Аргументы:
+        call (types.CallbackQuery): Callback запрос.
+        state (FSMContext): Контекст состояния.
+    """
     await show_top_up(call.message, state)
 
 
 @safe_handler("Show Subscribe Menu")
-async def show_subscribe_menu(call: types.CallbackQuery, state: FSMContext):
-    """Перенаправление на меню подписки из профиля"""
+async def show_subscribe_menu(call: types.CallbackQuery, state: FSMContext) -> None:
+    """
+    Перенаправление на меню подписки из профиля.
+
+    Аргументы:
+        call (types.CallbackQuery): Callback запрос.
+        state (FSMContext): Контекст состояния.
+    """
     await show_subscribe(call.message, state)
 
 
 @safe_handler("Show Referral Menu")
-async def show_referral_menu(call: types.CallbackQuery):
-    """Перенаправление на меню реферальной системы из профиля"""
+async def show_referral_menu(call: types.CallbackQuery) -> None:
+    """
+    Перенаправление на меню реферальной системы из профиля.
+
+    Аргументы:
+        call (types.CallbackQuery): Callback запрос.
+    """
     user = await db.user.get_user(user_id=call.from_user.id)
     await show_referral(call.message, user)
 
 
 @safe_handler("Show Align Sub Menu")
-async def show_align_sub_menu(call: types.CallbackQuery, state: FSMContext):
-    """Показать меню выравнивания подписки"""
+async def show_align_sub_menu(call: types.CallbackQuery, state: FSMContext) -> None:
+    """
+    Показать меню выравнивания подписки.
+    Позволяет синхронизировать даты окончания подписок разных каналов.
+
+    Аргументы:
+        call (types.CallbackQuery): Callback запрос.
+        state (FSMContext): Контекст состояния.
+    """
     user = await db.user.get_user(user_id=call.from_user.id)
     all_sub_objects = await db.channel.get_subscribe_channels(user_id=user.id)
 
@@ -110,23 +148,44 @@ async def show_align_sub_menu(call: types.CallbackQuery, state: FSMContext):
 
 
 @safe_handler("Show Transfer Sub Menu")
-async def show_transfer_sub_menu(call: types.CallbackQuery, state: FSMContext):
-    """Показать меню переноса подписки"""
+async def show_transfer_sub_menu(call: types.CallbackQuery, state: FSMContext) -> None:
+    """
+    Показать меню переноса подписки.
+
+    Аргументы:
+        call (types.CallbackQuery): Callback запрос.
+        state (FSMContext): Контекст состояния.
+    """
     await transfer_menu(call, state)
 
 
 @safe_handler("Show Info Menu")
-async def show_info_menu(call: types.CallbackQuery):
-    """Показать меню информации"""
+async def show_info_menu(call: types.CallbackQuery) -> None:
+    """
+    Показать меню информации.
+
+    Аргументы:
+        call (types.CallbackQuery): Callback запрос.
+    """
     await info_menu(call)
 
 
 @safe_handler("Subscription Back To Main")
-async def back_to_main(message: types.Message):
-    """Возврат в главное меню"""
+async def back_to_main(message: types.Message) -> None:
+    """
+    Возврат в главное меню.
+
+    Аргументы:
+        message (types.Message): Сообщение пользователя.
+    """
     await message.answer("Главное меню", reply_markup=Reply.menu())
 
 
-def get_router():
-    """Возвращает роутер модуля."""
+def get_router() -> Router:
+    """
+    Возвращает роутер модуля.
+
+    Возвращает:
+        Router: Роутер с зарегистрированными хендлерами.
+    """
     return router

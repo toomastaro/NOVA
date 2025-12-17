@@ -8,21 +8,32 @@
 """
 
 import logging
+from typing import Dict, Any, Optional
+
 from aiogram import types, F, Router
 from aiogram.fsm.context import FSMContext
 
+from hello_bot.database.db import Database
+from main_bot.database.db import db
 from main_bot.keyboards import keyboards
 from main_bot.keyboards.common import Reply
 from main_bot.states.user import Support
-from main_bot.utils.lang.language import text
 from main_bot.utils.error_handler import safe_handler
-from main_bot.database.db import db
-from hello_bot.database.db import Database
+from main_bot.utils.lang.language import text
 
 logger = logging.getLogger(__name__)
 
 
-def serialize_user_bot(bot):
+def serialize_user_bot(bot: Any) -> Optional[Dict[str, Any]]:
+    """
+    Сериализует объект бота пользователя в словарь.
+
+    Аргументы:
+        bot (Any): Объект бота.
+
+    Возвращает:
+        Optional[Dict[str, Any]]: Словарь с данными бота или None.
+    """
     if not bot:
         return None
     return {
@@ -39,10 +50,14 @@ def serialize_user_bot(bot):
 
 
 @safe_handler("Выбор меню")
-async def choice(message: types.Message, state: FSMContext):
+async def choice(message: types.Message, state: FSMContext) -> None:
     """
     Маршрутизатор главного меню.
     Определяет нажатую кнопку и вызывает соответствующий обработчик.
+
+    Аргументы:
+        message (types.Message): Сообщение с выбором меню.
+        state (FSMContext): Контекст состояния FSM.
     """
     await state.clear()
 
@@ -77,13 +92,25 @@ async def choice(message: types.Message, state: FSMContext):
 
 
 @safe_handler("Меню постинга")
-async def start_posting(message: types.Message):
+async def start_posting(message: types.Message) -> None:
+    """
+    Открыть меню постинга.
+
+    Аргументы:
+        message (types.Message): Сообщение пользователя.
+    """
     logger.info("Пользователь %s открыл меню постинга", message.from_user.id)
     await message.answer(text("start_post_text"), reply_markup=keyboards.posting_menu())
 
 
 @safe_handler("Меню сторис")
-async def start_stories(message: types.Message):
+async def start_stories(message: types.Message) -> None:
+    """
+    Открыть меню сторис.
+
+    Аргументы:
+        message (types.Message): Сообщение пользователя.
+    """
     logger.info("Пользователь %s открыл меню сторис", message.from_user.id)
     await message.answer(
         text("start_stories_text"), reply_markup=keyboards.stories_menu()
@@ -91,12 +118,25 @@ async def start_stories(message: types.Message):
 
 
 @safe_handler("Меню ботов")
-async def start_bots(message: types.Message):
+async def start_bots(message: types.Message) -> None:
+    """
+    Открыть меню ботов.
+
+    Аргументы:
+        message (types.Message): Сообщение пользователя.
+    """
     await message.answer(text("start_bots_text"), reply_markup=keyboards.bots_menu())
 
 
 @safe_handler("Поддержка")
-async def support(message: types.Message, state: FSMContext):
+async def support(message: types.Message, state: FSMContext) -> None:
+    """
+    Открыть меню поддержки.
+
+    Аргументы:
+        message (types.Message): Сообщение пользователя.
+        state (FSMContext): Контекст состояния.
+    """
     await message.answer(
         text("start_support_text"), reply_markup=keyboards.cancel(data="CancelSupport")
     )
@@ -104,15 +144,26 @@ async def support(message: types.Message, state: FSMContext):
 
 
 @safe_handler("Профиль")
-async def profile(message: types.Message):
+async def profile(message: types.Message) -> None:
+    """
+    Открыть профиль пользователя.
+
+    Аргументы:
+        message (types.Message): Сообщение пользователя.
+    """
     await message.answer(
         text("start_profile_text"), reply_markup=keyboards.profile_menu()
     )
 
 
 @safe_handler("Подписка")
-async def subscription(message: types.Message):
-    """Меню подписки с балансом, подпиской и реферальной системой"""
+async def subscription(message: types.Message) -> None:
+    """
+    Меню подписки с балансом, подпиской и реферальной системой.
+
+    Аргументы:
+        message (types.Message): Сообщение пользователя.
+    """
     user = await db.user.get_user(user_id=message.chat.id)
     if not user:
         # Если пользователя нет, создаем и получаем объект
@@ -129,8 +180,13 @@ async def subscription(message: types.Message):
 
 
 @safe_handler("Показать каналы")
-async def show_channels(message: types.Message):
-    """Показать список каналов пользователя"""
+async def show_channels(message: types.Message) -> None:
+    """
+    Показать список каналов пользователя.
+
+    Аргументы:
+        message (types.Message): Сообщение пользователя.
+    """
     channels = await db.channel.get_user_channels(
         user_id=message.chat.id, sort_by="posting"
     )
@@ -140,7 +196,14 @@ async def show_channels(message: types.Message):
 
 
 @safe_handler("Приветка")
-async def start_privetka(message: types.Message, state: FSMContext):
+async def start_privetka(message: types.Message, state: FSMContext) -> None:
+    """
+    Начало настройки приветственного бота (Privetka).
+
+    Аргументы:
+        message (types.Message): Сообщение пользователя.
+        state (FSMContext): Контекст состояния.
+    """
     await state.update_data(from_privetka=True)
     channels_raw = await db.channel_bot_settings.get_bot_channels(message.chat.id)
     channels = await db.channel.get_user_channels(
@@ -156,8 +219,14 @@ async def start_privetka(message: types.Message, state: FSMContext):
 
 
 @safe_handler("Выбор канала для приветки")
-async def privetka_choice_channel(call: types.CallbackQuery, state: FSMContext):
-    """Обработчик выбора канала для настройки приветственного бота."""
+async def privetka_choice_channel(call: types.CallbackQuery, state: FSMContext) -> None:
+    """
+    Обработчик выбора канала для настройки приветственного бота.
+
+    Аргументы:
+        call (types.CallbackQuery): Callback запрос.
+        state (FSMContext): Контекст состояния.
+    """
     temp = call.data.split("|")
 
     if temp[1] == "cancel":
@@ -183,7 +252,8 @@ async def privetka_choice_channel(call: types.CallbackQuery, state: FSMContext):
     )
 
     bot_id = channel_setting.bot_id if channel_setting else None
-
+    
+    user_bot = None
     await state.update_data(chat_id=chat_id)
     if bot_id:
         await state.update_data(bot_id=bot_id)
@@ -196,13 +266,19 @@ async def privetka_choice_channel(call: types.CallbackQuery, state: FSMContext):
         db_obj.schema = user_bot.schema
 
     await call.message.delete()
+    # Импорт внутри функции чтобы избежать циклических зависимостей
     from main_bot.handlers.user.bots.bot_settings.menu import show_channel_setting
 
     await show_channel_setting(call.message, db_obj, state)
 
 
-def get_router():
-    """Создает роутер для меню."""
+def get_router() -> Router:
+    """
+    Создает роутер для меню.
+
+    Возвращает:
+        Router: Роутер с зарегистрированными хендлерами.
+    """
     router = Router()
     router.message.register(
         choice,

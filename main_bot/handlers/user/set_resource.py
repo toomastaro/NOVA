@@ -8,6 +8,8 @@
 """
 import asyncio
 import logging
+from typing import Optional
+
 from aiogram import types, F, Router, Bot
 from aiogram.enums import ChatMemberStatus
 from aiogram.fsm.context import FSMContext
@@ -29,7 +31,17 @@ logger = logging.getLogger(__name__)
 
 
 def _get_instruction_text(chat_title: str, username: str, first_name: str = "Assistant") -> str:
-    """Формирует текст инструкции по добавлению помощника."""
+    """
+    Формирует текст инструкции по добавлению помощника.
+
+    Аргументы:
+        chat_title (str): Название канала.
+        username (str): Юзернейм бота-помощника.
+        first_name (str): Имя бота-помощника.
+
+    Возвращает:
+        str: Текст инструкции.
+    """
     return (
         f"✅ <b>Канал «{chat_title}» успешно добавлен!</b>\n\n"
         f"⚠️ <b>ВАЖНО: Требуется настройка помощника</b>\n\n"
@@ -51,11 +63,19 @@ def _get_instruction_text(chat_title: str, username: str, first_name: str = "Ass
 
 @safe_handler("Set Admins")
 async def set_admins(
-    bot: Bot, chat_id: int, chat_title: str, emoji_id: str, user_id: int = None
-):
+    bot: Bot, chat_id: int, chat_title: str, emoji_id: str, user_id: Optional[int] = None
+) -> None:
     """
     Добавляет администраторов канала в базу данных.
-    Если бот еще не добавлен в канал, добавляет только пользователя, который добавил бота.
+    Если бот еще не добавлен в канал (например, при ручном добавлении),
+    добавляет только пользователя, который инициировал добавление.
+
+    Аргументы:
+        bot (Bot): Экземпляр бота.
+        chat_id (int): ID канала.
+        chat_title (str): Название канала.
+        emoji_id (str): ID эмодзи (аватарки канала).
+        user_id (Optional[int]): ID пользователя-инициатора (для ручного добавления).
     """
     try:
         admins = await bot.get_chat_administrators(chat_id)
@@ -90,10 +110,13 @@ async def set_admins(
 
 
 @safe_handler("Set Channel")
-async def set_channel(call: types.ChatMemberUpdated):
+async def set_channel(call: types.ChatMemberUpdated) -> None:
     """
     Обработчик события добавления/удаления бота в канале.
     Автоматически регистрирует канал при добавлении бота в админы.
+
+    Аргументы:
+        call (types.ChatMemberUpdated): Событие обновления прав бота.
     """
     chat_id = call.chat.id
     channel = await db.channel.get_channel_by_chat_id(chat_id=chat_id)
@@ -138,7 +161,6 @@ async def set_channel(call: types.ChatMemberUpdated):
 
         if res.get("success"):
             client_info = res.get("client_info", {})
-            client_info = res.get("client_info", {})
             username = client_info.get("username", "username")
             message_text = _get_instruction_text(chat_title, username)
         else:
@@ -164,10 +186,13 @@ async def set_channel(call: types.ChatMemberUpdated):
 
 
 @safe_handler("Set Admin")
-async def set_admin(call: types.ChatMemberUpdated):
+async def set_admin(call: types.ChatMemberUpdated) -> None:
     """
     Обработчик изменения прав участников канала.
     Отслеживает вступление по пригласительным ссылкам (для рекламы) и изменение списка админов.
+
+    Аргументы:
+        call (types.ChatMemberUpdated): Событие обновления прав участника.
     """
     if call.new_chat_member.user.is_bot:
         return
@@ -229,8 +254,13 @@ async def set_admin(call: types.ChatMemberUpdated):
 
 
 @safe_handler("Set Active")
-async def set_active(call: types.ChatMemberUpdated):
-    """Обновляет статус активности пользователя (blocked/unblocked bot)."""
+async def set_active(call: types.ChatMemberUpdated) -> None:
+    """
+    Обновляет статус активности пользователя (blocked/unblocked bot).
+
+    Аргументы:
+        call (types.ChatMemberUpdated): Событие обновления статуса участника в ЛС.
+    """
     await db.user.update_user(
         user_id=call.from_user.id,
         is_active=call.new_chat_member.status != ChatMemberStatus.KICKED,
@@ -238,10 +268,14 @@ async def set_active(call: types.ChatMemberUpdated):
 
 
 @safe_handler("Manual Add Channel")
-async def manual_add_channel(message: types.Message, state: FSMContext):
+async def manual_add_channel(message: types.Message, state: FSMContext) -> None:
     """
     Ручное добавление канала через отправку ссылки или форвард.
     Используется, если автоматическое добавление не сработало.
+
+    Аргументы:
+        message (types.Message): Сообщение с ссылкой или форвардом.
+        state (FSMContext): Контекст состояния.
     """
     chat_id = None
 
@@ -282,7 +316,6 @@ async def manual_add_channel(message: types.Message, state: FSMContext):
             )
             return
     except Exception as e:
-        # Бот не является членом канала - не показываем сообщение пользователю
         # Бот не является членом канала - не показываем сообщение пользователю
         logger.error("Бот не является членом канала %s: %s", chat_id, e)
         return
@@ -339,7 +372,6 @@ async def manual_add_channel(message: types.Message, state: FSMContext):
 
     if res.get("success"):
         client_info = res.get("client_info", {})
-        client_info = res.get("client_info", {})
         first_name = client_info.get("first_name", "Assistant")
         username = client_info.get("username", "username")
 
@@ -355,8 +387,13 @@ async def manual_add_channel(message: types.Message, state: FSMContext):
     await start_posting(message)
 
 
-def get_router():
-    """Регистрация роутеров для управления каналами."""
+def get_router() -> Router:
+    """
+    Регистрация роутеров для управления каналами.
+
+    Возвращает:
+        Router: Роутер с зарегистрированными хендлерами.
+    """
     router = Router()
     router.my_chat_member.register(set_channel, F.chat.type == "channel")
     router.my_chat_member.register(set_active, F.chat.type == "private")

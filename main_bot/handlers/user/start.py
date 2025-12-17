@@ -8,25 +8,29 @@
 """
 import logging
 
-from aiogram import types, Router
-from aiogram.fsm.context import FSMContext
+from aiogram import Router, types
 from aiogram.filters import CommandStart
+from aiogram.fsm.context import FSMContext
 
 from config import Config
 from main_bot.database.db import db
 from main_bot.keyboards import keyboards
+from main_bot.utils.error_handler import safe_handler
 from main_bot.utils.lang.language import text
 from main_bot.utils.middlewares import StartMiddle
-from main_bot.utils.error_handler import safe_handler
 
 logger = logging.getLogger(__name__)
 
 
 @safe_handler("Start Command")
-async def start(message: types.Message, state: FSMContext):
+async def start(message: types.Message, state: FSMContext) -> None:
     """
     Обработчик команды /start.
     Парсит реферальные параметры (ref_...) для трекинга конверсий.
+
+    Аргументы:
+        message (types.Message): Сообщение пользователя.
+        state (FSMContext): Контекст состояния.
     """
     await state.clear()
 
@@ -67,8 +71,13 @@ async def start(message: types.Message, state: FSMContext):
     )
 
 
-def get_router():
-    """Регистрирует обработчик команды /start и middleware."""
+def get_router() -> Router:
+    """
+    Регистрирует обработчик команды /start и middleware.
+
+    Возвращает:
+        Router: Роутер с зарегистрированным хендлером старта.
+    """
     router = Router()
     router.message.middleware(StartMiddle())
     router.message.register(start, CommandStart())
