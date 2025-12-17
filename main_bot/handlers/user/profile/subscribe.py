@@ -239,40 +239,40 @@ async def choice_object_subscribe(
         await call.answer(text("keys_data_error"))
         return await call.message.delete()
 
-    # Helpers
+    # Вспомогательные функции
     if object_type == "bots":
         cor = db.user_bot.get_user_bots
     else:
         cor = db.channel.get_user_channels
 
-    # SWITCH VIEW
+    # ПЕРЕКЛЮЧЕНИЕ ВИДА
     if temp[1] == "switch_view":
         current_view = await get_user_view_mode(call.from_user.id)
         new_view = "channels" if current_view == "folders" else "folders"
         await set_user_view_mode(call.from_user.id, new_view)
-        # Reset folder navigation
+        # Сброс навигации по папкам
         await state.update_data(current_folder_id=None)
 
-        # Reloading happens below
+        # Перезагрузка происходит ниже
 
     view_mode = await get_user_view_mode(call.from_user.id)
     current_folder_id = data.get("current_folder_id")
 
-    # Load Objects
+    # Загрузка объектов
     if object_type == "bots":
-        # Bots don't have folders logic yet
+        # Для ботов пока нет логики папок
         objects = await cor(user_id=user.id, sort_by=service)
         folders = []
     else:
-        # Channels
+        # Каналы
         if view_mode == "channels":
             objects = await cor(user_id=user.id, sort_by=service)
             folders = []
-        else:  # folders mode
+        else:  # режим папок
             raw_folders = await db.user_folder.get_folders(user_id=user.id)
             folders = [f for f in raw_folders if f.content]
             if current_folder_id:
-                # Inside a folder
+                # Внутри папки
                 folder = await db.user_folder.get_folder_by_id(int(current_folder_id))
                 objects = []
                 if folder and folder.content:
@@ -280,21 +280,21 @@ async def choice_object_subscribe(
                         ch = await db.channel.get_channel_by_chat_id(int(chat_id))
                         if ch:
                             objects.append(ch)
-                folders = []  # Don't show folders when inside a folder
+                folders = []  # Не показываем папки, когда находимся внутри папки
             else:
-                # Root of folders view
+                # Корень просмотра папок
                 objects = []
 
-    # SELECT ITEM/FOLDER
-    if temp[1].replace("-", "").isdigit():  # Check for digit (ID)
+    # ВЫБОР ЭЛЕМЕНТА/ПАПКИ
+    if temp[1].replace("-", "").isdigit():  # Проверка на число (ID)
         resource_id = int(temp[1])
-        # temp[3] is type if present
+        # temp[3] это тип, если присутствует
         resource_type = temp[3] if len(temp) > 3 else None
 
         if resource_type == "folder":
             await state.update_data(current_folder_id=resource_id)
-            # Re-run logic to enter folder (recursive call or just proceed)
-            # Efficient way: update local vars and proceed to render
+            # Повторный запуск логики для входа в папку (рекурсивный вызов или просто продолжение)
+            # Эффективный способ: обновить локальные переменные и перейти к рендерингу
             current_folder_id = resource_id
             folder = await db.user_folder.get_folder_by_id(resource_id)
             objects = []
@@ -307,38 +307,38 @@ async def choice_object_subscribe(
             else:
                 objects = []
             folders = []
-            # Reset pagination
+            # Сброс пагинации
             if len(temp) > 2:
                 temp[2] = "0"
         else:
-            # It's a channel or bot
+            # Это канал или бот
             if resource_id in chosen:
                 chosen.remove(resource_id)
             else:
                 chosen.append(resource_id)
             await state.update_data(chosen=chosen)
 
-    # CHOICE ALL
+    # ВЫБРАТЬ ВСЕ
     if temp[1] == "choice_all":
-        # Get IDs of current objects
+        # Получаем ID текущих объектов
         visible_ids = [
             o.chat_id if isinstance(o, Channel) else o.id
             for o in objects
         ]
         
         if all(i in chosen for i in visible_ids):
-            # Unselect all visible
+            # Снять выбор со всех видимых
             for i in visible_ids:
                 if i in chosen:
                     chosen.remove(i)
         else:
-            # Select all visible
+            # Выбрать все видимые
             for i in visible_ids:
                 if i not in chosen:
                     chosen.append(i)
         await state.update_data(chosen=chosen)
 
-    # PAYMENT (Next Step)
+    # ОПЛАТА (Следующий шаг)
     if temp[1] == "next_step":
         if not chosen:
             return await call.answer(text("error_min_choice"), show_alert=True)
@@ -365,14 +365,14 @@ async def choice_object_subscribe(
             ),
         )
 
-    # BACK handling (Folder navigation or Menu)
+    # Обработка НАЗАД (Навигация по папкам или Меню)
     is_inside_folder = False
     
     if current_folder_id:
         is_inside_folder = True
 
     if temp[1] == "back" and current_folder_id:
-        # Exit folder
+        # Выход из папки
         await state.update_data(current_folder_id=None)
         current_folder_id = None
         is_inside_folder = False
@@ -380,13 +380,13 @@ async def choice_object_subscribe(
         raw_folders = await db.user_folder.get_folders(user_id=user.id)
         folders = [f for f in raw_folders if f.content]
         objects = await db.channel.get_user_channels_without_folders(user_id=user.id)
-        # Reset pagination
+        # Сброс пагинации
         if len(temp) > 2:
             temp[2] = "0"
             
-    # CLOSE FOLDER (Explicit close action)
+    # ЗАКРЫТЬ ПАПКУ (Явное действие закрытия)
     if temp[1] == "cancel" and current_folder_id:
-        # Exit folder same as back
+        # Выход из папки так же, как назад
         await call.answer()
         await state.update_data(current_folder_id=None)
         current_folder_id = None
@@ -396,13 +396,13 @@ async def choice_object_subscribe(
         folders = [f for f in raw_folders if f.content]
         objects = await db.channel.get_user_channels_without_folders(user_id=user.id)
         remover = 0
-        # Prevent "cancel" below from triggering return to period choice
+        # Предотвращаем срабатывание "cancel" ниже для возврата к выбору периода
         temp[1] = "handled_cancel"
 
-    # CANCEL (Back to Period Choice)
+    # ОТМЕНА (Назад к выбору периода)
     if temp[1] == "cancel":
-        # Recalculate objects for period choice screen? Or just go back.
-        # Original code went back to period choice.
+        # Пересчитать объекты для экрана выбора периода? Или просто вернуться.
+        # Оригинальный код возвращался к выбору периода.
         objects = await cor(user_id=user.id, limit=10, sort_by=service)
         await call.message.delete()
         return await call.message.answer(
@@ -414,20 +414,20 @@ async def choice_object_subscribe(
             reply_markup=keyboards.choice_period(service=service),
         )
 
-    # RENDER
-    # Determine pagination
+    # РЕНДЕРИНГ
+    # Определение пагинации
     remover = 0
     if len(temp) > 2 and temp[2].isdigit():
         remover = int(temp[2])
 
-    # Calculate real chosen titles for display
-    # Need to fetch titles for all chosen IDs to display them in text?
-    # Original code displayed chosen titles.
-    # To avoid N+1, maybe just show count? Or fetch all user channels?
-    # Original: text(f'subscribe:chosen:{object_type}').format(...)
-    # Let's fetch all user channels to map titles for chosen ones.
+    # Вычислить реальные выбранные названия для отображения
+    # Нужно получить названия для всех выбранных ID, чтобы отобразить их в тексте?
+    # Оригинальный код отображал выбранные названия.
+    # Чтобы избежать N+1, может просто показать количество? Или получить все каналы пользователя?
+    # Оригинал: text(f'subscribe:chosen:{object_type}').format(...)
+    # Давайте получим все каналы пользователя, чтобы сопоставить названия для выбранных.
     all_resources = await cor(user_id=user.id)
-    # Use dictionary for O(1)
+    # Используем словарь для O(1)
     res_map = {
         (r.chat_id if hasattr(r, "chat_id") else r.id): r.title for r in all_resources
     }
@@ -457,7 +457,7 @@ async def choice_object_subscribe(
             ),
         )
     except Exception:
-        # Ignore message not modified
+        # Игнорируем ошибку message not modified
         pass
 
 

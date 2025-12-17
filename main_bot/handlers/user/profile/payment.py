@@ -107,23 +107,24 @@ async def back_to_method(call: types.CallbackQuery, state: FSMContext):
     payment_method = data.get('payment_method')
     payment_order_id = data.get('payment_order_id')
     
-    logger.info(f"back_to_method (balance): payment_method={payment_method}, payment_order_id={payment_order_id}")
+    logger.info(f"back_to_method (balance): метод_оплаты={payment_method}, id_заказа_оплаты={payment_order_id}")
     
     if payment_method == PaymentMethod.PLATEGA and payment_order_id:
         try:
             # Platega не имеет публичного API для отмены, поэтому просто обновляем статус в БД
             await db.payment_link.update_payment_link_status(payment_order_id, "CANCELLED")
-            logger.info(f"Marked Platega payment link {payment_order_id} as CANCELLED in DB")
+            msg = f"Платежная ссылка Platega {payment_order_id} помечена как CANCELLED в БД"
+            logger.info(msg)
         except Exception as e:
-            logger.error(f"Failed to cancel Platega payment link: {e}")
+            logger.error(f"Не удалось отменить платежную ссылку Platega: {e}")
 
     if payment_method == PaymentMethod.CRYPTO_BOT and payment_order_id:
         try:
             invoice_id = int(payment_order_id)
             await crypto_bot.delete_invoice(invoice_id)
-            logger.info(f"Cancelled CryptoBot invoice {invoice_id}")
+            logger.info(f"Отменен счет CryptoBot {invoice_id}")
         except Exception as e:
-            logger.error(f"Failed to cancel CryptoBot invoice: {e}")
+            logger.error(f"Не удалось отменить счет CryptoBot: {e}")
     
     # Сбрасываем флаг ожидания оплаты чтобы прервать цикл
     await state.update_data(waiting_payment=False)
@@ -227,7 +228,7 @@ async def get_amount(message: types.Message, state: FSMContext):
     elif method == PaymentMethod.PLATEGA:
         from main_bot.utils.payments.platega import platega_api
         
-        # Create persistent payment link
+        # Создаем постоянную платежную ссылку
         payment_link = await db.payment_link.create_payment_link(
             user_id=message.from_user.id,
             amount=amount,
@@ -240,7 +241,7 @@ async def get_amount(message: types.Message, state: FSMContext):
             description='Пополнение баланса NovaTg'
         )
         pay_url = result.get('pay_url')
-        order_id = result.get('id')  # This is Platega's internal ID, but we track by our ID passed above
+        order_id = result.get('id')  # Это внутренний ID Platega, но мы отслеживаем по нашему ID переданному выше
 
     # stars
     else:
@@ -289,7 +290,7 @@ async def get_amount(message: types.Message, state: FSMContext):
         current_data = await state.get_data()
         if not current_data.get('waiting_payment'):
             import logging
-            logging.getLogger(__name__).info(f"Balance payment cancelled by user for method {method}")
+            logging.getLogger(__name__).info(f"Оплата баланса отменена пользователем для метода {method}")
             return
         
         if method == PaymentMethod.CRYPTO_BOT:
@@ -319,13 +320,13 @@ async def get_amount(message: types.Message, state: FSMContext):
             return
 
         if method == PaymentMethod.PLATEGA:
-            # Webhook handles the payment and crediting.
-            # We just watch DB for status update to clean up UI.
+            # Вебхук обрабатывает оплату и зачисление.
+            # Мы просто следим за обновлением статуса в БД, чтобы очистить UI.
             payment_link = await db.payment_link.get_payment_link(order_id)
             if payment_link and payment_link.status == 'PAID':
                 await safe_delete(wait_msg)
-                # Success message is sent by webhook
-                # Just refresh balance view for user
+                # Сообщение об успехе отправляется вебхуком
+                # Просто обновляем вид баланса для пользователя
                 user = await db.user.get_user(user_id=message.from_user.id)
                 await show_balance(message, user)
                 await state.clear()

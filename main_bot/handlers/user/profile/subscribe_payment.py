@@ -132,7 +132,7 @@ async def show_subscription_success(message: types.Message, state: FSMContext, u
     chosen: list = data.get('chosen', [])
     total_days: int = data.get('total_days', 0)
     
-    logger.info(f"show_subscription_success: object_type={object_type}, chosen={chosen}, total_days={total_days}")
+    logger.info(f"show_subscription_success: тип_объекта={object_type}, выбрано={chosen}, всего_дней={total_days}")
     
     # Получаем обновленные объекты
     if object_type == 'bots':
@@ -147,7 +147,7 @@ async def show_subscription_success(message: types.Message, state: FSMContext, u
         updated_objects = [channel for channel in all_channels if channel.chat_id in chosen]
         emoji = "📺"
     
-    logger.info(f"show_subscription_success: found {len(updated_objects)} objects")
+    logger.info(f"show_subscription_success: найдено {len(updated_objects)} объектов")
     
     # Формируем список с датами
     objects_list = []
@@ -402,7 +402,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext, user: User):
 async def align_subscribe(call: types.CallbackQuery, state: FSMContext, user: User):
     """Логика выравнивания сроков подписок."""
     temp = call.data.split("|")
-    logger.info(f"Align: align_subscribe called with callback_data: {call.data}")
+    logger.info(f"Выравнивание: align_subscribe вызван с callback_data: {call.data}")
     data = await state.get_data()
 
     if not data:
@@ -428,7 +428,7 @@ async def align_subscribe(call: types.CallbackQuery, state: FSMContext, user: Us
         return await back_to_method(call, state)
 
     if temp[1] == "align":
-        logger.info(f"Align: align button clicked, chosen channels: {align_chosen}")
+        logger.info(f"Выравнивание: нажата кнопка выравнивания, выбрано каналов: {align_chosen}")
         
         # Проверка: минимум 2 канала
         if len(align_chosen) < 2:
@@ -441,7 +441,7 @@ async def align_subscribe(call: types.CallbackQuery, state: FSMContext, user: Us
             user_id=user.id,
             from_array=align_chosen
         )
-        logger.info(f"Align: found {len(chosen_objects)} channels to align")
+        logger.info(f"Выравнивание: найдено {len(chosen_objects)} каналов для выравнивания")
 
         now = int(time.time())
         total_remain_days = sum(
@@ -511,18 +511,18 @@ async def align_subscribe(call: types.CallbackQuery, state: FSMContext, user: Us
     # Проверяем, является ли это ID канала (может быть отрицательным)
     if temp[1].lstrip('-').isdigit():
         resource_id = int(temp[1])
-        logger.info(f"Align: channel {resource_id} clicked, current chosen: {align_chosen}")
+        logger.info(f"Выравнивание: нажат канал {resource_id}, сейчас выбрано: {align_chosen}")
         if resource_id in align_chosen:
             align_chosen.remove(resource_id)
-            logger.info(f"Align: removed {resource_id}, new chosen: {align_chosen}")
+            logger.info(f"Выравнивание: удален {resource_id}, теперь выбрано: {align_chosen}")
         else:
             align_chosen.append(resource_id)
-            logger.info(f"Align: added {resource_id}, new chosen: {align_chosen}")
+            logger.info(f"Выравнивание: добавлен {resource_id}, теперь выбрано: {align_chosen}")
 
     await state.update_data(
         align_chosen=align_chosen
     )
-    logger.info(f"Align: state updated with chosen: {align_chosen}")
+    logger.info(f"Выравнивание: состояние обновлено, выбрано: {align_chosen}")
     
     try:
         await call.message.edit_reply_markup(
@@ -532,10 +532,10 @@ async def align_subscribe(call: types.CallbackQuery, state: FSMContext, user: Us
                 remover=int(temp[2])
             )
         )
-        logger.info("Align: UI updated successfully")
+        logger.info("Выравнивание: UI успешно обновлен")
     except Exception as e:
         # Игнорируем ошибку если сообщение не изменилось
-        logger.warning(f"Align: UI update failed: {e}")
+        logger.warning(f"Выравнивание: ошибка обновления UI: {e}")
         pass
 
 
@@ -564,7 +564,7 @@ async def cancel(call: types.CallbackQuery, state: FSMContext, user: User):
 @safe_handler("Subscribe Back To Method")
 async def back_to_method(call: types.CallbackQuery, state: FSMContext):
     """Возврат к выбору способа оплаты с экрана ожидания"""
-    logger.info(f"back_to_method called: {call.data}")
+    logger.info(f"back_to_method вызван: {call.data}")
     try:
         await call.answer()
     except Exception:
@@ -577,24 +577,25 @@ async def back_to_method(call: types.CallbackQuery, state: FSMContext):
     payment_method = data.get('payment_method')
     payment_order_id = data.get('payment_order_id')
     
-    logger.info(f"back_to_method: method={payment_method}, order_id={payment_order_id}")
+    logger.info(f"back_to_method: метод={payment_method}, id_заказа={payment_order_id}")
     
     if payment_method == PaymentMethod.PLATEGA and payment_order_id:
         try:
             # Platega не имеет публичного API для отмены, поэтому просто обновляем статус в БД
             await db.payment_link.update_payment_link_status(payment_order_id, "CANCELLED")
-            logger.info(f"Marked Platega payment link {payment_order_id} as CANCELLED in DB")
+            msg = f"Платежная ссылка Platega {payment_order_id} помечена как CANCELLED в БД"
+            logger.info(msg)
         except Exception as e:
-            logger.error(f"Failed to cancel Platega payment link: {e}")
+            logger.error(f"Не удалось отменить платежную ссылку Platega: {e}")
 
     if payment_method == PaymentMethod.CRYPTO_BOT and payment_order_id:
         try:
             # Приводим к int, так как CryptoBot требует int
             invoice_id = int(payment_order_id)
             await crypto_bot.delete_invoice(invoice_id)
-            logger.info(f"Cancelled CryptoBot invoice {invoice_id}")
+            logger.info(f"Отменен счет CryptoBot {invoice_id}")
         except Exception as e:
-            logger.error(f"Failed to cancel CryptoBot invoice: {e}")
+            logger.error(f"Не удалось отменить счет CryptoBot: {e}")
     
     # Сбрасываем флаг ожидания оплаты чтобы прервать цикл
     await state.update_data(waiting_payment=False)

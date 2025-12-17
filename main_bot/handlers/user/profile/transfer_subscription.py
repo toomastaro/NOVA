@@ -185,36 +185,36 @@ async def choose_recipients(call: types.CallbackQuery, state: FSMContext, user: 
     
     # Выбрать всё / Отменить всё
     if temp[1] == 'choice_all':
-        logger.info(f"Transfer: choice_all clicked, current chosen: {len(chosen)}, total channels: {len(recipient_channels)}")
+        logger.info(f"Перенос: нажато выбрать все, сейчас выбрано: {len(chosen)}, всего каналов: {len(recipient_channels)}")
         if len(chosen) == len(recipient_channels):
             chosen.clear()
         else:
             chosen.clear()
             chosen.extend([ch.chat_id for ch in recipient_channels])
-        logger.info(f"Transfer: after choice_all, chosen: {chosen}")
+        logger.info(f"Перенос: после выбрать все, выбрано: {chosen}")
     
     # Выбор/отмена выбора канала (может быть отрицательным ID)
     elif temp[1].lstrip('-').isdigit():
         channel_id = int(temp[1])
-        logger.info(f"Transfer: channel {channel_id} clicked, currently chosen: {chosen}")
+        logger.info(f"Перенос: нажат канал {channel_id}, сейчас выбрано: {chosen}")
         if channel_id in chosen:
             chosen.remove(channel_id)
-            logger.info(f"Transfer: removed {channel_id}")
+            logger.info(f"Перенос: удален {channel_id}")
         else:
             chosen.append(channel_id)
-            logger.info(f"Transfer: added {channel_id}")
+            logger.info(f"Перенос: добавлен {channel_id}")
     
     # Перенести подписку
     elif temp[1] == 'transfer':
-        logger.info(f"Transfer: transfer button clicked, chosen: {chosen}")
+        logger.info(f"Перенос: нажата кнопка переноса, выбрано: {chosen}")
         if not chosen:
-            logger.warning("Transfer: no channels chosen")
+            logger.warning("Перенос: не выбраны каналы")
             return await call.answer(
                 text("error_transfer_min_recipients"),
                 show_alert=True
             )
         
-        logger.info(f"Transfer: executing transfer for {len(chosen)} channels")
+        logger.info(f"Перенос: выполнение переноса для {len(chosen)} каналов")
         await execute_transfer(call, state, user, chosen)
         return
     
