@@ -89,162 +89,156 @@ async def send_story(story: Story):
 
         # Инициализация MT клиента
         path_obj = Path(session_path)
-        manager = SessionManager(path_obj)
-
+        
         try:
-            await manager.init_client()
-            if not manager.client:
-                logger.error(f"❌ Ошибка инициализации клиента для {chat_id}")
-                await db.channel.update_channel_by_chat_id(
-                    chat_id=chat_id, session_path=None
-                )
-                error_send.append({"chat_id": chat_id, "error": "Client Init Fail"})
-                continue
+            # Используем менеджер сессий
+            async with SessionManager(path_obj) as manager:
+                if not manager.client:
+                    logger.error(f"Не удалось инициализировать клиент для сессии {session_path}")
+                    error_send.append({"chat_id": chat_id, "error": "Init client error"})
+                    continue
 
-            # Проверка прав на отправку сторис
-            try:
-                can_post = await manager.can_send_stories(chat_id)
-                if not can_post:
-                    logger.warning(f"⛔️ Нет прав на отправку сторис в {chat_id}")
+                # Проверка прав на отправку сторис
+                try:
+                    can_post = await manager.can_send_stories(chat_id)
+                    if not can_post:
+                        logger.warning(f"⛔️ Нет прав на отправку сторис в {chat_id}")
+                        error_send.append(
+                            {"chat_id": chat_id, "error": "Нет прав администратора"}
+                        )
+                        continue
+                except Exception as e:
+                    logger.error(
+                        f"Ошибка при предварительной проверке для {chat_id}: {e}",
+                        exc_info=True,
+                    )
                     error_send.append(
-                        {"chat_id": chat_id, "error": "Нет прав администратора"}
+                        {"chat_id": chat_id, "error": f"Ошибка проверки: {e}"}
                     )
                     continue
-            except Exception as e:
-                logger.error(
-                    f"Ошибка при предварительной проверке для {chat_id}: {e}",
-                    exc_info=True,
-                )
-                error_send.append(
-                    {"chat_id": chat_id, "error": f"Ошибка проверки: {e}"}
-                )
-                continue
 
-            # Скачивание медиафайла
-            input_file = None
-            filepath = None
-            try:
-                # Проверка TEMP_DIR
-                temp_dir = Path("main_bot/utils/temp")
-                if not temp_dir.exists():
-                    temp_dir.mkdir(parents=True, exist_ok=True)
-
-                if options.video:
-                    file_info = await bot.get_file(options.video)
-                    input_file = str(temp_dir / file_info.file_path.split("/")[-1])
-
-                media_bytes = await bot.download(
-                    file=options.video or options.photo, destination=input_file
-                )
-
-                if options.photo:
-                    filepath = await get_path(media_bytes, chat_id)
-                else:
-                    filepath = await get_path_video(input_file, chat_id)
-            except Exception as e:
-                logger.error(f"❌ Ошибка скачивания медиа: {e}", exc_info=True)
-                error_send.append(
-                    {"chat_id": chat_id, "error": "Ошибка скачивания медиа"}
-                )
-                continue
-
-            # Замена тегов эмодзи для совместимости с MT
-            if options.caption:
-                caption = options.caption
-                options.caption = caption.replace(
-                    "<tg-emoji emoji-id", "<emoji id"
-                ).replace("</tg-emoji>", "</emoji>")
-
-            # Отправка сторис
-            try:
-                logger.info(f"📤 Отправляем сторис в {chat_id}...")
-                await manager.send_story(
-                    chat_id=chat_id, file_path=filepath, options=options
-                )
-                success_send.append({"chat_id": chat_id})
-                logger.info(f"✅ Сторис успешно отправлена в {chat_id}")
-
-            except FloodWaitError as e:
-                logger.warning(f"⏳ FloodWait {e.seconds}s для {chat_id}. Ждем...")
-                await asyncio.sleep(e.seconds)
-                # Повторная попытка (один раз)
+                # Скачивание медиафайла
+                input_file = None
+                filepath = None
                 try:
-                    logger.info(f"🔄 Повторная попытка отправки в {chat_id}...")
+                    # Проверка TEMP_DIR
+                    temp_dir = Path("main_bot/utils/temp")
+                    if not temp_dir.exists():
+                        temp_dir.mkdir(parents=True, exist_ok=True)
+
+                    if options.video:
+                        file_info = await bot.get_file(options.video)
+                        input_file = str(temp_dir / file_info.file_path.split("/")[-1])
+
+                    media_bytes = await bot.download(
+                        file=options.video or options.photo, destination=input_file
+                    )
+
+                    if options.photo:
+                        filepath = await get_path(media_bytes, chat_id)
+                    else:
+                        filepath = await get_path_video(input_file, chat_id)
+                except Exception as e:
+                    logger.error(f"❌ Ошибка скачивания медиа: {e}", exc_info=True)
+                    error_send.append(
+                        {"chat_id": chat_id, "error": "Ошибка скачивания медиа"}
+                    )
+                    continue
+
+                # Замена тегов эмодзи для совместимости с MT
+                if options.caption:
+                    caption = options.caption
+                    options.caption = caption.replace(
+                        "<tg-emoji emoji-id", "<emoji id"
+                    ).replace("</tg-emoji>", "</emoji>")
+
+                # Отправка сторис
+                try:
+                    logger.info(f"📤 Отправляем сторис в {chat_id}...")
                     await manager.send_story(
                         chat_id=chat_id, file_path=filepath, options=options
                     )
                     success_send.append({"chat_id": chat_id})
-                    logger.info(
-                        f"✅ Сторис успешно отправлена в {chat_id} (после FloodWait)"
-                    )
-                except Exception as e_retry:
-                    logger.error(f"❌ Ошибка после FloodWait в {chat_id}: {e_retry}")
-                    error_send.append({"chat_id": chat_id, "error": str(e_retry)})
+                    logger.info(f"✅ Сторис успешно отправлена в {chat_id}")
 
-            except Exception as e:
-                logger.error(
-                    f"❌ Ошибка при отправке сторис в {chat_id}: {e}", exc_info=True
-                )
-                error_str = str(e)
-                error_send.append({"chat_id": chat_id, "error": error_str})
-
-                # Отправка алерта в поддержку при критических ошибках
-                if (
-                    "CHAT_ADMIN_REQUIRED" in error_str
-                    or "STORIES_DISABLED" in error_str
-                    or "USER_NOT_PARTICIPANT" in error_str
-                ):
-
-                    found_client = None
-                    if session_path:
-                        clients = await db.mt_client.get_mt_clients_by_pool("internal")
-                        for c in clients:
-                            if Path(c.session_path) == path_obj:
-                                found_client = c
-                                break
-                    # Попытка отправить алерт, но не падать, если не вышло
+                except FloodWaitError as err_flood:
+                    logger.warning(f"⏳ FloodWait {err_flood.seconds}s для {chat_id}. Ждем...")
+                    await asyncio.sleep(err_flood.seconds)
+                    # Повторная попытка (один раз)
                     try:
-                        await send_support_alert(
-                            bot,
-                            SupportAlert(
-                                event_type=(
-                                    "STORIES_PERMISSION_DENIED"
-                                    if "ADMIN" in error_str
-                                    else "INTERNAL_ACCESS_LOST"
-                                ),
-                                client_id=found_client.id if found_client else None,
-                                client_alias=(
-                                    found_client.alias if found_client else None
-                                ),
-                                pool_type="internal",
-                                channel_id=chat_id,
-                                channel_username=channel.icon if channel else None,
-                                is_our_channel=True,
-                                task_id=story.id,
-                                task_type="send_story",
-                                error_code=(
-                                    error_str.split("(")[0].strip()
-                                    if "(" in error_str
-                                    else error_str[:50]
-                                ),
-                                error_text=f"Не удалось отправить сторис: {error_str[:100]}",
-                            ),
+                        logger.info(f"🔄 Повторная попытка отправки в {chat_id}...")
+                        await manager.send_story(
+                            chat_id=chat_id, file_path=filepath, options=options
                         )
-                    except Exception as e_alert:
-                        logger.error(f"Не удалось отправить алерт: {e_alert}")
+                        success_send.append({"chat_id": chat_id})
+                        logger.info(
+                            f"✅ Сторис успешно отправлена в {chat_id} (после FloodWait)"
+                        )
+                    except Exception as e_retry:
+                        logger.error(f"❌ Ошибка после FloodWait в {chat_id}: {e_retry}")
+                        error_send.append({"chat_id": chat_id, "error": str(e_retry)})
 
-            # Очистка ресурса
-            try:
-                if filepath and os.path.exists(filepath):
-                    os.remove(filepath)
-            except Exception as e:
-                logger.error(f"Ошибка при удалении файла {filepath}: {e}")
+                except Exception as e:
+                    logger.error(
+                        f"❌ Ошибка при отправке сторис в {chat_id}: {e}", exc_info=True
+                    )
+                    error_str = str(e)
+                    error_send.append({"chat_id": chat_id, "error": error_str})
+
+                    # Отправка алерта в поддержку при критических ошибках
+                    if (
+                        "CHAT_ADMIN_REQUIRED" in error_str
+                        or "STORIES_DISABLED" in error_str
+                        or "USER_NOT_PARTICIPANT" in error_str
+                    ):
+                        found_client = None
+                        if session_path:
+                            clients = await db.mt_client.get_mt_clients_by_pool("internal")
+                            for c in clients:
+                                if Path(c.session_path) == path_obj:
+                                    found_client = c
+                                    break
+                        # Попытка отправить алерт, но не падать, если не вышло
+                        try:
+                            await send_support_alert(
+                                bot,
+                                SupportAlert(
+                                    event_type=(
+                                        "STORIES_PERMISSION_DENIED"
+                                        if "ADMIN" in error_str
+                                        else "INTERNAL_ACCESS_LOST"
+                                    ),
+                                    client_id=found_client.id if found_client else None,
+                                    client_alias=(
+                                        found_client.alias if found_client else None
+                                    ),
+                                    pool_type="internal",
+                                    channel_id=chat_id,
+                                    channel_username=channel.icon if channel else None,
+                                    is_our_channel=True,
+                                    task_id=story.id,
+                                    task_type="send_story",
+                                    error_code=(
+                                        error_str.split("(")[0].strip()
+                                        if "(" in error_str
+                                        else error_str[:50]
+                                    ),
+                                    error_text=f"Не удалось отправить сторис: {error_str[:100]}",
+                                ),
+                            )
+                        except Exception as e_alert:
+                            logger.error(f"Не удалось отправить алерт: {e_alert}")
+
+                # Очистка ресурса
+                try:
+                    if filepath and os.path.exists(filepath):
+                        os.remove(filepath)
+                except Exception as e:
+                    logger.error(f"Ошибка при удалении файла {filepath}: {e}")
 
         except Exception as e:
             logger.error(f"Global error for {chat_id}: {e}", exc_info=True)
             error_send.append({"chat_id": chat_id, "error": str(e)})
-        finally:
-            await manager.disconnect()  # Важно отключиться
 
     logger.info(
         f"🏁 Завершение обработки сторис {story.id}. Успешно: {len(success_send)}, Ошибок: {len(error_send)}"
@@ -314,8 +308,11 @@ async def send_stories():
     """
     stories = await db.story.get_story_for_send()
 
-    if stories:
-        logger.info(f"🔍 Найдено {len(stories)} сторис для отправки")
+    # Фильтрация черновиков (send_time=0)
+    valid_stories = [s for s in stories if s.send_time != 0]
 
-    for story in stories:
+    if valid_stories:
+        logger.info(f"🔍 Найдено {len(valid_stories)} сторис для отправки")
+
+    for story in valid_stories:
         asyncio.create_task(send_story(story))

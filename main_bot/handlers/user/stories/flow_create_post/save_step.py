@@ -77,8 +77,11 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
     kwargs = {"chat_ids": chosen}
 
     if temp[1] == "send_time":
+        # Если выбрано отложенное время, сохраняем его
         kwargs["send_time"] = send_time or post.send_time
     if temp[1] == "public":
+        # Если публикация сейчас, сбрасываем send_time в None (что значит "отправить сейчас" для планировщика)
+        # Важно: это снимает статус черновика (send_time=0)
         kwargs["send_time"] = None
 
     # Обновляем историю в БД
