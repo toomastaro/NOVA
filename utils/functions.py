@@ -19,67 +19,6 @@ logger = logging.getLogger(__name__)
 
 async def create_emoji(user_id: int, photo_bytes=None) -> str:
     """
-    Создает кастомный эмодзи из фото пользователя (или дефолтного).
-
-    Обрабатывает изображение (круг + размытие краев), создает стикерпак
-    и возвращает ID созданного эмодзи.
-
-    :param user_id: ID пользователя Telegram.
-    :param photo_bytes: Байты фото или путь к файлу.
-    :return: custom_emoji_id (str)
+    Создает кастомный эмодзи из фото пользователя (ОТКЛЮЧЕНО).
     """
-    emoji_id = "5393222813345663485"
-
-    if not photo_bytes:
-        photo_bytes = "main_bot/utils/no_photo.jpg"
-
-    try:
-        with Image.open(photo_bytes) as img:
-            new_image = img.resize((100, 100))
-            mask = Image.new("L", new_image.size)
-            draw = ImageDraw.Draw(mask)
-            draw.ellipse(
-                xy=(4, 4, new_image.size[0] - 4, new_image.size[1] - 4), fill=255
-            )
-            mask = mask.filter(ImageFilter.GaussianBlur(2))
-
-            output_path = f"main_bot/utils/temp/{user_id}.png"
-            result = new_image.copy()
-            result.putalpha(mask)
-            result.save(output_path)
-
-            set_id = (
-                "".join(random.sample(string.ascii_letters, k=10))
-                + "_by_"
-                + (await bot.get_me()).username
-            )
-
-        try:
-            await bot.create_new_sticker_set(
-                user_id=user_id,
-                name=set_id,
-                title="NovaTGEmoji",
-                stickers=[
-                    types.InputSticker(
-                        sticker=types.FSInputFile(path=output_path),
-                        format="static",
-                        emoji_list=["🤩"],
-                    )
-                ],
-                sticker_format="static",
-                sticker_type="custom_emoji",
-            )
-            r = await bot.get_sticker_set(set_id)
-            # await bot.session.close()  # CRITICAL FIX: Do not close global bot session!
-            emoji_id = r.stickers[0].custom_emoji_id
-        except Exception as e:
-            logger.error(
-                f"Ошибка при создании набора стикеров для {user_id}: {e}", exc_info=True
-            )
-
-        os.remove(output_path)
-
-    except Exception as e:
-        logger.error(f"Ошибка в create_emoji для {user_id}: {e}", exc_info=True)
-
-    return emoji_id
+    return "5393222813345663485"

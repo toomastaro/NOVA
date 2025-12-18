@@ -247,14 +247,6 @@ async def set_channel(call: types.ChatMemberUpdated, db_bot: UserBot):
     if call.new_chat_member.status == ChatMemberStatus.ADMINISTRATOR and (
         not exist or not exist.bot_id
     ):
-        chat = await call.bot.get_chat(chat_id)
-        if chat.photo:
-            photo_bytes = await call.bot.download(chat.photo.big_file_id)
-        else:
-            photo_bytes = None
-
-        _emoji_id = await create_emoji(call.from_user.id, photo_bytes)
-
         if not exist:
             await main_db.channel_bot_settings.add_channel_bot_setting(
                 id=chat_id,

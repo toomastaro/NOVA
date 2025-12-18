@@ -232,13 +232,9 @@ async def get_token(message: types.Message, state: FSMContext) -> None:
         )
         return
 
-    photo_bytes = None
-    get_photo = await bot_manager.bot.get_user_profile_photos(bot_id)
-    if get_photo.total_count > 0:
-        photo_bytes = await bot_manager.bot.download(get_photo.photos[0][-1].file_id)
     await bot_manager.close()
 
-    emoji_id = await create_emoji(user_id=message.from_user.id, photo_bytes=photo_bytes)
+    emoji_id = "5393222813345663485"  # Дефолтный emoji
     schema = "hello_{}_{}".format(message.from_user.id, username)
     await db.user_bot.add_bot(
         id=bot_id,
