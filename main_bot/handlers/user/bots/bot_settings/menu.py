@@ -118,7 +118,7 @@ async def choice(
     if temp[1] == "back":
         if data.get("from_privetka"):
             channels_raw = await db.channel_bot_settings.get_bot_channels(
-                call.from_user.id
+                call.from_user.id, only_with_bot=True
             )
             channels = await db.channel.get_user_channels(
                 call.from_user.id, from_array=[i.id for i in channels_raw]

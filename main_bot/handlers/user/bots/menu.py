@@ -72,7 +72,9 @@ async def show_choice_channel(message: types.Message, state: FSMContext) -> None
         message (types.Message): Сообщение пользователя.
         state (FSMContext): Контекст состояния.
     """
-    channels_raw = await db.channel_bot_settings.get_bot_channels(message.chat.id)
+    channels_raw = await db.channel_bot_settings.get_bot_channels(
+        message.chat.id, only_with_bot=True
+    )
     if not channels_raw:
         await message.answer(text("error_no_bots"))
         return
@@ -177,7 +179,9 @@ async def show_content(message: types.Message) -> None:
     Аргументы:
         message (types.Message): Сообщение пользователя.
     """
-    channels = await db.channel_bot_settings.get_bot_channels(message.chat.id)
+    channels = await db.channel_bot_settings.get_bot_channels(
+        message.chat.id, only_with_bot=True
+    )
     objects = await db.channel.get_user_channels(
         message.chat.id, from_array=[i.id for i in channels]
     )

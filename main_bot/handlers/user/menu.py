@@ -205,10 +205,22 @@ async def start_privetka(message: types.Message, state: FSMContext) -> None:
         state (FSMContext): Контекст состояния.
     """
     await state.update_data(from_privetka=True)
-    channels_raw = await db.channel_bot_settings.get_bot_channels(message.chat.id)
-    channels = await db.channel.get_user_channels(
+    import time
+
+    channels_raw = await db.channel_bot_settings.get_bot_channels(
+        message.chat.id, only_with_bot=True
+    )
+    objects = await db.channel.get_user_channels(
         message.chat.id, from_array=[i.id for i in channels_raw]
     )
+
+    # Фильтруем каналы с активной подпиской
+    now = int(time.time())
+    channels = [obj for obj in objects if obj.subscribe and obj.subscribe > now]
+
+    if not channels:
+        await message.answer(text("error_no_subscription_bots"))
+        return
 
     await message.answer(
         text("privetka_text"),
@@ -235,7 +247,9 @@ async def privetka_choice_channel(call: types.CallbackQuery, state: FSMContext) 
         return
 
     if temp[1] in ["next", "back"]:
-        channels_raw = await db.channel_bot_settings.get_bot_channels(call.from_user.id)
+        channels_raw = await db.channel_bot_settings.get_bot_channels(
+            call.from_user.id, only_with_bot=True
+        )
         channels = await db.channel.get_user_channels(
             call.from_user.id, from_array=[i.id for i in channels_raw]
         )
