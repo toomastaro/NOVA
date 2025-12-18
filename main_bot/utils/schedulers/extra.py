@@ -19,7 +19,7 @@ from utils.error_handler import safe_handler
 logger = logging.getLogger(__name__)
 
 
-@safe_handler("Валюта: обновление курсов (Background)")
+@safe_handler("Валюта: обновление курсов (Background)", log_start=False)
 async def update_exchange_rates_in_db() -> None:
     """
     Периодическая задача: обновление курсов валют в БД.
