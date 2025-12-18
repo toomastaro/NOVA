@@ -26,6 +26,8 @@ from main_bot.utils.schemas import (
     MessageOptionsHello,
     StoryOptions,
 )
+from main_bot.database.db import db
+
 
 logger = logging.getLogger(__name__)
 
@@ -92,6 +94,15 @@ async def answer_post(
     data = await state.get_data()
 
     post = ensure_obj(data.get("post"))
+    if not post:
+        post_id = data.get("post_id")
+        if post_id:
+            post = await db.post.get_post(post_id)
+
+    if not post:
+        logger.error("Не удалось найти пост для превью")
+        return await message.answer(text("story_not_found"))
+
     is_edit: bool = data.get("is_edit")
     message_options = MessageOptions(**post.message_options)
 
@@ -162,6 +173,15 @@ async def answer_story(
     data = await state.get_data()
 
     post = ensure_obj(data.get("post"))
+    if not post:
+        post_id = data.get("post_id")
+        if post_id:
+            post = await db.story.get_story(post_id)
+
+    if not post:
+        logger.error("Не удалось найти сторис для превью")
+        return await message.answer(text("story_not_found"))
+
     is_edit: bool = data.get("is_edit")
     story_options = StoryOptions(**post.story_options)
 

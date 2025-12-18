@@ -80,16 +80,6 @@ async def get_message(message: types.Message, state: FSMContext):
 
     await state.update_data(chosen=chosen, post_id=post.id)
 
-    # Показываем превью
-    from main_bot.utils.message_utils import send_preview_story
-
-    await send_preview_story(message, story_options, state)
-
-    # Преобразуем объект post в dict для сохранения в FSM
-    post_dict = {col.name: getattr(post, col.name) for col in post.__table__.columns}
-    await state.clear()
-    await state.update_data(post=post_dict, chosen=chosen)
-
     # Показываем превью истории с возможностью редактирования
     await answer_story(message, state)
 
