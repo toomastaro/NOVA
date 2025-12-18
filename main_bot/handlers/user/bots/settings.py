@@ -96,9 +96,11 @@ async def show_bot_manage(
     channel_ids_in_bot = await db.channel_bot_settings.get_all_channels_in_bot_id(
         bot_id=user_bot.id
     )
-    channels = [
-        await db.channel.get_channel_by_chat_id(chat.id) for chat in channel_ids_in_bot
+    channels_raw = [
+        await db.channel.get_channel_admin_row(chat_id=chat.id, user_id=user_bot.admin_id)
+        for chat in channel_ids_in_bot
     ]
+    channels = [c for c in channels_raw if c]
 
     async with BotManager(user_bot.token) as bot_manager:
         status = await bot_manager.status()

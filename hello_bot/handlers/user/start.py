@@ -291,10 +291,13 @@ async def set_channel(call: types.ChatMemberUpdated, db_bot: UserBot):
                 bot_id=db_bot.id
             )
         )
-        channels = [
-            await main_db.channel.get_channel_by_chat_id(chat.id)
+        channels_raw = [
+            await main_db.channel.get_channel_admin_row(
+                chat_id=chat.id, user_id=db_bot.admin_id
+            )
             for chat in channel_ids_in_bot
         ]
+        channels = [c for c in channels_raw if c]
 
         status = True
 
