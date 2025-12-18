@@ -451,7 +451,9 @@ async def accept_delete_row_content(call: types.CallbackQuery, state: FSMContext
         )
 
     if temp[1] == "accept":
-        await db.post.delete_post(post.id)
+        from main_bot.database.db_types import Status
+
+        await db.story.update_story(post.id, status=Status.DELETED)
         posts = await db.story.get_stories(channel.chat_id, day)
 
         days_with_stories = await get_days_with_stories(

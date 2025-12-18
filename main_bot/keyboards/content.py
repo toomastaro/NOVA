@@ -309,12 +309,14 @@ class InlineContent(InlineKeyboardBuilder):
                 options = post.message_options
                 message_text = options.get("text") or options.get("caption")
                 callback = f"{data}|{post.id}"
+                emoji = "⏳"
             elif isinstance(post, PublishedPost):
                 options = post.message_options
                 message_text = options.get("text") or options.get("caption")
 
                 if getattr(post, "status", "active") == "deleted":
                     emoji = "🗑"
+                    message_text = "Удалено"
                 else:
                     emoji = "✅"
 
@@ -322,11 +324,38 @@ class InlineContent(InlineKeyboardBuilder):
             elif isinstance(post, BotPost):
                 options = post.message
                 message_text = options.get("text") or options.get("caption")
-                emoji = "⏳" if post.status == Status.PENDING else "✅"
+                # Иконки в зависимости от статуса рассылки
+                if post.status == Status.PENDING:
+                    emoji = "⏳"
+                elif post.status == Status.FINISH:
+                    emoji = "✅"
+                elif post.status == Status.DELETED:
+                    emoji = "🗑"
+                    message_text = "Удалено"
+                elif post.status == Status.ERROR:
+                    emoji = "❌"
+                else:
+                    emoji = "📤"
                 callback = f"{data}|{post.id}"
-            else:
+            elif isinstance(post, Story):
                 options = post.story_options
                 message_text = options.get("caption")
+                # Иконки в зависимости от статуса сторис
+                if post.status == Status.PENDING:
+                    emoji = "⏳"
+                elif post.status == Status.FINISH:
+                    emoji = "✅"
+                elif post.status == Status.DELETED:
+                    emoji = "🗑"
+                    message_text = "Удалено"
+                elif post.status == Status.ERROR:
+                    emoji = "❌"
+                else:
+                    emoji = "📤"
+                callback = f"{data}|{post.id}"
+            else:
+                emoji = "❓"
+                message_text = "Неизвестно"
                 callback = f"{data}|{post.id}"
 
             if message_text:
@@ -482,10 +511,15 @@ class InlineContent(InlineKeyboardBuilder):
                     options = objects[idx].message_options
                     message_text = options.get("text") or options.get("caption")
                     obj_data = "ContentPost"
+                    emoji = "⏳"  # Запланировано
                 elif isinstance(objects[idx], PublishedPost):
-                    message_text = "Опубликовано"
                     obj_data = "ContentPublishedPost"
-                    emoji = "✅"
+                    if objects[idx].status == "deleted":
+                        emoji = "🗑"
+                        message_text = "Удалено"
+                    else:
+                        emoji = "✅"
+                        message_text = "Опубликовано"
                 elif isinstance(objects[idx], BotPost):
                     options = objects[idx].message
                     message_text = options.get("text") or options.get("caption")
@@ -497,14 +531,31 @@ class InlineContent(InlineKeyboardBuilder):
                         emoji = "✅"  # Завершено
                     elif objects[idx].status == Status.DELETED:
                         emoji = "🗑"  # Удалено
+                        message_text = "Удалено"
                     elif objects[idx].status == Status.ERROR:
                         emoji = "❌"  # Ошибка
                     else:
                         emoji = "📤"  # Готово к отправке (READY)
-                else:
+                elif isinstance(objects[idx], Story):
                     options = objects[idx].story_options
                     message_text = options.get("caption")
                     obj_data = "ContentStories"
+                    # Иконки в зависимости от статуса сторис
+                    if objects[idx].status == Status.PENDING:
+                        emoji = "⏳"  # Запланировано
+                    elif objects[idx].status == Status.FINISH:
+                        emoji = "✅"  # Опубликовано
+                    elif objects[idx].status == Status.DELETED:
+                        emoji = "🗑"  # Удалено
+                        message_text = "Удалено"
+                    elif objects[idx].status == Status.ERROR:
+                        emoji = "❌"  # Ошибка
+                    else:
+                        emoji = "📤"
+                else:
+                    obj_data = "Unknown"
+                    emoji = "❓"
+                    message_text = "Неизвестно"
 
                 if message_text:
                     message_text = clean_html_text(message_text)
