@@ -36,6 +36,20 @@ async def check_permissions_task(chat_id: int):
         async with SessionManager(session_path) as manager:
             perms = await manager.check_permissions(chat_id)
             
+        if perms.get("error") == "USER_NOT_PARTICIPANT":
+            # Сброс прав в БД, если помощника нет в канале
+            await db.mt_client_channel.set_membership(
+                client_id=mt_client.id,
+                channel_id=chat_id,
+                is_member=False,
+                is_admin=False,
+                can_post_stories=False,
+                last_joined_at=int(time.time()),
+                preferred_for_stats=client_row[0].preferred_for_stats
+            )
+            logger.info(f"Статус помощника сброшен для {chat_id} (удален из участников)")
+            return
+
         if not perms.get("error"):
             is_admin = perms.get("is_admin", False)
             can_stories = perms.get("can_post_stories", False)
@@ -268,18 +282,6 @@ async def manage_channel(call: types.CallbackQuery, state: FSMContext):
 
         # Проверяем, есть ли уже права у помощника
         client_row = await db.mt_client_channel.get_my_membership(channel.chat_id)
-        if client_row:
-            can_post = client_row[0].is_admin
-            can_stories = client_row[0].can_post_stories
-
-            # Если оба права уже есть - помощник уже добавлен
-            if can_post and can_stories:
-                await call.answer(
-                    "✅ Помощник уже добавлен в канал и имеет все необходимые права!",
-                    show_alert=True,
-                )
-                # Возвращаемся на экран информации о канале
-                return await render_channel_info(call, state, channel_id)
 
         # Получение клиента
         if not client_row or not client_row[0].client:
@@ -409,7 +411,18 @@ async def manage_channel(call: types.CallbackQuery, state: FSMContext):
         if perms.get("error"):
             error_code = perms["error"]
             if error_code == "USER_NOT_PARTICIPANT":
-                error_msg = "Помощник не найден в участниках канала"
+                error_msg = "Помощник не найден в участниках канала. Статус сброшен."
+                # 3. Обновление БД (Сброс)
+                await db.mt_client_channel.set_membership(
+                    client_id=mt_client.id,
+                    channel_id=channel.chat_id,
+                    is_member=False,
+                    is_admin=False,
+                    can_post_stories=False,
+                    last_joined_at=int(time.time()),
+                    preferred_for_stats=client_row[0].preferred_for_stats
+                )
+                await render_channel_info(call, state, channel.chat_id)
             else:
                 error_msg = f"Ошибка: {error_code}"
 
