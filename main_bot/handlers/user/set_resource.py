@@ -240,15 +240,23 @@ async def set_admin(call: types.ChatMemberUpdated) -> None:
             )
 
         channel = await db.channel.get_channel_by_chat_id(chat_id)
-        await db.channel.add_channel(
-            chat_id=chat_id,
-            admin_id=admin.user.id,
-            title=call.chat.title,
-            subscribe=channel.subscribe,
-            session_path=channel.session_path,
-            emoji_id=channel.emoji_id,
-            created_timestamp=channel.created_timestamp,
-        )
+        
+        add_kwargs = {
+            "chat_id": chat_id,
+            "admin_id": admin.user.id,
+            "title": call.chat.title,
+        }
+
+        # Если канал уже был в базе, сохраняем существующие данные
+        if channel:
+            add_kwargs.update({
+                "subscribe": channel.subscribe,
+                "session_path": channel.session_path,
+                "emoji_id": channel.emoji_id,
+                "created_timestamp": channel.created_timestamp,
+            })
+
+        await db.channel.add_channel(**add_kwargs)
 
 
 @safe_handler("Set Active")
