@@ -120,6 +120,7 @@
   "error:post:delete": "🖌 <b>Не удалось удалить пост #{} в канале 📺 {}, удалите публикацию вручную</b>",
   "cpm:report": "📊 <b>Отчёт по посту:</b>\n{}\n\n{}\n\n💸 <b>CPM:</b> {} RUB\n👀 <b>Просмотры:</b> {}\n💰 <b>Стоимость:</b> <code>{}₽</code> | <code>{}$</code>\n\nℹ️ <i>Курс: 1 USDT = {}₽ (обн. {})</i>",
   "cpm:report:header": "📊 <b>Отчёт по посту:</b>\n{}\n(<b>{}</b>)",
+  "cpm:report:header:simple": "📊 <b>Отчёт по посту:</b>\n{}",
   "cpm:report:stats": "\n👀 Просмотры: <b>{}</b>\n💰 Стоимость: <code>{}₽</code> | <code>{}$</code>\n\nℹ️ <i>Курс: 1 USDT = {}₽</i>",
   "cpm:report:view_button": "📊 CPM Отчёт",
   "story_photo": "",
