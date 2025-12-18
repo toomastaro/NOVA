@@ -172,6 +172,12 @@ async def manage_post(call: types.CallbackQuery, state: FSMContext):
             return_obj=True,
             story_options=story_options.model_dump(),
         )
+
+        # Обновляем бекап сообщения
+        from main_bot.utils.backup_utils import edit_backup_message
+
+        await edit_backup_message(post)
+
         # Преобразуем в dict перед сохранением
         post_dict = {
             col.name: getattr(post, col.name) for col in post.__table__.columns
@@ -246,9 +252,17 @@ async def cancel_value(call: types.CallbackQuery, state: FSMContext):
         kwargs = {"story_options": message_options.model_dump()}
 
         post = await db.story.update_story(post_id=post.id, return_obj=True, **kwargs)
-        # В FSM post больше не обновляем (или удаляем старый если был)
-        # await state.update_data(post=post_dict) # <-- Удалено
-        data = await state.get_data()
+
+        # Обновляем бекап сообщения
+        from main_bot.utils.backup_utils import edit_backup_message
+
+        await edit_backup_message(post)
+
+        # Синхронизируем post в data
+        post_dict = {
+            col.name: getattr(post, col.name) for col in post.__table__.columns
+        }
+        data["post"] = post_dict
 
     await state.clear()
     await state.update_data(data)
@@ -298,6 +312,14 @@ async def get_value(message: types.Message, state: FSMContext):
 
     post = await db.story.update_story(post_id=post.id, return_obj=True, **kwargs)
 
+    # Обновляем бекап сообщения
+    from main_bot.utils.backup_utils import edit_backup_message
+
+    await edit_backup_message(post)
+
+    # Обновляем объект поста, чтобы получить новый backup_message_id если произошел фоллбек
+    post = await db.story.get_story(post.id)
+
     # Преобразуем объект post в dict для сохранения в FSM
     post_dict = {col.name: getattr(post, col.name) for col in post.__table__.columns}
 
@@ -305,5 +327,9 @@ async def get_value(message: types.Message, state: FSMContext):
     data["post"] = post_dict
     await state.update_data(data)
 
-    await message.bot.delete_message(message.chat.id, data.get("input_msg_id"))
+    try:
+        await message.bot.delete_message(message.chat.id, data.get("input_msg_id"))
+    except Exception:
+        pass
+
     await answer_story(message, state)

@@ -86,18 +86,26 @@ class InlineStories(InlineKeyboardBuilder):
     def choice_delete_time_story(cls):
         kb = cls()
 
-        periods = [6, 12, 24, 48]
+        # Добавлена 1 минута (60 сек) для тестов удаления
+        periods = [
+            {"text": "1 мин.", "value": 60},
+            {"text": "6 ч.", "value": 6 * 3600},
+            {"text": "12 ч.", "value": 12 * 3600},
+            {"text": "24 ч.", "value": 24 * 3600},
+            {"text": "48 ч.", "value": 48 * 3600},
+        ]
 
         row = []
-        for period in periods:
+        for p in periods:
             row.append(
                 InlineKeyboardButton(
-                    text=f"{period} ч.",
-                    callback_data="GetDeleteTimeStories|{}".format(period * 3600),
+                    text=p["text"],
+                    callback_data="GetDeleteTimeStories|{}".format(p["value"]),
                 )
             )
 
-        kb.row(*row)
+        kb.row(*row[:3])
+        kb.row(*row[3:])
         kb.row(
             InlineKeyboardButton(
                 text=text("back:button"), callback_data="GetDeleteTimeStories|cancel"
@@ -118,12 +126,16 @@ class InlineStories(InlineKeyboardBuilder):
             ),
             callback_data="FinishStoriesParams|send_time",
         )
+        # Логика отображения таймера (поддержка минут для тестов)
+        if not options.period:
+            timer_text = text("manage:post:del_time:not")
+        elif options.period < 3600:
+            timer_text = f"{int(options.period / 60)} мин."
+        else:
+            timer_text = f"{int(options.period / 3600)} ч."
+
         kb.button(
-            text=text("manage:post:del_time:button").format(
-                f"{int(options.period / 3600)} ч."  # type: ignore
-                if options.period
-                else text("manage:post:del_time:not")
-            ),
+            text=text("manage:post:del_time:button").format(timer_text),
             callback_data="FinishStoriesParams|delete_time",
         )
         kb.button(
