@@ -170,9 +170,10 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
         # Удаляем старое сообщение
         await call.message.delete()
 
+        from config import Config
         # Отправляем текстовую инструкцию
         return await call.message.answer(
-            text=text("channels:add:text"),
+            text=text("channels:add:text").format(Config.BOT_USERNAME),
             reply_markup=keyboards.add_channel(),
         )
 

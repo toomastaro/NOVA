@@ -114,15 +114,17 @@ async def render_channel_info(
         status_welcome = "❓"
         assistant_header = "🤖 <b>Статус помощника:</b> Ошибка\n"
 
-    info_text = (
-        f"📺 <b>Информация о канале</b>\n\n"
-        f"🏷 <b>Название:</b> {channel.title}\n"
-        f"👑 <b>Владелец:</b> {creator_name}\n"
-        f"👥 <b>Подписчиков:</b> {members_count}\n"
-        f"📅 <b>Добавлен:</b> {created_str}\n"
-        f"💎 <b>Подписка:</b> {subscribe_str}\n\n"
-        f"🛠 <b>Редакторы:</b>\n{editors_str}\n\n"
-        f"{assistant_header}"
+    info_text = text("channel_info").format(
+        channel.title,
+        creator_name,
+        created_str,
+        subscribe_str,
+        editors_str,
+        Config.BOT_USERNAME,
+    )
+
+    info_text += (
+        f"\n\n{assistant_header}"
         f"├ 📝 Постинг: {status_post}\n"
         f"├ 📸 Истории: {status_story}\n"
         f"├ 📨 Рассылка: {status_mail}\n"
@@ -173,9 +175,10 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
         # Удаляем старое сообщение
         await call.message.delete()
 
+        from config import Config
         # Отправляем текстовую инструкцию
         return await call.message.answer(
-            text=text("channels:add:text"),
+            text=text("channels:add:text").format(Config.BOT_USERNAME),
             reply_markup=keyboards.add_channel(
                 bot_username=(await call.bot.get_me()).username,
                 data="BackAddChannelStories",

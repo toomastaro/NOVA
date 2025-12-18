@@ -15,6 +15,8 @@ from aiogram import types, F, Router, Bot
 from aiogram.enums import ChatMemberStatus
 from aiogram.fsm.context import FSMContext
 
+from config import Config
+
 from main_bot.states.user import AddChannel
 from main_bot.handlers.user.menu import start_posting
 
@@ -303,12 +305,12 @@ async def manual_add_channel(message: types.Message, state: FSMContext) -> None:
         bot_member = await message.bot.get_chat_member(chat_id, message.bot.id)
         if bot_member.status != ChatMemberStatus.ADMINISTRATOR:
             return await message.answer(
-                "❌ <b>Бот не является администратором в канале.</b>\n\nСначала добавьте @novatg в админы канала с правом публикации."
+                f"❌ <b>Бот не является администратором в канале.</b>\n\nСначала добавьте @{Config.BOT_USERNAME} в админы канала с правом публикации."
             )
     except Exception as e:
         logger.error("Ошибка проверки прав бота в %s: %s", chat_id, e)
         return await message.answer(
-            "❌ <b>Бот не найден в канале.</b>\n\nДобавьте @novatg в администраторы канала и попробуйте снова."
+            f"❌ <b>Бот не найден в канале.</b>\n\nДобавьте @{Config.BOT_USERNAME} в администраторы канала и попробуйте снова."
         )
 
     # 3. Проверка прав пользователя

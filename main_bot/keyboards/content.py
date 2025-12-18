@@ -81,12 +81,15 @@ class InlineContent(InlineKeyboardBuilder):
         return kb.as_markup()
 
     @classmethod
-    def add_channel(cls, bot_username: str, data: str = "BackAddChannelPost"):
+    def add_channel(cls, bot_username: str = None, data: str = "BackAddChannelPost"):
         kb = cls()
+        from config import Config
+
+        username = bot_username or Config.BOT_USERNAME
 
         kb.button(
             text=text("channels:add:button"),
-            url=f"t.me/{bot_username}?startchannel&admin=change_info+post_messages+edit_messages+delete_messages+post_stories+edit_stories+delete_stories+promote_members+invite_users",
+            url=f"https://t.me/{username}?startchannel&admin=change_info+post_messages+edit_messages+delete_messages+post_stories+edit_stories+delete_stories+promote_members+invite_users",
         )
         kb.button(text=text("back:button"), callback_data=f"{data}|cancel")
 
