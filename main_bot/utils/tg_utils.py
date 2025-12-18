@@ -287,13 +287,23 @@ async def set_channel_session(chat_id: int):
         if not preferred_stats:
             is_preferred = True
 
-        # Устанавливаем членство
+        # Проверяем права сразу после вступления (или если уже в канале)
+        is_admin = False
+        can_stories = False
+        perms = await manager.check_permissions(chat_id)
+        if not perms.get("error"):
+            is_admin = perms.get("is_admin", False)
+            can_stories = perms.get("can_post_stories", False)
+            if perms.get("me") and perms["me"].username:
+                await db.mt_client.update_mt_client(client.id, alias=perms["me"].username)
+
+        # Устанавливаем членство с актуальными правами
         await db.mt_client_channel.set_membership(
             client_id=client.id,
             channel_id=chat_id,
-            is_member=join_success,  # True если вступил
-            is_admin=False,  # Права проверяются позже вручную или через кнопку проверки
-            can_post_stories=False,
+            is_member=perms.get("is_member", join_success),
+            is_admin=is_admin,
+            can_post_stories=can_stories,
             last_joined_at=int(time.time()),
             preferred_for_stats=is_preferred,
         )

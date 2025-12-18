@@ -15,6 +15,44 @@ from main_bot.utils.session_manager import SessionManager
 logger = logging.getLogger(__name__)
 
 
+async def check_permissions_task(chat_id: int):
+    """Фоновая задача для обновления прав помощника."""
+    from main_bot.utils.session_manager import SessionManager
+    from main_bot.utils.tg_utils import db
+    
+    # 1. Получение клиента
+    client_row = await db.mt_client_channel.get_my_membership(chat_id)
+    if not client_row or not client_row[0].client:
+        return
+
+    mt_client = client_row[0].client
+    session_path = Path(mt_client.session_path)
+    if not session_path.exists():
+        return
+
+    # 2. Проверка прав
+    try:
+        async with SessionManager(session_path) as manager:
+            perms = await manager.check_permissions(chat_id)
+            
+        if not perms.get("error"):
+            is_admin = perms.get("is_admin", False)
+            can_stories = perms.get("can_post_stories", False)
+            
+            # 3. Обновление БД
+            await db.mt_client_channel.set_membership(
+                client_id=mt_client.id,
+                channel_id=chat_id,
+                is_member=perms.get("is_member", True),
+                is_admin=is_admin,
+                can_post_stories=can_stories,
+                last_joined_at=int(time.time()),
+                preferred_for_stats=client_row[0].preferred_for_stats
+            )
+    except Exception as e:
+        logger.error(f"Error in check_permissions_task: {e}")
+
+
 async def render_channel_info(
     call: types.CallbackQuery, state: FSMContext, channel_id: int
 ):
@@ -82,6 +120,10 @@ async def render_channel_info(
         status_story = "✅" if can_stories else "❌"
         # Рассылка зависит от логики постинга (TODO)
         status_mail = "❌"
+        
+        # Если права не выданы, запускаем фоновую проверку
+        if not can_post or not can_stories:
+            asyncio.create_task(check_permissions_task(channel.chat_id))
 
         # Проверка приветственных сообщений
         hello_msgs = await db.channel_bot_hello.get_hello_messages(
