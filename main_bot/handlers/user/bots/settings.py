@@ -504,8 +504,13 @@ async def get_import_file(message: types.Message, state: FSMContext) -> None:
             users = [{"id": i} for i in file_data[0] if isinstance(i, int)]
 
         data = await state.get_data()
+        user_bot_data = data.get("user_bot")
+        if not user_bot_data:
+            await message.answer(text("keys_data_error"))
+            return
+
         other_db = Database()
-        other_db.schema = ensure_bot_obj(data.get("user_bot")).schema
+        other_db.schema = ensure_bot_obj(user_bot_data).schema
 
         await other_db.many_insert_user(users)
 
@@ -517,11 +522,11 @@ async def get_import_file(message: types.Message, state: FSMContext) -> None:
         if os.path.exists(filepath):
             os.remove(filepath)
 
+    await show_bot_manage(message, data.get("user_bot"))
     await state.clear()
     await state.update_data(data)
 
     await message.answer(text("success_import"))
-    await show_bot_manage(message, data.get("user_bot"))
 
 
 @safe_handler("Bots Choice Export")
@@ -545,8 +550,14 @@ async def choice_export(call: types.CallbackQuery, state: FSMContext) -> None:
         await show_bot_manage(call.message, data.get("user_bot"))
         return
 
+    user_bot_data = data.get("user_bot")
+    if not user_bot_data:
+        await call.answer(text("keys_data_error"))
+        await call.message.delete()
+        return
+
     other_db = Database()
-    other_db.schema = ensure_bot_obj(data.get("user_bot")).schema
+    other_db.schema = ensure_bot_obj(user_bot_data).schema
 
     users = await other_db.get_dump_users()
     if not users:
