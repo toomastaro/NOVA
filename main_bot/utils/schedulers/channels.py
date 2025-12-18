@@ -46,10 +46,19 @@ async def update_channel_stats(channel_id: int) -> None:
         logger.warning(f"Канал {channel_id} не найден во время обновления статистики")
         return
 
-    # Проверка подписки - УБРАНА по требованию (статистика нужна всегда)
-    # if not channel.subscribe or channel.subscribe < int(time.time()):
-    #     logger.info(f"Канал {channel.title} ({channel.chat_id}) не имеет активной подписки. Пропуск обновления.")
-    #     return
+    # Проверка на мягкое удаление (если канал в архиве/удален)
+    if channel.subscribe == Config.SOFT_DELETE_TIMESTAMP:
+        logger.debug(f"Канал {channel.title} ({channel_id}) помечен как удаленный. Пропуск.")
+        # Попытка автоматически снять задачу, если она все еще в планировщике
+        try:
+            from . import scheduler_instance
+            if scheduler_instance:
+                job_id = f"channel_stats_{channel_id}"
+                scheduler_instance.remove_job(job_id)
+                logger.debug(f"Задача {job_id} успешно удалена из планировщика (auto-cleanup)")
+        except Exception:
+            pass
+        return
 
     # 2. Инициализируем клиент (Internal)
     # Ищем клиент, привязанный к каналу (preferred_for_stats или любой активный)

@@ -2,6 +2,7 @@ from aiogram import types, F, Router
 from aiogram.fsm.context import FSMContext
 from pathlib import Path
 import time
+import asyncio
 
 from main_bot.database.db import db
 from main_bot.keyboards import keyboards
