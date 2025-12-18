@@ -27,6 +27,7 @@ from main_bot.utils.schemas import (
     StoryOptions,
 )
 from main_bot.database.db import db
+from main_bot.utils.lang.language import text
 
 
 logger = logging.getLogger(__name__)
@@ -200,25 +201,26 @@ async def answer_story(
 
     # Логика загрузки превью из бэкапа
     backup_msg_id = getattr(post, "backup_message_id", None)
-    if backup_msg_id and Config.BACKUP_CHAT_ID:
+    backup_chat_id = getattr(post, "backup_chat_id", None) or Config.BACKUP_CHAT_ID
+
+    if backup_msg_id and backup_chat_id:
         try:
             post_message = await message.bot.copy_message(
                 chat_id=message.chat.id,
-                from_chat_id=Config.BACKUP_CHAT_ID,
+                from_chat_id=backup_chat_id,
                 message_id=backup_msg_id,
                 reply_markup=reply_markup,
                 parse_mode="HTML",
             )
             logger.info(
-                f"Превью для сторис {post.id} загружено из бэкапа (msg {backup_msg_id})"
+                f"Превью для сторис {post.id} загружено из бэкапа (chat {backup_chat_id}, msg {backup_msg_id})"
             )
             return post_message
         except Exception as e:
             logger.error(
-                f"Не удалось загрузить превью из бэкапа для сторис {post.id}: {e}",
-                exc_info=True,
+                f"Не удалось загрузить превью из бэкапа для сторис {post.id} (chat {backup_chat_id}, msg {backup_msg_id}): {e}"
             )
-            # Возврат к локальной генерации
+            # Если не удалось скопировать (например, сообщение удалено) - идем дальше к прямой отправке
 
     post_message = await cor(**story_options.model_dump(), reply_markup=reply_markup)
 

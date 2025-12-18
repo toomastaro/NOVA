@@ -12,6 +12,7 @@ from main_bot.utils.functions import answer_story
 from main_bot.utils.lang.language import text
 from utils.error_handler import safe_handler
 from main_bot.utils.backup_utils import send_to_backup
+from config import Config
 import logging
 
 logger = logging.getLogger(__name__)
@@ -277,16 +278,21 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
 
     # Показываем превью (через CopyMessage из бэкапа)
     post_message = None
-    if post.backup_chat_id and post.backup_message_id:
+    backup_chat_id = post.backup_chat_id or Config.BACKUP_CHAT_ID
+
+    if backup_chat_id and post.backup_message_id:
         try:
             post_message = await call.bot.copy_message(
                 chat_id=call.from_user.id,
-                from_chat_id=post.backup_chat_id,
+                from_chat_id=backup_chat_id,
                 message_id=post.backup_message_id,
                 reply_markup=keyboards.manage_story(post=post, is_edit=True),
             )
-        except Exception:
-            # Fallback если копирование не удалось
+        except Exception as e:
+            logger.warning(
+                f"Не удалось скопировать сторис {post.id} из бэкапа {backup_chat_id}: {e}"
+            )
+            # Fallback если копирование не удалось (например, сообщение удалено в тг)
             post_message = await answer_story(call.message, state, from_edit=True)
     else:
         post_message = await answer_story(call.message, state, from_edit=True)
