@@ -38,7 +38,22 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
         await call.answer(text("keys_data_error"))
         return await call.message.delete()
 
-    post: Story = data.get("post")
+    # Lazy load post
+    post_obj = data.get("post")
+    if post_obj:
+        from main_bot.keyboards.posting import ensure_obj
+
+        post: Story = ensure_obj(post_obj)
+    else:
+        post_id = data.get("post_id")
+        if not post_id:
+            await call.answer(text("keys_data_error"))
+            return await call.message.delete()
+        post = await db.story.get_story(post_id)
+        if not post:
+            await call.answer(text("story_not_found"))
+            return await call.message.delete()
+
     chosen: list = data.get("chosen", post.chat_ids)
     send_time: int = data.get("send_time")
     is_edit: bool = data.get("is_edit")
@@ -69,7 +84,7 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
                 data.get("channel").emoji_id,
                 data.get("channel").title,
             )
-            reply_markup = keyboards.manage_remain_story(post=data.get("post"))
+            reply_markup = keyboards.manage_remain_story(post=post)
 
         return await call.message.edit_text(message_text, reply_markup=reply_markup)
 

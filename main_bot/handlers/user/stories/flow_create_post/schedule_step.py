@@ -376,10 +376,30 @@ async def finish_params(call: types.CallbackQuery, state: FSMContext):
         await call.answer(text("keys_data_error"))
         return await call.message.delete()
 
-    post: dict = data.get("post")
-    options = StoryOptions(**post["story_options"])
+    # Lazy load post
+    post_obj = data.get("post")
+    if post_obj:
+        from main_bot.keyboards.posting import ensure_obj
 
-    chosen: list = data.get("chosen", post["chat_ids"])
+        post = ensure_obj(post_obj)
+    else:
+        post_id = data.get("post_id")
+        if not post_id:
+            await call.answer(text("keys_data_error"))
+            return await call.message.delete()
+        post = await db.story.get_story(post_id)
+        if not post:
+            await call.answer(text("story_not_found"))
+            return await call.message.delete()
+
+    story_options = (
+        post.story_options
+        if isinstance(post.story_options, dict)
+        else post.story_options
+    )
+    options = StoryOptions(**story_options)
+
+    chosen: list = data.get("chosen", post.chat_ids)
     objects = await db.channel.get_user_channels(
         user_id=call.from_user.id, sort_by="stories"
     )
@@ -391,18 +411,13 @@ async def finish_params(call: types.CallbackQuery, state: FSMContext):
         return
 
     if temp[1] == "report":
-        post_obj = await db.story.update_story(
-            post_id=post["id"], return_obj=True, report=not post["report"]
+        await db.story.update_story(
+            post_id=post.id, return_obj=False, report=not post.report
         )
-        # Преобразуем объект post в dict для сохранения в FSM
-        post_dict = {
-            col.name: getattr(post_obj, col.name) for col in post_obj.__table__.columns
-        }
-        await state.update_data(post=post_dict)
+        # В FSM не обновляем
+        post = await db.story.get_story(post.id)
         return await call.message.edit_reply_markup(
-            reply_markup=keyboards.finish_params(
-                obj=post_dict, data="FinishStoriesParams"
-            )
+            reply_markup=keyboards.finish_params(obj=post, data="FinishStoriesParams")
         )
 
     if temp[1] == "delete_time":
@@ -442,24 +457,37 @@ async def choice_delete_time(call: types.CallbackQuery, state: FSMContext):
         await call.answer(text("keys_data_error"))
         return await call.message.delete()
 
-    post: dict = data.get("post")
-    story_options = StoryOptions(**post["story_options"])
+    # Lazy load post
+    post_obj = data.get("post")
+    if post_obj:
+        from main_bot.keyboards.posting import ensure_obj
+
+        post = ensure_obj(post_obj)
+    else:
+        post_id = data.get("post_id")
+        if not post_id:
+            await call.answer(text("keys_data_error"))
+            return await call.message.delete()
+        post = await db.story.get_story(post_id)
+        if not post:
+            await call.answer(text("story_not_found"))
+            return await call.message.delete()
+
+    story_options = StoryOptions(**post.story_options)
 
     delete_time = story_options.period
     if temp[1].isdigit():
         delete_time = int(temp[1])
     if story_options.period != delete_time:
         story_options.period = delete_time
-        post_obj = await db.story.update_story(
-            post_id=post["id"],
-            return_obj=True,
+        await db.story.update_story(
+            post_id=post.id,
+            return_obj=False,
             story_options=story_options.model_dump(),
         )
-        # Преобразуем объект post в dict для сохранения в FSM
-        post_dict = {
-            col.name: getattr(post_obj, col.name) for col in post_obj.__table__.columns
-        }
-        await state.update_data(post=post_dict)
+        # В FSM post не обновляем
+        # Обновим post.story_options локально для корректной работы ниже
+        post.story_options = story_options.model_dump()
         data = await state.get_data()
 
     is_edit: bool = data.get("is_edit")
@@ -482,9 +510,7 @@ async def choice_delete_time(call: types.CallbackQuery, state: FSMContext):
         text("manage:story:finish_params").format(
             len(chosen), await get_story_report_text(chosen, objects)
         ),
-        reply_markup=keyboards.finish_params(
-            obj=data.get("post"), data="FinishStoriesParams"
-        ),
+        reply_markup=keyboards.finish_params(obj=post, data="FinishStoriesParams"),
     )
 
 
@@ -496,6 +522,23 @@ async def cancel_send_time(call: types.CallbackQuery, state: FSMContext):
     await state.update_data(data)
 
     is_edit: bool = data.get("is_edit")
+
+    # Lazy load for cancel (need post for keyboard)
+    post_obj = data.get("post")
+    if post_obj:
+        from main_bot.keyboards.posting import ensure_obj
+
+        post = ensure_obj(post_obj)
+    else:
+        post_id = data.get("post_id")
+        if not post_id:
+            await call.answer(text("keys_data_error"))
+            return await call.message.delete()
+        post = await db.story.get_story(post_id)
+        if not post:
+            await call.answer(text("story_not_found"))
+            return await call.message.delete()
+
     if is_edit:
         return await call.message.edit_text(
             text("story:content").format(
@@ -503,7 +546,7 @@ async def cancel_send_time(call: types.CallbackQuery, state: FSMContext):
                 data.get("channel").emoji_id,
                 data.get("channel").title,
             ),
-            reply_markup=keyboards.manage_remain_story(post=data.get("post")),
+            reply_markup=keyboards.manage_remain_story(post=post),
         )
 
     chosen: list = data.get("chosen")
@@ -515,9 +558,7 @@ async def cancel_send_time(call: types.CallbackQuery, state: FSMContext):
         text("manage:story:finish_params").format(
             len(chosen), await get_story_report_text(chosen, objects)
         ),
-        reply_markup=keyboards.finish_params(
-            obj=data.get("post"), data="FinishStoriesParams"
-        ),
+        reply_markup=keyboards.finish_params(obj=post, data="FinishStoriesParams"),
     )
 
 
@@ -560,12 +601,32 @@ async def get_send_time(message: types.Message, state: FSMContext):
 
     data = await state.get_data()
     is_edit: bool = data.get("is_edit")
-    post: dict = data.get("post")
-    options = StoryOptions(**post["story_options"])
+
+    # Lazy load post
+    post_obj = data.get("post")
+    if post_obj:
+        from main_bot.keyboards.posting import ensure_obj
+
+        post = ensure_obj(post_obj)
+    else:
+        post_id = data.get("post_id")
+        if not post_id:
+            return await message.answer(text("keys_data_error"))
+        post = await db.story.get_story(post_id)
+        if not post:
+            return await message.answer(text("story_not_found"))
+
+    # Восстанавливаем options для использования ниже
+    story_options = post.story_options
+    if isinstance(story_options, dict):
+        options = StoryOptions(**story_options)
+    else:
+        # Если уже объект
+        options = StoryOptions(**story_options.model_dump())
 
     if is_edit:
         post_obj = await db.story.update_story(
-            post_id=post["id"], return_obj=True, send_time=send_time
+            post_id=post.id, return_obj=True, send_time=send_time
         )
         send_date = datetime.fromtimestamp(post_obj.send_time)
         send_date_values = (
@@ -575,11 +636,7 @@ async def get_send_time(message: types.Message, state: FSMContext):
         )
 
         await state.clear()
-        # Преобразуем объект post в dict для сохранения в FSM
-        post_dict = {
-            col.name: getattr(post_obj, col.name) for col in post_obj.__table__.columns
-        }
-        data["post"] = post_dict
+        # НЕ сохраняем post в state, только date values
         data["send_date_values"] = send_date_values
         await state.update_data(data)
 
@@ -589,7 +646,7 @@ async def get_send_time(message: types.Message, state: FSMContext):
                 data.get("channel").emoji_id,
                 data.get("channel").title,
             ),
-            reply_markup=keyboards.manage_remain_story(post=post),
+            reply_markup=keyboards.manage_remain_story(post=post_obj),
         )
 
     weekday = text("weekdays")[str(date.weekday())]

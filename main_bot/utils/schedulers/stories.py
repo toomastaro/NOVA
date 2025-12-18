@@ -89,13 +89,17 @@ async def send_story(story: Story):
 
         # Инициализация MT клиента
         path_obj = Path(session_path)
-        
+
         try:
             # Используем менеджер сессий
             async with SessionManager(path_obj) as manager:
                 if not manager.client:
-                    logger.error(f"Не удалось инициализировать клиент для сессии {session_path}")
-                    error_send.append({"chat_id": chat_id, "error": "Init client error"})
+                    logger.error(
+                        f"Не удалось инициализировать клиент для сессии {session_path}"
+                    )
+                    error_send.append(
+                        {"chat_id": chat_id, "error": "Init client error"}
+                    )
                     continue
 
                 # Проверка прав на отправку сторис
@@ -162,7 +166,9 @@ async def send_story(story: Story):
                     logger.info(f"✅ Сторис успешно отправлена в {chat_id}")
 
                 except FloodWaitError as err_flood:
-                    logger.warning(f"⏳ FloodWait {err_flood.seconds}s для {chat_id}. Ждем...")
+                    logger.warning(
+                        f"⏳ FloodWait {err_flood.seconds}s для {chat_id}. Ждем..."
+                    )
                     await asyncio.sleep(err_flood.seconds)
                     # Повторная попытка (один раз)
                     try:
@@ -175,7 +181,9 @@ async def send_story(story: Story):
                             f"✅ Сторис успешно отправлена в {chat_id} (после FloodWait)"
                         )
                     except Exception as e_retry:
-                        logger.error(f"❌ Ошибка после FloodWait в {chat_id}: {e_retry}")
+                        logger.error(
+                            f"❌ Ошибка после FloodWait в {chat_id}: {e_retry}"
+                        )
                         error_send.append({"chat_id": chat_id, "error": str(e_retry)})
 
                 except Exception as e:
@@ -193,7 +201,9 @@ async def send_story(story: Story):
                     ):
                         found_client = None
                         if session_path:
-                            clients = await db.mt_client.get_mt_clients_by_pool("internal")
+                            clients = await db.mt_client.get_mt_clients_by_pool(
+                                "internal"
+                            )
                             for c in clients:
                                 if Path(c.session_path) == path_obj:
                                     found_client = c

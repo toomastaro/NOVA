@@ -12,7 +12,6 @@ from aiogram import types
 from aiogram.fsm.context import FSMContext
 
 from main_bot.database.db import db
-from main_bot.database.story.model import Story
 from main_bot.handlers.user.menu import start_stories
 from main_bot.handlers.user.stories.menu import show_create_post
 from main_bot.utils.message_utils import answer_story
@@ -61,42 +60,30 @@ async def get_message(message: types.Message, state: FSMContext):
     if not story_options.photo and not story_options.video:
         return await message.answer(text("require_media"))
 
-    # Валидация MTProto клиента перед созданием
-    from main_bot.utils.session_manager import SessionManager
-    # Проверяем первый канал из списка (упрощенно, в идеале надо проверять все или хотя бы те, что требуют MT)
-    # Но так как сторис рассылаются пока только в каналы, где есть админ, проверим сессию
-    if chosen:
-        # Получаем первый канал для проверки
-        first_channel = await db.channel.get_channel_by_chat_id(chosen[0])
-        # Здесь мы не будем жестко блокировать, если клиента нет СЕЙЧАС, но предупредить стоит?
-        # В рамках текущей задачи мы просто создаем запись, но планировщик должен будет проверить права.
-        # Однако, чтобы избежать создания "мертвых" записей, можно проверить сессию.
-        # Пока оставим как есть, но добавим send_time=0 (ЧЕРНОВИК)
-
     # Создаем story с выбранными каналами и статусом ЧЕРНОВИК (send_time=0)
     post = await db.story.add_story(
         return_obj=True,
         chat_ids=chosen,
         admin_id=message.from_user.id,
         story_options=story_options.model_dump(),
-        send_time=0  # <<< ЧЕРНОВИК
+        send_time=0,  # <<< ЧЕРНОВИК
     )
 
-    # Отправляем в бэкап канал
+    # Отправляем в бэкап канал асинхронно
     try:
-        from main_bot.utils.backup_utils import send_to_backup
+        from main_bot.utils.backup_service import send_to_backup_task
+        import asyncio
 
-        backup_chat_id, backup_message_id = await send_to_backup(post)
-
-        if backup_chat_id and backup_message_id:
-            post = await db.story.update_story(
-                post_id=post.id,
-                return_obj=True,
-                backup_chat_id=backup_chat_id,
-                backup_message_id=backup_message_id,
-            )
+        asyncio.create_task(send_to_backup_task(post.id))
     except Exception as e:
-        logger.error(f"Ошибка при отправке сторис в бэкап: {e}", exc_info=True)
+        logger.error(f"Ошибка запуска бэкап задачи: {e}", exc_info=True)
+
+    await state.update_data(chosen=chosen, post_id=post.id)
+
+    # Показываем превью
+    from main_bot.utils.message_utils import send_preview_story
+
+    await send_preview_story(message, story_options, state)
 
     # Преобразуем объект post в dict для сохранения в FSM
     post_dict = {col.name: getattr(post, col.name) for col in post.__table__.columns}
@@ -112,13 +99,24 @@ async def manage_post(call: types.CallbackQuery, state: FSMContext):
     """Управление stories - обработка различных действий."""
     temp = call.data.split("|")
     data = await state.get_data()
-    if not data:
-        await call.answer(text("keys_data_error"))
-        return await call.message.delete()
 
-    from main_bot.keyboards.posting import ensure_obj
+    # Пытаемся получить объект истории из state (post) или загрузить из БД (post_id)
+    post_obj = data.get("post")
+    if post_obj:
+        from main_bot.keyboards.posting import ensure_obj
 
-    post: Story = ensure_obj(data.get("post"))
+        post = ensure_obj(post_obj)
+    else:
+        post_id = data.get("post_id")
+        if not post_id:
+            await call.answer(text("keys_data_error"))
+            return await call.message.delete()
+
+        post = await db.story.get_story(post_id)
+        if not post:
+            await call.answer(text("story_not_found"))
+            return await call.message.delete()
+
     is_edit: bool = data.get("is_edit")
 
     if temp[1] == "cancel":
@@ -222,7 +220,20 @@ async def cancel_value(call: types.CallbackQuery, state: FSMContext):
         param = data.get("param")
         from main_bot.keyboards.posting import ensure_obj
 
-        post = ensure_obj(data.get("post"))
+        # Lazy load post
+        post_obj = data.get("post")
+        if post_obj:
+            post = ensure_obj(post_obj)
+        else:
+            post_id = data.get("post_id")
+            if not post_id:
+                await call.answer(text("keys_data_error"))
+                return await call.message.delete()
+            post = await db.story.get_story(post_id)
+            if not post:
+                await call.answer(text("story_not_found"))
+                return await call.message.delete()
+
         message_options = StoryOptions(**post.story_options)
 
         if param == "text":
@@ -245,11 +256,8 @@ async def cancel_value(call: types.CallbackQuery, state: FSMContext):
         kwargs = {"story_options": message_options.model_dump()}
 
         post = await db.story.update_story(post_id=post.id, return_obj=True, **kwargs)
-        # Преобразуем в dict
-        post_dict = {
-            col.name: getattr(post, col.name) for col in post.__table__.columns
-        }
-        await state.update_data(post=post_dict)
+        # В FSM post больше не обновляем (или удаляем старый если был)
+        # await state.update_data(post=post_dict) # <-- Удалено
         data = await state.get_data()
 
     await state.clear()
@@ -272,7 +280,18 @@ async def get_value(message: types.Message, state: FSMContext):
 
     from main_bot.keyboards.posting import ensure_obj
 
-    post = ensure_obj(data.get("post"))
+    # Lazy load post
+    post_obj = data.get("post")
+    if post_obj:
+        post = ensure_obj(post_obj)
+    else:
+        post_id = data.get("post_id")
+        if not post_id:
+            return await message.answer(text("keys_data_error"))
+        post = await db.story.get_story(post_id)
+        if not post:
+            return await message.answer(text("story_not_found"))
+
     message_options = StoryOptions(**post.story_options)
 
     if param == "text":
