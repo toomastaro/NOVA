@@ -116,7 +116,9 @@ async def join(call: types.ChatJoinRequest, db: Database):
             id=call.from_user.id, channel_id=chat_id, invite_url=invite_url
         )
 
-    channel_settings = await main_db.get_channel_bot_setting(chat_id=chat_id)
+    channel_settings = await main_db.channel_bot_settings.get_channel_bot_setting(
+        chat_id=chat_id
+    )
     if not channel_settings:
         return
 
@@ -144,7 +146,7 @@ async def join(call: types.ChatJoinRequest, db: Database):
 
     if channel_settings.active_captcha_id:
         if enable_captcha is None or enable_captcha:
-            captcha = await main_db.get_captcha(
+            captcha = await main_db.channel_bot_captcha.get_captcha(
                 message_id=channel_settings.active_captcha_id
             )
 
@@ -158,7 +160,7 @@ async def join(call: types.ChatJoinRequest, db: Database):
                     )
                 )
 
-    active_hello_messages = await main_db.get_hello_messages(
+    active_hello_messages = await main_db.channel_bot_hello.get_hello_messages(
         chat_id=chat_id, active=True
     )
     logger.debug(f"Active hello messages: {active_hello_messages}")
@@ -211,7 +213,9 @@ async def leave(call: types.ChatMemberUpdated, db: Database):
     if call.new_chat_member.status != ChatMemberStatus.LEFT:
         return
 
-    settings = await main_db.get_channel_bot_setting(chat_id=call.chat.id)
+    settings = await main_db.channel_bot_settings.get_channel_bot_setting(
+        chat_id=call.chat.id
+    )
     if not settings:
         return
 
@@ -234,11 +238,11 @@ async def set_channel(call: types.ChatMemberUpdated, db_bot: UserBot):
     """
     chat_id = call.chat.id
 
-    channel = await main_db.get_channel_by_chat_id(chat_id=chat_id)
+    channel = await main_db.channel.get_channel_by_chat_id(chat_id=chat_id)
     if not channel:
         return
 
-    exist = await main_db.get_channel_bot_setting(chat_id)
+    exist = await main_db.channel_bot_settings.get_channel_bot_setting(chat_id)
 
     if call.new_chat_member.status == ChatMemberStatus.ADMINISTRATOR and (
         not exist or not exist.bot_id
@@ -252,14 +256,14 @@ async def set_channel(call: types.ChatMemberUpdated, db_bot: UserBot):
         _emoji_id = await create_emoji(call.from_user.id, photo_bytes)
 
         if not exist:
-            await main_db.add_channel_bot_setting(
+            await main_db.channel_bot_settings.add_channel_bot_setting(
                 id=chat_id,
                 bot_id=db_bot.id,
                 admin_id=db_bot.admin_id,
                 bye=ByeAnswer().model_dump(),
             )
         else:
-            await main_db.update_channel_bot_setting(
+            await main_db.channel_bot_settings.update_channel_bot_setting(
                 chat_id=chat_id,
                 bot_id=db_bot.id,
                 admin_id=db_bot.admin_id,
@@ -269,7 +273,9 @@ async def set_channel(call: types.ChatMemberUpdated, db_bot: UserBot):
             db_bot.username, call.chat.title
         )
     else:
-        await main_db.update_channel_bot_setting(chat_id=chat_id, bot_id=None)
+        await main_db.channel_bot_settings.update_channel_bot_setting(
+            chat_id=chat_id, bot_id=None
+        )
 
         message_text = text("success_delete_channel").format(channel.title)
 
@@ -280,9 +286,14 @@ async def set_channel(call: types.ChatMemberUpdated, db_bot: UserBot):
         bot_database.schema = db_bot.schema
         count_users = await bot_database.get_count_users()
 
-        channel_ids_in_bot = await main_db.get_all_channels_in_bot_id(bot_id=db_bot.id)
+        channel_ids_in_bot = (
+            await main_db.channel_bot_settings.get_all_channels_in_bot_id(
+                bot_id=db_bot.id
+            )
+        )
         channels = [
-            await main_db.get_channel_by_chat_id(chat.id) for chat in channel_ids_in_bot
+            await main_db.channel.get_channel_by_chat_id(chat.id)
+            for chat in channel_ids_in_bot
         ]
 
         status = True

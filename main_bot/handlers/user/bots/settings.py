@@ -274,7 +274,7 @@ async def manage_bot(call: types.CallbackQuery, state: FSMContext) -> None:
     if not data and len(temp) > 2:
         try:
             bot_id = int(temp[2])
-            user_bot = await db.get_user_bot(bot_id)
+            user_bot = await db.user_bot.get_bot_by_id(bot_id)
             if user_bot:
                 await state.update_data(bot_id=bot_id, user_bot=serialize_user_bot(user_bot))
                 data = await state.get_data()
