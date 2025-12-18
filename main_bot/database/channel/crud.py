@@ -5,7 +5,7 @@
 import logging
 from typing import List, Literal
 
-from sqlalchemy import desc, select, update
+from sqlalchemy import desc, select, update, or_
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from config import Config
@@ -35,8 +35,10 @@ class ChannelCrud(DatabaseMixin):
         return await self.fetch(
             select(Channel).where(
                 Channel.admin_id == user_id,
-                Channel.subscribe.is_not(None),
-                Channel.subscribe != Config.SOFT_DELETE_TIMESTAMP,
+                or_(
+                    Channel.subscribe.is_not(None),
+                    Channel.subscribe != Config.SOFT_DELETE_TIMESTAMP,
+                ),
             )
         )
 
@@ -61,7 +63,10 @@ class ChannelCrud(DatabaseMixin):
         """
         stmt = select(Channel).where(
             Channel.admin_id == user_id,
-            Channel.subscribe != Config.SOFT_DELETE_TIMESTAMP,
+            or_(
+                Channel.subscribe != Config.SOFT_DELETE_TIMESTAMP,
+                Channel.subscribe.is_(None),
+            ),
         )
 
         if sort_by:
@@ -206,8 +211,10 @@ class ChannelCrud(DatabaseMixin):
         stmt = (
             select(Channel)
             .where(
-                Channel.subscribe.is_not(None),
-                Channel.subscribe != Config.SOFT_DELETE_TIMESTAMP,
+                or_(
+                    Channel.subscribe != Config.SOFT_DELETE_TIMESTAMP,
+                    Channel.subscribe.is_(None),
+                )
             )
             .order_by(Channel.id.asc())
         )
@@ -238,7 +245,10 @@ class ChannelCrud(DatabaseMixin):
         # Получаем каналы, которых нет в исключенных и которые не удалены
         stmt = select(Channel).where(
             Channel.admin_id == user_id,
-            Channel.subscribe != Config.SOFT_DELETE_TIMESTAMP,
+            or_(
+                Channel.subscribe != Config.SOFT_DELETE_TIMESTAMP,
+                Channel.subscribe.is_(None),
+            ),
         )
 
         if excluded_chat_ids:
@@ -268,7 +278,12 @@ class ChannelCrud(DatabaseMixin):
         # Сортировка по chat_id обязательна для distinct on
         stmt = (
             select(Channel)
-            .where(Channel.subscribe != Config.SOFT_DELETE_TIMESTAMP)
+            .where(
+                or_(
+                    Channel.subscribe != Config.SOFT_DELETE_TIMESTAMP,
+                    Channel.subscribe.is_(None),
+                )
+            )
             .distinct(Channel.chat_id)
             .order_by(Channel.chat_id, Channel.id.desc())
         )
