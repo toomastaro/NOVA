@@ -83,6 +83,10 @@ async def get_message(message: types.Message, state: FSMContext):
     # Показываем превью истории с возможностью редактирования
     await answer_story(message, state)
 
+    # Подгружаем главное меню
+    from main_bot.keyboards.common import Reply
+    await message.answer("📝 Содержимое сторис сохранено", reply_markup=Reply.menu())
+
 
 @safe_handler("Сторис: управление постом")
 async def manage_post(call: types.CallbackQuery, state: FSMContext):
@@ -333,3 +337,7 @@ async def get_value(message: types.Message, state: FSMContext):
         pass
 
     await answer_story(message, state)
+
+    # Подгружаем главное меню
+    from main_bot.keyboards.common import Reply
+    await message.answer("✅ Изменения сохранены", reply_markup=Reply.menu())

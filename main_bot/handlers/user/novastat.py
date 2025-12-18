@@ -650,6 +650,9 @@ async def run_analysis_logic(
             parse_mode="HTML",
             link_preview_options=types.LinkPreviewOptions(is_disabled=True),
         )
+        # Подгружаем главное меню
+        from main_bot.keyboards.common import Reply
+        await message.answer("📊 Отчет аналитики", reply_markup=Reply.menu())
 
     else:
         # Сводка
@@ -673,6 +676,9 @@ async def run_analysis_logic(
             parse_mode="HTML",
             link_preview_options=types.LinkPreviewOptions(is_disabled=True),
         )
+        # Подгружаем главное меню
+        from main_bot.keyboards.common import Reply
+        await message.answer("📊 Общий отчет аналитики", reply_markup=Reply.menu())
 
 
 @router.message(NovaStatStates.waiting_for_channels)
@@ -843,6 +849,10 @@ async def calculate_and_show_price(
             parse_mode="HTML",
             link_preview_options=types.LinkPreviewOptions(is_disabled=True),
         )
+
+    # Подгружаем главное меню после расчета CPM
+    from main_bot.keyboards.common import Reply
+    await message.answer("👛 Расчет CPM завершен", reply_markup=Reply.menu())
 
 
 @router.callback_query(F.data.startswith("NovaStat|calc_cpm|"))
