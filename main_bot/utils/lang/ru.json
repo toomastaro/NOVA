@@ -477,7 +477,7 @@
   "post:report:delete_in": "🗑 <b>Удаление через:</b> {}",
   "post:report:cpm": "💸 <b>CPM:</b> {}",
   "post:report:channels": "📢 <b>Каналы:</b>\n{}",
-  "cpm:report:history_row": "\n🔹 <b>{}:</b> 👀 {} | 💰 {}₽",
+  "cpm:report:history_row": "\n🔹 <b>{}:</b> 👀 {} | 💰 {}₽ | 💵 {}$",
   "ad_buy_menu:title": "🛒 <b>Закуп</b>\n\nВыберите раздел:",
   "btn_ad_creatives": "🎨 Рекламные креативы",
   "btn_ad_purchases": "💰 Рекламные закупы",
