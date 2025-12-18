@@ -234,7 +234,7 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
         )
 
     if temp[1] == "show_all":
-        posts = await db.story.get_stories(channel.chat_id)
+        posts = await db.story.get_stories(channel.chat_id, only_pending=True)
         return await call.message.edit_text(
             text("channel:show_all:content").format(
                 channel.title,

@@ -79,7 +79,7 @@ class StoryCrud(DatabaseMixin):
         return await self.fetchrow(select(Story).where(Story.id == post_id))
 
     async def get_stories(
-        self, chat_id: int, current_day: datetime = None
+        self, chat_id: int, current_day: datetime = None, only_pending: bool = False
     ) -> List[Story]:
         """
         Получает запланированные сторис для канала.
@@ -87,6 +87,7 @@ class StoryCrud(DatabaseMixin):
         Аргументы:
             chat_id (int): ID канала/чата.
             current_day (datetime): День для фильтрации (по умолчанию None).
+            only_pending (bool): Фильтровать только ожидающие публикации (будущие) истории.
 
         Возвращает:
             List[Story]: Список сторис.
@@ -94,6 +95,13 @@ class StoryCrud(DatabaseMixin):
         stmt = select(Story).where(
             Story.chat_ids.contains([chat_id]), Story.send_time.isnot(None)
         )
+
+        if only_pending:
+            current_time = int(time.time())
+            stmt = stmt.where(
+                Story.status == Status.PENDING,
+                Story.send_time > current_time,
+            )
 
         if current_day:
             start_day = int(
@@ -108,6 +116,9 @@ class StoryCrud(DatabaseMixin):
                 Story.send_time >= start_day,
                 Story.send_time < end_day,
             )
+
+        # Сортировка по времени отправки (ближайшие первыми)
+        stmt = stmt.order_by(Story.send_time.asc())
 
         return await self.fetch(stmt)
 

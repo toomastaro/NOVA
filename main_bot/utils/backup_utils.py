@@ -99,10 +99,11 @@ async def send_to_backup(post: Post | Story | BotPost) -> tuple[int | None, int 
     if not Config.BACKUP_CHAT_ID:
         return None, None
 
-    if isinstance(post, Post):
-        message_options = MessageOptions(**post.message_options)
-        reply_markup = keyboards.post_kb(post=post)
-    elif isinstance(post, Story):
+    # Определяем тип объекта по наличию специфичных полей
+    # Это позволяет поддерживать как SQLAlchemy объекты, так и ObjWrapper (ленивая загрузка)
+
+    # STORY
+    if hasattr(post, "story_options") and post.story_options:
         # Фильтрация полей для соответствия MessageOptions
         story_dump = (
             post.story_options.copy()
@@ -116,12 +117,24 @@ async def send_to_backup(post: Post | Story | BotPost) -> tuple[int | None, int 
 
         message_options = MessageOptions(**filtered_story_options)
         reply_markup = keyboards.story_kb(post=post)
-    elif isinstance(post, BotPost):
+
+    # BOT POST
+    elif (
+        hasattr(post, "message")
+        and post.message
+        and not hasattr(post, "message_options")
+    ):
         from main_bot.utils.schemas import MessageOptionsHello
 
         message_options = MessageOptionsHello(**post.message)
         reply_markup = keyboards.bot_post_kb(post=post)
+
+    # POST / PUBLISHED POST
+    elif hasattr(post, "message_options") and post.message_options:
+        message_options = MessageOptions(**post.message_options)
+        reply_markup = keyboards.post_kb(post=post)
     else:
+        logger.error(f"Не удалось определить тип поста для бэкапа: {type(post)}")
         return None, None
 
     cor, options = _prepare_send_options(message_options)
@@ -152,10 +165,8 @@ async def edit_backup_message(
         return
 
     if not message_options:
-        if isinstance(post, (Post, PublishedPost)):
-            message_options = MessageOptions(**post.message_options)
-            reply_markup = keyboards.post_kb(post=post)
-        elif isinstance(post, Story):
+        # STORY
+        if hasattr(post, "story_options") and post.story_options:
             # Фильтрация полей
             story_dump = (
                 post.story_options.copy()
@@ -167,24 +178,42 @@ async def edit_backup_message(
 
             message_options = MessageOptions(**filtered)
             reply_markup = keyboards.manage_story(post=post)
-        elif isinstance(post, BotPost):
+
+        # BOT POST
+        elif (
+            hasattr(post, "message")
+            and post.message
+            and not hasattr(post, "message_options")
+        ):
             from main_bot.utils.schemas import MessageOptionsHello
 
             message_options = MessageOptionsHello(**post.message)
             reply_markup = keyboards.manage_bot_post(post=post)
+
+        # POST / PUBLISHED POST
+        elif hasattr(post, "message_options") and post.message_options:
+            message_options = MessageOptions(**post.message_options)
+            reply_markup = keyboards.post_kb(post=post)
+
     else:
         # Если message_options передан, нам все равно нужна правильная клавиатура
-        if isinstance(post, (Post, PublishedPost)):
-            reply_markup = keyboards.post_kb(post=post)
-        elif isinstance(post, Story):
+        if hasattr(post, "story_options") and post.story_options:
             reply_markup = keyboards.manage_story(post=post)
-        elif isinstance(post, BotPost):
+        elif (
+            hasattr(post, "message")
+            and post.message
+            and not hasattr(post, "message_options")
+        ):
             reply_markup = keyboards.manage_bot_post(post=post)
+        elif hasattr(post, "message_options") and post.message_options:
+            reply_markup = keyboards.post_kb(post=post)
         else:
             reply_markup = None
-    
+
     if not message_options:
-        logger.error(f"Не удалось определить message_options для поста типа {type(post)}")
+        logger.error(
+            f"Не удалось определить message_options для поста типа {type(post)}"
+        )
         return
 
     chat_id = post.backup_chat_id
