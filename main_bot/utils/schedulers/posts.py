@@ -514,9 +514,11 @@ async def delete_posts():
 
             def format_report(title_suffix, current_views, v24=None, v48=None, v72=None):
                 lines = []
-                lines.append(
-                    text("cpm:report:header").format(preview_text, title_suffix)
-                )
+                # Если пост удалён до 24ч, используем упрощённый заголовок без скобок
+                if hours < 24:
+                    lines.append(text("cpm:report:header:simple").format(preview_text))
+                else:
+                    lines.append(text("cpm:report:header").format(preview_text, title_suffix))
                 
                 if v24 is not None:
                     rub_24 = round(float(cpm_price * float(v24 / 1000)), 2)
@@ -537,21 +539,21 @@ async def delete_posts():
                         text("cpm:report:history_row").format("72ч", v72, rub_72, usd_72)
                     )
                     
-                # Добавляем ТЕКУЩИЕ данные как последнюю строку (Variant 1/2/3)
+                # Добавляем ТЕКУЩИЕ данные как последнюю строку
                 curr_rub = round(float(cpm_price * float(current_views / 1000)), 2)
                 curr_usd = round(curr_rub / usd_rate, 2)
-                # Если часы совпадают с 24/48/72, то эта строка заменит собой историю (или будет единственной)
-                # Чтобы не дублировать, если вдруг часы ровно 24
-                if hours not in [24, 48, 72]:
-                    lines.append(
-                        text("cpm:report:history_row").format(f"{hours}ч", current_views, curr_rub, curr_usd)
-                    )
+                
+                # Определяем метку времени для текущей строки
+                if hours < 24:
+                    time_label = "До 24ч"
+                elif hours in [24, 48, 72]:
+                    time_label = f"{hours}ч"
                 else:
-                    # Если ровно 24ч, то строка выше уже добавлена (если views_24 была)? 
-                    # Нет, при hours=24 show_v24=False. Значит добавим её здесь с меткой '24ч'
-                    lines.append(
-                        text("cpm:report:history_row").format(f"{hours}ч", current_views, curr_rub, curr_usd)
-                    )
+                    time_label = f"{hours}ч"
+                    
+                lines.append(
+                    text("cpm:report:history_row").format(time_label, current_views, curr_rub, curr_usd)
+                )
 
                 lines.append(f"\nℹ️ <i>Курс: 1 USDT = {round(usd_rate, 2)}₽</i>")
                 lines.append("\n" + channels_text)
