@@ -226,7 +226,7 @@ async def start_privetka(message: types.Message, state: FSMContext) -> None:
     ]
 
     if not channels:
-        await message.answer(text("error_no_subscription_bots"))
+        await message.answer(text("error_privetka_empty"))
         return
 
     await message.answer(
@@ -275,7 +275,7 @@ async def privetka_choice_channel(call: types.CallbackQuery, state: FSMContext) 
 
         if not channels:
             return await call.message.edit_text(
-                text("error_no_subscription_bots"), reply_markup=None
+                text("error_privetka_empty"), reply_markup=None
             )
 
         return await call.message.edit_reply_markup(
