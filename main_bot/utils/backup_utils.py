@@ -177,7 +177,7 @@ async def edit_backup_message(
             filtered = {k: v for k, v in story_dump.items() if k in valid_fields}
 
             message_options = MessageOptions(**filtered)
-            reply_markup = keyboards.manage_story(post=post)
+            reply_markup = keyboards.story_kb(post=post)
 
         # BOT POST
         elif (
@@ -188,7 +188,7 @@ async def edit_backup_message(
             from main_bot.utils.schemas import MessageOptionsHello
 
             message_options = MessageOptionsHello(**post.message)
-            reply_markup = keyboards.manage_bot_post(post=post)
+            reply_markup = keyboards.bot_post_kb(post=post)
 
         # POST / PUBLISHED POST
         elif hasattr(post, "message_options") and post.message_options:
@@ -198,13 +198,13 @@ async def edit_backup_message(
     else:
         # Если message_options передан, нам все равно нужна правильная клавиатура
         if hasattr(post, "story_options") and post.story_options:
-            reply_markup = keyboards.manage_story(post=post)
+            reply_markup = keyboards.story_kb(post=post)
         elif (
             hasattr(post, "message")
             and post.message
             and not hasattr(post, "message_options")
         ):
-            reply_markup = keyboards.manage_bot_post(post=post)
+            reply_markup = keyboards.bot_post_kb(post=post)
         elif hasattr(post, "message_options") and post.message_options:
             reply_markup = keyboards.post_kb(post=post)
         else:

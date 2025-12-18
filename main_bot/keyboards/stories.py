@@ -70,15 +70,24 @@ class InlineStories(InlineKeyboardBuilder):
                 callback_data=f"ManageStory|pinned|{post.id}",
             )
         )
-        kb.row(
-            InlineKeyboardButton(
-                text=text("back:button"), callback_data=f"ManageStory|cancel|{post.id}"
-            ),
-            InlineKeyboardButton(
-                text=text("{}:button".format("save" if is_edit else "next")),
-                callback_data=f"ManageStory|next|{post.id}",
-            ),
-        )
+        if is_edit:
+            kb.row(
+                InlineKeyboardButton(
+                    text=text("back:button"),
+                    callback_data=f"ManageStory|cancel|{post.id}",
+                )
+            )
+        else:
+            kb.row(
+                InlineKeyboardButton(
+                    text=text("back:button"),
+                    callback_data=f"ManageStory|cancel|{post.id}",
+                ),
+                InlineKeyboardButton(
+                    text=text("next:button"),
+                    callback_data=f"ManageStory|next|{post.id}",
+                ),
+            )
 
         return kb.as_markup()
 
