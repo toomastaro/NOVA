@@ -347,7 +347,8 @@ class InlinePosting(InlineKeyboardBuilder):
         is_story = hasattr(obj, "story_options") or isinstance(obj, Story)
 
         if is_story:
-            options = StoryOptions(**obj.story_options)
+            options_dict = getattr(obj, "story_options", {}) or {}
+            options = StoryOptions(**options_dict)
             delete_time = options.period
         else:
             # Assume Post
