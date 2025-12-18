@@ -16,7 +16,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from sqlalchemy import select, and_
 from telethon.tl import functions, types
-
+from config import Config
 from main_bot.database.db import db
 from main_bot.database.published_post.model import PublishedPost
 from main_bot.utils.novastat import novastat_service
