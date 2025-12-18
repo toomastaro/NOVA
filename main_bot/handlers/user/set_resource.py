@@ -152,10 +152,21 @@ async def set_channel(call: types.ChatMemberUpdated) -> None:
     Обработчик события добавления/удаления бота в канале.
     """
     chat_id = call.chat.id
+    from config import Config
+    
     channel = await db.channel.get_channel_by_chat_id(chat_id=chat_id)
 
     if call.new_chat_member.status == ChatMemberStatus.ADMINISTRATOR:
-        if channel:
+        # Если канал уже активен (не помечен как удаленный), ничего не делаем
+        if channel and channel.subscribe != Config.SOFT_DELETE_TIMESTAMP:
+            # Но если это вызвано Deep Link, можно отправить уведомление
+            try:
+                await call.bot.send_message(
+                    chat_id=call.from_user.id,
+                    text=f"✅ Канал <b>«{channel.title}»</b> уже добавлен и активен.",
+                )
+            except Exception:
+                pass
             return
 
         chat_title = call.chat.title or f"Channel {chat_id}"
@@ -171,7 +182,8 @@ async def set_channel(call: types.ChatMemberUpdated) -> None:
             setup_channel_task(call.bot, chat_id, chat_title, call.from_user.id)
         )
     else:
-        if not channel:
+        # Если бота удалили или понизили в правах
+        if not channel or channel.subscribe == Config.SOFT_DELETE_TIMESTAMP:
             return
 
         await db.channel.delete_channel(chat_id=chat_id)
