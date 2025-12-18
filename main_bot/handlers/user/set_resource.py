@@ -364,9 +364,13 @@ def get_router() -> Router:
         Router: Роутер с зарегистрированными хендлерами.
     """
     router = Router()
-    router.my_chat_member.register(set_channel, F.chat.type == "channel")
+    router.my_chat_member.register(
+        set_channel, F.chat.type.in_(["channel", "supergroup", "group"])
+    )
     router.my_chat_member.register(set_active, F.chat.type == "private")
-    router.chat_member.register(set_admin, F.chat.type == "channel")
+    router.chat_member.register(
+        set_admin, F.chat.type.in_(["channel", "supergroup", "group"])
+    )
 
     router.message.register(manual_add_channel, AddChannel.waiting_for_channel)
 

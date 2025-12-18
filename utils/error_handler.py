@@ -10,7 +10,7 @@ from typing import Any, Callable
 logger = logging.getLogger(__name__)
 
 
-def safe_handler(stage_info: str, log_start: bool = True) -> Callable:
+def safe_handler(stage_info: str, log_start: bool = False) -> Callable:
     """
     Декоратор для оборачивания хендлеров в блок try-except с логированием ошибок.
     Обеспечивает безопасное выполнение и стандартизированное логирование на русском языке.
