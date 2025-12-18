@@ -8,6 +8,7 @@
 
 import asyncio
 import logging
+import time
 import html
 import os
 from pathlib import Path
@@ -254,8 +255,12 @@ async def send_story(story: Story):
         f"🏁 Завершение обработки сторис {story.id}. Успешно: {len(success_send)}, Ошибок: {len(error_send)}"
     )
 
-    # Обновление статуса сторис
-    await db.story.update_story(post_id=story.id, status=Status.FINISH)
+    # Обновление статуса сторис и времени отправки (для истории)
+    update_data = {"status": Status.FINISH}
+    if not story.send_time:
+        update_data["send_time"] = int(time.time())
+
+    await db.story.update_story(post_id=story.id, **update_data)
 
     # Отправка отчета пользователю
     if not story.report:

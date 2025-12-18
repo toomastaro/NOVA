@@ -412,9 +412,14 @@ class InlineContent(InlineKeyboardBuilder):
                         )
                     else:
                         # Проверяем статус постов в этот день
-                        day_info = (
-                            days_with_posts.get(week_day) if days_with_posts else None
-                        )
+                        day_info = None
+                        if days_with_posts:
+                            if isinstance(days_with_posts, (set, list)):
+                                if week_day in days_with_posts:
+                                    # Для set считаем что есть контент (по умолчанию finished/опубликовано)
+                                    day_info = {"has_finished": True}
+                            else:
+                                day_info = days_with_posts.get(week_day)
                         day_text = str(week_day) if week_day != day.day else "🔸"
 
                         if day_info and week_day != day.day:
