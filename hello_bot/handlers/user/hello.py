@@ -16,8 +16,10 @@ from hello_bot.utils.lang.language import text
 from hello_bot.keyboards.keyboards import keyboards
 from hello_bot.utils.schemas import Media, MessageOptions, HelloAnswer
 from hello_bot.utils.functions import answer_message
+from utils.error_handler import safe_handler
 
 
+@safe_handler("Приветствие: выбор действия")
 async def choice(call: types.CallbackQuery, state: FSMContext, db: Database, settings):
     """
     Обрабатывает выбор действия в меню приветствия.
@@ -29,7 +31,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext, db: Database, set
     """
     temp = call.data.split("|")
     hello = HelloAnswer(**settings.hello)
-    logger.debug(f"Hello choice: {temp}, current active={hello.active}")
+    logger.debug(f"Выбор в приветствии: {temp}, статус активности={hello.active}")
 
     if temp[1] == "cancel":
         return await call.message.edit_text(
@@ -39,7 +41,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext, db: Database, set
     if temp[1] in ["active", "message"]:
         if temp[1] == "active":
             hello.active = not hello.active
-            logger.info(f"Hello active changed to {hello.active}")
+            logger.info(f"Статус приветствия изменен на {hello.active}")
         if temp[1] == "message":
             if not hello.message:
                 await call.message.edit_text(
@@ -65,7 +67,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext, db: Database, set
             return await call.answer(text("error:hello:add_message"))
 
         await call.message.delete()
-        await answer_message(call.message, hello.message, None)
+        await answer_message(call.message, hello.message)
         await show_hello(call.message, settings)
 
 
@@ -76,6 +78,7 @@ async def back(call: types.CallbackQuery, state: FSMContext, settings):
     return await show_hello(call.message, settings)
 
 
+@safe_handler("Приветствие: получение сообщения")
 async def get_message(
     message: types.Message, state: FSMContext, db: Database, settings
 ):
@@ -101,7 +104,7 @@ async def get_message(
     hello.message = message_options
 
     setting = await db.update_setting(return_obj=True, hello=hello.model_dump())
-    logger.info("Hello message updated")
+    logger.info("Приветственное сообщение обновлено")
 
     await state.clear()
     await message.answer(text("success_add_hello"))

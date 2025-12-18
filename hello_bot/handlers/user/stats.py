@@ -9,15 +9,17 @@ from loguru import logger
 
 from hello_bot.utils.lang.language import text
 from hello_bot.keyboards.keyboards import keyboards
+from utils.error_handler import safe_handler
 
 
+@safe_handler("Статистика: возврат")
 async def choice(call: types.CallbackQuery):
     """
     Возврат в главное меню из статистики.
 
     :param call: CallbackQuery
     """
-    logger.debug(f"Stats back choice: {call.data}")
+    logger.debug(f"Возврат из статистики: {call.data}")
     await call.message.edit_text(text("start_text"), reply_markup=keyboards.menu())
 
 

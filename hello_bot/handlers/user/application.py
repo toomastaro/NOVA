@@ -15,8 +15,10 @@ from hello_bot.states.user import Application
 from hello_bot.utils.lang.language import text
 from hello_bot.keyboards.keyboards import keyboards
 from hello_bot.utils.schemas import Protect
+from utils.error_handler import safe_handler
 
 
+@safe_handler("Заявки: выбор действия")
 async def choice(call: types.CallbackQuery, state: FSMContext, db: Database, settings):
     """
     Обрабатывает выбор действия в меню заявок.
@@ -28,7 +30,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext, db: Database, set
     """
     temp = call.data.split("|")
     protect = Protect(**settings.protect)
-    logger.debug(f"Application choice: {temp}")
+    logger.debug(f"Выбор в заявках: {temp}")
 
     if temp[1] == "cancel":
         return await call.message.edit_text(
@@ -49,7 +51,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext, db: Database, set
             auto_approve=settings.auto_approve,
         )
         logger.info(
-            f"Application settings updated: auto_approve={settings.auto_approve}, protect={protect.model_dump()}"
+            f"Настройки заявок обновлены: авто_одобрение={settings.auto_approve}, защита={protect.model_dump()}"
         )
 
         await call.message.delete()
@@ -70,6 +72,7 @@ async def back(call: types.CallbackQuery, state: FSMContext, settings):
     return await show_application(call.message, settings)
 
 
+@safe_handler("Заявки: установка задержки")
 async def get_message(message: types.Message, state: FSMContext, db: Database):
     """
     Обрабатывает ввод задержки одобрения заявок.
@@ -80,7 +83,7 @@ async def get_message(message: types.Message, state: FSMContext, db: Database):
         return await message.answer(text("error_input"))
 
     settings = await db.update_setting(return_obj=True, delay_approve=delay)
-    logger.info(f"Delay approve updated to {delay}")
+    logger.info(f"Задержка одобрения обновлена до {delay}")
 
     await state.clear()
     await show_application(message, settings)

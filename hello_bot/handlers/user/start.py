@@ -17,9 +17,10 @@ from main_bot.utils.schemas import MessageOptionsCaptcha, MessageOptionsHello, B
 from main_bot.database.user_bot.model import UserBot
 from main_bot.database.db import db as main_db
 from main_bot.keyboards import keyboards
-from utils.functions import create_emoji
+from utils.error_handler import safe_handler
 
 
+@safe_handler("Личка: любое сообщение")
 async def msg_handler(message: types.Message, db: Database):
     """
     Обрабатывает любые сообщения от пользователя в личке бота.
@@ -98,6 +99,7 @@ async def send_hello(
     await answer_message_bot(user_bot, user_id, message_options)
 
 
+@safe_handler("Канал: запрос на вступление")
 async def join(call: types.ChatJoinRequest, db: Database):
     """
     Обрабатывает заявку на вступление в канал.
@@ -105,10 +107,10 @@ async def join(call: types.ChatJoinRequest, db: Database):
     Проверяет настройки канала, отправляет капчу или приветствие,
     и при необходимости автоматически одобряет заявку.
     """
-    logger.debug(f"Join request: {call}")
+    logger.debug(f"Запрос на вступление: {call.from_user.id} в чат {call.chat.id}")
 
     chat_id = call.chat.id
-    invite_url = call.invite_link.name.lower()
+    invite_url = call.invite_link.name.lower() if call.invite_link and call.invite_link.name else ""
 
     user = await db.user.get_user(call.from_user.id)
     if not user:
@@ -198,10 +200,12 @@ async def join(call: types.ChatJoinRequest, db: Database):
                 is_approved=True,
                 time_approved=int(time.time()),
             )
+            logger.info(f"Заявка пользователя {call.from_user.id} одобрена в канале {chat_id}")
         except Exception as e:
             logger.error(f"Ошибка при одобрении заявки: {e}")
 
 
+@safe_handler("Канал: выход пользователя")
 async def leave(call: types.ChatMemberUpdated, db: Database):
     """
     Обрабатывает выход пользователя из канала.
@@ -230,6 +234,7 @@ async def leave(call: types.ChatMemberUpdated, db: Database):
     await answer_message_bot(call.bot, call.from_user.id, bye.message)
 
 
+@safe_handler("Канал: изменение прав бота")
 async def set_channel(call: types.ChatMemberUpdated, db_bot: UserBot):
     """
     Обрабатывает добавление бота в канал администратором.
@@ -316,6 +321,7 @@ async def set_channel(call: types.ChatMemberUpdated, db_bot: UserBot):
         logger.error(f"Ошибка при настройке канала: {e}")
 
 
+@safe_handler("Личка: статус активности")
 async def set_active(call: types.ChatMemberUpdated, db: Database):
     """Обновляет статус активности пользователя (блокировка бота)."""
     await db.user.update_user(

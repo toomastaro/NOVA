@@ -2,11 +2,13 @@ from sqlalchemy import text
 
 from hello_bot.database import Base
 from hello_bot.database.user.crud import UserCrud
+from hello_bot.database.settings.crud import SettingCrud
 from utils.database_mixin import engine
 
 
 class Database(
     UserCrud,
+    SettingCrud,
 ):
     """
     Класс для управления базой данных hello_bot.

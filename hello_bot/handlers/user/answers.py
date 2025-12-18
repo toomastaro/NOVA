@@ -20,8 +20,10 @@ from hello_bot.utils.lang.language import text
 from hello_bot.keyboards.keyboards import keyboards
 from hello_bot.utils.schemas import Media, MessageOptions, Answer as AnswerObj
 from hello_bot.utils.functions import answer_message
+from utils.error_handler import safe_handler
 
 
+@safe_handler("Автоответы: выбор действия")
 async def choice(call: types.CallbackQuery, state: FSMContext, settings):
     """
     Обрабатывает выбор действия в меню автоответов.
@@ -31,7 +33,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext, settings):
     :param settings: Настройки канала
     """
     temp = call.data.split("|")
-    logger.debug(f"Answers choice: {temp}")
+    logger.debug(f"Выбор в автоответах: {temp}")
 
     if temp[1] == "cancel":
         return await call.message.edit_text(
@@ -58,6 +60,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext, settings):
         await answer_message(call.message, answer.message, keyboards.manage_answer())
 
 
+@safe_handler("Автоответы: возврат назад")
 async def back_answer(call: types.CallbackQuery, state: FSMContext, settings):
     """
     Возврат к предыдущему шагу или меню списка ответов.
@@ -80,6 +83,7 @@ async def back_answer(call: types.CallbackQuery, state: FSMContext, settings):
         await state.set_state(Answer.keyword)
 
 
+@safe_handler("Автоответы: получение ключевого слова")
 async def get_keyword(
     message: types.Message, state: FSMContext, db: Database, settings
 ):
@@ -88,7 +92,7 @@ async def get_keyword(
     """
     data = await state.get_data()
     edit = data.get("edit")
-    logger.info(f"Setting keyword: {message.text}, edit_mode={edit}")
+    logger.info(f"Установка ключевого слова: {message.text}, режим_правки={edit}")
 
     if edit:
         for i_answer in settings.answers:
@@ -112,6 +116,7 @@ async def get_keyword(
     await state.set_state(Answer.message)
 
 
+@safe_handler("Автоответы: получение сообщения")
 async def get_message(
     message: types.Message, state: FSMContext, db: Database, settings
 ):
@@ -154,7 +159,7 @@ async def get_message(
             key=data.get("key"),
         )
         settings.answers.append(answer.model_dump())
-        logger.info(f"New answer added: {answer.id} -> {answer.key}")
+        logger.info(f"Добавлен новый автоответ: {answer.id} -> {answer.key}")
 
     await db.update_setting(answers=settings.answers)
 
@@ -165,6 +170,7 @@ async def get_message(
     await answer_message(message, message_options, reply)
 
 
+@safe_handler("Автоответы: управление ответом")
 async def manage_answer(
     call: types.CallbackQuery, state: FSMContext, db: Database, settings
 ):
@@ -178,7 +184,7 @@ async def manage_answer(
                 if answer["id"] != data.get("answer").id:
                     continue
                 settings.answers.remove(answer)
-                logger.info(f"Answer deleted: {answer['id']}")
+                logger.info(f"Автоответ удален: {answer['id']}")
 
             settings = await db.update_setting(
                 return_obj=True, answers=settings.answers

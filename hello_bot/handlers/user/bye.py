@@ -16,8 +16,10 @@ from hello_bot.utils.lang.language import text
 from hello_bot.keyboards.keyboards import keyboards
 from hello_bot.utils.schemas import Media, MessageOptions, ByeAnswer
 from hello_bot.utils.functions import answer_message
+from utils.error_handler import safe_handler
 
 
+@safe_handler("Прощание: выбор действия")
 async def choice(call: types.CallbackQuery, state: FSMContext, db: Database, settings):
     """
     Обрабатывает выбор действия в меню прощального сообщения.
@@ -29,7 +31,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext, db: Database, set
     """
     temp = call.data.split("|")
     hello = ByeAnswer(**settings.bye)
-    logger.debug(f"Bye choice: {temp}, current active={hello.active}")
+    logger.debug(f"Выбор в прощании: {temp}, текущий статус={hello.active}")
 
     if temp[1] == "cancel":
         return await call.message.edit_text(
@@ -39,7 +41,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext, db: Database, set
     if temp[1] in ["active", "message"]:
         if temp[1] == "active":
             hello.active = not hello.active
-            logger.info(f"Bye active changed to {hello.active}")
+            logger.info(f"Статус прощания изменен на {hello.active}")
         if temp[1] == "message":
             if not hello.message:
                 await call.message.edit_text(
@@ -65,7 +67,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext, db: Database, set
             return await call.answer(text("error:bye:add_message"))
 
         await call.message.delete()
-        await answer_message(call.message, hello.message, None)
+        await answer_message(call.message, hello.message)
         await show_bye(call.message, settings)
 
 
@@ -76,6 +78,7 @@ async def back(call: types.CallbackQuery, state: FSMContext, settings):
     return await show_bye(call.message, settings)
 
 
+@safe_handler("Прощание: получение сообщения")
 async def get_message(
     message: types.Message, state: FSMContext, db: Database, settings
 ):
@@ -101,7 +104,7 @@ async def get_message(
     hello.message = message_options
 
     setting = await db.update_setting(return_obj=True, bye=hello.model_dump())
-    logger.info("Bye message updated")
+    logger.info("Прощальное сообщение обновлено")
 
     await state.clear()
     await message.answer(text("success_add_bye"))

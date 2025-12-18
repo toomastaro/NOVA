@@ -17,8 +17,10 @@ from hello_bot.utils.functions import get_protect_tag
 from hello_bot.utils.lang.language import text
 from hello_bot.keyboards.keyboards import keyboards
 from hello_bot.utils.schemas import HelloAnswer, ByeAnswer, Protect
+from utils.error_handler import safe_handler
 
 
+@safe_handler("Меню: выбор раздела")
 async def choice(call: types.CallbackQuery, state: FSMContext, db: Database, settings):
     """
     Обрабатывает навигацию в главном меню.
@@ -30,7 +32,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext, db: Database, set
     """
     await state.clear()
     temp = call.data.split("|")
-    logger.debug(f"Menu choice: {temp}")
+    logger.debug(f"Выбор в меню: {temp}")
 
     menu = {
         "stats": {
