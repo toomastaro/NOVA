@@ -246,6 +246,12 @@ async def edit_backup_message(
                 )
 
     except Exception as e:
+        if "message is not modified" in str(e):
+            logger.debug(
+                f"Сообщение бэкапа {message_id} не требует обновления (контент идентичен)"
+            )
+            return
+
         logger.error(
             f"Ошибка редактирования сообщения бэкапа {message_id} в {chat_id}: {e}. Попытка отката (удаление и повторная отправка)."
         )
@@ -264,6 +270,16 @@ async def edit_backup_message(
 
             new_backup_msg = await cor(**send_options, reply_markup=reply_markup)
             new_backup_message_id = new_backup_msg.message_id
+
+            # ВАЖНО: Обновляем локальный объект, чтобы вызывающий код (например, save_step)
+            # использовал актуальный message_id для копирования.
+            if hasattr(post, "_data") and isinstance(post._data, dict):
+                post._data["backup_message_id"] = new_backup_message_id
+            else:
+                try:
+                    setattr(post, "backup_message_id", new_backup_message_id)
+                except Exception:
+                    pass
 
             # Обновление БД
             post_id = post.post_id if isinstance(post, PublishedPost) else post.id
