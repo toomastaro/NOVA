@@ -49,7 +49,7 @@ def get_router():
     router.callback_query.register(
         cancel_value, F.data.split("|")[0] == "ParamCancelStories"
     )
-    router.message.register(get_value, Stories.input_value, F.photo | F.video)
+    router.message.register(get_value, Stories.input_value, F.photo | F.video | F.text)
 
     # Выбор каналов
     router.callback_query.register(

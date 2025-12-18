@@ -141,7 +141,11 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
     if send_time:
         weekday, day, month, year, _time = date_values
         message_text = text("manage:story:success:date").format(
-            f"{day} {month} {year} {_time} ({weekday})",
+            weekday,
+            day,
+            month,
+            year,
+            _time,
             await get_story_report_text(chosen, objects),
         )
     else:

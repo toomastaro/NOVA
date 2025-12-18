@@ -182,6 +182,10 @@ async def edit_backup_message(
             reply_markup = keyboards.manage_bot_post(post=post)
         else:
             reply_markup = None
+    
+    if not message_options:
+        logger.error(f"Не удалось определить message_options для поста типа {type(post)}")
+        return
 
     chat_id = post.backup_chat_id
     message_id = post.backup_message_id

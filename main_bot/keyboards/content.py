@@ -510,8 +510,8 @@ class InlineContent(InlineKeyboardBuilder):
                     message_text = clean_html_text(message_text)
 
                 # Пропускаем посты без времени (не должно быть, но на всякий случай)
-                timestamp = getattr(objects[idx], "send_time") or getattr(
-                    objects[idx], "start_timestamp"
+                timestamp = getattr(objects[idx], "send_time", 0) or getattr(
+                    objects[idx], "start_timestamp", 0
                 )
                 if not timestamp:
                     continue
