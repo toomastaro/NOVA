@@ -27,6 +27,9 @@ def safe_handler(stage_info: str, log_start: bool = True) -> Callable:
     def decorator(func: Callable) -> Callable:
         @wraps(func)
         async def wrapper(*args: Any, **kwargs: Any) -> Any:
+            from config import Config
+            from instance_bot import bot
+
             # Логируем начало выполнения этапа, если включено
             if log_start:
                 logger.info(f"Старт этапа: {stage_info}")
@@ -35,11 +38,28 @@ def safe_handler(stage_info: str, log_start: bool = True) -> Callable:
             except Exception as e:
                 # Логируем ошибку с трейсбэком
                 logger.error(f"Ошибка в {stage_info}: {e}", exc_info=True)
-                # Исключение подавляется, чтобы не поломать внешний поток (Telegram, API и т.д.)
-                # Если требуется прерывание транзакции, логика должна быть обработана внутри функции.
-                # Для критичных задач (API) может потребоваться возврат специфичного объекта ошибки,
-                # но текущая реализация сохраняет поведение "не падать".
-                pass
+
+                # Отправка алерта в канал поддержки
+                try:
+                    if Config.ADMIN_SUPPORT:
+                        error_type = type(e).__name__
+                        alert_text = (
+                            f"🚨 <b>Ошибка в NOVA</b>\n\n"
+                            f"<b>📍 Этап:</b> {stage_info}\n"
+                            f"<b>⚠️ Тип:</b> {error_type}\n"
+                            f"<b>💬 Сообщение:</b> <code>{str(e)}</code>\n\n"
+                            f"<i>Проверьте логи сервера для деталей.</i>"
+                        )
+                        await bot.send_message(
+                            chat_id=Config.ADMIN_SUPPORT,
+                            text=alert_text,
+                            parse_mode="HTML",
+                        )
+                except Exception as alert_err:
+                    logger.error(f"Не удалось отправить алерт в поддержку: {alert_err}")
+
+                # Исключение подавляется, чтобы не поломать внешний поток
+                return None
 
         return wrapper
 

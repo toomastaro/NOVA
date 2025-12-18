@@ -19,6 +19,7 @@ from main_bot.database.mt_client.model import MtClient
 from main_bot.utils.lang.language import text
 from main_bot.utils.session_manager import SessionManager
 from main_bot.utils.support_log import SupportAlert, send_support_alert
+from utils.error_handler import safe_handler
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +51,7 @@ def get_sub_status(expire_time: Optional[int]) -> Tuple[Optional[str], Optional[
     return None, None
 
 
+@safe_handler("Очистка: проверка подписок")
 async def check_subscriptions() -> None:
     """
     Периодическая задача: проверка подписок и уведомления пользователей.
@@ -91,6 +93,7 @@ async def check_subscriptions() -> None:
                 )
 
 
+@safe_handler("Очистка: самопроверка MT клиентов")
 async def mt_clients_self_check() -> None:
     """
     Периодическая задача: самопроверка MT клиентов.

@@ -24,7 +24,7 @@ from main_bot.utils.schedulers import (
     update_channel_stats,
     scheduler_instance,
 )
-from main_bot.utils.functions import create_emoji, set_channel_session
+from main_bot.utils.functions import set_channel_session
 from main_bot.utils.lang.language import text
 from utils.error_handler import safe_handler
 
@@ -64,7 +64,7 @@ def _get_instruction_text(
     )
 
 
-@safe_handler("Set Admins")
+@safe_handler("Set Admins", log_start=False)
 async def set_admins(
     bot: Bot,
     chat_id: int,
@@ -74,29 +74,22 @@ async def set_admins(
 ) -> None:
     """
     Добавляет администраторов канала в базу данных.
-    Если бот еще не добавлен в канал (например, при ручном добавлении),
-    добавляет только пользователя, который инициировал добавление.
-
-    Аргументы:
-        bot (Bot): Экземпляр бота.
-        chat_id (int): ID канала.
-        chat_title (str): Название канала.
-        emoji_id (str): ID эмодзи (аватарки канала).
-        user_id (Optional[int]): ID пользователя-инициатора (для ручного добавления).
     """
+    # Добавляем того, кто инициировал (чтобы сразу отобразилось в списке)
+    if user_id:
+        await db.channel.add_channel(
+            chat_id=chat_id, title=chat_title, admin_id=user_id, emoji_id=emoji_id
+        )
+
     try:
         admins = await bot.get_chat_administrators(chat_id)
     except Exception:
         logger.error("Ошибка получения администраторов канала %s", chat_id)
-        # Если не можем получить список админов, добавляем хотя бы того, кто добавил бота
-        if user_id:
-            await db.channel.add_channel(
-                chat_id=chat_id, title=chat_title, admin_id=user_id, emoji_id=emoji_id
-            )
         return
 
+    # Добавляем остальных админов
     for admin in admins:
-        if admin.user.is_bot:
+        if admin.user.is_bot or admin.user.id == user_id:
             continue
 
         if not isinstance(admin, types.ChatMemberOwner):
@@ -116,14 +109,45 @@ async def set_admins(
         )
 
 
+@safe_handler("Setup Channel Task", log_start=False)
+async def setup_channel_task(
+    bot: Bot, chat_id: int, chat_title: str, user_id: int
+) -> None:
+    """Фоновая задача настройки канала"""
+    # 1. Настройка админов
+    await set_admins(bot, chat_id, chat_title, "5393222813345663485", user_id=user_id)
+
+    # 2. Назначаем клиента (самое долгое)
+    res = await set_channel_session(chat_id)
+
+    # 3. Планирование статистики
+    channel_obj = await db.channel.get_channel_by_chat_id(chat_id)
+    if channel_obj and scheduler_instance:
+        schedule_channel_job(scheduler_instance, channel_obj)
+        asyncio.create_task(update_channel_stats(chat_id))
+
+    # 4. Отправка инструкции
+    if res.get("success"):
+        client_info = res.get("client_info", {})
+        username = client_info.get("username", "username")
+        first_name = client_info.get("first_name", "Assistant")
+        message_text = _get_instruction_text(chat_title, username, first_name)
+    else:
+        message_text = (
+            text("success_add_channel").format(chat_title)
+            + "\n\n⚠️ Не удалось назначить помощника автоматически. Пожалуйста, обратитесь в поддержку."
+        )
+
+    try:
+        await bot.send_message(chat_id=user_id, text=message_text)
+    except Exception:
+        logger.error(f"Не удалось отправить инструкцию пользователю {user_id}")
+
+
 @safe_handler("Set Channel")
 async def set_channel(call: types.ChatMemberUpdated) -> None:
     """
     Обработчик события добавления/удаления бота в канале.
-    Автоматически регистрирует канал при добавлении бота в админы.
-
-    Аргументы:
-        call (types.ChatMemberUpdated): Событие обновления прав бота.
     """
     chat_id = call.chat.id
     channel = await db.channel.get_channel_by_chat_id(chat_id=chat_id)
@@ -132,64 +156,27 @@ async def set_channel(call: types.ChatMemberUpdated) -> None:
         if channel:
             return
 
-        # Обработка ошибок при получении информации о канале
-        try:
-            chat = await call.bot.get_chat(chat_id)
-            chat_title = chat.title
-            photo = chat.photo
-        except Exception:
-            logger.error("Ошибка получения информации о канале %s", chat_id)
-            chat_title = call.chat.title
-            photo = None
+        chat_title = call.chat.title or f"Channel {chat_id}"
 
-        # Загрузка фото канала
-        if photo:
-            try:
-                photo_bytes = await call.bot.download(photo.big_file_id)
-            except Exception:
-                logger.error("Ошибка загрузки фото канала %s", chat_id)
-                photo_bytes = None
-        else:
-            photo_bytes = None
-
-        emoji_id = await create_emoji(call.from_user.id, photo_bytes)
-        await set_admins(
-            call.bot, chat_id, chat_title, emoji_id, user_id=call.from_user.id
+        # Быстрый ответ пользователю
+        await call.bot.send_message(
+            chat_id=call.from_user.id,
+            text=f"⏳ <b>Добавляю канал «{chat_title}»...</b>\n\nЭто займет несколько секунд, я настраиваю помощника.",
         )
 
-        # Назначаем клиента и получаем инструкцию
-        res = await set_channel_session(chat_id)
-
-        # Планирование задачи сбора статистики
-        channel_obj = await db.channel.get_channel_by_chat_id(chat_id)
-        if channel_obj and scheduler_instance:
-            schedule_channel_job(scheduler_instance, channel_obj)
-            asyncio.create_task(update_channel_stats(chat_id))
-
-        if res.get("success"):
-            client_info = res.get("client_info", {})
-            username = client_info.get("username", "username")
-            message_text = _get_instruction_text(chat_title, username)
-        else:
-            message_text = (
-                text("success_add_channel").format(chat_title)
-                + "\n\n⚠️ Не удалось назначить помощника. Обратитесь в поддержку."
-            )
-
+        # Фоновая настройка
+        asyncio.create_task(
+            setup_channel_task(call.bot, chat_id, chat_title, call.from_user.id)
+        )
     else:
         if not channel:
             return
 
         await db.channel.delete_channel(chat_id=chat_id)
-
-        message_text = text("success_delete_channel").format(channel.title)
-
-    if call.from_user.is_bot:
-        return
-
-    await call.bot.send_message(
-        chat_id=call.from_user.id, text=message_text, parse_mode="HTML"
-    )
+        await call.bot.send_message(
+            chat_id=call.from_user.id,
+            text=text("success_delete_channel").format(channel.title),
+        )
 
 
 @safe_handler("Set Admin", log_start=False)
@@ -280,21 +267,18 @@ async def set_active(call: types.ChatMemberUpdated) -> None:
 async def manual_add_channel(message: types.Message, state: FSMContext) -> None:
     """
     Ручное добавление канала через отправку ссылки или форвард.
-    Используется, если автоматическое добавление не сработало.
-
-    Аргументы:
-        message (types.Message): Сообщение с ссылкой или форвардом.
-        state (FSMContext): Контекст состояния.
     """
     chat_id = None
+    chat_title = None
 
+    # 1. Определяем chat_id
     if message.forward_from_chat and message.forward_from_chat.type == "channel":
         chat_id = message.forward_from_chat.id
+        chat_title = message.forward_from_chat.title
     else:
         text_val = message.text.strip()
         if text_val.startswith("@") or "t.me/" in text_val:
             try:
-                # Извлечение юзернейма, если это ссылка
                 if "t.me/" in text_val:
                     username = text_val.split("t.me/")[-1].split("/")[0]
                     if not username.startswith("@"):
@@ -305,93 +289,47 @@ async def manual_add_channel(message: types.Message, state: FSMContext) -> None:
                 chat = await message.bot.get_chat(username)
                 if chat.type == "channel":
                     chat_id = chat.id
+                    chat_title = chat.title
             except Exception:
                 pass
 
     if not chat_id:
-        await message.answer(
-            "Не удалось определить канал. Пожалуйста, перешлите сообщение из канала или отправьте ссылку/юзернейм канала (например @channel)."
+        return await message.answer(
+            "❌ <b>Не удалось найти канал.</b>\n\nУбедитесь, что канал публичный и вы отправили правильную ссылку или переслали пост."
         )
-        return
 
-    # Проверка, является ли бот админом
+    # 2. Проверка прав бота (минимум для продолжения)
     try:
-        bot_member = await message.bot.get_chat_member(
-            chat_id, (await message.bot.get_me()).id
-        )
+        bot_member = await message.bot.get_chat_member(chat_id, message.bot.id)
         if bot_member.status != ChatMemberStatus.ADMINISTRATOR:
-            await message.answer(
-                "Бот не является администратором этого канала. Пожалуйста, добавьте бота в администраторы и попробуйте снова."
+            return await message.answer(
+                "❌ <b>Бот не является администратором в канале.</b>\n\nСначала добавьте @novatg в админы канала с правом публикации."
             )
-            return
     except Exception as e:
-        # Бот не является членом канала - не показываем сообщение пользователю
-        logger.error("Бот не является членом канала %s: %s", chat_id, e)
-        return
+        logger.error("Ошибка проверки прав бота в %s: %s", chat_id, e)
+        return await message.answer(
+            "❌ <b>Бот не найден в канале.</b>\n\nДобавьте @novatg в администраторы канала и попробуйте снова."
+        )
 
-    # Проверка, является ли пользователь админом
+    # 3. Проверка прав пользователя
     user_member = await message.bot.get_chat_member(chat_id, message.from_user.id)
     if user_member.status not in [
         ChatMemberStatus.ADMINISTRATOR,
         ChatMemberStatus.CREATOR,
     ]:
-        await message.answer("Вы не являетесь администратором этого канала.")
-        return
+        return await message.answer("❌ Вы должны быть администратором этого канала.")
 
-    # Логика добавления канала
-    try:
-        chat = await message.bot.get_chat(chat_id)
-        chat_title = chat.title
-        photo = chat.photo
-    except Exception:
-        logger.error("Ошибка получения информации о канале %s", chat_id)
-        # Получаем информацию из user_member
-        try:
-            chat_info = await message.bot.get_chat(chat_id)
-            chat_title = chat_info.title
-            photo = None
-        except Exception:
-            chat_title = f"Channel {chat_id}"
-            photo = None
-
-    # Загрузка фото канала
-    if photo:
-        try:
-            photo_bytes = await message.bot.download(photo.big_file_id)
-        except Exception:
-            logger.error("Ошибка загрузки фото канала %s", chat_id)
-            photo_bytes = None
-    else:
-        photo_bytes = None
-
-    emoji_id = await create_emoji(message.from_user.id, photo_bytes)
-
-    await set_admins(
-        message.bot, chat_id, chat_title, emoji_id, user_id=message.from_user.id
+    # 4. Быстрый ответ и запуск фоновой задачи
+    await message.answer(
+        f"⏳ <b>Добавляю канал «{chat_title}»...</b>\n\nЯ настраиваю помощника и собираю первую статистику, это займет немного времени.",
+        parse_mode="HTML",
     )
 
-    # Назначаем клиента и получаем инструкцию
-    res = await set_channel_session(chat_id)
+    # Запускаем фоновую инициализацию
+    asyncio.create_task(
+        setup_channel_task(message.bot, chat_id, chat_title, message.from_user.id)
+    )
 
-    # Планирование задачи сбора статистики
-    channel_obj = await db.channel.get_channel_by_chat_id(chat_id)
-    if channel_obj and scheduler_instance:
-        schedule_channel_job(scheduler_instance, channel_obj)
-        asyncio.create_task(update_channel_stats(chat_id))
-
-    if res.get("success"):
-        client_info = res.get("client_info", {})
-        first_name = client_info.get("first_name", "Assistant")
-        username = client_info.get("username", "username")
-
-        msg = _get_instruction_text(chat_title, username, first_name)
-    else:
-        msg = (
-            text("success_add_channel").format(chat_title)
-            + "\n\n⚠️ Не удалось назначить помощника. Обратитесь в поддержку."
-        )
-
-    await message.answer(msg, parse_mode="HTML")
     await state.clear()
     await start_posting(message)
 

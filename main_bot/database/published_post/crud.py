@@ -181,7 +181,9 @@ class PublishedPostCrud(DatabaseMixin):
             return
 
         stmts = [
-            update(PublishedPost).where(PublishedPost.id == u["id"]).values(**{k: v for k, v in u.items() if k != "id"})
+            update(PublishedPost)
+            .where(PublishedPost.id == u["id"])
+            .values(**{k: v for k, v in u.items() if k != "id"})
             for u in updates
         ]
         await self.execute_many(stmts)

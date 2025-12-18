@@ -173,9 +173,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
         # Отправляем текстовую инструкцию
         return await call.message.answer(
             text=text("channels:add:text"),
-            reply_markup=keyboards.add_channel(
-                bot_username=(await call.bot.get_me()).username,
-            ),
+            reply_markup=keyboards.add_channel(),
         )
 
     # Сохранение ID канала в состояние или передача через callback

@@ -5,11 +5,14 @@
 import logging
 from typing import List, Literal
 
-from sqlalchemy import delete, desc, select, update
+from sqlalchemy import desc, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
+from config import Config
 from main_bot.database import DatabaseMixin
 from main_bot.database.channel.model import Channel
+
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +34,9 @@ class ChannelCrud(DatabaseMixin):
         """
         return await self.fetch(
             select(Channel).where(
-                Channel.admin_id == user_id, Channel.subscribe.is_not(None)
+                Channel.admin_id == user_id,
+                Channel.subscribe.is_not(None),
+                Channel.subscribe != Config.SOFT_DELETE_TIMESTAMP,
             )
         )
 
@@ -54,7 +59,10 @@ class ChannelCrud(DatabaseMixin):
         Возвращает:
             List[Channel]: Список каналов.
         """
-        stmt = select(Channel).where(Channel.admin_id == user_id)
+        stmt = select(Channel).where(
+            Channel.admin_id == user_id,
+            Channel.subscribe != Config.SOFT_DELETE_TIMESTAMP,
+        )
 
         if sort_by:
             stmt = stmt.order_by(desc(Channel.subscribe))
@@ -127,27 +135,65 @@ class ChannelCrud(DatabaseMixin):
 
     async def add_channel(self, **kwargs) -> None:
         """
-        Добавляет новый канал.
-        Использует upsert по (chat_id, admin_id).
-
-        Аргументы:
-            **kwargs: Поля модели Channel.
+        Добавляет или восстанавливает канал.
+        Реализует логику пробного периода (Trial).
         """
+        chat_id = kwargs.get("chat_id")
+        admin_id = kwargs.get("admin_id")
+
+        # 1. Проверяем, был ли канал в базе ВООБЩЕ (для Trial проверяем только по chat_id)
+        # Существование записи гарантирует, что кто-то уже добавлял этот канал
+        existing_any_admin = await self.fetchrow(
+            select(Channel).where(Channel.chat_id == chat_id).limit(1)
+        )
+
+        # 2. Если канала нет совсем и включен Trial — начисляем дни
+        if not existing_any_admin and Config.TRIAL:
+            trial_end = int(time.time()) + (Config.TRIAL_DAYS * 86400)
+            kwargs["subscribe"] = trial_end
+            logger.info(
+                f"Начислен Trial ({Config.TRIAL_DAYS} дн.) для нового канала {chat_id}"
+            )
+
+        # 3. Добавляем/обновляем запись для конкретного админа
         stmt = pg_insert(Channel).values(**kwargs)
+
+        # При конфликте (если запись уже есть для этого админа)
+        # Если канал был "удален" (метка 2000 года), снимаем метку
+        update_values = kwargs.copy()
+
+        # Проверяем, была ли метка удаления у текущего админа
+        existing_for_admin = await self.fetchrow(
+            select(Channel).where(
+                Channel.chat_id == chat_id, Channel.admin_id == admin_id
+            )
+        )
+
+        if (
+            existing_for_admin
+            and existing_for_admin.subscribe == Config.SOFT_DELETE_TIMESTAMP
+        ):
+            # Восстановление: если подписки нет, ставим None, чтобы не висел 2000 год
+            if (
+                "subscribe" not in update_values
+                or update_values["subscribe"] == Config.SOFT_DELETE_TIMESTAMP
+            ):
+                update_values["subscribe"] = None
+
         stmt = stmt.on_conflict_do_update(
-            index_elements=["chat_id", "admin_id"], set_=kwargs
+            index_elements=["chat_id", "admin_id"], set_=update_values
         )
         await self.execute(stmt)
 
     async def delete_channel(self, chat_id: int, user_id: int = None) -> None:
         """
-        Удаляет канал.
-
-        Аргументы:
-            chat_id (int): ID канала в Telegram.
-            user_id (int, optional): Опционально проверка владельца.
+        Мягкое удаление канала (установка даты подписки на 01.01.2000).
         """
-        stmt = delete(Channel).where(Channel.chat_id == chat_id)
+        stmt = (
+            update(Channel)
+            .where(Channel.chat_id == chat_id)
+            .values(subscribe=Config.SOFT_DELETE_TIMESTAMP)
+        )
         if user_id:
             stmt = stmt.where(Channel.admin_id == user_id)
 
@@ -161,6 +207,7 @@ class ChannelCrud(DatabaseMixin):
             select(Channel)
             .where(
                 Channel.subscribe.is_not(None),
+                Channel.subscribe != Config.SOFT_DELETE_TIMESTAMP,
             )
             .order_by(Channel.id.asc())
         )
@@ -188,8 +235,11 @@ class ChannelCrud(DatabaseMixin):
             if content:
                 excluded_chat_ids.extend([int(c) for c in content])
 
-        # Получаем каналы, которых нет в исключенных
-        stmt = select(Channel).where(Channel.admin_id == user_id)
+        # Получаем каналы, которых нет в исключенных и которые не удалены
+        stmt = select(Channel).where(
+            Channel.admin_id == user_id,
+            Channel.subscribe != Config.SOFT_DELETE_TIMESTAMP,
+        )
 
         if excluded_chat_ids:
             stmt = stmt.where(Channel.chat_id.notin_(excluded_chat_ids))
@@ -218,6 +268,7 @@ class ChannelCrud(DatabaseMixin):
         # Сортировка по chat_id обязательна для distinct on
         stmt = (
             select(Channel)
+            .where(Channel.subscribe != Config.SOFT_DELETE_TIMESTAMP)
             .distinct(Channel.chat_id)
             .order_by(Channel.chat_id, Channel.id.desc())
         )

@@ -27,6 +27,7 @@ class Config:
     # Настройки бота
     BOT_TOKEN = os.getenv("BOT_TOKEN")
     BOT_LINK = os.getenv("BOT_LINK", "https://t.me/novatg")
+    BOT_USERNAME = BOT_LINK.split("/")[-1] if BOT_LINK else "novatg"
     # ID чата для бэкапов. Если не задан - 0
     BACKUP_CHAT_ID = int(os.getenv("NOVA_BKP")) if os.getenv("NOVA_BKP") else 0
     ADMIN_SUPPORT = int(os.getenv("ADMIN_SUPPORT"))
@@ -67,6 +68,11 @@ class Config:
 
     # Фичи
     ENABLE_AD_BUY_MODULE = os.getenv("ENABLE_AD_BUY_MODULE", "false").lower() == "true"
+    TRIAL = os.getenv("TRIAL", "false").lower() == "true"
+    TRIAL_DAYS = int(os.getenv("TRIAL_DAYS", 3))
+
+    # Константы системы
+    SOFT_DELETE_TIMESTAMP = 946684800  # 01.01.2000
 
     # Администраторы и тарифы
     ADMINS = [int(i) for i in os.getenv("ADMINS").split(",")]

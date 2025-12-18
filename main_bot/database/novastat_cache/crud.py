@@ -140,17 +140,18 @@ class NovaStatCacheCrud(DatabaseMixin):
             .where(
                 NovaStatCache.channel_identifier == channel_identifier,
                 NovaStatCache.horizon == horizon,
-                (NovaStatCache.refresh_in_progress == False) | (NovaStatCache.updated_at < cutoff)
+                (NovaStatCache.refresh_in_progress.is_(False))
+                | (NovaStatCache.updated_at < cutoff),
             )
             .values(refresh_in_progress=True, updated_at=current_time)
         )
-        
-        # В SQLAlchemy asyncpg execute возвращает CursorResult, 
+
+        # В SQLAlchemy asyncpg execute возвращает CursorResult,
         # но наш DatabaseMixin.execute ничего не возвращает.
         # Поэтому используем fetchrow для получения результата через RETURNING
         stmt = stmt.returning(NovaStatCache.id)
         res = await self.fetchrow(stmt, commit=True)
-        
+
         if res:
             return True
 
@@ -163,7 +164,7 @@ class NovaStatCacheCrud(DatabaseMixin):
                     horizon=horizon,
                     value_json={},
                     updated_at=current_time,
-                    refresh_in_progress=True
+                    refresh_in_progress=True,
                 )
                 await self.add(new_cache)
                 return True

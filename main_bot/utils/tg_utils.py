@@ -9,16 +9,12 @@
 """
 
 import asyncio
-import os
-import random
-import string
 import time
 import logging
 from pathlib import Path
 
 from aiogram import types
 from aiogram.enums import ChatMemberStatus
-from PIL import Image, ImageDraw, ImageFilter
 
 from instance_bot import bot as main_bot_obj
 from main_bot.database.db import db
@@ -29,94 +25,84 @@ logger = logging.getLogger(__name__)
 
 async def create_emoji(user_id: int, photo_bytes=None) -> str:
     """
-    Создать custom emoji из фотографии пользователя.
-
-    Обрабатывает фото: изменяет размер, делает круглым с размытием краев,
-    создает стикер-пак и возвращает ID emoji.
-
-    Args:
-        user_id: ID пользователя для создания стикер-пака
-        photo_bytes: Байты изображения или None для дефолтного emoji
-
-    Returns:
-        ID custom emoji (строка)
+    Создать custom emoji из фотографии пользователя (ОТКЛЮЧЕНО).
     """
-    emoji_id = "5393222813345663485"  # Дефолтный emoji
+    return "5393222813345663485"  # Дефолтный emoji
 
-    # Если фото нет, возвращаем дефолтный emoji
-    if not photo_bytes:
-        return emoji_id
+    # # Если фото нет, возвращаем дефолтный emoji
+    # if not photo_bytes:
+    #     return emoji_id
 
-    try:
-        with Image.open(photo_bytes) as img:
-            # Изменяем размер до 100x100
-            new_image = img.resize((100, 100))
+    # try:
+    #     with Image.open(photo_bytes) as img:
+    #         # Изменяем размер до 100x100
+    #         new_image = img.resize((100, 100))
 
-            # Создаем круглую маску с размытием
-            mask = Image.new("L", new_image.size)
-            draw = ImageDraw.Draw(mask)
-            draw.ellipse(
-                xy=(4, 4, new_image.size[0] - 4, new_image.size[1] - 4), fill=255
-            )
-            mask = mask.filter(ImageFilter.GaussianBlur(2))
+    #         # Создаем круглую маску с размытием
+    #         mask = Image.new("L", new_image.size)
+    #         draw = ImageDraw.Draw(mask)
+    #         draw.ellipse(
+    #             xy=(4, 4, new_image.size[0] - 4, new_image.size[1] - 4), fill=255
+    #         )
+    #         mask = mask.filter(ImageFilter.GaussianBlur(2))
 
-            # Сохраняем обработанное изображение
-            output_path = f"main_bot/utils/temp/{user_id}.png"
-            # Убеждаемся, что директория существует
-            os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    #         # Сохраняем обработанное изображение
+    #         output_path = f"main_bot/utils/temp/{user_id}.png"
+    #         # Убеждаемся, что директория существует
+    #         os.makedirs(os.path.dirname(output_path), exist_ok=True)
 
-            result = new_image.copy()
-            result.putalpha(mask)
-            result.save(output_path)
+    #         result = new_image.copy()
+    #         result.putalpha(mask)
+    #         result.save(output_path)
 
-            # Генерируем уникальное имя стикер-пака
-            bot_info = await main_bot_obj.get_me()
-            set_id = (
-                "".join(random.sample(string.ascii_letters, k=10))
-                + "_by_"
-                + bot_info.username
-            )
+    #         # Генерируем уникальное имя стикер-пака
+    #         bot_info = await main_bot_obj.get_me()
+    #         set_id = (
+    #             "".join(random.sample(string.ascii_letters, k=10))
+    #             + "_by_"
+    #             + bot_info.username
+    #         )
 
-        # Создаем стикер-пак
-        try:
-            await main_bot_obj.create_new_sticker_set(
-                user_id=user_id,
-                name=set_id,
-                title="NovaTGEmoji",
-                stickers=[
-                    types.InputSticker(
-                        sticker=types.FSInputFile(path=output_path),
-                        format="static",
-                        emoji_list=["🤩"],
-                    )
-                ],
-                sticker_format="static",
-                sticker_type="custom_emoji",
-            )
-            r = await main_bot_obj.get_sticker_set(set_id)
-            # await main_bot_obj.session.close() # Не закрываем сессию здесь, используется общий объект бота
-            if r.stickers:
-                emoji_id = r.stickers[0].custom_emoji_id
-                logger.info(
-                    f"Создан custom emoji для пользователя {user_id}: {emoji_id}"
-                )
-            else:
-                logger.warning(f"Стикер-пак создан, но стикеров нет для {user_id}")
+    #     # Создаем стикер-пак
+    #     try:
+    #         await main_bot_obj.create_new_sticker_set(
+    #             user_id=user_id,
+    #             name=set_id,
+    #             title="NovaTGEmoji",
+    #             stickers=[
+    #                 types.InputSticker(
+    #                     sticker=types.FSInputFile(path=output_path),
+    #                     format="static",
+    #                     emoji_list=["🤩"],
+    #                 )
+    #             ],
+    #             sticker_format="static",
+    #             sticker_type="custom_emoji",
+    #         )
+    #         r = await main_bot_obj.get_sticker_set(set_id)
+    #         # await main_bot_obj.session.close() # Не закрываем сессию здесь, используется общий объект бота
+    #         if r.stickers:
+    #             emoji_id = r.stickers[0].custom_emoji_id
+    #             logger.info(
+    #                 f"Создан custom emoji для пользователя {user_id}: {emoji_id}"
+    #             )
+    #         else:
+    #             logger.warning(f"Стикер-пак создан, но стикеров нет для {user_id}")
 
-        except Exception as e:
-            logger.error(f"Ошибка создания стикера: {e}")
+    #     except Exception as e:
+    #         logger.error(f"Ошибка создания стикера: {e}")
 
-        # Удаляем временный файл
-        try:
-            if os.path.exists(output_path):
-                os.remove(output_path)
-        except Exception as e:
-            logger.warning(f"Не удалось удалить временный файл {output_path}: {e}")
+    #     # Удаляем временный файл
+    #     try:
+    #         if os.path.exists(output_path):
+    #             os.remove(output_path)
+    #     except Exception as e:
+    #         logger.warning(f"Не удалось удалить временный файл {output_path}: {e}")
 
-    except Exception as e:
-        logger.error(f"Ошибка обработки фото для emoji: {e}")
+    # except Exception as e:
+    #     logger.error(f"Ошибка обработки фото для emoji: {e}")
 
-    return emoji_id
+    # return emoji_id
 
 
 async def get_editors(call: types.CallbackQuery, chat_id: int):

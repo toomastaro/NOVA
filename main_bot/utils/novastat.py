@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import time
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 from statistics import median
@@ -125,7 +126,7 @@ class NovaStatService:
 
         # 1. Получить кэш один раз
         cache = await db.novastat_cache.get_cache(channel_identifier, horizon)
-        
+
         # 2. Проверить "свежесть" в памяти
         if cache and not cache.refresh_in_progress and not cache.error_message:
             current_time = int(time.time())
@@ -134,7 +135,9 @@ class NovaStatService:
                 views = data.get("views", {})
                 if views.get(24, 0) > 0:
                     return data
-                logger.debug(f"В кэше 0 просмотров для {channel_identifier}, принудительное обновление.")
+                logger.debug(
+                    f"В кэше 0 просмотров для {channel_identifier}, принудительное обновление."
+                )
 
         # 3. Если идет обновление - вернуть старые данные
         if cache and cache.refresh_in_progress:
@@ -143,7 +146,9 @@ class NovaStatService:
             return None
 
         # 4. Обновить синхронно (ждать результата)
-        logger.debug(f"Промах кэша для {channel_identifier}, получение свежих данных...")
+        logger.debug(
+            f"Промах кэша для {channel_identifier}, получение свежих данных..."
+        )
         await self.async_refresh_stats(channel_identifier, days_limit, horizon, bot=bot)
 
         # 5. Получить результат
@@ -179,7 +184,9 @@ class NovaStatService:
                 channel_identifier, horizon
             )
             if not lock_acquired:
-                logger.debug(f"Обновление для {channel_identifier} уже выполняется другим процессом.")
+                logger.debug(
+                    f"Обновление для {channel_identifier} уже выполняется другим процессом."
+                )
                 return
 
             # Шаг 1: Проверить, является ли канал "своим" (в нашем боте)
