@@ -47,6 +47,17 @@ services:
     networks:
       - nova-network
 
+  redisinsight:
+    image: redis/redisinsight:latest
+    container_name: redisinsight
+    restart: always
+    ports:
+      - "8078:8001"
+    volumes:
+      - redisinsight_data:/data
+    networks:
+      - nova-network
+
   app:
     build: .
     restart: always
@@ -105,6 +116,7 @@ volumes:
   postgres_data:
   pgadmin_data:
   redis_data:
+  redisinsight_data:
 
 
 networks:
