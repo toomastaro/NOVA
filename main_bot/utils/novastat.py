@@ -120,50 +120,33 @@ class NovaStatService:
     ) -> Optional[Dict]:
         """
         Собрать статистику для канала с кэшированием.
-
-        Args:
-            channel_identifier: username или ссылка на канал
-            days_limit: глубина анализа в днях
-            horizon: горизонт для кэша (24, 48, 72)
-            bot: AIogram Bot instance (для получения подписчиков через API)
-
-        Returns:
-            Dict со статистикой или None при ошибке
         """
-        # Убедимся, что идентификатор строка для операций с кэшем БД
         channel_identifier = str(channel_identifier)
 
-        # 1. Проверить кэш
-        is_fresh = await db.novastat_cache.is_cache_fresh(
-            channel_identifier, horizon, CACHE_TTL_SECONDS
-        )
-
-        if is_fresh:
-            cache = await db.novastat_cache.get_cache(channel_identifier, horizon)
-            if cache and not cache.error_message:
+        # 1. Получить кэш один раз
+        cache = await db.novastat_cache.get_cache(channel_identifier, horizon)
+        
+        # 2. Проверить "свежесть" в памяти
+        if cache and not cache.refresh_in_progress and not cache.error_message:
+            current_time = int(time.time())
+            if (current_time - cache.updated_at) < CACHE_TTL_SECONDS:
                 data = self.normalize_cache_keys(cache.value_json)
-                # Если в кэше 0 просмотров, принудительно обновляем (по запросу пользователя)
                 views = data.get("views", {})
                 if views.get(24, 0) > 0:
                     return data
+                logger.debug(f"В кэше 0 просмотров для {channel_identifier}, принудительное обновление.")
 
-                logger.debug(
-                    f"В кэше 0 просмотров для {channel_identifier}, принудительное обновление."
-                )
-
-        # 2. Проверить, идет ли обновление
-        cache = await db.novastat_cache.get_cache(channel_identifier, horizon)
+        # 3. Если идет обновление - вернуть старые данные
         if cache and cache.refresh_in_progress:
-            # Вернуть старые данные или None
             if cache.value_json:
                 return self.normalize_cache_keys(cache.value_json)
             return None
 
-        # 3. Если кэша нет или он устарел - обновить синхронно (ждать результата)
+        # 4. Обновить синхронно (ждать результата)
         logger.debug(f"Промах кэша для {channel_identifier}, получение свежих данных...")
         await self.async_refresh_stats(channel_identifier, days_limit, horizon, bot=bot)
 
-        # 4. Получить обновленные данные из кэша
+        # 5. Получить результат
         cache = await db.novastat_cache.get_cache(channel_identifier, horizon)
         if cache and cache.value_json and not cache.error_message:
             return self.normalize_cache_keys(cache.value_json)
@@ -191,10 +174,13 @@ class NovaStatService:
     ):
         """Асинхронное обновление статистики в кэше"""
         try:
-            # Установить флаг обновления
-            await db.novastat_cache.mark_refresh_in_progress(
-                channel_identifier, horizon, True
+            # Попытка захватить атомарную блокировку
+            lock_acquired = await db.novastat_cache.try_acquire_refresh_lock(
+                channel_identifier, horizon
             )
+            if not lock_acquired:
+                logger.debug(f"Обновление для {channel_identifier} уже выполняется другим процессом.")
+                return
 
             # Шаг 1: Проверить, является ли канал "своим" (в нашем боте)
             our_channel = None

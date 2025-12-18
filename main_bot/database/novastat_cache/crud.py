@@ -115,37 +115,85 @@ class NovaStatCacheCrud(DatabaseMixin):
             await self.add(new_cache)
             return new_cache
 
+    async def try_acquire_refresh_lock(
+        self, channel_identifier: str, horizon: int, lock_timeout: int = 600
+    ) -> bool:
+        """
+        Пытается атомарно захватить блокировку обновления для канала.
+        Блокировка считается свободной если refresh_in_progress=False
+        ИЛИ если предыдущая блокировка старше lock_timeout (защита от зависаний).
+
+        Аргументы:
+            channel_identifier (str): Идентификатор канала.
+            horizon (int): Горизонт.
+            lock_timeout (int): Время в секундах, после которого блокировка считается протухшей.
+
+        Возвращает:
+            bool: True если блокировка захвачена успешно.
+        """
+        current_time = int(time.time())
+        cutoff = current_time - lock_timeout
+
+        # Пытаемся обновить существующую запись, если она свободна или протухла
+        stmt = (
+            update(NovaStatCache)
+            .where(
+                NovaStatCache.channel_identifier == channel_identifier,
+                NovaStatCache.horizon == horizon,
+                (NovaStatCache.refresh_in_progress == False) | (NovaStatCache.updated_at < cutoff)
+            )
+            .values(refresh_in_progress=True, updated_at=current_time)
+        )
+        
+        # В SQLAlchemy asyncpg execute возвращает CursorResult, 
+        # но наш DatabaseMixin.execute ничего не возвращает.
+        # Поэтому используем fetchrow для получения результата через RETURNING
+        stmt = stmt.returning(NovaStatCache.id)
+        res = await self.fetchrow(stmt, commit=True)
+        
+        if res:
+            return True
+
+        # Если записи нет совсем, пробуем создать (UPSERT логика)
+        cache = await self.get_cache(channel_identifier, horizon)
+        if not cache:
+            try:
+                new_cache = NovaStatCache(
+                    channel_identifier=channel_identifier,
+                    horizon=horizon,
+                    value_json={},
+                    updated_at=current_time,
+                    refresh_in_progress=True
+                )
+                await self.add(new_cache)
+                return True
+            except Exception:
+                # Вероятно, запись была создана параллельно другим процессом
+                return False
+
+        return False
+
     async def mark_refresh_in_progress(
         self, channel_identifier: str, horizon: int, in_progress: bool
     ) -> None:
         """
         Устанавливает флаг процесса обновления кэша.
+        Используется в основном для сброса флага (in_progress=False).
 
         Аргументы:
             channel_identifier (str): Идентификатор канала.
             horizon (int): Горизонт.
             in_progress (bool): Статус выполнения.
         """
-        cache = await self.get_cache(channel_identifier, horizon)
-
-        if cache:
-            stmt = (
-                update(NovaStatCache)
-                .where(NovaStatCache.id == cache.id)
-                .values(refresh_in_progress=in_progress)
+        stmt = (
+            update(NovaStatCache)
+            .where(
+                NovaStatCache.channel_identifier == channel_identifier,
+                NovaStatCache.horizon == horizon,
             )
-            await self.execute(stmt)
-        elif in_progress:
-            # Создать запись с флагом in_progress
-            new_cache = NovaStatCache(
-                channel_identifier=channel_identifier,
-                horizon=horizon,
-                value_json={},
-                updated_at=0,  # Еще не обновлено
-                refresh_in_progress=True,
-                error_message=None,
-            )
-            await self.add(new_cache)
+            .values(refresh_in_progress=in_progress)
+        )
+        await self.execute(stmt)
 
     async def clear_stale_refresh_flags(self, max_age_seconds: int = 600) -> None:
         """
