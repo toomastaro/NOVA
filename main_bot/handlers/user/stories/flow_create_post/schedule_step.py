@@ -675,8 +675,11 @@ async def get_send_time(message: types.Message, state: FSMContext):
 
     await message.answer(
         text("manage:story:accept:date").format(
-            f"{day} {month} {year} {_time}",
             weekday,
+            day,
+            month,
+            year,
+            _time,
             await get_story_report_text(chosen, objects),
             (
                 f"{int(options.period / 3600)} ч."  # type: ignore
