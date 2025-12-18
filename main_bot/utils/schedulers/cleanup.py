@@ -51,7 +51,7 @@ def get_sub_status(expire_time: Optional[int]) -> Tuple[Optional[str], Optional[
     return None, None
 
 
-@safe_handler("Очистка: проверка подписок")
+@safe_handler("Очистка: проверка подписок", log_start=False)
 async def check_subscriptions() -> None:
     """
     Периодическая задача: проверка подписок и уведомления пользователей.
@@ -93,7 +93,7 @@ async def check_subscriptions() -> None:
                 )
 
 
-@safe_handler("Очистка: самопроверка MT клиентов")
+@safe_handler("Очистка: самопроверка MT клиентов", log_start=False)
 async def mt_clients_self_check() -> None:
     """
     Периодическая задача: самопроверка MT клиентов.
