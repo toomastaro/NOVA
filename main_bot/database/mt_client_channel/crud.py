@@ -71,6 +71,7 @@ class MtClientChannelCrud(DatabaseMixin):
         allowed_keys = {
             "is_member",
             "is_admin",
+            "can_post_messages",
             "can_post_stories",
             "last_joined_at",
             "last_seen_at",

@@ -46,6 +46,7 @@ class MtClientChannel(Base):
 
     is_member: Mapped[bool] = mapped_column(Boolean, default=False)
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
+    can_post_messages: Mapped[bool] = mapped_column(Boolean, default=False)
     can_post_stories: Mapped[bool] = mapped_column(Boolean, default=False)
 
     preferred_for_stats: Mapped[bool] = mapped_column(Boolean, default=False)

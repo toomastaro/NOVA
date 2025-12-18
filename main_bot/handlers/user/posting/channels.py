@@ -35,6 +35,7 @@ async def check_permissions_task(chat_id: int):
     try:
         async with SessionManager(session_path) as manager:
             perms = await manager.check_permissions(chat_id)
+            logger.debug(f"Rights for {chat_id}: {perms}")
             
         if perms.get("error") == "USER_NOT_PARTICIPANT":
             # Сброс прав в БД, если помощника нет в канале
@@ -52,6 +53,7 @@ async def check_permissions_task(chat_id: int):
 
         if not perms.get("error"):
             is_admin = perms.get("is_admin", False)
+            can_post = perms.get("can_post_messages", False)
             can_stories = perms.get("can_post_stories", False)
             
             # 3. Обновление БД
@@ -60,6 +62,7 @@ async def check_permissions_task(chat_id: int):
                 channel_id=chat_id,
                 is_member=perms.get("is_member", True),
                 is_admin=is_admin,
+                can_post_messages=can_post,
                 can_post_stories=can_stories,
                 last_joined_at=int(time.time()),
                 preferred_for_stats=client_row[0].preferred_for_stats
@@ -114,60 +117,66 @@ async def render_channel_info(
     else:
         subscribe_str = "❌ Не активна"
 
-    # Получаем статус помощника
+    # Получаем статусы бота и помощника
     try:
-        # Находим привязанного клиента
+        # 1. Проверка прав основного бота (Постинг)
+        from aiogram.enums import ChatMemberStatus
+        bot_member = await call.bot.get_chat_member(channel.chat_id, call.bot.id)
+        
+        bot_can_post = False
+        if bot_member.status in [ChatMemberStatus.ADMINISTRATOR, ChatMemberStatus.CREATOR]:
+            if hasattr(bot_member, "can_post_messages"):
+                bot_can_post = bot_member.can_post_messages
+            else:
+                bot_can_post = True # Если создатель или старое API
+            
+        status_bot_post = "✅" if bot_can_post else "❌"
+
+        # 2. Находим привязанного помощника (МТПрото)
         client_row = await db.mt_client_channel.get_my_membership(channel.chat_id)
 
-        can_post = False
-        can_stories = False
+        assistant_can_stats = False
+        assistant_can_stories = False
         mt_client = None
 
         if client_row:
-            if client_row[0].is_admin:
-                pass
-
-            can_post = client_row[0].is_admin
-            can_stories = client_row[0].can_post_stories
+            assistant_can_stats = client_row[0].is_admin
+            assistant_can_stories = client_row[0].can_post_stories
             mt_client = client_row[0].client
 
-        status_post = "✅" if can_post else "❌"
-        status_story = "✅" if can_stories else "❌"
-        # Рассылка зависит от логики постинга (TODO)
-        status_mail = "❌"
+        status_assistant_stats = "✅" if assistant_can_stats else "❌"
+        status_assistant_story = "✅" if assistant_can_stories else "❌"
         
-        # Если права не выданы, запускаем фоновую проверку
-        if not can_post or not can_stories:
-            asyncio.create_task(check_permissions_task(channel.chat_id))
-
-        # Проверка приветственных сообщений
+        # Рассылка и Приветствие зависят от прав бота
+        status_bot_mail = "✅" if bot_can_post else "❌"
+        
+        # Проверка приветственных сообщений в БД
         hello_msgs = await db.channel_bot_hello.get_hello_messages(
             channel.chat_id, active=True
         )
         status_welcome = "✅" if hello_msgs else "❌"
 
+        # Если права помощника не полные и он назначен - запускаем фоновую проверку
+        if mt_client and (not assistant_can_stats or not assistant_can_stories):
+            asyncio.create_task(check_permissions_task(channel.chat_id))
+
         if mt_client:
             import html
-
             clean_alias = mt_client.alias.replace("👤", "").strip()
-            if " " in clean_alias:
-                assistant_name = html.escape(clean_alias)
-            else:
-                assistant_name = f"@{html.escape(clean_alias)}"
-            assistant_desc = "<i>Назначенный помощник для этого канала</i>"
-            assistant_header = (
-                f"🤖 <b>Статус помощника:</b> {assistant_name}\n{assistant_desc}\n"
-            )
+            assistant_name = f"@{html.escape(clean_alias)}" if " " not in clean_alias else html.escape(clean_alias)
+            assistant_desc = "<i>Сбор статистики и публикация историй</i>"
+            assistant_header = f"🤖 <b>Помощник:</b> {assistant_name}\n{assistant_desc}\n"
         else:
-            assistant_header = "🤖 <b>Статус помощника:</b> Не назначен\n"
+            assistant_header = "🤖 <b>Помощник:</b> Не назначен\n"
 
     except Exception as e:
-        logger.error(f"Ошибка получения статуса помощника: {e}")
-        status_post = "❓"
-        status_story = "❓"
-        status_mail = "❓"
+        logger.error(f"Ошибка получения статуса: {e}", exc_info=True)
+        status_bot_post = "❓"
+        status_assistant_stats = "❓"
+        status_assistant_story = "❓"
+        status_bot_mail = "❓"
         status_welcome = "❓"
-        assistant_header = "🤖 <b>Статус помощника:</b> Ошибка\n"
+        assistant_header = "🤖 <b>Помощник:</b> Ошибка получения данных\n"
 
     info_text = (
         f"📺 <b>Информация о канале</b>\n\n"
@@ -177,11 +186,13 @@ async def render_channel_info(
         f"📅 <b>Добавлен:</b> {created_str}\n"
         f"💎 <b>Подписка:</b> {subscribe_str}\n\n"
         f"🛠 <b>Редакторы:</b>\n{editors_str}\n\n"
+        f"📡 <b>Статус бота NOVA:</b>\n"
+        f"├ 📝 Постинг: {status_bot_post}\n"
+        f"├ 📨 Рассылка: {status_bot_mail}\n"
+        f"└ 👋 Приветствие: {status_welcome}\n\n"
         f"{assistant_header}"
-        f"├ 📝 Постинг: {status_post}\n"
-        f"├ 📸 Истории: {status_story}\n"
-        f"├ 📨 Рассылка: {status_mail}\n"
-        f"└ 👋 Приветствие: {status_welcome}"
+        f"├ 📊 Статистика: {status_assistant_stats}\n"
+        f"└ 📸 Истории: {status_assistant_story}"
     )
 
     from aiogram.exceptions import TelegramBadRequest
@@ -407,6 +418,7 @@ async def manage_channel(call: types.CallbackQuery, state: FSMContext):
 
         async with SessionManager(session_path) as manager:
             perms = await manager.check_permissions(channel.chat_id)
+            logger.info(f"Manual check rights for {channel.title} ({channel.chat_id}): {perms}")
 
         if perms.get("error"):
             error_code = perms["error"]
@@ -431,7 +443,9 @@ async def manage_channel(call: types.CallbackQuery, state: FSMContext):
 
         # 3. Обновление БД
         is_admin = perms.get("is_admin", False)
+        can_post = perms.get("can_post_messages", False)
         can_stories = perms.get("can_post_stories", False)
+        logger.info(f"Updating rights: admin={is_admin}, post={can_post}, stories={can_stories}")
 
         # Обновление алиаса клиента
         me = perms.get("me")
@@ -443,6 +457,7 @@ async def manage_channel(call: types.CallbackQuery, state: FSMContext):
             channel_id=channel.chat_id,
             is_member=perms.get("is_member", False),
             is_admin=is_admin,
+            can_post_messages=can_post,
             can_post_stories=can_stories,
             last_joined_at=int(time.time()),
             preferred_for_stats=client_row[
