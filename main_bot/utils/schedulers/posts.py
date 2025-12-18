@@ -320,13 +320,13 @@ async def check_cpm_reports():
             period = ""
 
             if elapsed >= 24 * 3600 and not post.report_24h_sent:
-                period = "24h"
+                period = "24ч"
                 report_needed = True
             elif elapsed >= 48 * 3600 and not post.report_48h_sent:
-                period = "48h"
+                period = "48ч"
                 report_needed = True
             elif elapsed >= 72 * 3600 and not post.report_72h_sent:
-                period = "72h"
+                period = "72ч"
                 report_needed = True
 
             if not report_needed:
@@ -380,7 +380,6 @@ async def check_cpm_reports():
             full_report = text("cpm:report:header").format(preview_text, period) + "\n"
             full_report += (
                 text("cpm:report:stats").format(
-                    period,
                     views,
                     rub_price,
                     round(rub_price / usd_rate, 2),
@@ -506,6 +505,7 @@ async def delete_posts():
             )
             views_24 = representative_post.views_24h
             views_48 = representative_post.views_48h
+            views_72 = representative_post.views_72h
 
             opts = representative_post.message_options or {}
             raw_text = opts.get("text") or opts.get("caption") or text("post:no_text")
@@ -515,18 +515,13 @@ async def delete_posts():
             )
             preview_text = f"«{html.escape(preview_text_raw)}»"
 
-            def format_report(title_suffix, current_views, v24=None, v48=None):
+            def format_report(title_suffix, current_views, v24=None, v48=None, v72=None):
                 lines = []
                 lines.append(
                     text("cpm:report:header").format(preview_text, title_suffix)
                 )
                 lines.append(
                     text("cpm:report:stats").format(
-                        (
-                            text("cpm:report:final_en")
-                            if "Final" in title_suffix
-                            else title_suffix
-                        ),
                         current_views,
                         rub_price,
                         round(rub_price / usd_rate, 2),
@@ -543,30 +538,33 @@ async def delete_posts():
                     lines.append(
                         text("cpm:report:history_row").format("48ч", v48, rub_48)
                     )
+                if v72 is not None:
+                    rub_72 = round(float(cpm_price * float(v72 / 1000)), 2)
+                    lines.append(
+                        text("cpm:report:history_row").format("72ч", v72, rub_72)
+                    )
                 lines.append("\n" + channels_text)
                 return "\n".join(lines)
 
             # Определяем, какие исторические данные показывать
-            # Используем буфер 30 минут (1800 сек), чтобы избежать дублей,
-            # если удаление происходит примерно в то же время, что и отсечка.
-            tolerance = 1800
+            # Если текущие часы равны 24, 48 или 72, то история за этот период не нужна (она в заголовке)
+            hours = int(delete_duration / 3600)
+            title = f"{text('cpm:report:final')}: {hours}ч"
 
-            show_v24 = delete_duration > (24 * 3600 + tolerance)
-            show_v48 = delete_duration > (48 * 3600 + tolerance)
+            show_v24 = hours > 24 and views_24 is not None
+            show_v48 = hours > 48 and views_48 is not None
+            show_v72 = hours > 72 and views_72 is not None
 
             # Формируем аргументы для format_report
-            # Если show_vXX False, передаем None, даже если данные есть
             args_v24 = views_24 if show_v24 else None
             args_v48 = views_48 if show_v48 else None
-
-            hours = int(delete_duration / 3600)
-            title = f"{text('cpm:report:final')} ({hours}ч)"
+            args_v72 = views_72 if show_v72 else None
 
             # Если меньше суточной толерантности, просто Финальный без часов (или с часами)
             # Но по ТЗ: "до 24 часов включительно одна цифра".
             # Если мы передаем None в v24/v48, format_report сам построит одну цифру.
 
-            report_text = format_report(title, total_views, args_v24, args_v48)
+            report_text = format_report(title, total_views, args_v24, args_v48, args_v72)
 
             # Добавляем подпись
             report_text += await get_report_signatures(user, "cpm", bot)
