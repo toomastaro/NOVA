@@ -344,7 +344,10 @@ class InlinePosting(InlineKeyboardBuilder):
         kb = cls()
 
         # Determine type based on available fields if it's a wrapper/dict
-        is_story = hasattr(obj, "story_options") or isinstance(obj, Story)
+        # Determine type based on actual existence of data
+        is_story = isinstance(obj, Story) or (
+            hasattr(obj, "story_options") and getattr(obj, "story_options") is not None
+        )
 
         if is_story:
             options_dict = getattr(obj, "story_options", {}) or {}
@@ -356,12 +359,11 @@ class InlinePosting(InlineKeyboardBuilder):
 
         # Report & CPM buttons only for Posts
         if not is_story:
-            # report = getattr(obj, "report", False)
-            # kb.button(
-            #     text=text("manage:post:report:button").format("✅" if report else "❌"),
-            #     callback_data=f"{data}|report",
-            # )
-            pass
+            report = getattr(obj, "report", False)
+            kb.button(
+                text=text("manage:post:report:button").format("✅" if report else "❌"),
+                callback_data=f"{data}|report",
+            )
 
         kb.button(
             text=text("manage:post:del_time:button").format(
