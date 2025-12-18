@@ -247,12 +247,22 @@ async def privetka_choice_channel(call: types.CallbackQuery, state: FSMContext) 
         return
 
     if temp[1] in ["next", "back"]:
+        import time
+
         channels_raw = await db.channel_bot_settings.get_bot_channels(
             call.from_user.id, only_with_bot=True
         )
-        channels = await db.channel.get_user_channels(
+        objects = await db.channel.get_user_channels(
             call.from_user.id, from_array=[i.id for i in channels_raw]
         )
+
+        now = int(time.time())
+        channels = [obj for obj in objects if obj.subscribe and obj.subscribe > now]
+
+        if not channels:
+            return await call.message.edit_text(
+                text("error_no_subscription_bots"), reply_markup=None
+            )
 
         return await call.message.edit_reply_markup(
             reply_markup=keyboards.choice_channel_for_setting(
