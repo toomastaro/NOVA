@@ -168,3 +168,20 @@ class PublishedPostCrud(DatabaseMixin):
             .where(PublishedPost.post_id == post_id)
             .values(**kwargs)
         )
+
+    async def update_published_posts_batch(self, updates: List[dict]) -> None:
+        """
+        Массовое обновление опубликованных постов (bulk update).
+
+        Аргументы:
+            updates (List[dict]): Список словарей, каждый из которых содержит 'id'
+                                  и поля для обновления.
+        """
+        if not updates:
+            return
+
+        stmts = [
+            update(PublishedPost).where(PublishedPost.id == u["id"]).values(**{k: v for k, v in u.items() if k != "id"})
+            for u in updates
+        ]
+        await self.execute_many(stmts)

@@ -167,6 +167,7 @@ async def update_channel_stats(channel_id: int) -> None:
                 messages = await client.get_messages(entity, ids=msg_ids)
 
                 updated_count = 0
+                batch_updates = []
                 for msg in messages:
                     if not msg or not isinstance(msg, types.Message):
                         continue
@@ -193,15 +194,14 @@ async def update_channel_stats(channel_id: int) -> None:
                         update_data["views_72h"] = views
 
                     if update_data:
-                        # TODO: Можно оптимизировать через bulk update в будущем
-                        await db.published_post.update_published_post(
-                            post_obj.id, **update_data
-                        )
+                        update_data["id"] = post_obj.id
+                        batch_updates.append(update_data)
                         updated_count += 1
 
-                if updated_count > 0:
+                if batch_updates:
+                    await db.published_post.update_published_posts_batch(batch_updates)
                     logger.debug(
-                        f"Обновлены просмотры для {updated_count} постов в {channel.title}"
+                        f"Обновлены просмотры для {updated_count} постов в {channel.title} (Bulk Update)"
                     )
 
             except Exception as e:
