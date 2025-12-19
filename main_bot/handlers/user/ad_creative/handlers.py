@@ -21,6 +21,7 @@ from main_bot.database.ad_creative.model import AdCreative
 from main_bot.keyboards import InlineAdCreative
 from main_bot.states.user import AdCreativeStates
 from main_bot.utils.lang.language import text
+from main_bot.keyboards.common import Reply
 from utils.error_handler import safe_handler
 
 router = Router(name="AdCreative")
@@ -44,6 +45,7 @@ async def create_creative_start(call: CallbackQuery, state: FSMContext) -> None:
         reply_markup=InlineAdCreative.create_creative_cancel(),
     )
     await state.set_state(AdCreativeStates.waiting_for_content)
+    await call.message.answer(text("ad_creative:create_start_text"), reply_markup=Reply.menu())
     await call.answer()
 
 
@@ -167,6 +169,8 @@ async def process_creative_name(message: Message, state: FSMContext) -> None:
         text("ad_creative:created_success").format(name),
         reply_markup=InlineAdCreative.menu(),
     )
+    # Перезагрузка главного меню
+    await message.answer("Главное меню", reply_markup=Reply.menu())
     await state.clear()
 
 
@@ -233,6 +237,8 @@ async def delete_creative(call: CallbackQuery) -> None:
     creative_id = int(call.data.split("|")[2])
     await db.ad_creative.update_creative_status(creative_id, "deleted")
     await call.answer(text("ad_creative:deleted"))
+    # Перезагрузка главного меню
+    await call.message.answer("Главное меню", reply_markup=Reply.menu())
 
     # Проверка оставшихся
     creatives = await db.ad_creative.get_user_creatives(call.from_user.id)

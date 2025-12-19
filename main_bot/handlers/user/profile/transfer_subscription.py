@@ -14,6 +14,7 @@ from main_bot.database.db import db
 from main_bot.database.user.model import User
 from main_bot.keyboards import keyboards
 from main_bot.utils.lang.language import text
+from main_bot.keyboards.common import Reply
 from utils.error_handler import safe_handler
 
 logger = logging.getLogger(__name__)
@@ -56,11 +57,13 @@ async def choose_donor(call: types.CallbackQuery, state: FSMContext, user: User)
     if temp[1] == "cancel":
         # Возврат в меню подписки с информацией о балансе
         await call.message.delete()
-        return await call.message.answer(
+        await call.message.answer(
             text("balance_text").format(user.balance),
             reply_markup=keyboards.subscription_menu(),
             parse_mode="HTML",
         )
+        # Перезагрузка главного меню
+        await call.message.answer("Главное меню", reply_markup=Reply.menu())
 
     # Навигация
     if temp[1] in ["next", "back"]:
@@ -296,6 +299,8 @@ async def execute_transfer(
         ),
         reply_markup=keyboards.subscription_menu(),
     )
+    # Перезагрузка главного меню
+    await call.message.answer("Главное меню", reply_markup=Reply.menu())
 
 
 def get_router():

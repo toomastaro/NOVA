@@ -273,7 +273,7 @@ async def get_exchange_rate_of_custom_amount(
 
         await message.answer(
             msg_text,
-            reply_markup=keyboards.menu(),
+            reply_markup=Reply.menu(),
             parse_mode="HTML",
             link_preview_options=types.LinkPreviewOptions(is_disabled=True),
         )

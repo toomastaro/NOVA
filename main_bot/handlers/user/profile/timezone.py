@@ -13,6 +13,7 @@ from main_bot.database.db import db
 from main_bot.keyboards import keyboards
 from main_bot.states.user import Setting
 from main_bot.utils.lang.language import text
+from main_bot.keyboards.common import Reply
 from utils.error_handler import safe_handler
 
 logger = logging.getLogger(__name__)
@@ -55,6 +56,8 @@ async def get_timezone(message: types.Message, state: FSMContext):
         reply_markup=keyboards.back(data="InputTimezoneCancel"),
         parse_mode="HTML",
     )
+    # Перезагрузка главного меню
+    await message.answer("Главное меню", reply_markup=Reply.menu())
 
 
 @safe_handler(
@@ -70,6 +73,8 @@ async def cancel(call: types.CallbackQuery, state: FSMContext):
         reply_markup=keyboards.profile_menu(),
         parse_mode="HTML",
     )
+    # Перезагрузка главного меню
+    await call.message.answer("Главное меню", reply_markup=Reply.menu())
 
 
 def get_router():

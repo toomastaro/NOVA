@@ -16,6 +16,7 @@ from main_bot.database.db import db
 from main_bot.keyboards.profile import InlineProfile
 from main_bot.keyboards import keyboards
 from main_bot.utils.lang.language import text
+from main_bot.keyboards.common import Reply
 from utils.error_handler import safe_handler
 
 logger = logging.getLogger(__name__)
@@ -42,6 +43,8 @@ async def show_report_settings_menu(call: types.CallbackQuery):
             referral_active=user.referral_signature_active,
         ),
     )
+    # Перезагрузка главного меню
+    await call.message.answer("Главное меню", reply_markup=Reply.menu())
 
 
 @safe_handler(
@@ -194,6 +197,8 @@ async def finish_edit_text(message: types.Message, state: FSMContext):
         parse_mode="HTML",
         disable_web_page_preview=True,
     )
+    # Перезагрузка главного меню
+    await message.answer("Главное меню", reply_markup=Reply.menu())
     await state.clear()
 
 
@@ -213,6 +218,8 @@ async def back_to_main_settings(call: types.CallbackQuery):
     await call.message.answer(
         profile_text, reply_markup=profile_menu, parse_mode="HTML"
     )
+    # Перезагрузка главного меню
+    await call.message.answer("Главное меню", reply_markup=Reply.menu())
 
 
 @safe_handler(

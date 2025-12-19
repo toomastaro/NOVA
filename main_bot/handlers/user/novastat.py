@@ -253,6 +253,8 @@ async def novastat_create_col_finish(message: types.Message, state: FSMContext) 
     await message.answer(
         "Ваши коллекции:", reply_markup=InlineNovaStat.collections_list(collections)
     )
+    # Перезагрузка главного меню
+    await message.answer("Главное меню", reply_markup=Reply.menu())
     await state.clear()
 
 
@@ -299,6 +301,7 @@ async def novastat_delete_col(call: types.CallbackQuery) -> None:
     col_id = int(call.data.split("|")[2])
     await db.novastat.delete_collection(col_id)
     await call.answer("Коллекция удалена")
+    await call.message.answer("Главное меню", reply_markup=Reply.menu())
     await novastat_collections(call)
 
 
@@ -354,6 +357,8 @@ async def novastat_rename_col_finish(message: types.Message, state: FSMContext) 
         reply_markup=InlineNovaStat.collection_view(collection, channels),
         parse_mode="HTML",
     )
+    # Перезагрузка главного меню
+    await message.answer("Главное меню", reply_markup=Reply.menu())
     await state.clear()
 
 
@@ -431,6 +436,8 @@ async def novastat_add_channel_finish(
         reply_markup=InlineNovaStat.collection_view(collection, channels),
         parse_mode="HTML",
     )
+    # Перезагрузка главного меню
+    await message.answer("Главное меню", reply_markup=Reply.menu())
     await state.clear()
 
 
@@ -472,6 +479,8 @@ async def novastat_del_channel(call: types.CallbackQuery) -> None:
     await call.message.edit_reply_markup(
         reply_markup=InlineNovaStat.collection_channels_delete(col_id, channels)
     )
+    # Перезагрузка главного меню
+    await call.message.answer("Главное меню", reply_markup=Reply.menu())
 
 
 # --- Логика анализа ---

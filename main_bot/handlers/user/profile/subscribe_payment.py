@@ -18,6 +18,7 @@ from main_bot.keyboards import keyboards
 from main_bot.states.user import Subscribe
 from main_bot.utils.lang.language import text
 from main_bot.utils.payments.crypto_bot import crypto_bot
+from main_bot.keyboards.common import Reply
 from utils.error_handler import safe_handler
 
 logger = logging.getLogger(__name__)
@@ -195,6 +196,8 @@ async def show_subscription_success(
     await message.answer(
         success_text, reply_markup=keyboards.subscription_menu(), parse_mode="HTML"
     )
+    # Перезагрузка главного меню
+    await message.answer("Главное меню", reply_markup=Reply.menu())
 
 
 @safe_handler(
@@ -465,6 +468,8 @@ async def align_subscribe(call: types.CallbackQuery, state: FSMContext, user: Us
             reply_markup=keyboards.align_sub(sub_objects=all_channels, chosen=[]),
             parse_mode="HTML",
         )
+        # Перезагрузка главного меню
+        await call.message.answer("Главное меню", reply_markup=Reply.menu())
         return
 
     if temp[1] == "choice_all":
@@ -584,6 +589,8 @@ async def back_to_method(call: types.CallbackQuery, state: FSMContext):
         reply_markup=keyboards.subscription_menu(),
         parse_mode="HTML",
     )
+    # Перезагрузка главного меню
+    await call.message.answer("Главное меню", reply_markup=Reply.menu())
 
 
 @safe_handler(

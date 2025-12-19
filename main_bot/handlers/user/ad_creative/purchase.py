@@ -27,6 +27,7 @@ from main_bot.database.db import db
 from main_bot.database.db_types import AdPricingType, AdTargetType
 from main_bot.keyboards import InlineAdPurchase
 from main_bot.states.user import AdPurchaseStates
+from main_bot.keyboards.common import Reply
 from utils.error_handler import safe_handler
 
 logger = logging.getLogger(__name__)
@@ -371,6 +372,8 @@ async def finish_mapping(call: CallbackQuery) -> None:
     """
     purchase_id = int(call.data.split("|")[2])
     await call.answer("Мапинг сохранен")
+    # Перезагрузка главного меню
+    await call.message.answer("Главное меню", reply_markup=Reply.menu())
     # Возврат к просмотру закупа
     await view_purchase(call, purchase_id)
 
@@ -389,7 +392,7 @@ async def cancel_purchase(call: CallbackQuery, state: FSMContext) -> None:
     """
     await state.clear()
     await call.message.delete()
-    await call.message.answer("Создание закупа отменено.")
+    await call.message.answer("Создание закупа отменено.", reply_markup=Reply.menu())
 
 
 @router.callback_query(F.data.startswith("AdPurchase|view|"))
@@ -473,6 +476,8 @@ async def delete_purchase(call: CallbackQuery) -> None:
     purchase_id = int(call.data.split("|")[2])
     await db.ad_purchase.update_purchase_status(purchase_id, "deleted")
     await call.answer("Закуп удален")
+    # Перезагрузка главного меню
+    await call.message.answer("Главное меню", reply_markup=Reply.menu())
 
     # Проверка оставшихся
     purchases = await db.ad_purchase.get_user_purchases(call.from_user.id)
@@ -812,6 +817,8 @@ async def show_global_stats(call: CallbackQuery) -> None:
     await call.message.answer_document(
         document=input_file, caption=f"📊 Статистика закупов за период: {period}"
     )
+    # Перезагрузка главного меню
+    await call.message.answer("Главное меню", reply_markup=Reply.menu())
 
 
 @router.callback_query(F.data.startswith("AdPurchase|gen_post|"))

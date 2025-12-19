@@ -15,6 +15,7 @@ from main_bot.database.user.model import User
 
 from main_bot.handlers.user.profile.settings import show_folders
 from main_bot.keyboards import keyboards
+from main_bot.keyboards.common import Reply
 from main_bot.states.user import Folder
 from main_bot.utils.lang.language import text
 from utils.error_handler import safe_handler
@@ -159,6 +160,8 @@ async def choice_object(call: types.CallbackQuery, state: FSMContext, user: User
                 folder_id=data.get("folder_id"), content=[str(i) for i in chosen]
             )
             await show_manage_folder(call.message, state)
+            # Перезагрузка главного меню
+            await call.message.answer("Главное меню", reply_markup=Reply.menu())
 
         return
 
@@ -227,6 +230,8 @@ async def cancel(call: types.CallbackQuery, state: FSMContext, user: User):
             reply_markup=keyboards.profile_menu(),
             parse_mode="HTML",
         )
+        # Перезагрузка главного меню
+        await call.message.answer("Главное меню", reply_markup=Reply.menu())
 
 
 @safe_handler(
@@ -283,8 +288,12 @@ async def get_folder_name(message: types.Message, state: FSMContext, user: User)
                 chosen=chosen,
             ),
         )
+        # Перезагрузка главного меню
+        await message.answer("Главное меню", reply_markup=Reply.menu())
     else:
         await show_manage_folder(message, state)
+        # Перезагрузка главного меню
+        await message.answer("Главное меню", reply_markup=Reply.menu())
 
 
 @safe_handler(
@@ -304,7 +313,10 @@ async def manage_folder(call: types.CallbackQuery, state: FSMContext, user: User
         if temp[1] == "remove":
             await db.user_folder.remove_folder(folder_id=data.get("folder_id"))
 
-        return await show_folders(call.message)
+        await show_folders(call.message)
+        # Перезагрузка главного меню
+        await call.message.answer("Главное меню", reply_markup=Reply.menu())
+        return
 
     await state.update_data(folder_edit=True)
 
