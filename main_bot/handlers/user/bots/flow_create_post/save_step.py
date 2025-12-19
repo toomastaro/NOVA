@@ -35,8 +35,6 @@ class DictObj:
         for key, val in in_dict.items():
             setattr(self, key, val)
 
-    def __getattr__(self, item):
-        return None
 
 
 def ensure_bot_post_obj(
@@ -86,7 +84,9 @@ async def accept(call: types.CallbackQuery, state: FSMContext) -> None:
         if send_time:
             await state.update_data(send_time=None)
             message_text = text("manage:post_bot:new:send_time")
-            reply_markup = keyboards.choice_send_time_bot_post(day=data.get("day"))
+            day_str = data.get("day")
+            day = datetime.fromisoformat(day_str) if isinstance(day_str, str) else day_str
+            reply_markup = keyboards.choice_send_time_bot_post(day=day)
             await state.set_state(Bots.input_send_time)
         else:
             message_text = text("manage:post_bot:finish_params").format(

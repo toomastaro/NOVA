@@ -134,10 +134,6 @@ class InlineBots(InlineKeyboardBuilder):
         kb = cls()
 
         kb.button(
-            text=text("manage:post:report:button").format("✅" if obj.report else "❌"),
-            callback_data=f"{data}|report",
-        )
-        kb.button(
             text=text("manage_hello_msg:text_with_name:button").format(
                 "✅" if obj.text_with_name else "❌"
             ),
@@ -159,7 +155,7 @@ class InlineBots(InlineKeyboardBuilder):
         )
         kb.button(text=text("back:button"), callback_data=f"{data}|cancel")
 
-        kb.adjust(1, 1, 1, 2, 1)
+        kb.adjust(1, 1, 2, 1)
         return kb.as_markup()
 
     @classmethod
