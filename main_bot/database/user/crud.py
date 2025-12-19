@@ -84,5 +84,40 @@ class UserCrud(DatabaseMixin):
             stmt = stmt.returning(User)
         else:
             operation = self.execute
+            stmt = stmt.execution_options(synchronize_session=None)
 
-        return await operation(stmt, **{"commit": return_obj} if return_obj else {})
+        return await operation(stmt, **{"commit": True} if return_obj else {})
+
+    async def toggle_signature_active(
+        self, user_id: int, setting_type: str
+    ) -> User | None:
+        """
+        Атомарно переключает состояние активности подписи (bool) и возвращает объект пользователя.
+        Используется для оптимизации производительности (1 запрос вместо 3-х).
+
+        Аргументы:
+            user_id (int): ID пользователя.
+            setting_type (str): Тип настройки ('cpm', 'exchange', 'referral').
+
+        Возвращает:
+            User | None: Обновленный объект пользователя.
+        """
+        field_map = {
+            "cpm": User.cpm_signature_active,
+            "exchange": User.exchange_signature_active,
+            "referral": User.referral_signature_active,
+        }
+
+        field = field_map.get(setting_type)
+        if field is None:
+            return None
+
+        # Атомарный UPDATE с использованием SQL NOT и RETURNING
+        stmt = (
+            update(User)
+            .where(User.id == user_id)
+            .values({field: ~field})
+            .returning(User)
+        )
+
+        return await self.fetchrow(stmt, commit=True)

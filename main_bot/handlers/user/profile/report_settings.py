@@ -47,11 +47,14 @@ async def show_report_settings_menu(call: types.CallbackQuery):
 @safe_handler(
     "Настройки: конкретная настройка"
 )  # Безопасная обёртка: логирование + перехват ошибок без падения бота
-async def show_specific_setting(call: types.CallbackQuery, setting_type: str):
+async def show_specific_setting(
+    call: types.CallbackQuery, setting_type: str, user=None
+) -> None:
     """
     Показывает настройки конкретной подписи (CPM/Exchange/Referral).
     """
-    user = await db.user.get_user(call.from_user.id)
+    if not user:
+        user = await db.user.get_user(call.from_user.id)
 
     is_active = False
     current_text = ""
@@ -90,32 +93,19 @@ async def show_specific_setting(call: types.CallbackQuery, setting_type: str):
     "Настройки: переключение опции"
 )  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def process_toggle(call: types.CallbackQuery):
-    """
-    Переключает состояние подписи (Вкл/Выкл).
-    """
     setting_type = call.data.split("|")[2]
     user_id = call.from_user.id
-    user = await db.user.get_user(user_id)
 
-    new_state = False
+    # Атомарное переключение в БД (возвращает обновленного пользователя)
+    updated_user = await db.user.toggle_signature_active(
+        user_id=user_id, setting_type=setting_type
+    )
 
-    if setting_type == "cpm":
-        new_state = not user.cpm_signature_active
-        await db.user.update_user(
-            user_id=user_id, cpm_signature_active=new_state, return_obj=False
-        )
-    elif setting_type == "exchange":
-        new_state = not user.exchange_signature_active
-        await db.user.update_user(
-            user_id=user_id, exchange_signature_active=new_state, return_obj=False
-        )
-    elif setting_type == "referral":
-        new_state = not user.referral_signature_active
-        await db.user.update_user(
-            user_id=user_id, referral_signature_active=new_state, return_obj=False
-        )
-
-    await show_specific_setting(call, setting_type)
+    if updated_user:
+        await show_specific_setting(call, setting_type, user=updated_user)
+    else:
+        # Fallback если что-то пошло не так
+        await show_specific_setting(call, setting_type)
 
 
 @safe_handler(
@@ -158,26 +148,21 @@ async def finish_edit_text(message: types.Message, state: FSMContext):
         return
 
     user_id = message.from_user.id
-
+    kwargs = {}
     if setting_type == "cpm":
-        await db.user.update_user(
-            user_id=user_id, cpm_signature_text=content, return_obj=False
-        )
+        kwargs["cpm_signature_text"] = content
     elif setting_type == "exchange":
-        await db.user.update_user(
-            user_id=user_id, exchange_signature_text=content, return_obj=False
-        )
+        kwargs["exchange_signature_text"] = content
     elif setting_type == "referral":
-        await db.user.update_user(
-            user_id=user_id, referral_signature_text=content, return_obj=False
-        )
+        kwargs["referral_signature_text"] = content
+
+    # Обновляем и получаем объект за один запрос
+    user = await db.user.update_user(user_id=user_id, return_obj=True, **kwargs)
 
     await message.answer(text("report:text_updated"))
 
-    # Возвращаемся в меню настройки
-    # Отправляем новое сообщение с меню
-
-    user = await db.user.get_user(user_id)
+    if not user:
+        user = await db.user.get_user(user_id)
 
     # Логика из show_specific_setting для отправки нового сообщения
     is_active = False
