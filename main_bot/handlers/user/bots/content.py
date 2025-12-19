@@ -8,7 +8,7 @@
 - Формирование отчетов по дням
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import logging
 
 from aiogram import types, F, Router
@@ -68,7 +68,7 @@ async def choice_channel(call: types.CallbackQuery, state: FSMContext) -> None:
     bot_id = int(temp[1])
     channel = await db.channel.get_channel_by_chat_id(bot_id)
 
-    day = datetime.today()
+    day = datetime.now(timezone.utc)
     posts = await db.bot_post.get_bot_posts(channel.chat_id, day)
     days_with_posts = await get_days_with_bot_posts(
         channel.chat_id, day.year, day.month
@@ -130,7 +130,7 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext) -> No
     day = (
         datetime.fromisoformat(day_str)
         if isinstance(day_str, str)
-        else (day_str or datetime.today())
+        else (day_str or datetime.now(timezone.utc))
     )
 
     if temp[1] in [
@@ -263,7 +263,7 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext) -> No
             author = "Неизвестно"
             
         options = post.message
-        message_text = options.get("text") or options.get("caption") or "Медиа"
+        message_text = options.get("text") or options.get("caption") or text("media_label")
         if len(message_text) > 30:
             message_text = message_text[:27] + "..."
 
@@ -281,13 +281,13 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext) -> No
     if post.status in [Status.FINISH, Status.ERROR]:
         await call.message.delete()
         await call.message.answer(
-            text("report_finished").format(
+            text("report_finished_bot").format(
                 post.success_send,
                 post.error_send,
-                "Нет" if not post.delete_time else f"{int(post.delete_time / 3600)} ч.",
+                text("no_label") if not post.delete_time else f"{int(post.delete_time / 3600)} {text('hours_short')}",
                 datetime.fromtimestamp(post.start_timestamp).strftime("%d.%m.%Y %H:%M"),
                 datetime.fromtimestamp(post.end_timestamp).strftime("%d.%m.%Y %H:%M"),
-                (await call.bot.get_chat(post.admin_id)).username,
+                (await call.bot.get_chat(post.admin_id)).username or text("unknown"),
             ),
             reply_markup=keyboards.back(data="ManageRemainBotPost|cancel"),
         )
@@ -297,13 +297,13 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext) -> No
 
     # Получаем username автора
     try:
-        author = (await call.bot.get_chat(post.admin_id)).username or "Неизвестно"
+        author = (await call.bot.get_chat(post.admin_id)).username or text("unknown")
     except Exception:
-        author = "Неизвестно"
+        author = text("unknown")
 
     await call.message.answer(
         text("bot_post:content").format(
-            "Нет" if not post.delete_time else f"{int(post.delete_time / 3600)} час.",
+            text("no_label") if not post.delete_time else f"{int(post.delete_time / 3600)} {text('hours_short')}",
             send_date.day,
             text("month").get(str(send_date.month)),
             send_date.year,
@@ -347,7 +347,7 @@ async def choice_time_objects(call: types.CallbackQuery, state: FSMContext) -> N
     day = (
         datetime.fromisoformat(day_str)
         if isinstance(day_str, str)
-        else (datetime.today())
+        else (datetime.now(timezone.utc))
     )
 
     if temp[1] == "cancel":
@@ -398,7 +398,7 @@ async def manage_remain_post(call: types.CallbackQuery, state: FSMContext) -> No
     day = (
         datetime.fromisoformat(day_str)
         if isinstance(day_str, str)
-        else (datetime.today())
+        else (datetime.now(timezone.utc))
     )
 
     if temp[1] == "cancel":
@@ -519,9 +519,9 @@ async def accept_delete_row_content(
 
         await call.message.edit_text(
             text("bot_post:content").format(
-                "Нет"
+                text("no_label")
                 if not post.delete_time
-                else f"{int(post.delete_time / 3600)} час.",
+                else f"{int(post.delete_time / 3600)} {text('hours_short')}",
                 send_date.day,
                 text("month").get(str(send_date.month)),
                 send_date.year,

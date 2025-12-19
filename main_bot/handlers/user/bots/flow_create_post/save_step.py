@@ -106,10 +106,14 @@ async def accept(call: types.CallbackQuery, state: FSMContext) -> None:
             reply_markup = keyboards.finish_bot_post_params(obj=post)
 
         if is_edit:
-            message_text = text("bot:content").format(
-                *data.get("send_date_values"),
-                data.get("channel").emoji_id,
-                data.get("channel").title,
+            message_text = text("bot_post:content").format(
+                text("no_label")
+                if not post.delete_time
+                else f"{int(post.delete_time / 3600)} {text('hours_short')}",
+                data.get("send_date_values")[0],
+                data.get("send_date_values")[1],
+                data.get("send_date_values")[2],
+                data.get("channel").get("title") if isinstance(data.get("channel"), dict) else data.get("channel").title,
             )
             reply_markup = keyboards.manage_remain_bot_post(
                 post=ensure_bot_post_obj(data.get("post"))
@@ -164,9 +168,9 @@ async def accept(call: types.CallbackQuery, state: FSMContext) -> None:
 
     # Prepare detailed info for success messages
     delete_time_text = (
-        f"{int(post.delete_time / 3600)} ч."
+        f"{int(post.delete_time / 3600)} {text('hours_short')}"
         if post.delete_time
-        else "Не установлен"
+        else text("no_label")
     )
 
     channels_text = "\n".join(
@@ -202,4 +206,4 @@ async def accept(call: types.CallbackQuery, state: FSMContext) -> None:
         message_text, reply_markup=keyboards.create_finish(data="MenuBots")
     )
     # Reload Main Menu (Reply) to ensure navigation is available
-    await call.message.answer("Главное меню", reply_markup=Reply.menu())
+    await call.message.answer(text("main_menu_label"), reply_markup=Reply.menu())

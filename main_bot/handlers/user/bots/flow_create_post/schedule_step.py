@@ -9,7 +9,7 @@
 
 import time
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, Union
 
 from aiogram import types
@@ -102,7 +102,7 @@ async def finish_params(call: types.CallbackQuery, state: FSMContext) -> None:
         return
 
     if temp[1] == "send_time":
-        day = datetime.today()
+        day = datetime.now(timezone.utc)
         day_values = (
             day.day,
             text("month").get(str(day.month)),
@@ -168,18 +168,18 @@ async def choice_delete_time(call: types.CallbackQuery, state: FSMContext) -> No
     is_edit: bool = data.get("is_edit")
     if is_edit:
         send_date_values = data.get("send_date_values")
-        username = "Unknown"
+        username = text("unknown")
         try:
-            username = (await call.bot.get_chat(post.admin_id)).username or "Unknown"
+            username = (await call.bot.get_chat(post.admin_id)).username or text("unknown")
         except Exception:
             pass
 
         await call.message.edit_text(
             text("bot_post:content").format(
                 (
-                    "Нет"
+                    text("no_label")
                     if not post.delete_time
-                    else f"{int(post.delete_time / 3600)} час."
+                    else f"{int(post.delete_time / 3600)} {text('hours_short')}"
                 ),
                 send_date_values[0],  # день
                 send_date_values[1],  # месяц (уже строка)
@@ -324,12 +324,12 @@ async def get_send_time(message: types.Message, state: FSMContext) -> None:
 
         # Формат: HH:MM DD.MM (без года)
         elif len(parts) == 2 and ":" in parts[0] and len(parts[1].split(".")) == 2:
-            year = datetime.now().year
+            year = datetime.now(timezone.utc).year
             date = datetime.strptime(f"{parts[1]}.{year} {parts[0]}", "%d.%m.%Y %H:%M")
 
         # Формат: HH:MM (только время, используем сегодняшнюю дату)
         elif len(parts) == 1 and ":" in parts[0]:
-            today = datetime.now().strftime("%d.%m.%Y")
+            today = datetime.now(timezone.utc).strftime("%d.%m.%Y")
             date = datetime.strptime(f"{today} {parts[0]}", "%d.%m.%Y %H:%M")
 
         else:
@@ -373,9 +373,9 @@ async def get_send_time(message: types.Message, state: FSMContext) -> None:
 
         # Получаем username автора
         try:
-            author = (await message.bot.get_chat(post.admin_id)).username or "Unknown"
+            author = (await message.bot.get_chat(post.admin_id)).username or text("unknown")
         except Exception:
-            author = "Unknown"
+            author = text("unknown")
 
         await message.answer(
             text("bot_post:content").format(
@@ -421,7 +421,7 @@ async def get_send_time(message: types.Message, state: FSMContext) -> None:
     # Перезагружаем главное меню
     from main_bot.keyboards.common import Reply
 
-    await message.answer("✅ Время принято", reply_markup=Reply.menu())
+    await message.answer(text("time_accepted"), reply_markup=Reply.menu())
 
     # Если меняем время (уже было запланировано), сразу возвращаемся на экран "Готов к рассылке"
     if is_changing_time:

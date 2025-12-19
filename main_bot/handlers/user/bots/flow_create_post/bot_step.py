@@ -151,7 +151,7 @@ async def choice_bots(call: types.CallbackQuery, state: FSMContext) -> None:
             if not user_bot or not user_bot.subscribe:
                 await call.answer(
                     text("error_sub_channel:bots").format(
-                        user_bot.title if user_bot else "Unknown"
+                        user_bot.title if user_bot else text("unknown")
                     ),
                     show_alert=True,
                 )
@@ -228,9 +228,7 @@ async def choice_bots(call: types.CallbackQuery, state: FSMContext) -> None:
                     bots_list += f"\n... и ещё {len(bots_without_sub) - 5}"
 
                 await call.answer(
-                    f"❌ Невозможно выбрать всех ботов\n\n"
-                    f"Следующие боты не имеют активной подписки:\n{bots_list}\n\n"
-                    f"Оплатите подписку через меню 💎 Подписка",
+                    text("error_choice_all_no_sub_detailed").format(bots_list),
                     show_alert=True,
                 )
                 return
@@ -361,7 +359,7 @@ async def choice_bots(call: types.CallbackQuery, state: FSMContext) -> None:
     )
 
     if current_folder_id and folder_title:
-        msg_text = f"📂 <b>Папка: {folder_title}</b>\n\n" + text(
+        msg_text = f"📂 <b>{text('folder_label')}: {folder_title}</b>\n\n" + text(
             "choice_bots:post"
         ).format(len(chosen), list_text, available)
     else:

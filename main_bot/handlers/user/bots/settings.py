@@ -109,7 +109,7 @@ async def show_bot_manage(
         status = await bot_manager.status()
 
     await message.answer(
-        text("bot:info").format(
+        text("mailing:bot:info").format(
             user_bot.title,
             (
                 "\n".join(
@@ -300,7 +300,7 @@ async def manage_bot(call: types.CallbackQuery, state: FSMContext) -> None:
     if temp[1] in ["cancel", "delete"]:
         if temp[1] == "delete":
             await call.message.edit_text(
-                text("delete:bot"),
+                text("delete_bot_confirm"),
                 reply_markup=keyboards.accept(data="AcceptDeleteBot"),
             )
             return
@@ -311,7 +311,7 @@ async def manage_bot(call: types.CallbackQuery, state: FSMContext) -> None:
 
     if temp[1] in ["check_token", "channel"]:
         if temp[1] == "channel":
-            message_text = text("delete_channel:bot")
+            message_text = text("delete_channel_confirm")
         else:
             async with BotManager(
                 ensure_bot_obj(data.get("user_bot")).token
