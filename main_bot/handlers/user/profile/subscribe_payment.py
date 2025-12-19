@@ -106,10 +106,9 @@ async def give_subscribes(state: FSMContext, user: User):
         percent = 15 if has_purchase else 60
         total_ref_earn = int(total_price / 100 * percent)
 
-        await db.user.update_user(
+        await db.user.add_referral_reward(
             user_id=ref_user.id,
-            balance=ref_user.balance + total_ref_earn,
-            referral_earned=ref_user.referral_earned + total_ref_earn,
+            amount=total_ref_earn
         )
 
 
@@ -266,7 +265,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext, user: User):
         if user.balance < total_price:
             return await call.answer(text("error_balance"), show_alert=True)
 
-        await db.user.update_user(user_id=user.id, balance=user.balance - total_price)
+        await db.user.increment_balance(user_id=user.id, amount=-total_price)
         await give_subscribes(state, user)
 
         # Записываем покупку для корректного расчета реферальных в будущем

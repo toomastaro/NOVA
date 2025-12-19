@@ -163,7 +163,7 @@ async def get_promo(message: types.Message, state: FSMContext, user: User):
         )
 
     await db.promo.use_promo(promo)
-    await db.user.update_user(user_id=user.id, balance=user.balance + promo.amount)
+    await db.user.increment_balance(user_id=user.id, amount=promo.amount)
     user = await db.user.get_user(user_id=user.id)
 
     await state.clear()
@@ -284,10 +284,10 @@ async def get_amount(message: types.Message, state: FSMContext):
                 continue
 
             # Если оплачено - начисляем баланс
-            user = await db.user.get_user(user_id=message.from_user.id)
-            user = await db.user.update_user(
-                user_id=user.id, return_obj=True, balance=user.balance + amount
+            await db.user.increment_balance(
+                user_id=message.from_user.id, amount=amount
             )
+            user = await db.user.get_user(user_id=message.from_user.id)
             await db.payment.add_payment(user_id=user.id, amount=amount, method=method)
             await safe_delete(wait_msg)
             await message.answer(text("success_payment").format(amount))
@@ -342,10 +342,10 @@ async def success(message: types.Message, state: FSMContext):
     amount = data.get("amount")
     method = PaymentMethod.STARS
 
-    user = await db.user.get_user(user_id=message.from_user.id)
-    user = await db.user.update_user(
-        user_id=user.id, return_obj=True, balance=user.balance + amount
+    user = await db.user.increment_balance(
+        user_id=message.from_user.id, amount=amount
     )
+    user = await db.user.get_user(user_id=message.from_user.id)
     await db.payment.add_payment(user_id=user.id, amount=amount, method=method)
 
     await state.clear()

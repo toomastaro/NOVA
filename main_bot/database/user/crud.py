@@ -88,6 +88,32 @@ class UserCrud(DatabaseMixin):
 
         return await operation(stmt, **{"commit": True} if return_obj else {})
 
+    async def increment_balance(self, user_id: int, amount: int) -> None:
+        """
+        Атомарно увеличивает баланс пользователя.
+        Предотвращает race conditions.
+        """
+        stmt = (
+            update(User)
+            .where(User.id == user_id)
+            .values(balance=User.balance + amount)
+        )
+        await self.execute(stmt, commit=True)
+
+    async def add_referral_reward(self, user_id: int, amount: int) -> None:
+        """
+        Атомарно начисляет реферальное вознаграждение (баланс + статистика).
+        """
+        stmt = (
+            update(User)
+            .where(User.id == user_id)
+            .values(
+                balance=User.balance + amount,
+                referral_earned=User.referral_earned + amount
+            )
+        )
+        await self.execute(stmt, commit=True)
+
     async def toggle_signature_active(
         self, user_id: int, setting_type: str
     ) -> User | None:

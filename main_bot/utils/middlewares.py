@@ -59,9 +59,13 @@ class StartMiddle(BaseMiddleware):
                 start_utm = command.args
                 # Проверка на реферальную ссылку (числовой ID)
                 if start_utm.isdigit():
-                    ref_user = await db.user.get_user(int(start_utm))
-                    if ref_user:
-                        referral_id = int(start_utm)
+                    ref_id = int(start_utm)
+                    if ref_id != user_obj.id:
+                        ref_user = await db.user.get_user(ref_id)
+                        if ref_user:
+                            referral_id = ref_id
+                    else:
+                        logger.warning(f"Пользователь {user_obj.id} пытался стать рефералом самого себя.")
                 # Проверка на UTM метку
                 else:
                     if "utm" in start_utm:
