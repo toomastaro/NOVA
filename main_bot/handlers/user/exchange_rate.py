@@ -31,17 +31,8 @@ logger = logging.getLogger(__name__)
 async def _check_active_subscription(user_id: int) -> bool:
     """
     Проверяет наличие активной подписки у пользователя.
-
-    Аргументы:
-        user_id (int): Telegram ID пользователя.
-
-    Возвращает:
-        bool: True если есть хотя бы одна активная подписка.
     """
-    subscribed_channels = await db.channel.get_subscribe_channels(user_id)
-    return any(
-        ch.subscribe and ch.subscribe > time.time() for ch in subscribed_channels
-    )
+    return await db.channel.has_active_subscription(user_id)
 
 
 def serialize_rate(rate: Any) -> Optional[Dict[str, Any]]:
@@ -86,8 +77,12 @@ async def _get_and_format_exchange_rate(
         await update_exchange_rates_in_db()
         all_rates = await db.exchange_rate.get_all_exchange_rate()
 
-    if len(all_rates) != 0:
-        default_rate = [i for i in all_rates if i.id == user_exchange_rate_id][0]
+    if all_rates:
+        # Пытаемся найти тариф пользователя, иначе берем первый
+        default_rate = next(
+            (i for i in all_rates if i.id == user_exchange_rate_id),
+            all_rates[0]
+        )
         last_update = str(default_rate.last_update.strftime("%H:%M %d.%m.%Y"))
         formatted = text("exchange_rate:start_exchange_rate").format(
             default_rate.rate, default_rate.name, last_update
@@ -115,15 +110,13 @@ async def start_exchange_rate(message: types.Message, state: FSMContext) -> None
     has_active_sub = await _check_active_subscription(message.from_user.id)
 
     if not has_active_sub:
-        await message.answer(
-            "Эта функция доступна только при наличии хотя бы одной активной оплаченной подписки."
-        )
+        await message.answer(text("exchange_rate:no_subscription"))
         return
 
     await state.set_state(ExchangeRate.input_custom_amount)
 
     loading_msg = await message.answer(
-        "⏳ Получаю актуальные курсы валют...",
+        text("exchange_rate:loading"),
         parse_mode="HTML",
         reply_markup=InlineExchangeRate.set_exchange_rate(),
     )
@@ -209,7 +202,7 @@ async def back_to_start_exchange_rate(
 
     if not has_active_sub:
         await call.answer(
-            "Эта функция доступна только при наличии хотя бы одной активной оплаченной подписки.",
+            text("exchange_rate:no_subscription"),
             show_alert=True,
         )
         return
@@ -217,7 +210,7 @@ async def back_to_start_exchange_rate(
     await call.message.delete()
 
     loading_msg = await call.message.answer(
-        "⏳ Получаю актуальные курсы валют...",
+        text("exchange_rate:loading"),
         parse_mode="HTML",
         reply_markup=InlineExchangeRate.set_exchange_rate(),
     )

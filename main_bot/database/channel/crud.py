@@ -22,25 +22,18 @@ class ChannelCrud(DatabaseMixin):
     Класс для управления Telegram-каналами (Channel).
     """
 
-    async def get_subscribe_channels(self, user_id: int) -> List[Channel]:
+    async def has_active_subscription(self, user_id: int) -> bool:
         """
-        Получает список каналов пользователя с активной подпиской.
-
-        Аргументы:
-            user_id (int): ID пользователя (админа).
-
-        Возвращает:
-            List[Channel]: Список каналов.
+        Проверяет, есть ли у пользователя хотя бы один канал с активной подпиской.
         """
-        return await self.fetch(
-            select(Channel).where(
-                Channel.admin_id == user_id,
-                or_(
-                    Channel.subscribe.is_not(None),
-                    Channel.subscribe != Config.SOFT_DELETE_TIMESTAMP,
-                ),
-            )
-        )
+        stmt = select(Channel.id).where(
+            Channel.admin_id == user_id,
+            Channel.subscribe.is_not(None),
+            Channel.subscribe > time.time(),
+            Channel.subscribe != Config.SOFT_DELETE_TIMESTAMP,
+        ).limit(1)
+        result = await self.fetchrow(stmt)
+        return result is not None
 
     async def get_user_channels(
         self,
