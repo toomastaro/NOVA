@@ -14,7 +14,7 @@ import copy
 import logging
 import re
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from io import BytesIO
 
 
@@ -28,6 +28,7 @@ from main_bot.database.db_types import AdPricingType, AdTargetType
 from main_bot.keyboards import InlineAdPurchase
 from main_bot.states.user import AdPurchaseStates
 from main_bot.keyboards.common import Reply
+from main_bot.utils.lang.language import text
 from utils.error_handler import safe_handler
 
 logger = logging.getLogger(__name__)
@@ -52,7 +53,8 @@ async def create_purchase_start(call: CallbackQuery, state: FSMContext) -> None:
     await state.update_data(creative_id=creative_id)
 
     await call.message.edit_text(
-        "Выберите тип оплаты:", reply_markup=InlineAdPurchase.pricing_type_menu()
+        text("ad_purchase:create:pricing_type"),
+        reply_markup=InlineAdPurchase.pricing_type_menu(),
     )
     await state.set_state(AdPurchaseStates.waiting_for_pricing_type)
 
@@ -74,13 +76,13 @@ async def process_pricing_type(call: CallbackQuery, state: FSMContext) -> None:
     try:
         pricing_type = AdPricingType(pricing_type_str)
     except ValueError:
-        await call.answer("Ошибка типа оплаты")
+        await call.answer(text("ad_purchase:error:pricing_type"))
         return
 
     await state.update_data(pricing_type=pricing_type)
 
     await call.message.edit_text(
-        "Введите ставку (целое число, рубли):", reply_markup=None
+        text("ad_purchase:create:enter_price"), reply_markup=None
     )
     await state.set_state(AdPurchaseStates.waiting_for_price)
 
@@ -102,11 +104,11 @@ async def process_price(message: Message, state: FSMContext) -> None:
         if price < 0:
             raise ValueError
     except ValueError:
-        await message.answer("Пожалуйста, введите корректное целое число.")
+        await message.answer(text("ad_purchase:error:invalid_price"))
         return
 
     await state.update_data(price_value=price)
-    await message.answer("Введите комментарий к закупу (условия, канал и т.д.):")
+    await message.answer(text("ad_purchase:create:enter_comment"))
     await state.set_state(AdPurchaseStates.waiting_for_comment)
 
 
@@ -135,7 +137,7 @@ async def process_comment(message: Message, state: FSMContext) -> None:
         comment=comment,
     )
 
-    await message.answer(f"Закуп #{purchase_id} создан! Переходим к мапингу ссылок...")
+    await message.answer(text("ad_purchase:create:success").format(purchase_id))
 
     # Запуск логики маппинга
     await start_mapping(message, purchase_id, data["creative_id"])
@@ -203,11 +205,13 @@ async def show_mapping_menu(message: Message, purchase_id: int) -> None:
 
     links_data = []
     for m in mappings:
-        status_text = "❌ Без трекинга"
+        status_text = text("ad_purchase:mapping:status:no_tracking")
         if m.target_type == AdTargetType.CHANNEL and m.target_channel_id:
-            status_text = channels_map.get(m.target_channel_id, "Неизвестный канал")
+            status_text = channels_map.get(
+                m.target_channel_id, text("ad_purchase:mapping:status:unknown_channel")
+            )
         elif m.target_type == AdTargetType.EXTERNAL:
-            status_text = "❌ Без трекинга"
+            status_text = text("ad_purchase:mapping:status:no_tracking")
 
         links_data.append(
             {
@@ -222,7 +226,7 @@ async def show_mapping_menu(message: Message, purchase_id: int) -> None:
         )
 
     await message.answer(
-        f"В креативе найдено {len(mappings)} ссылок. Привяжите каждую ссылку к каналу или отключите трекинг.",
+        text("ad_purchase:mapping:menu_text").format(len(mappings)),
         reply_markup=InlineAdPurchase.mapping_menu(purchase_id, links_data),
         disable_web_page_preview=True,
     )
@@ -244,7 +248,7 @@ async def edit_link_mapping(call: CallbackQuery) -> None:
     slot_id = int(slot_id)
 
     await call.message.edit_text(
-        "Выберите действие для этой ссылки:",
+        text("ad_purchase:mapping:edit_action"),
         reply_markup=InlineAdPurchase.link_actions_menu(purchase_id, slot_id),
     )
 
@@ -267,7 +271,7 @@ async def show_channel_list(call: CallbackQuery) -> None:
     channels = await db.channel.get_user_channels(call.from_user.id)
 
     await call.message.edit_text(
-        "Выберите канал:",
+        text("ad_purchase:mapping:select_channel"),
         reply_markup=InlineAdPurchase.channel_list_menu(purchase_id, slot_id, channels),
     )
 
@@ -292,12 +296,12 @@ async def save_mapping_channel(call: CallbackQuery) -> None:
     # Проверка подписки
     channel = await db.channel.get_channel_by_chat_id(channel_id)
     if not channel:
-        await call.answer("Канал не найден", show_alert=True)
+        await call.answer(text("ad_purchase:mapping:error:not_found"), show_alert=True)
         return
 
     if not channel.subscribe or channel.subscribe < time.time():
         await call.answer(
-            "У канала нет активной подписки. Продлите подписку для использования.",
+            text("ad_purchase:mapping:error:no_sub"),
             show_alert=True,
         )
         return
@@ -309,6 +313,7 @@ async def save_mapping_channel(call: CallbackQuery) -> None:
         target_channel_id=channel_id,
         track_enabled=True,
     )
+    await call.answer(text("ad_purchase:mapping:success"))
 
     # Обновление меню
     await call.message.delete()
@@ -337,6 +342,7 @@ async def save_mapping_external(call: CallbackQuery) -> None:
         target_channel_id=None,
         track_enabled=False,
     )
+    await call.answer(text("ad_purchase:mapping:success"))
 
     # Обновление меню
     await call.message.delete()
@@ -371,9 +377,9 @@ async def finish_mapping(call: CallbackQuery) -> None:
         call (CallbackQuery): Callback запрос.
     """
     purchase_id = int(call.data.split("|")[2])
-    await call.answer("Мапинг сохранен")
+    await call.answer(text("ad_purchase:mapping:success"))
     # Перезагрузка главного меню
-    await call.message.answer("Главное меню", reply_markup=Reply.menu())
+    await call.message.answer(text("main_menu:reload"), reply_markup=Reply.menu())
     # Возврат к просмотру закупа
     await view_purchase(call, purchase_id)
 
@@ -392,7 +398,9 @@ async def cancel_purchase(call: CallbackQuery, state: FSMContext) -> None:
     """
     await state.clear()
     await call.message.delete()
-    await call.message.answer("Создание закупа отменено.", reply_markup=Reply.menu())
+    await call.message.answer(
+        text("ad_purchase:create:cancelled"), reply_markup=Reply.menu()
+    )
 
 
 @router.callback_query(F.data.startswith("AdPurchase|view|"))
@@ -423,7 +431,7 @@ async def view_purchase(call: CallbackQuery, purchase_id: int) -> None:
     """
     purchase = await db.ad_purchase.get_purchase(purchase_id)
     if not purchase:
-        await call.answer("Закуп не найден", show_alert=True)
+        await call.answer(text("ad_purchase:view:not_found"), show_alert=True)
         return
 
     creative = await db.ad_creative.get_creative(purchase.creative_id)
@@ -431,20 +439,20 @@ async def view_purchase(call: CallbackQuery, purchase_id: int) -> None:
 
     # Локализация статуса
     status_map = {
-        "active": "🟢 Активен",
-        "paused": "⏸ На паузе",
-        "deleted": "🗑 Удален",
-        "completed": "🏁 Завершен",
+        "active": text("ad_purchase:status:active"),
+        "paused": text("ad_purchase:status:paused"),
+        "deleted": text("ad_purchase:status:deleted"),
+        "completed": text("ad_purchase:status:completed"),
     }
     status_text = status_map.get(purchase.status, purchase.status)
 
-    text_content = (
-        f"💳 <b>Закуп: «{purchase.comment or 'Нет названия'}»</b>\n"
-        f"🎨 Креатив: {creative_name}\n"
-        f"📊 Тип: {purchase.pricing_type.value}\n"
-        f"💸 Ставка: {purchase.price_value} руб.\n"
-        f"📋 Комментарий: {purchase.comment or 'Нет'}\n"
-        f"📌 Статус: {status_text}"
+    text_content = text("ad_purchase:view:template").format(
+        comment=purchase.comment or "???",
+        creative_name=creative_name,
+        pricing_type=purchase.pricing_type.value,
+        price_value=purchase.price_value,
+        comment_val=purchase.comment or "...",
+        status=status_text,
     )
 
     # Если сообщение не изменено, edit_text может упасть, поэтому try/except
@@ -475,9 +483,9 @@ async def delete_purchase(call: CallbackQuery) -> None:
     """
     purchase_id = int(call.data.split("|")[2])
     await db.ad_purchase.update_purchase_status(purchase_id, "deleted")
-    await call.answer("Закуп удален")
+    await call.answer(text("ad_purchase:deleted_ok"))
     # Перезагрузка главного меню
-    await call.message.answer("Главное меню", reply_markup=Reply.menu())
+    await call.message.answer(text("main_menu:reload"), reply_markup=Reply.menu())
 
     # Проверка оставшихся
     purchases = await db.ad_purchase.get_user_purchases(call.from_user.id)
@@ -540,119 +548,101 @@ async def render_purchase_stats(
         purchase_id (int): ID закупа.
         period (str): Период (24h, 7d, 30d, all).
     """
-    now = int(time.time())
-
-    if period == "24h":
-        from_ts = now - (24 * 3600)
-        period_name = "24 часа"
-    elif period == "7d":
-        from_ts = now - (7 * 24 * 3600)
-        period_name = "7 дней"
-    elif period == "30d":
-        from_ts = now - (30 * 24 * 3600)
-        period_name = "30 дней"
-    else:  # за все время
-        from_ts = None
-        period_name = "всё время"
-
-    to_ts = now
-
     # Получение информации о закупе
     purchase = await db.ad_purchase.get_purchase(purchase_id)
     if not purchase:
-        await call.answer("Закуп не найден", show_alert=True)
+        await call.answer(text("ad_purchase:view:not_found"), show_alert=True)
         return
 
-    # Получение статистики
-    leads_count = await db.ad_purchase.get_leads_count(purchase_id)
-    subs_count = await db.ad_purchase.get_subscriptions_count(
-        purchase_id, from_ts, to_ts
+    # ПОДГОТОВКА ПЕРИОДА
+    now = int(datetime.now(timezone.utc).timestamp())
+    from_ts = None
+    period_key = f"ad_purchase:stats:period_{period}"
+    period_name = text(period_key)
+
+    if period == "24h":
+        from_ts = now - (24 * 3600)
+    elif period == "7d":
+        from_ts = now - (7 * 24 * 3600)
+    elif period == "30d":
+        from_ts = now - (30 * 24 * 3600)
+
+    # 1. Получение пакетной статистики по слотам (ОПТИМИЗАЦИЯ N+1)
+    stats_batch = await db.ad_purchase.get_stats_batch_by_slots(
+        purchase_id, from_ts=from_ts
     )
+
+    # 2. Агрегация общей статистики
+    leads_count = sum(s["leads"] for s in stats_batch.values())
+    subs_count = sum(s["subs"] for s in stats_batch.values())
+    total_unsubs = sum(s["unsubs"] for s in stats_batch.values())
 
     # Статистика по каналам
     mappings = await db.ad_purchase.get_link_mappings(purchase_id)
     channels_stats = {}
-    total_unsubs = 0
 
     for m in mappings:
         if m.target_channel_id:
-            # Инициализация подсчета
+            slot_data = stats_batch.get(m.slot_id, {"leads": 0, "subs": 0, "unsubs": 0})
+
             if m.target_channel_id not in channels_stats:
-                channel = await db.channel.get_channel_by_chat_id(m.target_channel_id)
                 channels_stats[m.target_channel_id] = {
-                    "name": channel.title if channel else f"ID: {m.target_channel_id}",
+                    "name": m.target_title or f"ID: {m.target_channel_id}",
                     "leads": 0,
                     "subs": 0,
                     "unsubs": 0,
                 }
 
-            # Лиды (привязанные к слоту)
-            slot_leads = await db.ad_purchase.get_leads_by_slot(purchase_id, m.slot_id)
-            channels_stats[m.target_channel_id]["leads"] += len(slot_leads)
-
-            # Подписки (связанные со слотом/каналом)
-            slot_subs_all = await db.ad_purchase.get_subscriptions_by_slot(
-                purchase_id, m.slot_id, from_ts, to_ts
-            )
-
-            # Фильтрация
-            active_subs = [s for s in slot_subs_all if s.status == "active"]
-            left_subs = [s for s in slot_subs_all if s.status != "active"]
-
-            channels_stats[m.target_channel_id]["subs"] += len(active_subs)
-            channels_stats[m.target_channel_id]["unsubs"] += len(left_subs)
-            total_unsubs += len(left_subs)
+            channels_stats[m.target_channel_id]["leads"] += slot_data["leads"]
+            channels_stats[m.target_channel_id]["subs"] += slot_data["subs"]
+            channels_stats[m.target_channel_id]["unsubs"] += slot_data["unsubs"]
 
     # Формируем статистику в зависимости от типа оплаты
     pricing_type = purchase.pricing_type.value
 
     if pricing_type == "FIXED":
         # Фиксированная оплата
-        description = (
-            f"💵 Цена заявки/подписки: "
-            f"{(purchase.price_value / leads_count) if leads_count > 0 else 0:.2f}₽ / "
-            f"{(purchase.price_value / subs_count) if subs_count > 0 else 0:.2f}₽\n"
-            f"💳 Тип оплаты: Фиксированная\n"
-            f"💰 Цена: {purchase.price_value} руб."
+        description = text("ad_purchase:stats:pricing:fixed").format(
+            (purchase.price_value / leads_count) if leads_count > 0 else 0,
+            (purchase.price_value / subs_count) if subs_count > 0 else 0,
+            purchase.price_value,
         )
     elif pricing_type == "CPL":
         # Оплата за заявку
         total_cost = leads_count * purchase.price_value
-        description = (
-            f"💵 Цена заявки: {purchase.price_value}₽\n"
-            f"💳 Тип оплаты: По заявкам\n"
-            f"💰 Цена: {total_cost} руб."
+        description = text("ad_purchase:stats:pricing:cpl").format(
+            purchase.price_value, total_cost
         )
     elif pricing_type == "CPS":
         # Оплата за подписку
         total_cost = subs_count * purchase.price_value
-        description = (
-            f"💵 Цена подписки: {purchase.price_value}₽\n"
-            f"💳 Тип оплаты: По подпискам\n"
-            f"💰 Цена: {total_cost} руб."
+        description = text("ad_purchase:stats:pricing:cps").format(
+            purchase.price_value, total_cost
         )
     else:
         # Резервный вариант
-        description = (
-            f"💵 Тип оплаты: {pricing_type}\n💸 Ставка: {purchase.price_value} руб."
+        description = text("ad_purchase:stats:pricing:other").format(
+            pricing_type, purchase.price_value
         )
 
-    stats_text = (
-        f"📊 <b>Статистика закупа: «{purchase.comment or 'Нет названия'}»</b>\n"
-        f"Период: {period_name}\n\n"
-        f"📎 Заявок: {leads_count}\n"
-        f"👥 Присоединились: {subs_count}\n"
-        f"📉 Отписалось: {total_unsubs}\n"
-        f"{description}"
+    stats_text = text("ad_purchase:stats:template").format(
+        name=purchase.comment or "???",
+        period=period_name,
+        leads=leads_count,
+        subs=subs_count,
+        unsubs=total_unsubs,
+        description=description,
     )
 
     # Добавление разбивки по каналам
     if channels_stats:
         stats_text += "\n\n<b>📺 По каналам:</b>\n"
         for ch_id, ch_data in channels_stats.items():
-            stats_text += (
-                f"• {ch_data['name']}:\n"
-                f"{ch_data['leads']} заявок | {ch_data['subs']} подписок | {ch_data['unsubs']} отписок\n"
+            stats_text += text("ad_purchase:stats:channel_row").format(
+                name=ch_data["name"],
+                leads=ch_data["leads"],
+                subs=ch_data["subs"],
+                unsubs=ch_data["unsubs"],
             )
 
     try:
@@ -678,7 +668,7 @@ async def show_global_stats_menu(call: CallbackQuery) -> None:
         call (CallbackQuery): Callback запрос.
     """
     await call.message.edit_text(
-        "Выберите период создания закупов для получения Excel-отчета по всем закупам.",
+        text("ad_purchase:global_stats:menu"),
         reply_markup=InlineAdPurchase.global_stats_period_menu(),
     )
 
@@ -695,7 +685,7 @@ async def show_global_stats(call: CallbackQuery) -> None:
         call (CallbackQuery): Callback запрос.
     """
     period = call.data.split("|")[2]
-    now = int(time.time())
+    now = int(datetime.now(timezone.utc).timestamp())
 
     if period == "24h":
         from_ts = now - (24 * 3600)
@@ -722,10 +712,14 @@ async def show_global_stats(call: CallbackQuery) -> None:
     ]
 
     if not purchases:
-        await call.answer("За этот период закупов не найдено.", show_alert=True)
+        await call.answer(text("ad_purchase:global_stats:empty"), show_alert=True)
         return
 
-    await call.answer("Генерация отчета...")
+    await call.answer(text("ad_purchase:global_stats:generating"))
+
+    # ОПТИМИЗАЦИЯ: Пакетное получение статистики для всех закупов
+    purchase_ids = [p.id for p in purchases]
+    stats_batch = await db.ad_purchase.get_purchases_stats_batch(purchase_ids)
 
     # 2. Создание Excel
     wb = Workbook()
@@ -734,16 +728,16 @@ async def show_global_stats(call: CallbackQuery) -> None:
 
     # Заголовки
     headers = [
-        "Дата",
-        "Название креатива",
-        "Комментарий",
-        "Фикс цена",
-        "Цена заявки",
-        "Цена подписчика",
-        "Заявок подано",
-        "Подписок",
-        "Цена за подписчика",
-        "Цена за заявку",
+        text("excel:date"),
+        text("excel:creative_name"),
+        text("excel:comment"),
+        text("excel:fix_price"),
+        text("excel:cpl_price"),
+        text("excel:cps_price"),
+        text("excel:leads_count"),
+        text("excel:subs_count"),
+        text("excel:cost_per_sub"),
+        text("excel:cost_per_lead"),
     ]
     ws.append(headers)
 
@@ -752,9 +746,10 @@ async def show_global_stats(call: CallbackQuery) -> None:
         creative = await db.ad_creative.get_creative(p.creative_id)
         creative_name = creative.name if creative else f"Unknown #{p.creative_id}"
 
-        # Статистика (За все время для этого закупа)
-        leads_count = await db.ad_purchase.get_leads_count(p.id)
-        subs_count = await db.ad_purchase.get_subscriptions_count(p.id, None, None)
+        # Статистика (ПАКЕТНО)
+        p_stats = stats_batch.get(p.id, {"leads": 0, "subs": 0})
+        leads_count = p_stats["leads"]
+        subs_count = p_stats["subs"]
 
         # Цены
         fix_price = p.price_value if p.pricing_type.value == "FIXED" else 0
@@ -815,10 +810,11 @@ async def show_global_stats(call: CallbackQuery) -> None:
     )
 
     await call.message.answer_document(
-        document=input_file, caption=f"📊 Статистика закупов за период: {period}"
+        document=input_file,
+        caption=text("ad_purchase:global_stats:caption").format(period),
     )
     # Перезагрузка главного меню
-    await call.message.answer("Главное меню", reply_markup=Reply.menu())
+    await call.message.answer(text("main_menu:reload"), reply_markup=Reply.menu())
 
 
 @router.callback_query(F.data.startswith("AdPurchase|gen_post|"))
@@ -841,8 +837,7 @@ async def generate_post(call: CallbackQuery) -> None:
     # Показ ошибок если есть
     if errors:
         error_text = (
-            "⚠️ Не удалось создать invite-ссылки для некоторых каналов:\n"
-            + "\n".join(errors)
+            text("ad_purchase:generate:error_invite") + "\n" + "\n".join(errors)
         )
         await call.message.answer(error_text)
 
@@ -851,7 +846,7 @@ async def generate_post(call: CallbackQuery) -> None:
     creative = await db.ad_creative.get_creative(purchase.creative_id)
 
     if not creative or not creative.raw_message:
-        await call.answer("Ошибка: креатив не найден или пуст", show_alert=True)
+        await call.answer(text("ad_purchase:generate:error_creative"), show_alert=True)
         return
 
     # 3. Подготовка сообщения
@@ -990,7 +985,7 @@ async def generate_post(call: CallbackQuery) -> None:
             caption = message_data.get("caption", "")
             if len(caption) > 1024:
                 await call.answer(
-                    "Ошибка: Подпись к медиа слишком длинная (макс. 1024 символа).",
+                    text("ad_purchase:generate:error_too_long_caption"),
                     show_alert=True,
                 )
                 return
@@ -1007,7 +1002,7 @@ async def generate_post(call: CallbackQuery) -> None:
             caption = message_data.get("caption", "")
             if len(caption) > 1024:
                 await call.answer(
-                    "Ошибка: Подпись к медиа слишком длинная (макс. 1024 символа).",
+                    text("ad_purchase:generate:error_too_long_caption"),
                     show_alert=True,
                 )
                 return
@@ -1024,7 +1019,7 @@ async def generate_post(call: CallbackQuery) -> None:
             caption = message_data.get("caption", "")
             if len(caption) > 1024:
                 await call.answer(
-                    "Ошибка: Подпись к медиа слишком длинная (макс. 1024 символа).",
+                    text("ad_purchase:generate:error_too_long_caption"),
                     show_alert=True,
                 )
                 return
@@ -1040,7 +1035,7 @@ async def generate_post(call: CallbackQuery) -> None:
             text_content = message_data["text"]
             if len(text_content) > 4096:
                 await call.answer(
-                    "Ошибка: Текст сообщения слишком длинный (макс. 4096 символов).",
+                    text("ad_purchase:generate:error_too_long_text"),
                     show_alert=True,
                 )
                 return
@@ -1054,13 +1049,15 @@ async def generate_post(call: CallbackQuery) -> None:
             )
         else:
             await call.answer(
-                "Неподдерживаемый тип сообщения для генерации", show_alert=True
+                text("ad_purchase:generate:error_unsupported"), show_alert=True
             )
             return
 
-        success_msg = "☝️☝️☝️ ваш пост для закупа ☝️☝️☝️\n\n✅ Готово! Перешлите это админу для размещения."
+        success_msg = text("ad_purchase:generate:success_header")
         if replaced_count > 0:
-            success_msg += f"\n📎 Заменено ссылок: {replaced_count}"
+            success_msg += "\n" + text("ad_purchase:generate:replaced_count").format(
+                replaced_count
+            )
         await call.message.answer(success_msg)
 
         # Redirect to Purchase List
@@ -1072,7 +1069,9 @@ async def generate_post(call: CallbackQuery) -> None:
         err_str = str(e)
         if "MESSAGE_TOO_LONG" in err_str:
             await call.answer(
-                "Ошибка: Сообщение слишком длинное для отправки.", show_alert=True
+                text("ad_purchase:generate:error_too_long_generic"), show_alert=True
             )
         else:
-            await call.answer(f"Ошибка при отправке: {e}", show_alert=True)
+            await call.answer(
+                text("ad_purchase:generate:error_send").format(e), show_alert=True
+            )

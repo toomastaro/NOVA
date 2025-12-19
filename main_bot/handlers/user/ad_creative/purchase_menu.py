@@ -14,11 +14,11 @@ from typing import Dict, Any
 
 from aiogram import Router, F, types
 from aiogram.types import CallbackQuery
-from aiogram.exceptions import TelegramBadRequest
 
 from main_bot.database.db import db
 from main_bot.keyboards import InlineAdPurchase
 from main_bot.keyboards.common import Reply
+from main_bot.utils.lang.language import text
 from utils.error_handler import safe_handler
 from main_bot.utils.session_manager import SessionManager
 
@@ -75,7 +75,7 @@ async def show_ad_purchase_menu_internal(
     client_name = "NovaClient"
 
     if not user_channels:
-        status_text = "⚠️ Нет подключенных каналов."
+        status_text = text("ad_purchase:menu:no_channels")
     else:
         # Проверяем первый канал для примера
         first_ch = user_channels[0]
@@ -89,21 +89,16 @@ async def show_ad_purchase_menu_internal(
                 client_model.client.alias or f"Client #{client_model.client.id}"
             )
 
-            status_text = f"🤖 Клиент: {client_name}\n✅ Статус: Подключен"
+            status_text = text("ad_purchase:menu:client_status").format(client_name)
         else:
-            status_text = "❌ Клиент не найден в каналах."
+            status_text = text("ad_purchase:menu:client_not_found")
 
     logger.info(
         f"Рендеринг меню закупки рекламы для пользователя {message.chat.id}, количество каналов: {len(user_channels)}"
     )
 
     # Determine text
-    main_text = (
-        "<b>💰 Рекламные закупы</b>\n\n"
-        "Для сбора статистики в канал должен быть добавлен наш технический аккаунт "
-        "с правами администратора (Публикация, Редактирование, Удаление).\n\n"
-        f"{status_text}"
-    )
+    main_text = text("ad_purchase:menu:title_main").format(status_text)
 
     # Keyboard
     kb = InlineAdPurchase.main_menu()
@@ -114,7 +109,7 @@ async def show_ad_purchase_menu_internal(
         await message.answer(main_text, reply_markup=kb, parse_mode="HTML")
 
     # Перезагрузка главного меню
-    await message.answer("Главное меню", reply_markup=Reply.menu())
+    await message.answer(text("main_menu:reload"), reply_markup=Reply.menu())
 
 
 @router.callback_query(F.data == "AdPurchase|check_client_status")
@@ -129,11 +124,11 @@ async def check_client_status(call: CallbackQuery) -> None:
     Аргументы:
         call (CallbackQuery): Callback запрос.
     """
-    await call.answer("⏳ Полная проверка всех каналов...", show_alert=False)
+    await call.answer(text("ad_purchase:check:start"), show_alert=False)
 
     user_channels = await db.channel.get_user_channels(call.message.chat.id)
     if not user_channels:
-        await call.answer("Нет каналов для проверки.", show_alert=True)
+        await call.answer(text("ad_purchase:check:no_channels"), show_alert=True)
         return
 
     # Группируем каналы по клиентам для оптимизации сессий
@@ -160,7 +155,7 @@ async def check_client_status(call: CallbackQuery) -> None:
 
     # 1. Каналы без клиента
     for ch in no_client_channels:
-        results.append(f"❌ <b>{ch.title}</b>: Не назначен помощник")
+        results.append(text("ad_purchase:check:no_client").format(ch.title))
 
     # 2. Проверка каждой группы клиентов
     for cid, group in client_groups.items():
@@ -172,7 +167,7 @@ async def check_client_status(call: CallbackQuery) -> None:
         if not session_path.exists():
             for ch in channels:
                 results.append(
-                    f"❌ <b>{ch.title}</b>: Нет файла сессии ({client_label})"
+                    text("ad_purchase:check:no_session").format(ch.title, client_label)
                 )
             continue
 
@@ -181,7 +176,7 @@ async def check_client_status(call: CallbackQuery) -> None:
                 if not manager.client or not await manager.client.is_user_authorized():
                     for ch in channels:
                         results.append(
-                            f"❌ <b>{ch.title}</b>: Сессия не авторизована ({client_label})"
+                            text("ad_purchase:check:not_authorized").format(ch.title, client_label)
                         )
                     continue
 
@@ -193,13 +188,13 @@ async def check_client_status(call: CallbackQuery) -> None:
                             ch.chat_id, limit=1
                         ):
                             pass
-                        results.append(f"✅ <b>{ch.title}</b>")
+                        results.append(text("ad_purchase:check:success").format(ch.title))
                     except Exception as e:
                         err_str = str(e)
                         if "ChatAdminRequiredError" in err_str:
-                            error_msg = "Нет прав админа"
+                            error_msg = text("ad_purchase:check:admin_required")
                         else:
-                            error_msg = "Ошибка доступа"
+                            error_msg = text("ad_purchase:check:access_error")
                         results.append(f"❌ <b>{ch.title}</b>: {error_msg}")
                         logger.error(f"Проверка не удалась для {ch.title}: {e}")
 
@@ -207,38 +202,17 @@ async def check_client_status(call: CallbackQuery) -> None:
             logger.error(f"Ошибка сессии для {client_label}: {e}")
             for ch in channels:
                 results.append(
-                    f"❌ <b>{ch.title}</b>: Ошибка подключения ({client_label})"
+                    text("ad_purchase:check:conn_error").format(ch.title, client_label)
                 )
 
     # Формирование "профессионального" отчета
     success_count = sum(1 for r in results if r.startswith("✅"))
     total_count = len(user_channels)
+    results_str = "\n".join(results)
 
-    report_lines = []
-    report_lines.append("┏━━━━━━━━━━━━━━━━━━━━━━┓")
-    report_lines.append(f"  <b>ОТЧЕТ О ГОТОВНОСТИ КАНАЛОВ</b>")
-    report_lines.append(f"┗━━━━━━━━━━━━━━━━━━━━━━┛")
-    report_lines.append("<i>Эта проверка подтверждает, что Nova Bot может собирать статистику в ваших каналах.</i>")
-    report_lines.append("")
-    report_lines.append("<b>🔍 Что мы проверяем:</b>")
-    report_lines.append("• Наличие технического аккаунта в канале")
-    report_lines.append("• Наличие прав администратора")
-    report_lines.append("• Активность сессии помощника")
-    report_lines.append("")
-    report_lines.append("<b>📌 Легенда:</b>")
-    report_lines.append("✅ — <b>Готов:</b> всё настроено верно")
-    report_lines.append("❌ — <b>Ошибка:</b> требуется ваше внимание")
-    report_lines.append("")
-    report_lines.append(f"📊 <b>Результат:</b> {success_count} из {total_count} готовы")
-    report_lines.append("───────────────────────")
-
-    for res in results:
-        report_lines.append(res)
-
-    report_lines.append("───────────────────────")
-    report_lines.append("<i>Если вы видите ❌, убедитесь, что наш тех. аккаунт добавлен в администраторы канала с правами на сообщения.</i>")
-
-    main_text = "\n".join(report_lines)
+    main_text = text("ad_purchase:report:header").format(
+        success_count, total_count, results_str
+    )
 
     # Отправляем новым сообщением
     await call.message.answer(
@@ -248,7 +222,7 @@ async def check_client_status(call: CallbackQuery) -> None:
     )
 
     # Старое сообщение - просто подтверждаем проверку во всплывающем уведомлении
-    await call.answer("✅ Проверка завершена")
+    await call.answer(text("ad_purchase:check:finished"))
 
 
 @router.callback_query(F.data == "AdPurchase|close_report")
@@ -273,24 +247,24 @@ async def show_creative_selection(call: CallbackQuery) -> None:
     creatives = await db.ad_creative.get_user_creatives(call.from_user.id)
     if not creatives:
         await call.answer(
-            "У вас нет креативов. Сначала создайте креатив.", show_alert=True
+            text("ad_purchase:create:no_creatives"), show_alert=True
         )
         return
 
     user_channels = await db.channel.get_user_channels(call.from_user.id)
     if not user_channels:
-        await call.answer("Нет подключенных каналов!", show_alert=True)
+        await call.answer(text("ad_purchase:create:no_channels"), show_alert=True)
         return
 
     client_model = await db.mt_client_channel.get_preferred_for_stats(
         user_channels[0].chat_id
     ) or await db.mt_client_channel.get_any_client_for_channel(user_channels[0].chat_id)
     if not client_model:
-        await call.answer("Требуется технический аккаунт в канале!", show_alert=True)
+        await call.answer(text("ad_purchase:create:no_client"), show_alert=True)
         return
 
     await call.message.edit_text(
-        "Выберите креатив для создания закупа:",
+        text("ad_purchase:create:select_creative"),
         reply_markup=InlineAdPurchase.creative_selection_menu(creatives),
     )
 
@@ -310,9 +284,9 @@ async def show_purchase_list(call: CallbackQuery, send_new: bool = False) -> Non
     purchases = await db.ad_purchase.get_user_purchases(call.from_user.id)
     if not purchases:
         if send_new:
-            await call.message.answer("У вас пока нет закупов.")
+            await call.message.answer(text("ad_purchase:list:no_purchases"))
         else:
-            await call.answer("У вас пока нет закупов.", show_alert=True)
+            await call.answer(text("ad_purchase:list:no_purchases"), show_alert=True)
         return
 
     enriched_purchases = []
@@ -323,13 +297,13 @@ async def show_purchase_list(call: CallbackQuery, send_new: bool = False) -> Non
 
     enriched_purchases.sort(key=lambda x: x.id, reverse=True)
 
-    text = "Ваши закупы:"
+    main_text = text("ad_purchase:list:title")
     kb = InlineAdPurchase.purchase_list_menu(enriched_purchases)
 
     if send_new:
-        await call.message.answer(text, reply_markup=kb)
+        await call.message.answer(main_text, reply_markup=kb)
     else:
-        await call.message.edit_text(text, reply_markup=kb)
+        await call.message.edit_text(main_text, reply_markup=kb)
 
     # Перезагрузка главного меню
-    await call.message.answer("Главное меню", reply_markup=Reply.menu())
+    await call.message.answer(text("main_menu:reload"), reply_markup=Reply.menu())

@@ -45,7 +45,8 @@ async def create_creative_start(call: CallbackQuery, state: FSMContext) -> None:
         reply_markup=InlineAdCreative.create_creative_cancel(),
     )
     await state.set_state(AdCreativeStates.waiting_for_content)
-    await call.message.answer(text("ad_creative:create_start_text"), reply_markup=Reply.menu())
+    # Перезагрузка главного меню
+    await call.message.answer(text("main_menu:reload"), reply_markup=Reply.menu())
     await call.answer()
 
 
@@ -170,7 +171,7 @@ async def process_creative_name(message: Message, state: FSMContext) -> None:
         reply_markup=InlineAdCreative.menu(),
     )
     # Перезагрузка главного меню
-    await message.answer("Главное меню", reply_markup=Reply.menu())
+    await message.answer(text("main_menu:reload"), reply_markup=Reply.menu())
     await state.clear()
 
 
@@ -238,7 +239,7 @@ async def delete_creative(call: CallbackQuery) -> None:
     await db.ad_creative.update_creative_status(creative_id, "deleted")
     await call.answer(text("ad_creative:deleted"))
     # Перезагрузка главного меню
-    await call.message.answer("Главное меню", reply_markup=Reply.menu())
+    await call.message.answer(text("main_menu:reload"), reply_markup=Reply.menu())
 
     # Проверка оставшихся
     creatives = await db.ad_creative.get_user_creatives(call.from_user.id)

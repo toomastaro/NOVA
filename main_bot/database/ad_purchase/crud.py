@@ -703,3 +703,113 @@ class AdPurchaseCrud(DatabaseMixin):
         )
 
         return await self.fetch(query)
+
+    async def get_stats_batch_by_slots(
+        self, ad_purchase_id: int, from_ts: int = None, to_ts: int = None
+    ) -> dict:
+        """
+        Пакетное получение статистики по всем слотам закупки.
+        Устраняет N+1 проблему при рендеринге статистики.
+
+        Возвращает:
+            dict: {slot_id: {"leads": int, "subs": int, "unsubs": int}}
+        """
+        from sqlalchemy import func
+
+        from main_bot.database.ad_purchase.model import AdLead, AdSubscription
+
+        # 1. Получаем лиды по слотам
+        leads_query = (
+            select(AdLead.slot_id, func.count(AdLead.id))
+            .where(AdLead.ad_purchase_id == ad_purchase_id)
+            .group_by(AdLead.slot_id)
+        )
+        leads_rows = await self.fetch(leads_query)
+        leads_map = {row[0]: row[1] for row in leads_rows}
+
+        # 2. Получаем подписки по слотам
+        subs_query = (
+            select(AdSubscription.slot_id, func.count(AdSubscription.id))
+            .where(AdSubscription.ad_purchase_id == ad_purchase_id)
+            .group_by(AdSubscription.slot_id)
+        )
+        if from_ts:
+            subs_query = subs_query.where(AdSubscription.created_timestamp >= from_ts)
+        if to_ts:
+            subs_query = subs_query.where(AdSubscription.created_timestamp <= to_ts)
+
+        subs_rows = await self.fetch(subs_query)
+        subs_map = {row[0]: row[1] for row in subs_rows}
+
+        # 3. Дополнительно можно получить отписки (status='left')
+        unsubs_query = (
+            select(AdSubscription.slot_id, func.count(AdSubscription.id))
+            .where(
+                AdSubscription.ad_purchase_id == ad_purchase_id,
+                AdSubscription.status == "left",
+            )
+            .group_by(AdSubscription.slot_id)
+        )
+        if from_ts:
+            unsubs_query = unsubs_query.where(
+                AdSubscription.created_timestamp >= from_ts
+            )
+
+        unsubs_rows = await self.fetch(unsubs_query)
+        unsubs_map = {row[0]: row[1] for row in unsubs_rows}
+
+        # Объединяем
+        all_slots = set(leads_map.keys()) | set(subs_map.keys()) | set(unsubs_map.keys())
+        result = {}
+        for sid in all_slots:
+            result[sid] = {
+                "leads": leads_map.get(sid, 0),
+                "subs": subs_map.get(sid, 0),
+                "unsubs": unsubs_map.get(sid, 0),
+            }
+        return result
+
+    async def get_purchases_stats_batch(
+        self, purchase_ids: list[int], from_ts: int = None, to_ts: int = None
+    ) -> dict:
+        """
+        Пакетное получение статистики для списка закупок (для Excel отчета).
+
+        Возвращает:
+            dict: {purchase_id: {"leads": int, "subs": int}}
+        """
+        from sqlalchemy import func
+
+        from main_bot.database.ad_purchase.model import AdLead, AdSubscription
+
+        if not purchase_ids:
+            return {}
+
+        leads_query = (
+            select(AdLead.ad_purchase_id, func.count(AdLead.id))
+            .where(AdLead.ad_purchase_id.in_(purchase_ids))
+            .group_by(AdLead.ad_purchase_id)
+        )
+        leads_rows = await self.fetch(leads_query)
+        leads_map = {row[0]: row[1] for row in leads_rows}
+
+        subs_query = (
+            select(AdSubscription.ad_purchase_id, func.count(AdSubscription.id))
+            .where(AdSubscription.ad_purchase_id.in_(purchase_ids))
+            .group_by(AdSubscription.ad_purchase_id)
+        )
+        if from_ts:
+            subs_query = subs_query.where(AdSubscription.created_timestamp >= from_ts)
+        if to_ts:
+            subs_query = subs_query.where(AdSubscription.created_timestamp <= to_ts)
+
+        subs_rows = await self.fetch(subs_query)
+        subs_map = {row[0]: row[1] for row in subs_rows}
+
+        result = {}
+        for pid in purchase_ids:
+            result[pid] = {
+                "leads": leads_map.get(pid, 0),
+                "subs": subs_map.get(pid, 0),
+            }
+        return result
