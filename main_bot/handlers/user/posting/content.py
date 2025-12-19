@@ -19,15 +19,17 @@ from utils.error_handler import safe_handler
 logger = logging.getLogger(__name__)
 
 
-
-
 def serialize_post(post):
     if not post:
         return None
     data = {
         "id": post.id,
         "post_id": getattr(post, "post_id", None),
-        "chat_id": getattr(post, "chat_id", post.chat_ids[0] if getattr(post, "chat_ids", None) else None),
+        "chat_id": getattr(
+            post,
+            "chat_id",
+            post.chat_ids[0] if getattr(post, "chat_ids", None) else None,
+        ),
         "message_id": getattr(post, "message_id", None),
         "created_timestamp": post.created_timestamp,
         "send_time": getattr(post, "send_time", None),
@@ -167,12 +169,7 @@ async def generate_post_info_text(post_obj, is_published: bool = False) -> str:
             status_line = "<b>Статус: 👀 Опубликован</b>"
             link_line = f"Ссылка: {post_link}\n"
 
-            return (
-                f"{status_line}\n"
-                f"{link_line}"
-                f"Дата: {date_str}\n\n"
-                f"{channels_text}"
-            )
+            return f"{status_line}\n{link_line}Дата: {date_str}\n\n{channels_text}"
 
     else:
         # Пост (Запланирован или Удален)
@@ -200,7 +197,7 @@ async def generate_post_info_text(post_obj, is_published: bool = False) -> str:
                 f"Удален: {deleted_str}\n"
                 f"Автор: {author_name}\n\n"
                 f"{channels_text}\n"
-                f"🗑 Таймер удаления: {int(post_obj.delete_time/3600) if post_obj.delete_time else 'Нет'} ч\n"
+                f"🗑 Таймер удаления: {int(post_obj.delete_time / 3600) if post_obj.delete_time else 'Нет'} ч\n"
             )
 
         else:
@@ -229,7 +226,9 @@ async def generate_post_info_text(post_obj, is_published: bool = False) -> str:
             )
 
 
-@safe_handler("Постинг: выбор канала для контента")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Постинг: выбор канала для контента"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def choice_channel(call: types.CallbackQuery, state: FSMContext):
     """Выбор канала для просмотра контент-плана."""
     temp = call.data.split("|")
@@ -286,7 +285,9 @@ async def choice_channel(call: types.CallbackQuery, state: FSMContext):
     )
 
 
-@safe_handler("Постинг: выбор строки контента")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Постинг: выбор строки контента"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
     """Навигация по контент-плану (выбор дня, поста)."""
     temp = call.data.split("|")
@@ -445,7 +446,9 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
     )
 
 
-@safe_handler("Постинг: выбор времени")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Постинг: выбор времени"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def choice_time_objects(call: types.CallbackQuery, state: FSMContext):
     """Просмотр списка запланированных постов."""
     temp = call.data.split("|")
@@ -496,7 +499,9 @@ async def choice_time_objects(call: types.CallbackQuery, state: FSMContext):
         )
 
 
-@safe_handler("Постинг: управление остатком постов")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Постинг: управление остатком постов"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def manage_remain_post(call: types.CallbackQuery, state: FSMContext):
     """Управление запланированным (или черновиком) постом."""
     temp = call.data.split("|")
@@ -588,7 +593,9 @@ async def manage_remain_post(call: types.CallbackQuery, state: FSMContext):
         return
 
 
-@safe_handler("Постинг: подтверждение удаления контента")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Постинг: подтверждение удаления контента"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def accept_delete_row_content(call: types.CallbackQuery, state: FSMContext):
     """Подтверждение удаления поста."""
     # ... logic existing ...
@@ -658,7 +665,9 @@ async def accept_delete_row_content(call: types.CallbackQuery, state: FSMContext
         )
 
 
-@safe_handler("Постинг: управление опубликованными")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Постинг: управление опубликованными"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def manage_published_post(call: types.CallbackQuery, state: FSMContext):
     """Управление уже опубликованным постом (отчеты, удаление)."""
     temp = call.data.split("|")
@@ -768,10 +777,11 @@ async def manage_published_post(call: types.CallbackQuery, state: FSMContext):
 
     if temp[1] == "cancel":
         from datetime import datetime
+
         day = data.get("day")
         if isinstance(day, str):
             day = datetime.fromisoformat(day)
-            
+
         channel_data = data.get("channel")
         posts = await db.post.get_posts(channel_data["chat_id"], day)
 
@@ -864,7 +874,9 @@ async def manage_published_post(call: types.CallbackQuery, state: FSMContext):
         return
 
 
-@safe_handler("Постинг: удаление опубликованного")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Постинг: удаление опубликованного"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def accept_delete_published_post(call: types.CallbackQuery, state: FSMContext):
     """Подтверждение удаления опубликованного поста (удаление из каналов и БД)."""
     temp = call.data.split("|")

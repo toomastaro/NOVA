@@ -12,6 +12,8 @@ import logging
 from utils.error_handler import safe_handler
 from main_bot.utils.session_manager import SessionManager
 from main_bot.states.user import AddChannel
+from config import Config
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -43,21 +45,15 @@ async def render_channel_info(
         creator_name = "Неизвестно"
 
     # Получаем количество подписчиков
-    try:
-        members_count = await call.bot.get_chat_member_count(channel.chat_id)
     except Exception:
-        members_count = "N/A"
+        pass
 
     # Форматируем дату добавления
-    from datetime import datetime
-
     created_date = datetime.fromtimestamp(channel.created_timestamp)
     created_str = created_date.strftime("%d.%m.%Y в %H:%M")
 
     # Статус подписки
     if channel.subscribe:
-        from datetime import datetime
-
         sub_date = datetime.fromtimestamp(channel.subscribe)
         subscribe_str = f"✅ Активна до {sub_date.strftime('%d.%m.%Y')}"
     else:
@@ -175,7 +171,6 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
         # Удаляем старое сообщение
         await call.message.delete()
 
-        from config import Config
         # Отправляем текстовую инструкцию
         return await call.message.answer(
             text=text("channels:add:text").format(Config.BOT_USERNAME),

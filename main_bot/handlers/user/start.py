@@ -23,7 +23,9 @@ from main_bot.utils.middlewares import StartMiddle
 logger = logging.getLogger(__name__)
 
 
-@safe_handler("Команда: /start — начало работы")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Команда: /start — начало работы"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def start(message: types.Message, state: FSMContext) -> None:
     """
     Обработчик команды /start.

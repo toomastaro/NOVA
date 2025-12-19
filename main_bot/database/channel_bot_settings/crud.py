@@ -62,7 +62,9 @@ class ChannelBotSettingCrud(DatabaseMixin):
             select(ChannelBotSetting).where(ChannelBotSetting.bot_id == bot_id)
         )
 
-    async def get_bot_channels(self, admin_id: int, only_with_bot: bool = False) -> list:
+    async def get_bot_channels(
+        self, admin_id: int, only_with_bot: bool = False
+    ) -> list:
         """
         Получает все настройки каналов для админа.
 

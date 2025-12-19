@@ -161,7 +161,6 @@ class VersionCheckMiddleware(BaseMiddleware):
         event: TelegramObject,
         data: Dict[str, Any],
     ) -> Any:
-
         state = data.get("state")
 
         if state:

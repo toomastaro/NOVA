@@ -31,7 +31,9 @@ async def safe_delete(message: types.Message):
         pass
 
 
-@safe_handler("Подписка: начисление")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Подписка: начисление"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def give_subscribes(state: FSMContext, user: User):
     """Начисляет подписку пользователю после оплаты."""
     data = await state.get_data()
@@ -110,7 +112,9 @@ async def give_subscribes(state: FSMContext, user: User):
         )
 
 
-@safe_handler("Подписка: показ успеха")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Подписка: показ успеха"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def show_subscription_success(
     message: types.Message, state: FSMContext, user: User
 ):
@@ -193,7 +197,9 @@ async def show_subscription_success(
     )
 
 
-@safe_handler("Подписка: выбор оплаты")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Подписка: выбор оплаты"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def choice(call: types.CallbackQuery, state: FSMContext, user: User):
     """Обработка выбора метода оплаты подписки."""
     temp = call.data.split("|")
@@ -362,7 +368,9 @@ async def choice(call: types.CallbackQuery, state: FSMContext, user: User):
     return
 
 
-@safe_handler("Подписка: выравнивание")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Подписка: выравнивание"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def align_subscribe(call: types.CallbackQuery, state: FSMContext, user: User):
     """Логика выравнивания сроков подписок."""
     temp = call.data.split("|")
@@ -499,7 +507,9 @@ async def align_subscribe(call: types.CallbackQuery, state: FSMContext, user: Us
         pass
 
 
-@safe_handler("Подписка: отмена оплаты")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Подписка: отмена оплаты"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def cancel(call: types.CallbackQuery, state: FSMContext, user: User):
     """Отмена оплаты подписки."""
     # data = await state.get_data()
@@ -520,7 +530,9 @@ async def cancel(call: types.CallbackQuery, state: FSMContext, user: User):
     )
 
 
-@safe_handler("Подписка: назад к методам")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Подписка: назад к методам"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def back_to_method(call: types.CallbackQuery, state: FSMContext):
     """Возврат к выбору способа оплаты с экрана ожидания"""
     logger.info(f"back_to_method вызван: {call.data}")
@@ -574,7 +586,9 @@ async def back_to_method(call: types.CallbackQuery, state: FSMContext):
     )
 
 
-@safe_handler("Подписка: ввод промокода")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Подписка: ввод промокода"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def get_promo(message: types.Message, state: FSMContext, user: User):
     """Обработка ввода промокода при оплате подписки."""
     data = await state.get_data()
@@ -629,7 +643,9 @@ async def get_promo(message: types.Message, state: FSMContext, user: User):
     )
 
 
-@safe_handler("Подписка: успешная оплата")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Подписка: успешная оплата"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def success(message: types.Message, state: FSMContext, user: User):
     """Обработка успешной оплаты (для Stars)."""
     # ВАЖНО: refund_star_payment убран - он делал возврат денег!

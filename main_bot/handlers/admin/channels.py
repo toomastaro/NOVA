@@ -73,8 +73,7 @@ async def search_channel_start(call: types.CallbackQuery, state: FSMContext) -> 
         state (FSMContext): Контекст состояния.
     """
     await call.message.edit_text(
-        "🔍 <b>Поиск канала</b>\n\n"
-        "Отправьте название или username канала для поиска:",
+        "🔍 <b>Поиск канала</b>\n\nОтправьте название или username канала для поиска:",
         reply_markup=keyboards.back(data="AdminChannels|list|0"),
         parse_mode="HTML",
     )

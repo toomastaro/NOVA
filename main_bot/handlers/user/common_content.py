@@ -1,5 +1,6 @@
 from typing import Dict, Any, Optional
 
+
 def serialize_channel(channel: Any) -> Optional[Dict[str, Any]]:
     """
     Сериализует объект канала в словарь.

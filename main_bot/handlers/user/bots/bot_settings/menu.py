@@ -24,7 +24,9 @@ from utils.error_handler import safe_handler
 logger = logging.getLogger(__name__)
 
 
-@safe_handler("Боты: настройки канала")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Боты: настройки канала"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def show_channel_setting(
     message: types.Message, db_obj: Database, state: FSMContext
 ) -> None:
@@ -57,7 +59,9 @@ async def show_channel_setting(
     )
 
 
-@safe_handler("Боты: выбор канала для настроек")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Боты: выбор канала для настроек"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def choice_channel(
     call: types.CallbackQuery, state: FSMContext, db_obj: Database
 ) -> None:
@@ -98,7 +102,9 @@ async def choice_channel(
     await show_channel_setting(call.message, db_obj, state)
 
 
-@safe_handler("Боты: выбор раздела настроек")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Боты: выбор раздела настроек"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def choice(
     call: types.CallbackQuery, state: FSMContext, db_obj: Database
 ) -> None:
@@ -174,7 +180,9 @@ async def choice(
     await cor(*args)
 
 
-@safe_handler("Боты: раздел автоприема")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Боты: раздел автоприема"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def show_application(
     message: types.Message, setting: ChannelBotSetting, db_obj: Database
 ) -> None:
@@ -198,7 +206,9 @@ async def show_application(
     )
 
 
-@safe_handler("Боты: раздел капчи")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Боты: раздел капчи"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def show_captcha(
     message: types.Message, setting: ChannelBotSetting, db_obj: Database
 ) -> None:
@@ -224,7 +234,9 @@ async def show_captcha(
     )
 
 
-@safe_handler("Боты: раздел приветствия")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Боты: раздел приветствия"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def show_hello(message: types.Message, setting: ChannelBotSetting) -> None:
     """
     Показывает меню приветствий.
@@ -250,7 +262,9 @@ async def show_hello(message: types.Message, setting: ChannelBotSetting) -> None
     )
 
 
-@safe_handler("Боты: раздел прощания")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Боты: раздел прощания"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def show_bye(message: types.Message, setting: ChannelBotSetting) -> None:
     """
     Показывает меню прощания.
@@ -270,7 +284,9 @@ async def show_bye(message: types.Message, setting: ChannelBotSetting) -> None:
     )
 
 
-@safe_handler("Боты: раздел клонирования")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Боты: раздел клонирования"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def show_cloner(message: types.Message, state: FSMContext) -> None:
     """
     Показывает меню клонирования настроек.
@@ -298,7 +314,9 @@ async def show_cloner(message: types.Message, state: FSMContext) -> None:
     )
 
 
-@safe_handler("Боты: раздел очистки")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Боты: раздел очистки"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def show_cleaner(message: types.Message) -> None:
     """
     Показывает меню очистки участников.

@@ -24,7 +24,6 @@ class DictObj:
             setattr(self, key, val)
 
 
-
 def ensure_channel_obj(channel):
     if isinstance(channel, dict):
         return DictObj(channel)

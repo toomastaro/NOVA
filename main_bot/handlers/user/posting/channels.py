@@ -16,12 +16,14 @@ from main_bot.utils.session_manager import SessionManager
 logger = logging.getLogger(__name__)
 
 
-@safe_handler("Постинг: фоновая проверка прав")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Постинг: фоновая проверка прав"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def check_permissions_task(chat_id: int):
     """Фоновая задача для обновления прав помощника."""
     from main_bot.utils.session_manager import SessionManager
     from main_bot.utils.tg_utils import db
-    
+
     # 1. Получение клиента
     client_row = await db.mt_client_channel.get_my_membership(chat_id)
     if not client_row or not client_row[0].client:
@@ -37,7 +39,7 @@ async def check_permissions_task(chat_id: int):
         async with SessionManager(session_path) as manager:
             perms = await manager.check_permissions(chat_id)
             logger.debug(f"Rights for {chat_id}: {perms}")
-            
+
         if perms.get("error") == "USER_NOT_PARTICIPANT":
             # Сброс прав в БД, если помощника нет в канале
             await db.mt_client_channel.set_membership(
@@ -47,16 +49,18 @@ async def check_permissions_task(chat_id: int):
                 is_admin=False,
                 can_post_stories=False,
                 last_joined_at=int(time.time()),
-                preferred_for_stats=client_row[0].preferred_for_stats
+                preferred_for_stats=client_row[0].preferred_for_stats,
             )
-            logger.info(f"Статус помощника сброшен для {chat_id} (удален из участников)")
+            logger.info(
+                f"Статус помощника сброшен для {chat_id} (удален из участников)"
+            )
             return
 
         if not perms.get("error"):
             is_admin = perms.get("is_admin", False)
             can_post = perms.get("can_post_messages", False)
             can_stories = perms.get("can_post_stories", False)
-            
+
             # 3. Обновление БД
             await db.mt_client_channel.set_membership(
                 client_id=mt_client.id,
@@ -66,13 +70,15 @@ async def check_permissions_task(chat_id: int):
                 can_post_messages=can_post,
                 can_post_stories=can_stories,
                 last_joined_at=int(time.time()),
-                preferred_for_stats=client_row[0].preferred_for_stats
+                preferred_for_stats=client_row[0].preferred_for_stats,
             )
     except Exception as e:
         logger.error(f"Ошибка в check_permissions_task: {e}")
 
 
-@safe_handler("Постинг: информация о канале")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Постинг: информация о канале"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def render_channel_info(
     call: types.CallbackQuery, state: FSMContext, channel_id: int
 ):
@@ -123,15 +129,19 @@ async def render_channel_info(
     try:
         # 1. Проверка прав основного бота (Постинг)
         from aiogram.enums import ChatMemberStatus
+
         bot_member = await call.bot.get_chat_member(channel.chat_id, call.bot.id)
-        
+
         bot_can_post = False
-        if bot_member.status in [ChatMemberStatus.ADMINISTRATOR, ChatMemberStatus.CREATOR]:
+        if bot_member.status in [
+            ChatMemberStatus.ADMINISTRATOR,
+            ChatMemberStatus.CREATOR,
+        ]:
             if hasattr(bot_member, "can_post_messages"):
                 bot_can_post = bot_member.can_post_messages
             else:
-                bot_can_post = True # Если создатель или старое API
-            
+                bot_can_post = True  # Если создатель или старое API
+
         status_bot_post = "✅" if bot_can_post else "❌"
 
         # 2. Находим привязанного помощника (МТПрото)
@@ -148,10 +158,10 @@ async def render_channel_info(
 
         status_assistant_stats = "✅" if assistant_can_stats else "❌"
         status_assistant_story = "✅" if assistant_can_stories else "❌"
-        
+
         # Рассылка и Приветствие зависят от прав бота
         status_bot_mail = "✅" if bot_can_post else "❌"
-        
+
         # Проверка приветственных сообщений в БД
         hello_msgs = await db.channel_bot_hello.get_hello_messages(
             channel.chat_id, active=True
@@ -164,10 +174,17 @@ async def render_channel_info(
 
         if mt_client:
             import html
+
             clean_alias = mt_client.alias.replace("👤", "").strip()
-            assistant_name = f"@{html.escape(clean_alias)}" if " " not in clean_alias else html.escape(clean_alias)
+            assistant_name = (
+                f"@{html.escape(clean_alias)}"
+                if " " not in clean_alias
+                else html.escape(clean_alias)
+            )
             assistant_desc = "<i>Сбор статистики и публикация историй</i>"
-            assistant_header = f"🤖 <b>Помощник:</b> {assistant_name}\n{assistant_desc}\n"
+            assistant_header = (
+                f"🤖 <b>Помощник:</b> {assistant_name}\n{assistant_desc}\n"
+            )
         else:
             assistant_header = "🤖 <b>Помощник:</b> Не назначен\n"
 
@@ -212,7 +229,9 @@ async def render_channel_info(
             raise e
 
 
-@safe_handler("Постинг: выбор канала")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Постинг: выбор канала"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def choice(call: types.CallbackQuery, state: FSMContext):
     """Выбор канала для управления или добавления."""
     temp = call.data.split("|")
@@ -241,6 +260,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
         await call.message.delete()
 
         from config import Config
+
         # Отправляем текстовую инструкцию
         return await call.message.answer(
             text=text("channels:add:text").format(Config.BOT_USERNAME),
@@ -255,7 +275,9 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
     await render_channel_info(call, state, channel_id)
 
 
-@safe_handler("Постинг: отмена канала")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Постинг: отмена канала"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def cancel(call: types.CallbackQuery):
     """Отмена действий и возврат к списку каналов."""
     channels = await db.channel.get_user_channels(
@@ -269,7 +291,9 @@ async def cancel(call: types.CallbackQuery):
     )
 
 
-@safe_handler("Постинг: управление каналом")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Постинг: управление каналом"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def manage_channel(call: types.CallbackQuery, state: FSMContext):
     """Управление настройками канала (удаление, права, добавление помощника)."""
     temp = call.data.split("|")
@@ -420,7 +444,9 @@ async def manage_channel(call: types.CallbackQuery, state: FSMContext):
 
         async with SessionManager(session_path) as manager:
             perms = await manager.check_permissions(channel.chat_id)
-            logger.info(f"Ручная проверка прав для {channel.title} ({channel.chat_id}): {perms}")
+            logger.info(
+                f"Ручная проверка прав для {channel.title} ({channel.chat_id}): {perms}"
+            )
 
         if perms.get("error"):
             error_code = perms["error"]
@@ -434,7 +460,7 @@ async def manage_channel(call: types.CallbackQuery, state: FSMContext):
                     is_admin=False,
                     can_post_stories=False,
                     last_joined_at=int(time.time()),
-                    preferred_for_stats=client_row[0].preferred_for_stats
+                    preferred_for_stats=client_row[0].preferred_for_stats,
                 )
                 await render_channel_info(call, state, channel.chat_id)
             else:
@@ -447,7 +473,9 @@ async def manage_channel(call: types.CallbackQuery, state: FSMContext):
         is_admin = perms.get("is_admin", False)
         can_post = perms.get("can_post_messages", False)
         can_stories = perms.get("can_post_stories", False)
-        logger.info(f"Обновление прав: админ={is_admin}, постинг={can_post}, истории={can_stories}")
+        logger.info(
+            f"Обновление прав: админ={is_admin}, постинг={can_post}, истории={can_stories}"
+        )
 
         # Обновление алиаса клиента
         me = perms.get("me")

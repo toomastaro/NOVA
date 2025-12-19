@@ -69,7 +69,6 @@ class DictObj:
             setattr(self, key, val)
 
 
-
 def ensure_bot_post_obj(
     post: Union[BotPost, Dict[str, Any]],
 ) -> Union[BotPost, DictObj]:

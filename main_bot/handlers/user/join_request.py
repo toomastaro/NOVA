@@ -18,7 +18,9 @@ from utils.error_handler import safe_handler
 logger = logging.getLogger(__name__)
 
 
-@safe_handler("Заявка на вступление: трекинг лида")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Заявка на вступление: трекинг лида"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def on_join_request(request: types.ChatJoinRequest) -> None:
     """
     Обработка заявок на вступление для отслеживания рекламных лидов.

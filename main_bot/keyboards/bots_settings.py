@@ -74,7 +74,6 @@ class InlineBotSetting(InlineKeyboardBuilder):
 
         for a, idx in enumerate(range(remover, len(channels))):
             if a < count_rows:
-
                 button_text = channels[idx].title
                 if channels[idx].chat_id in chosen:
                     button_text = "✅ " + button_text

@@ -44,7 +44,9 @@ def ensure_bot_obj(bot: Union[UserBot, Dict[str, Any]]) -> Union[UserBot, DictOb
     return bot
 
 
-@safe_handler("Боты: выбор типа очистки")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Боты: выбор типа очистки"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def choice(
     call: types.CallbackQuery, state: FSMContext, db_obj: Database
 ) -> None:
@@ -73,7 +75,9 @@ async def choice(
     await state.set_state(Cleaner.period)
 
 
-@safe_handler("Боты: возврат в выбор типа очистки")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Боты: возврат в выбор типа очистки"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def back(call: types.CallbackQuery, state: FSMContext) -> None:
     """
     Возврат в меню очистки.
@@ -122,7 +126,9 @@ async def start_clean(
             await asyncio.sleep(0.25)
 
 
-@safe_handler("Боты: получение периода очистки")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Боты: получение периода очистки"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def get_period(
     message: types.Message, state: FSMContext, db_obj: Database
 ) -> None:

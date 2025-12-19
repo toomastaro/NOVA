@@ -19,7 +19,9 @@ from main_bot.handlers.user.profile.report_settings import show_report_settings_
 from utils.error_handler import safe_handler
 
 
-@safe_handler("Профиль: выбор")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Профиль: выбор"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def choice(call: types.CallbackQuery, user: User, state: FSMContext):
     """Маршрутизатор меню профиля."""
     temp = call.data.split("|")
@@ -51,7 +53,9 @@ async def choice(call: types.CallbackQuery, user: User, state: FSMContext):
     await cor(*args)
 
 
-@safe_handler("Профиль: баланс")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Профиль: баланс"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def show_balance(message: types.Message, user: User):
     await message.answer(
         text("balance_text").format(user.balance),
@@ -59,7 +63,9 @@ async def show_balance(message: types.Message, user: User):
     )
 
 
-@safe_handler("Профиль: каналы")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Профиль: каналы"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def show_channels(message: types.Message):
     """Показать список каналов пользователя (перенесено из Posting)"""
     channels = await db.channel.get_user_channels(
@@ -70,7 +76,9 @@ async def show_channels(message: types.Message):
     )
 
 
-@safe_handler("Профиль: боты")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Профиль: боты"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def show_bots(message: types.Message):
     """Показать список ботов пользователя (перенесено из Bots/Mailing)"""
     bots = await db.user_bot.get_user_bots(user_id=message.chat.id, sort_by=True)
@@ -82,7 +90,9 @@ async def show_bots(message: types.Message):
     )
 
 
-@safe_handler("Профиль: часовой пояс")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Профиль: часовой пояс"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def show_timezone(message: types.Message, state: FSMContext):
     """Показать меню настройки часового пояса"""
     from main_bot.database.db import db
@@ -107,7 +117,9 @@ async def show_timezone(message: types.Message, state: FSMContext):
     await state.set_state(Setting.input_timezone)
 
 
-@safe_handler("Профиль: папки")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Профиль: папки"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def show_folders(message: types.Message):
     """Показать меню папок"""
     from main_bot.handlers.user.profile.settings import show_folders as settings_folders
@@ -115,7 +127,9 @@ async def show_folders(message: types.Message):
     await settings_folders(message)
 
 
-@safe_handler("Профиль: подписка")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Профиль: подписка"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def show_subscribe(message: types.Message, state: FSMContext = None):
     """Показать выбор каналов для подписки (без промежуточного меню)"""
     from main_bot.handlers.user.profile.subscribe import get_subscribe_list_resources
@@ -146,12 +160,16 @@ async def show_subscribe(message: types.Message, state: FSMContext = None):
     )
 
 
-@safe_handler("Профиль: настройки")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Профиль: настройки"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def show_setting(message: types.Message):
     await message.answer(text("setting_text"), reply_markup=keyboards.profile_setting())
 
 
-@safe_handler("Профиль: реферальная система")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Профиль: реферальная система"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def show_referral(message: types.Message, user: User):
     referral_count = await db.user.get_count_user_referral(user_id=user.id)
 
@@ -166,7 +184,9 @@ async def show_referral(message: types.Message, user: User):
     )
 
 
-@safe_handler("Профиль: поддержка")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Профиль: поддержка"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def show_support(message: types.Message, state: FSMContext):
     """Показать информацию о поддержке"""
     from main_bot.states.user import Support
@@ -182,7 +202,9 @@ async def show_support(message: types.Message, state: FSMContext):
     await state.set_state(Support.message)
 
 
-@safe_handler("Профиль: меню подписки")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Профиль: меню подписки"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def subscription_menu_choice(
     call: types.CallbackQuery, user: User, state: FSMContext
 ):
@@ -198,7 +220,8 @@ async def subscription_menu_choice(
 
         if not channels:
             return await call.message.answer(
-                text("error_subscription_required"), reply_markup=keyboards.subscription_menu()
+                text("error_subscription_required"),
+                reply_markup=keyboards.subscription_menu(),
             )
 
         await state.update_data(align_chosen=[])
@@ -235,8 +258,8 @@ async def subscription_menu_choice(
         channels = await db.channel.get_user_channels(user_id=user.id)
         if not channels:
             return await call.message.answer(
-                text("error_subscription_required"), 
-                reply_markup=keyboards.subscription_menu()
+                text("error_subscription_required"),
+                reply_markup=keyboards.subscription_menu(),
             )
 
         await call.message.delete()
@@ -272,7 +295,9 @@ async def subscription_menu_choice(
         await back_to_main(call.message)
 
 
-@safe_handler("Профиль: возврат в главное меню")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Профиль: возврат в главное меню"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def back_to_main(message: types.Message):
     """Возврат в главное меню"""
     from main_bot.keyboards.common import Reply
@@ -280,7 +305,9 @@ async def back_to_main(message: types.Message):
     await message.answer("Главное меню", reply_markup=Reply.menu())
 
 
-@safe_handler("Профиль: выбор в инфо-меню")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Профиль: выбор в инфо-меню"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def info_menu_choice(call: types.CallbackQuery, user: User):
     temp = call.data.split("|")
 

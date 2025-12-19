@@ -461,7 +461,6 @@ class NovaStatService:
 
                     # Попытаться присоединиться через SessionManager
                     try:
-
                         # Попытка join
                         if isinstance(channel_identifier, str):
                             if "t.me/" in channel_identifier:

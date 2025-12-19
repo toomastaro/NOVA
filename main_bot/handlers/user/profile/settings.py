@@ -20,7 +20,9 @@ from utils.error_handler import safe_handler
 logger = logging.getLogger(__name__)
 
 
-@safe_handler("Настройки: выбор")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Настройки: выбор"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def choice(call: types.CallbackQuery, state: FSMContext, user: User):
     """Маршрутизатор меню настроек."""
     temp = call.data.split("|")
@@ -71,7 +73,9 @@ async def choice(call: types.CallbackQuery, state: FSMContext, user: User):
         await state.set_state(Setting.input_timezone)
 
 
-@safe_handler("Настройки: часовой пояс")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Настройки: часовой пояс"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def show_timezone(message: types.Message):
     """Показать меню настройки часового пояса"""
     # Imports cleanup: removed local imports where possible if global are enough
@@ -94,7 +98,9 @@ async def show_timezone(message: types.Message):
     )
 
 
-@safe_handler("Настройки: папки")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Настройки: папки"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def show_folders(message: types.Message):
     """Показать список папок."""
     folders = await db.user_folder.get_folders(message.chat.id)

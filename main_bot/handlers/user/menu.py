@@ -49,7 +49,9 @@ def serialize_user_bot(bot: Any) -> Optional[Dict[str, Any]]:
     }
 
 
-@safe_handler("Выбор меню")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Выбор меню"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def choice(message: types.Message, state: FSMContext) -> None:
     """
     Маршрутизатор главного меню.
@@ -91,7 +93,9 @@ async def choice(message: types.Message, state: FSMContext) -> None:
         logger.warning("Неизвестная команда меню: %s", message.text)
 
 
-@safe_handler("Меню постинга")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Меню постинга"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def start_posting(message: types.Message) -> None:
     """
     Открыть меню постинга.
@@ -103,7 +107,9 @@ async def start_posting(message: types.Message) -> None:
     await message.answer(text("start_post_text"), reply_markup=keyboards.posting_menu())
 
 
-@safe_handler("Меню сторис")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Меню сторис"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def start_stories(message: types.Message) -> None:
     """
     Открыть меню сторис.
@@ -117,7 +123,9 @@ async def start_stories(message: types.Message) -> None:
     )
 
 
-@safe_handler("Меню ботов")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Меню ботов"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def start_bots(message: types.Message) -> None:
     """
     Открыть меню ботов.
@@ -128,7 +136,9 @@ async def start_bots(message: types.Message) -> None:
     await message.answer(text("start_bots_text"), reply_markup=keyboards.bots_menu())
 
 
-@safe_handler("Поддержка")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Поддержка"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def support(message: types.Message, state: FSMContext) -> None:
     """
     Открыть меню поддержки.
@@ -143,7 +153,9 @@ async def support(message: types.Message, state: FSMContext) -> None:
     await state.set_state(Support.message)
 
 
-@safe_handler("Профиль")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Профиль"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def profile(message: types.Message) -> None:
     """
     Открыть профиль пользователя.
@@ -156,7 +168,9 @@ async def profile(message: types.Message) -> None:
     )
 
 
-@safe_handler("Подписка")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Подписка"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def subscription(message: types.Message) -> None:
     """
     Меню подписки с балансом, подпиской и реферальной системой.
@@ -179,7 +193,9 @@ async def subscription(message: types.Message) -> None:
     )
 
 
-@safe_handler("Показать каналы")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Показать каналы"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def show_channels(message: types.Message) -> None:
     """
     Показать список каналов пользователя.
@@ -195,7 +211,9 @@ async def show_channels(message: types.Message) -> None:
     )
 
 
-@safe_handler("Приветка")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Приветка"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def start_privetka(message: types.Message, state: FSMContext) -> None:
     """
     Начало настройки приветственного бота (Privetka).
@@ -237,7 +255,9 @@ async def start_privetka(message: types.Message, state: FSMContext) -> None:
     )
 
 
-@safe_handler("Выбор канала для приветки")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Выбор канала для приветки"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def privetka_choice_channel(call: types.CallbackQuery, state: FSMContext) -> None:
     """
     Обработчик выбора канала для настройки приветственного бота.

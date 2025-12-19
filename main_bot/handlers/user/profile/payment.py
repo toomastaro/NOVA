@@ -39,7 +39,9 @@ async def safe_delete(message: types.Message):
         pass
 
 
-@safe_handler("Оплата: выбор метода")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Оплата: выбор метода"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def choice(call: types.CallbackQuery, state: FSMContext, user: User):
     """Маршрутизатор выбора метода оплаты."""
     temp = call.data.split("|")
@@ -75,7 +77,9 @@ async def choice(call: types.CallbackQuery, state: FSMContext, user: User):
     await state.set_state(Balance.input_amount)
 
 
-@safe_handler("Оплата: отмена")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Оплата: отмена"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def cancel(call: types.CallbackQuery, state: FSMContext):
     """Отмена ввода суммы."""
     data = await state.get_data()
@@ -86,7 +90,9 @@ async def cancel(call: types.CallbackQuery, state: FSMContext):
     await show_top_up(call.message, state)
 
 
-@safe_handler("Оплата: назад к методам")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Оплата: назад к методам"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def back_to_method(call: types.CallbackQuery, state: FSMContext):
     """Возврат к выбору способа оплаты с экрана ожидания"""
     try:
@@ -137,7 +143,9 @@ async def back_to_method(call: types.CallbackQuery, state: FSMContext):
     )
 
 
-@safe_handler("Оплата: ввод промокода")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Оплата: ввод промокода"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def get_promo(message: types.Message, state: FSMContext, user: User):
     """Обработка ввода промокода."""
     name = message.text
@@ -167,7 +175,9 @@ async def get_promo(message: types.Message, state: FSMContext, user: User):
     )
 
 
-@safe_handler("Оплата: ввод суммы")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Оплата: ввод суммы"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def get_amount(message: types.Message, state: FSMContext):
     """Обработка ввода суммы пополнения и создание счета."""
     try:
@@ -308,12 +318,16 @@ async def get_amount(message: types.Message, state: FSMContext):
             return
 
 
-@safe_handler("Оплата: pre-checkout запрос")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Оплата: pre-checkout запрос"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def process_pre_checkout_query(call: types.PreCheckoutQuery):
     await call.answer(ok=True)
 
 
-@safe_handler("Оплата: успех")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Оплата: успех"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def success(message: types.Message, state: FSMContext):
     # ВАЖНО: refund_star_payment убран - он делал возврат денег!
     # Используйте его только для тестирования или реального возврата средств

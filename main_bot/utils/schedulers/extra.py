@@ -39,10 +39,10 @@ async def update_exchange_rates_in_db() -> None:
             if any(val > 0 for val in new_update.values()):
                 break
         except Exception as e:
-            logger.error(f"Попытка {attempt+1} не удалась при получении курсов: {e}")
+            logger.error(f"Попытка {attempt + 1} не удалась при получении курсов: {e}")
 
         logger.warning(
-            f"Попытка {attempt+1}: Все курсы нулевые или ошибка. Повтор через 5с..."
+            f"Попытка {attempt + 1}: Все курсы нулевые или ошибка. Повтор через 5с..."
         )
         await asyncio.sleep(5)
 

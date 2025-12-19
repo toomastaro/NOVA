@@ -25,7 +25,7 @@ class DictObj:
 
 
 def ensure_bot_post_obj(
-    post: Union[BotPost, Dict[str, Any]]
+    post: Union[BotPost, Dict[str, Any]],
 ) -> Union[BotPost, DictObj]:
     """
     Гарантирует, что входные данные являются объектом с атрибутами, а не словарем.
@@ -238,7 +238,7 @@ class InlineBots(InlineKeyboardBuilder):
                 callback_data=f"{data}|back_month|{monthrange(day.year, day.month)[1]}",
             ),
             InlineKeyboardButton(
-                text=f'{text("other_month").get(str(day.month))} {day.year}',
+                text=f"{text('other_month').get(str(day.month))} {day.year}",
                 callback_data=f"{data}|...",
             ),
             InlineKeyboardButton(
@@ -264,7 +264,7 @@ class InlineBots(InlineKeyboardBuilder):
         kb.row(
             InlineKeyboardButton(text="⬅️", callback_data=f"{data}|back_day|1"),
             InlineKeyboardButton(
-                text=f'{day.day} {text("month").get(str(day.month))}',
+                text=f"{day.day} {text('month').get(str(day.month))}",
                 callback_data=f"{data}|...",
             ),
             InlineKeyboardButton(text="➡️", callback_data=f"{data}|next_day|-1"),

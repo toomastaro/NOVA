@@ -39,23 +39,23 @@ apps: Dict[str, SessionManager] = {}
 def determine_pool_type(username: Optional[str]) -> str:
     """
     Определяет тип пула на основе username клиента.
-    
+
     Правила:
     - Если username содержит 'super' → 'internal' (свои)
     - Если username содержит 'ultra' → 'external' (внешний)
     - По умолчанию → 'internal'
-    
+
     Args:
         username: Username клиента в Telegram (может быть None)
-        
+
     Returns:
         'internal' или 'external'
     """
     if not username:
         return "internal"  # по умолчанию
-    
+
     username_lower = username.lower()
-    
+
     if "super" in username_lower:
         return "internal"
     elif "ultra" in username_lower:
@@ -138,7 +138,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext) -> None:
     if action == "scan":
         # Автоматическое сканирование и добавление orphaned сессий
         await call.answer("🔍 Сканирую сессии...", show_alert=False)
-        
+
         all_clients = await db.mt_client.get_mt_clients_by_pool(
             "internal"
         ) + await db.mt_client.get_mt_clients_by_pool("external")
@@ -155,38 +155,44 @@ async def choice(call: types.CallbackQuery, state: FSMContext) -> None:
         if not orphaned:
             await call.answer("✅ Неучтённых сессий не найдено", show_alert=True)
             return
-        
+
         # Автоматическое добавление всех найденных сессий
         added_sessions = []
         errors = []
-        
+
         for session_path in orphaned:
             try:
                 async with SessionManager(session_path) as manager:
                     if not manager.client:
-                        errors.append(f"❌ {session_path.name}: не удалось подключиться")
+                        errors.append(
+                            f"❌ {session_path.name}: не удалось подключиться"
+                        )
                         continue
-                    
+
                     # Получаем информацию о клиенте
                     me = await manager.me()
                     if not me:
-                        errors.append(f"❌ {session_path.name}: не удалось получить данные")
+                        errors.append(
+                            f"❌ {session_path.name}: не удалось получить данные"
+                        )
                         continue
-                    
+
                     username = me.username if me else None
                     pool_type = determine_pool_type(username)
-                    
+
                     # Формируем alias
                     first_name = me.first_name or ""
                     last_name = me.last_name or ""
                     full_name = f"{first_name} {last_name}".strip()
-                    
+
                     if full_name:
                         alias = f"👤 {full_name}"
                     else:
-                        existing_clients = await db.mt_client.get_mt_clients_by_pool(pool_type)
+                        existing_clients = await db.mt_client.get_mt_clients_by_pool(
+                            pool_type
+                        )
                         alias = f"{pool_type}-auto-{len(existing_clients) + 1}"
-                    
+
                     # Создаем клиента в БД
                     new_client = await db.mt_client.create_mt_client(
                         alias=alias,
@@ -195,12 +201,12 @@ async def choice(call: types.CallbackQuery, state: FSMContext) -> None:
                         status="NEW",
                         is_active=False,
                     )
-                    
+
                     # Health check
                     health = await manager.health_check()
                     current_time = int(time.time())
                     updates = {"last_self_check_at": current_time}
-                    
+
                     if health["ok"]:
                         updates["status"] = "ACTIVE"
                         updates["is_active"] = True
@@ -211,48 +217,53 @@ async def choice(call: types.CallbackQuery, state: FSMContext) -> None:
                         updates["last_error_code"] = health.get("error_code", "UNKNOWN")
                         updates["last_error_at"] = current_time
                         status_icon = "❌"
-                    
-                    await db.mt_client.update_mt_client(client_id=new_client.id, **updates)
-                    
-                    added_sessions.append({
-                        "file": session_path.name,
-                        "alias": alias,
-                        "pool": pool_type,
-                        "status": status_icon,
-                        "username": username or "N/A",
-                    })
-                    
+
+                    await db.mt_client.update_mt_client(
+                        client_id=new_client.id, **updates
+                    )
+
+                    added_sessions.append(
+                        {
+                            "file": session_path.name,
+                            "alias": alias,
+                            "pool": pool_type,
+                            "status": status_icon,
+                            "username": username or "N/A",
+                        }
+                    )
+
                     logger.info(
                         f"Автоматически добавлена сессия: {session_path.name} → {pool_type} (username: {username})"
                     )
-                    
+
             except Exception as e:
-                logger.error(f"Ошибка обработки {session_path.name}: {e}", exc_info=True)
+                logger.error(
+                    f"Ошибка обработки {session_path.name}: {e}", exc_info=True
+                )
                 errors.append(f"❌ {session_path.name}: {str(e)[:50]}")
-        
+
         # Формируем отчёт
         report = "🔍 Результаты сканирования:\n\n"
-        
+
         if added_sessions:
             report += f"✅ Добавлено сессий: {len(added_sessions)}\n\n"
             for s in added_sessions:
                 pool_emoji = "🏠" if s["pool"] == "internal" else "🌐"
                 report += f"{s['status']} {pool_emoji} {s['alias']}\n"
                 report += f"   Username: @{s['username']}\n"
-        
+
         if errors:
             report += f"\n\n❌ Ошибки: {len(errors)}\n"
             for err in errors[:5]:  # Показываем только первые 5 ошибок
                 report += f"{err}\n"
             if len(errors) > 5:
                 report += f"... и ещё {len(errors) - 5}\n"
-        
+
         if not added_sessions and not errors:
             report = "✅ Все сессии уже добавлены в систему"
-        
+
         await call.message.edit_text(
-            report,
-            reply_markup=keyboards.back(data="AdminSession|back_to_main")
+            report, reply_markup=keyboards.back(data="AdminSession|back_to_main")
         )
         return
 
@@ -583,19 +594,19 @@ async def get_code(message: types.Message, state: FSMContext) -> None:
     pool_type = "internal"  # По умолчанию
     alias = None
     username = None
-    
+
     try:
         me = await app.me()
         if me:
             # Получаем username для определения пула
             username = me.username if me else None
             pool_type = determine_pool_type(username)
-            
+
             logger.info(
                 f"Автоопределение пула для сессии {number}: "
                 f"username=@{username or 'N/A'}, pool={pool_type}"
             )
-            
+
             # Формат alias: "👤 Имя Фамилия"
             first_name = me.first_name or ""
             last_name = me.last_name or ""

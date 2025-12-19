@@ -26,7 +26,9 @@ router = Router(name="AdPurchaseMenu")
 
 
 @router.message(F.text == "Рекламные закупы")
-@safe_handler("Закупы: показ меню")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Закупы: показ меню"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def show_ad_purchase_menu(message: types.Message) -> None:
     """
     Показ меню закупов (сообщение).
@@ -38,7 +40,9 @@ async def show_ad_purchase_menu(message: types.Message) -> None:
 
 
 @router.callback_query(F.data == "AdPurchase|menu")
-@safe_handler("Закупы: показ меню (callback)")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Закупы: показ меню (callback)"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def show_ad_purchase_menu_callback(call: CallbackQuery) -> None:
     """
     Показ меню закупов (callback).
@@ -49,7 +53,9 @@ async def show_ad_purchase_menu_callback(call: CallbackQuery) -> None:
     await show_ad_purchase_menu_internal(call.message, edit=True)
 
 
-@safe_handler("Закупы: показ меню (внутренний)")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Закупы: показ меню (внутренний)"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def show_ad_purchase_menu_internal(
     message: types.Message, edit: bool = False
 ) -> None:
@@ -107,7 +113,9 @@ async def show_ad_purchase_menu_internal(
 
 
 @router.callback_query(F.data == "AdPurchase|check_client_status")
-@safe_handler("Закупы: проверка статуса клиента")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Закупы: проверка статуса клиента"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def check_client_status(call: CallbackQuery) -> None:
     """
     Проверка статуса подключения технических аккаунтов к каналам пользователя.
@@ -124,9 +132,9 @@ async def check_client_status(call: CallbackQuery) -> None:
         return
 
     # Группируем каналы по клиентам для оптимизации сессий
-    client_groups: Dict[int, Dict[str, Any]] = (
-        {}
-    )  # {client_id: {'client': mt_client, 'channels': [channel]}}
+    client_groups: Dict[
+        int, Dict[str, Any]
+    ] = {}  # {client_id: {'client': mt_client, 'channels': [channel]}}
     no_client_channels = []
 
     for channel in user_channels:
@@ -218,7 +226,9 @@ async def check_client_status(call: CallbackQuery) -> None:
 
 
 @router.callback_query(F.data == "AdPurchase|create_menu")
-@safe_handler("Закупы: выбор креатива")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Закупы: выбор креатива"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def show_creative_selection(call: CallbackQuery) -> None:
     """
     Меню выбора креатива для создания закупа.
@@ -253,7 +263,9 @@ async def show_creative_selection(call: CallbackQuery) -> None:
 
 
 @router.callback_query(F.data == "AdPurchase|list")
-@safe_handler("Закупы: список")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Закупы: список"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def show_purchase_list(call: CallbackQuery, send_new: bool = False) -> None:
     """
     Отображает список закупов пользователя.

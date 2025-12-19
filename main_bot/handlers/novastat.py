@@ -301,7 +301,6 @@ async def novastat_add_channel_finish(
 
     added_count = 0
     for identifier in channels_to_add:
-
         # Здесь можно добавить простую валидацию или обработку ошибок, если нужно
         await db.novastat.add_channel_to_collection(col_id, identifier)
         added_count += 1

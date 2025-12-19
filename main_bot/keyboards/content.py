@@ -159,16 +159,16 @@ class InlineContent(InlineKeyboardBuilder):
                 if isinstance(objects[idx], Channel):
                     resource_id = objects[idx].chat_id
                     resource_type = "channel"
-                    button_text = f'{"✅" if resource_id in chosen else ""} {idx + 1}. {objects[idx].title}'
+                    button_text = f"{'✅' if resource_id in chosen else ''} {idx + 1}. {objects[idx].title}"
                 elif isinstance(objects[idx], UserBot):
                     resource_id = objects[idx].id
                     resource_type = "bot"
-                    button_text = f'{"✅" if resource_id in chosen else ""} {idx + 1}. {objects[idx].title}'
+                    button_text = f"{'✅' if resource_id in chosen else ''} {idx + 1}. {objects[idx].title}"
                 else:
                     # Folder
                     resource_id = objects[idx].id
                     resource_type = "folder"
-                    button_text = f'{"✅" if resource_id in chosen_folders else "📁"} {objects[idx].title}'
+                    button_text = f"{'✅' if resource_id in chosen_folders else '📁'} {objects[idx].title}"
 
                 kb.row(
                     InlineKeyboardButton(
@@ -378,7 +378,7 @@ class InlineContent(InlineKeyboardBuilder):
             kb.row(
                 InlineKeyboardButton(text="⬅️", callback_data=f"{data}|back_day|1"),
                 InlineKeyboardButton(
-                    text=f'{day.day} {text("month").get(str(day.month))}',
+                    text=f"{day.day} {text('month').get(str(day.month))}",
                     callback_data=f"{data}|...",
                 ),
                 InlineKeyboardButton(text="➡️", callback_data=f"{data}|next_day|-1"),
@@ -402,7 +402,7 @@ class InlineContent(InlineKeyboardBuilder):
                     callback_data=f"{data}|back_month|{monthrange(day.year, day.month)[1]}",
                 ),
                 InlineKeyboardButton(
-                    text=f'{text("other_month").get(str(day.month))} {day.year}',
+                    text=f"{text('other_month').get(str(day.month))} {day.year}",
                     callback_data=f"{data}|...",
                 ),
                 InlineKeyboardButton(
@@ -469,7 +469,7 @@ class InlineContent(InlineKeyboardBuilder):
             kb.row(
                 InlineKeyboardButton(text="⬅️", callback_data=f"{data}|back_day|1"),
                 InlineKeyboardButton(
-                    text=f'{day.day} {text("month").get(str(day.month))}',
+                    text=f"{day.day} {text('month').get(str(day.month))}",
                     callback_data=f"{data}|...",
                 ),
                 InlineKeyboardButton(text="➡️", callback_data=f"{data}|next_day|-1"),

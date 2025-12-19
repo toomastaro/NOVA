@@ -30,7 +30,9 @@ from utils.error_handler import safe_handler
 logger = logging.getLogger(__name__)
 
 
-@safe_handler("Команды: обработчик")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Команды: обработчик"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def commands(
     message: types.Message, command: CommandObject, state: FSMContext
 ) -> None:

@@ -3,7 +3,6 @@ from typing import Dict, Any, Optional
 
 from main_bot.database.db import db
 from main_bot.database.db_types import Status
-from main_bot.handlers.user.common_content import serialize_channel
 
 
 class DictObj:
@@ -52,6 +51,7 @@ def serialize_bot_post(post: Any) -> Optional[Dict[str, Any]]:
         "error_send": getattr(post, "error_send", 0),
         "created_at": getattr(post, "created_at", None),
     }
+
 
 async def get_days_with_bot_posts(
     bot_id: int, year: int, month: int

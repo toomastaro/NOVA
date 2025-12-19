@@ -39,7 +39,6 @@ class DictObj:
             setattr(self, key, val)
 
 
-
 def ensure_bot_obj(bot: Union[UserBot, Dict[str, Any]]) -> Union[UserBot, DictObj]:
     """
     Гарантирует, что входные данные являются объектом с атрибутами, а не словарем.
@@ -74,7 +73,9 @@ def serialize_user_bot(bot: Any) -> Union[Dict[str, Any], None]:
     }
 
 
-@safe_handler("Боты: панель управления")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Боты: панель управления"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def show_bot_manage(
     message: types.Message, user_bot: Union[UserBot, Dict[str, Any]]
 ) -> None:
@@ -97,7 +98,9 @@ async def show_bot_manage(
         bot_id=user_bot.id
     )
     channels_raw = [
-        await db.channel.get_channel_admin_row(chat_id=chat.id, user_id=user_bot.admin_id)
+        await db.channel.get_channel_admin_row(
+            chat_id=chat.id, user_id=user_bot.admin_id
+        )
         for chat in channel_ids_in_bot
     ]
     channels = [c for c in channels_raw if c]
@@ -123,7 +126,9 @@ async def show_bot_manage(
     )
 
 
-@safe_handler("Боты: выбор бота")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Боты: выбор бота"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def choice(call: types.CallbackQuery, state: FSMContext) -> None:
     """
     Выбор бота для настройки или добавления нового.
@@ -167,7 +172,9 @@ async def choice(call: types.CallbackQuery, state: FSMContext) -> None:
     await show_bot_manage(call.message, user_bot)
 
 
-@safe_handler("Боты: отмена действий")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Боты: отмена действий"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def cancel(call: types.CallbackQuery, state: FSMContext) -> None:
     """
     Отмена действия и возврат к списку ботов.
@@ -188,7 +195,9 @@ async def cancel(call: types.CallbackQuery, state: FSMContext) -> None:
     )
 
 
-@safe_handler("Боты: получение токена")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Боты: получение токена"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def get_token(message: types.Message, state: FSMContext) -> None:
     """
     Обработка введенного токена бота.
@@ -256,7 +265,9 @@ async def get_token(message: types.Message, state: FSMContext) -> None:
     )
 
 
-@safe_handler("Боты: управление ботом (callback)")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Боты: управление ботом (callback)"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def manage_bot(call: types.CallbackQuery, state: FSMContext) -> None:
     """
     Управление настройками бота.
@@ -274,7 +285,9 @@ async def manage_bot(call: types.CallbackQuery, state: FSMContext) -> None:
             bot_id = int(temp[2])
             user_bot = await db.user_bot.get_bot_by_id(bot_id)
             if user_bot:
-                await state.update_data(bot_id=bot_id, user_bot=serialize_user_bot(user_bot))
+                await state.update_data(
+                    bot_id=bot_id, user_bot=serialize_user_bot(user_bot)
+                )
                 data = await state.get_data()
         except Exception:
             pass
@@ -359,7 +372,9 @@ async def manage_bot(call: types.CallbackQuery, state: FSMContext) -> None:
         )
 
 
-@safe_handler("Боты: обновление токена")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Боты: обновление токена"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def update_token(message: types.Message, state: FSMContext) -> None:
     """
     Обновление токена существующего бота.
@@ -402,7 +417,9 @@ async def update_token(message: types.Message, state: FSMContext) -> None:
     await show_bot_manage(message, user_bot)
 
 
-@safe_handler("Боты: возврат к панели")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Боты: возврат к панели"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def back_update(call: types.CallbackQuery, state: FSMContext) -> None:
     """
     Возврат после обновления или ошибки.
@@ -426,7 +443,9 @@ async def back_update(call: types.CallbackQuery, state: FSMContext) -> None:
     await show_bot_manage(call.message, user_bot)
 
 
-@safe_handler("Боты: удаление бота")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Боты: удаление бота"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def delete_bot(call: types.CallbackQuery, state: FSMContext) -> None:
     """
     Удаление бота из системы.
@@ -462,7 +481,9 @@ async def delete_bot(call: types.CallbackQuery, state: FSMContext) -> None:
     await show_bot_manage(call.message, data.get("user_bot"))
 
 
-@safe_handler("Боты: импорт пользователей")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Боты: импорт пользователей"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def get_import_file(message: types.Message, state: FSMContext) -> None:
     """
     Импорт базы пользователей из файла (txt, xlsx, csv).
@@ -527,7 +548,9 @@ async def get_import_file(message: types.Message, state: FSMContext) -> None:
     await message.answer(text("success_import"))
 
 
-@safe_handler("Боты: экспорт пользователей")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Боты: экспорт пользователей"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def choice_export(call: types.CallbackQuery, state: FSMContext) -> None:
     """
     Экспорт базы пользователей в файл.

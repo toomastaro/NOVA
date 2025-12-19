@@ -18,7 +18,9 @@ from utils.error_handler import safe_handler
 logger = logging.getLogger(__name__)
 
 
-@safe_handler("Закуп: показ меню")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Закуп: показ меню"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def show_ad_buy_menu(event: Union[types.Message, types.CallbackQuery]) -> None:
     """
     Показать меню закупов с рекламными креативами и закупами.
@@ -30,19 +32,19 @@ async def show_ad_buy_menu(event: Union[types.Message, types.CallbackQuery]) -> 
     # Импортируем для проверки подписки
     from main_bot.database.db import db
     from main_bot.utils.lang.language import text
-    
+
     # Проверка наличия каналов с активной подпиской
     user_id = event.from_user.id
     channels = await db.channel.get_user_channels(user_id=user_id, limit=500)
     channels_with_sub = [ch for ch in channels if ch.subscribe]
-    
+
     if not channels_with_sub:
         error_text = text("error_no_subscription_ad_buy")
         if isinstance(event, types.Message):
             return await event.answer(error_text)
         else:
             return await event.answer(error_text, show_alert=True)
-    
+
     # Показ меню закупов
     menu_text = text("ad_buy_menu:title")
     if isinstance(event, types.Message):
@@ -57,7 +59,9 @@ async def show_ad_buy_menu(event: Union[types.Message, types.CallbackQuery]) -> 
         )
 
 
-@safe_handler("Закуп: показ креативов")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Закуп: показ креативов"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def show_creatives(call: types.CallbackQuery) -> None:
     """
     Показать меню рекламных креативов.
@@ -70,7 +74,9 @@ async def show_creatives(call: types.CallbackQuery) -> None:
     )
 
 
-@safe_handler("Закуп: показ закупов")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Закуп: показ закупов"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def show_purchases(call: types.CallbackQuery) -> None:
     """
     Показать меню рекламных закупов.
@@ -83,7 +89,9 @@ async def show_purchases(call: types.CallbackQuery) -> None:
     )
 
 
-@safe_handler("Закуп: возврат в главное меню")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Закуп: возврат в главное меню"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def back_to_main(call: types.CallbackQuery) -> None:
     """
     Возврат в главное меню.

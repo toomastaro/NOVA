@@ -18,7 +18,9 @@ from utils.error_handler import safe_handler
 logger = logging.getLogger(__name__)
 
 
-@safe_handler("Таймзона: получение")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Таймзона: получение"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def get_timezone(message: types.Message, state: FSMContext):
     """Обрабатывает ввод часового пояса от пользователя."""
     try:
@@ -55,7 +57,9 @@ async def get_timezone(message: types.Message, state: FSMContext):
     )
 
 
-@safe_handler("Таймзона: отмена")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Таймзона: отмена"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def cancel(call: types.CallbackQuery, state: FSMContext):
     """Отмена ввода часового пояса."""
     await state.clear()

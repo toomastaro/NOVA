@@ -177,7 +177,9 @@ class DatabaseMixin:
                 async with asyncio.timeout(DB_TIMEOUT_SECONDS):
                     async with get_session(self.schema) as session:
                         session: AsyncSession
-                        logger.debug(f"Получение одной строки (схема={self.schema}): {sql}")
+                        logger.debug(
+                            f"Получение одной строки (схема={self.schema}): {sql}"
+                        )
                         res: Result = await session.execute(sql)
                         if commit:
                             await session.commit()
@@ -185,7 +187,9 @@ class DatabaseMixin:
                         result = res.scalar_one_or_none()
                         return result
         except asyncio.TimeoutError:
-            logger.error(f"Таймаут базы данных в fetchrow() после {DB_TIMEOUT_SECONDS}с")
+            logger.error(
+                f"Таймаут базы данных в fetchrow() после {DB_TIMEOUT_SECONDS}с"
+            )
             raise
         except Exception as e:
             logger.error(f"Ошибка базы данных в fetchrow(): {e}", exc_info=True)
@@ -208,13 +212,17 @@ class DatabaseMixin:
                 async with asyncio.timeout(DB_TIMEOUT_SECONDS):
                     async with get_session(self.schema) as session:
                         session: AsyncSession
-                        logger.debug(f"Получение всех строк (схема={self.schema}): {sql}")
+                        logger.debug(
+                            f"Получение всех строк (схема={self.schema}): {sql}"
+                        )
                         res: Result = await session.execute(sql)
                         results = res.all()
                         logger.debug(f"Получено строк: {len(results)}")
                         return results
         except asyncio.TimeoutError:
-            logger.error(f"Таймаут базы данных в fetchall() после {DB_TIMEOUT_SECONDS}с")
+            logger.error(
+                f"Таймаут базы данных в fetchall() после {DB_TIMEOUT_SECONDS}с"
+            )
             raise
         except Exception as e:
             logger.error(f"Ошибка базы данных в fetchall(): {e}", exc_info=True)
@@ -237,12 +245,16 @@ class DatabaseMixin:
                 async with asyncio.timeout(DB_TIMEOUT_SECONDS):
                     async with get_session(self.schema) as session:
                         session: AsyncSession
-                        logger.debug(f"Получение ровно одной строки (схема={self.schema}): {sql}")
+                        logger.debug(
+                            f"Получение ровно одной строки (схема={self.schema}): {sql}"
+                        )
                         res: Result = await session.execute(sql)
                         result = res.one()
                         return result
         except asyncio.TimeoutError:
-            logger.error(f"Таймаут базы данных в fetchone() после {DB_TIMEOUT_SECONDS}с")
+            logger.error(
+                f"Таймаут базы данных в fetchone() после {DB_TIMEOUT_SECONDS}с"
+            )
             raise
         except Exception as e:
             logger.error(f"Ошибка базы данных в fetchone(): {e}", exc_info=True)

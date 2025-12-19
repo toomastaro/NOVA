@@ -1,11 +1,13 @@
 import asyncio
 from typing import Dict, Tuple
 
+
 class CaptchaEventManager:
     """
     Менеджер событий для уведомления о прохождении капчи.
     Позволяет избежать постоянного опроса (polling) базы данных.
     """
+
     def __init__(self):
         # Ключ: (schema, user_id)
         self._events: Dict[Tuple[str, int], asyncio.Event] = {}
@@ -25,16 +27,16 @@ class CaptchaEventManager:
         key = self._get_key(schema, user_id)
         if key in self._events:
             self._events[key].set()
-            # Удаляем событие из памяти после уведомления, 
+            # Удаляем событие из памяти после уведомления,
             # так как оно больше не нужно (одноразовый сигнал)
-            # Примечание: если несколько задач ждут одно событие, 
+            # Примечание: если несколько задач ждут одно событие,
             # они все проснутся при .set()
             del self._events[key]
 
     async def wait_for(self, schema: str, user_id: int, timeout: float = None) -> bool:
         """
         Ожидает прохождения капчи.
-        
+
         Returns:
             bool: True если событие произошло, False если вышел таймаут.
         """
@@ -48,6 +50,7 @@ class CaptchaEventManager:
                 return True
         except asyncio.TimeoutError:
             return False
+
 
 # Глобальный экземпляр менеджера
 event_manager = CaptchaEventManager()

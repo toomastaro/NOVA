@@ -33,7 +33,9 @@ import json
 logger = logging.getLogger(__name__)
 
 
-@safe_handler("Выбор каналов для постинга")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Выбор каналов для постинга"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def choice_channels(call: types.CallbackQuery, state: FSMContext):
     """
     Выбор каналов для публикации поста.
@@ -442,7 +444,9 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
         await call.answer()
 
 
-@safe_handler("Финальные параметры постинга")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Финальные параметры постинга"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def finish_params(call: types.CallbackQuery, state: FSMContext):
     """
     Настройка финальных параметров поста перед публикацией.
@@ -539,7 +543,6 @@ async def finish_params(call: types.CallbackQuery, state: FSMContext):
 
     # Выбор времени отправки
     if temp[1] == "send_time":
-
         await call.message.delete()
         await call.message.answer(
             text("manage:post:new:send_time"),
@@ -550,7 +553,6 @@ async def finish_params(call: types.CallbackQuery, state: FSMContext):
 
     # Немедленная публикация
     if temp[1] == "public":
-
         display_objects = await db.channel.get_user_channels(
             user_id=call.from_user.id, from_array=chosen[:10]
         )
@@ -572,6 +574,7 @@ async def finish_params(call: types.CallbackQuery, state: FSMContext):
 
         # Force refresh main menu
         from main_bot.keyboards.common import Reply
+
         await call.message.answer("📝 Публикация...", reply_markup=Reply.menu())
 
         await call.message.answer(
@@ -583,7 +586,9 @@ async def finish_params(call: types.CallbackQuery, state: FSMContext):
         return
 
 
-@safe_handler("Выбор времени удаления")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Выбор времени удаления"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def choice_delete_time(call: types.CallbackQuery, state: FSMContext):
     """
     Выбор времени автоудаления поста.
@@ -658,7 +663,9 @@ async def choice_delete_time(call: types.CallbackQuery, state: FSMContext):
     )
 
 
-@safe_handler("Отмена ввода времени")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Отмена ввода времени"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def cancel_send_time(call: types.CallbackQuery, state: FSMContext):
     """
     Отмена ввода времени отправки.
@@ -704,7 +711,9 @@ async def cancel_send_time(call: types.CallbackQuery, state: FSMContext):
     )
 
 
-@safe_handler("Получение времени отправки")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Получение времени отправки"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def get_send_time(message: types.Message, state: FSMContext):
     """
     Получение времени отправки от пользователя.
@@ -815,6 +824,7 @@ async def get_send_time(message: types.Message, state: FSMContext):
             delete_str = f"{int(post.delete_time / 3600)} ч."
 
     from main_bot.keyboards.common import Reply
+
     await message.answer("✅ Время принято", reply_markup=Reply.menu())
 
     await message.answer(

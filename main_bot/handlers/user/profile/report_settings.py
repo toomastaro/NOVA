@@ -25,7 +25,9 @@ class ReportSettingsStates(StatesGroup):
     input_text = State()
 
 
-@safe_handler("Настройки: отчеты")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Настройки: отчеты"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def show_report_settings_menu(call: types.CallbackQuery):
     """
     Показывает главное меню настроек отчетов.
@@ -42,7 +44,9 @@ async def show_report_settings_menu(call: types.CallbackQuery):
     )
 
 
-@safe_handler("Настройки: конкретная настройка")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Настройки: конкретная настройка"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def show_specific_setting(call: types.CallbackQuery, setting_type: str):
     """
     Показывает настройки конкретной подписи (CPM/Exchange/Referral).
@@ -82,7 +86,9 @@ async def show_specific_setting(call: types.CallbackQuery, setting_type: str):
     )
 
 
-@safe_handler("Настройки: переключение опции")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Настройки: переключение опции"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def process_toggle(call: types.CallbackQuery):
     """
     Переключает состояние подписи (Вкл/Выкл).
@@ -112,7 +118,9 @@ async def process_toggle(call: types.CallbackQuery):
     await show_specific_setting(call, setting_type)
 
 
-@safe_handler("Настройки: начало редактирования текста")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Настройки: начало редактирования текста"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def start_edit_text(call: types.CallbackQuery, state: FSMContext):
     """
     Начинает редактирование текста подписи.
@@ -127,7 +135,9 @@ async def start_edit_text(call: types.CallbackQuery, state: FSMContext):
     await state.set_state(ReportSettingsStates.input_text)
 
 
-@safe_handler("Настройки: завершение редактирования текста")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Настройки: завершение редактирования текста"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def finish_edit_text(message: types.Message, state: FSMContext):
     """
     Завершает редактирование текста.
@@ -202,7 +212,9 @@ async def finish_edit_text(message: types.Message, state: FSMContext):
     await state.clear()
 
 
-@safe_handler("Настройки: назад в главное меню")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Настройки: назад в главное меню"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def back_to_main_settings(call: types.CallbackQuery):
     """
     Возврат в главное меню настроек (из отчетов).
@@ -218,7 +230,9 @@ async def back_to_main_settings(call: types.CallbackQuery):
     )
 
 
-@safe_handler("Настройки: выбор роутера")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Настройки: выбор роутера"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def router_choice(call: types.CallbackQuery, state: FSMContext):
     await call.answer()
     action = call.data.split("|")[1]

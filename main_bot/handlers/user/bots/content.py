@@ -10,7 +10,6 @@
 
 from datetime import datetime, timedelta
 import logging
-from typing import Dict, Any, Optional
 
 from aiogram import types, F, Router
 from aiogram.fsm.context import FSMContext
@@ -34,9 +33,9 @@ from utils.error_handler import safe_handler
 logger = logging.getLogger(__name__)
 
 
-
-
-@safe_handler("Боты: контент — выбор канала")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Боты: контент — выбор канала"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def choice_channel(call: types.CallbackQuery, state: FSMContext) -> None:
     """
     Выбор канала для просмотра контент-плана бота.
@@ -100,7 +99,9 @@ async def choice_channel(call: types.CallbackQuery, state: FSMContext) -> None:
     )
 
 
-@safe_handler("Боты: контент — выбор дня/поста")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Боты: контент — выбор дня/поста"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def choice_row_content(call: types.CallbackQuery, state: FSMContext) -> None:
     """
     Выбор дня или навигация по календарю контента.
@@ -286,7 +287,9 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext) -> No
     )
 
 
-@safe_handler("Боты: контент — список постов")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Боты: контент — список постов"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def choice_time_objects(call: types.CallbackQuery, state: FSMContext) -> None:
     """
     Выбор конкретного поста из списка time objects.
@@ -345,7 +348,9 @@ async def choice_time_objects(call: types.CallbackQuery, state: FSMContext) -> N
         )
 
 
-@safe_handler("Боты: контент — управление постом")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Боты: контент — управление постом"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def manage_remain_post(call: types.CallbackQuery, state: FSMContext) -> None:
     """
     Управление запланированным постом.
@@ -450,7 +455,9 @@ async def manage_remain_post(call: types.CallbackQuery, state: FSMContext) -> No
                 logger.error(f"Ошибка редактирования клавиатуры: {e}")
 
 
-@safe_handler("Боты: контент — подтверждение удаления")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Боты: контент — подтверждение удаления"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def accept_delete_row_content(
     call: types.CallbackQuery, state: FSMContext
 ) -> None:
@@ -486,7 +493,9 @@ async def accept_delete_row_content(
 
         await call.message.edit_text(
             text("bot_post:content").format(
-                "Нет" if not post.delete_time else f"{int(post.delete_time / 3600)} час.",
+                "Нет"
+                if not post.delete_time
+                else f"{int(post.delete_time / 3600)} час.",
                 send_date.day,
                 text("month").get(str(send_date.month)),
                 send_date.year,

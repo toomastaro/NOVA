@@ -22,7 +22,9 @@ from utils.error_handler import safe_handler
 logger = logging.getLogger(__name__)
 
 
-@safe_handler("Папки: управление")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Папки: управление"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def show_manage_folder(message: types.Message, state: FSMContext):
     """Показывает меню управления конкретной папкой."""
     data = await state.get_data()
@@ -35,7 +37,9 @@ async def show_manage_folder(message: types.Message, state: FSMContext):
     )
 
 
-@safe_handler("Папки: выбор")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Папки: выбор"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def choice(call: types.CallbackQuery, state: FSMContext):
     """Маршрутизатор главного меню папок."""
     temp = call.data.split("|")
@@ -80,14 +84,18 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
 # Лучше удалить для чистоты, но пока оставляем как заглушку
 
 
-@safe_handler("Папки: выбор типа")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Папки: выбор типа"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def choice_type(call: types.CallbackQuery, state: FSMContext, user: User):
     """Заглушка для выбора типа папки (устаревшее)."""
     # Этот хендлер больше не используется в новом потоке
     pass
 
 
-@safe_handler("Папки: выбор объекта")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Папки: выбор объекта"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def choice_object(call: types.CallbackQuery, state: FSMContext, user: User):
     """Обработчик выбора объектов (каналов) для папки."""
     temp = call.data.split("|")
@@ -195,7 +203,9 @@ async def choice_object(call: types.CallbackQuery, state: FSMContext, user: User
     )
 
 
-@safe_handler("Папки: отмена")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Папки: отмена"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def cancel(call: types.CallbackQuery, state: FSMContext, user: User):
     """Отмена текущего действия (создания или переименования)."""
 
@@ -219,7 +229,9 @@ async def cancel(call: types.CallbackQuery, state: FSMContext, user: User):
         )
 
 
-@safe_handler("Папки: ввод имени")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Папки: ввод имени"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def get_folder_name(message: types.Message, state: FSMContext, user: User):
     """Обработчик ввода имени папки."""
     title = message.text
@@ -249,7 +261,6 @@ async def get_folder_name(message: types.Message, state: FSMContext, user: User)
     )
 
     if not folder_edit:
-
         chosen = []
         cor = db.channel.get_user_channels
         object_type = "channels"
@@ -276,7 +287,9 @@ async def get_folder_name(message: types.Message, state: FSMContext, user: User)
         await show_manage_folder(message, state)
 
 
-@safe_handler("Папки: управление папкой")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Папки: управление папкой"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def manage_folder(call: types.CallbackQuery, state: FSMContext, user: User):
     """Управление папкой: переименование, изменение контента, удаление."""
     temp = call.data.split("|")

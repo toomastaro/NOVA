@@ -8,6 +8,7 @@
 """
 
 import logging
+from datetime import datetime
 from typing import Any, Dict, Union
 
 from aiogram import types
@@ -36,7 +37,6 @@ class DictObj:
             setattr(self, key, val)
 
 
-
 def ensure_bot_post_obj(
     post: Union[BotPost, Dict[str, Any]],
 ) -> Union[BotPost, DictObj]:
@@ -48,7 +48,9 @@ def ensure_bot_post_obj(
     return post
 
 
-@safe_handler("Боты: подтверждение создания поста")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Боты: подтверждение создания поста"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def accept(call: types.CallbackQuery, state: FSMContext) -> None:
     """
     Финальное подтверждение создания поста.
@@ -85,7 +87,9 @@ async def accept(call: types.CallbackQuery, state: FSMContext) -> None:
             await state.update_data(send_time=None)
             message_text = text("manage:post_bot:new:send_time")
             day_str = data.get("day")
-            day = datetime.fromisoformat(day_str) if isinstance(day_str, str) else day_str
+            day = (
+                datetime.fromisoformat(day_str) if isinstance(day_str, str) else day_str
+            )
             reply_markup = keyboards.choice_send_time_bot_post(day=day)
             await state.set_state(Bots.input_send_time)
         else:
@@ -104,7 +108,7 @@ async def accept(call: types.CallbackQuery, state: FSMContext) -> None:
             message_text = text("bot:content").format(
                 *data.get("send_date_values"),
                 data.get("channel").emoji_id,
-                data.get("channel").title
+                data.get("channel").title,
             )
             reply_markup = keyboards.manage_remain_bot_post(
                 post=ensure_bot_post_obj(data.get("post"))
@@ -134,9 +138,7 @@ async def accept(call: types.CallbackQuery, state: FSMContext) -> None:
         return
 
     # Update bot post in DB
-    post = await db.bot_post.update_bot_post(
-        post_id=post.id, return_obj=True, **kwargs
-    )
+    post = await db.bot_post.update_bot_post(post_id=post.id, return_obj=True, **kwargs)
     await state.update_data(post=serialize_bot_post(post))
     post = ensure_bot_post_obj(serialize_bot_post(post))
 

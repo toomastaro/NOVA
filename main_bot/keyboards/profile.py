@@ -126,7 +126,7 @@ class InlineProfile(InlineKeyboardBuilder):
 
                 kb.add(
                     InlineKeyboardButton(
-                        text=f'{"🔹" if resource_id in chosen else ""} {sub_objects[idx].title}',
+                        text=f"{'🔹' if resource_id in chosen else ''} {sub_objects[idx].title}",
                         callback_data=f"ChoiceResourceAlignSubscribe|{resource_id}|{remover}",
                     )
                 )
@@ -206,7 +206,7 @@ class InlineProfile(InlineKeyboardBuilder):
 
                 kb.add(
                     InlineKeyboardButton(
-                        text=f'{"🔹" if resource_id in chosen else ""} {resources[idx].title}',
+                        text=f"{'🔹' if resource_id in chosen else ''} {resources[idx].title}",
                         callback_data=f"ChoiceResourceSubscribe|{resource_id}|{remover}",
                     )
                 )
@@ -334,7 +334,7 @@ class InlineProfile(InlineKeyboardBuilder):
 
                 kb.add(
                     InlineKeyboardButton(
-                        text=f'{"🔹" if resource_id in chosen else ""} {resources[idx].title}',
+                        text=f"{'🔹' if resource_id in chosen else ''} {resources[idx].title}",
                         callback_data=f"ChoiceResourceFolder|{resource_id}|{remover}",
                     )
                 )
@@ -541,7 +541,7 @@ class InlineProfile(InlineKeyboardBuilder):
 
                 kb.add(
                     InlineKeyboardButton(
-                        text=f'{"🔹" if channel.chat_id in chosen else ""} {channel.title}{sub_text}',
+                        text=f"{'🔹' if channel.chat_id in chosen else ''} {channel.title}{sub_text}",
                         callback_data=f"TransferSubRecipients|{channel.chat_id}|{remover}",
                     )
                 )

@@ -25,7 +25,9 @@ from utils.error_handler import safe_handler
 logger = logging.getLogger(__name__)
 
 
-@safe_handler("Постинг: управление постом")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Постинг: управление постом"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def manage_post(call: types.CallbackQuery, state: FSMContext):
     """
     Управление постом - обработка различных действий с постом.
@@ -100,7 +102,7 @@ async def manage_post(call: types.CallbackQuery, state: FSMContext):
                 text("post:content").format(
                     *data.get("send_date_values"),
                     data.get("channel").emoji_id,
-                    data.get("channel").title
+                    data.get("channel").title,
                 ),
                 reply_markup=keyboards.manage_remain_post(
                     post=post, is_published=data.get("is_published")
@@ -126,9 +128,10 @@ async def manage_post(call: types.CallbackQuery, state: FSMContext):
             channels_list = ""
 
         await call.message.delete()
-        
+
         # Force refresh main menu
         from main_bot.keyboards.common import Reply
+
         await call.message.answer("⚙️ Настройка публикации", reply_markup=Reply.menu())
 
         return await call.message.answer(
@@ -237,7 +240,9 @@ async def manage_post(call: types.CallbackQuery, state: FSMContext):
         )
 
 
-@safe_handler("Постинг: отмена значения")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Постинг: отмена значения"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def cancel_value(call: types.CallbackQuery, state: FSMContext):
     """
     Отмена редактирования параметра или удаление значения параметра.
@@ -322,7 +327,9 @@ async def cancel_value(call: types.CallbackQuery, state: FSMContext):
     await answer_post(call.message, state)
 
 
-@safe_handler("Постинг: получение значения")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Постинг: получение значения"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def get_value(message: types.Message, state: FSMContext):
     """
     Получение нового значения параметра от пользователя.

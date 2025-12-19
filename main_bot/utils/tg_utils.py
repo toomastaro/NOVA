@@ -295,7 +295,9 @@ async def set_channel_session(chat_id: int):
             is_admin = perms.get("is_admin", False)
             can_stories = perms.get("can_post_stories", False)
             if perms.get("me") and perms["me"].username:
-                await db.mt_client.update_mt_client(client.id, alias=perms["me"].username)
+                await db.mt_client.update_mt_client(
+                    client.id, alias=perms["me"].username
+                )
 
         # Устанавливаем членство с актуальными правами
         await db.mt_client_channel.set_membership(
@@ -352,13 +354,13 @@ async def background_join_channel(chat_id: int, user_id: int = None):
                 # Проверка на успех
                 if res.get("success"):
                     logger.info(
-                        f"Успешно добавлен Нова помощник в канал {chat_id} на попытке {attempt+1}"
+                        f"Успешно добавлен Нова помощник в канал {chat_id} на попытке {attempt + 1}"
                     )
                     return
 
             # Если вернулась ошибка
             logger.warning(
-                f"Попытка {attempt+1} добавления клиента в канал {chat_id} неудачна: {res}"
+                f"Попытка {attempt + 1} добавления клиента в канал {chat_id} неудачна: {res}"
             )
 
         except Exception as e:

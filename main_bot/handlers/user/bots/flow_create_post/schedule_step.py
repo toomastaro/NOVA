@@ -37,7 +37,6 @@ class DictObj:
             setattr(self, key, val)
 
 
-
 def ensure_bot_post_obj(
     post: Union[BotPost, Dict[str, Any]],
 ) -> Union[BotPost, DictObj]:
@@ -49,7 +48,9 @@ def ensure_bot_post_obj(
     return post
 
 
-@safe_handler("Боты: финальные параметры поста")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Боты: финальные параметры поста"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def finish_params(call: types.CallbackQuery, state: FSMContext) -> None:
     """
     Экран финальной настройки параметров поста (отчет, удаление, время).
@@ -130,7 +131,9 @@ async def finish_params(call: types.CallbackQuery, state: FSMContext) -> None:
         )
 
 
-@safe_handler("Боты: выбор времени удаления")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Боты: выбор времени удаления"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def choice_delete_time(call: types.CallbackQuery, state: FSMContext) -> None:
     """
     Выбор времени автоудаления поста.
@@ -207,7 +210,9 @@ async def choice_delete_time(call: types.CallbackQuery, state: FSMContext) -> No
     )
 
 
-@safe_handler("Боты: выбор времени отправки (инлайн)")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Боты: выбор времени отправки (инлайн)"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def send_time_inline(call: types.CallbackQuery, state: FSMContext) -> None:
     """
     Обработка навигации по календарю выбора даты отправки.
@@ -231,7 +236,9 @@ async def send_time_inline(call: types.CallbackQuery, state: FSMContext) -> None
                     data.get("channel").emoji_id,
                     data.get("channel").title,
                 ),
-                reply_markup=keyboards.manage_remain_bot_post(post=ensure_bot_post_obj(data.get("post"))),
+                reply_markup=keyboards.manage_remain_bot_post(
+                    post=ensure_bot_post_obj(data.get("post"))
+                ),
             )
             return
 
@@ -251,12 +258,16 @@ async def send_time_inline(call: types.CallbackQuery, state: FSMContext) -> None
                 ),
                 data.get("available"),
             ),
-            reply_markup=keyboards.finish_bot_post_params(obj=ensure_bot_post_obj(data.get("post"))),
+            reply_markup=keyboards.finish_bot_post_params(
+                obj=ensure_bot_post_obj(data.get("post"))
+            ),
         )
         return
 
     day_str = data.get("day")
-    day: datetime = datetime.fromisoformat(day_str) if isinstance(day_str, str) else day_str
+    day: datetime = (
+        datetime.fromisoformat(day_str) if isinstance(day_str, str) else day_str
+    )
 
     if temp[1] in [
         "next_day",
@@ -287,7 +298,9 @@ async def send_time_inline(call: types.CallbackQuery, state: FSMContext) -> None
         )
 
 
-@safe_handler("Боты: получение времени отправки")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Боты: получение времени отправки"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def get_send_time(message: types.Message, state: FSMContext) -> None:
     """
     Обработка ввода времени отправки (текстом).
@@ -441,7 +454,9 @@ async def get_send_time(message: types.Message, state: FSMContext) -> None:
     )
 
 
-@safe_handler("Боты: возврат к времени отправки")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler(
+    "Боты: возврат к времени отправки"
+)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def back_send_time(call: types.CallbackQuery, state: FSMContext) -> None:
     """
     Возврат из меню настройки времени к общим параметрам.

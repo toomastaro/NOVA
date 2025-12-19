@@ -35,37 +35,53 @@ def ensure_obj(obj):
 def safe_post_from_dict(data: dict) -> Post:
     """
     Безопасно создает объект Post из словаря, фильтруя лишние поля.
-    
+
     Если словарь содержит поле 'post_id' (из PublishedPost), оно будет исключено,
     так как модель Post не имеет этого поля.
-    
+
     Args:
         data: Словарь с данными поста
-        
+
     Returns:
         Объект Post или ObjWrapper, если в данных есть недопустимые поля
     """
     if not data:
         return None
-    
+
     # Проверяем, содержит ли словарь поле post_id (признак PublishedPost)
     # В таком случае безопаснее вернуть ObjWrapper
-    if 'post_id' in data or 'message_id' in data:
+    if "post_id" in data or "message_id" in data:
         # Это данные из PublishedPost, используем обёртку
         return ObjWrapper(data)
-    
+
     # Список допустимых полей модели Post
     valid_fields = {
-        'id', 'chat_ids', 'admin_id', 'message_options', 'buttons', 
-        'send_time', 'reaction', 'hide', 'pin_time', 'delete_time', 
-        'report', 'cpm_price', 'backup_chat_id', 'backup_message_id',
-        'views_24h', 'views_48h', 'views_72h', 'report_24h_sent',
-        'report_48h_sent', 'report_72h_sent', 'created_timestamp'
+        "id",
+        "chat_ids",
+        "admin_id",
+        "message_options",
+        "buttons",
+        "send_time",
+        "reaction",
+        "hide",
+        "pin_time",
+        "delete_time",
+        "report",
+        "cpm_price",
+        "backup_chat_id",
+        "backup_message_id",
+        "views_24h",
+        "views_48h",
+        "views_72h",
+        "report_24h_sent",
+        "report_48h_sent",
+        "report_72h_sent",
+        "created_timestamp",
     }
-    
+
     # Фильтруем только допустимые поля
     filtered_data = {k: v for k, v in data.items() if k in valid_fields}
-    
+
     try:
         return Post(**filtered_data)
     except (TypeError, ValueError):
@@ -558,9 +574,7 @@ class InlinePosting(InlineKeyboardBuilder):
             )
 
             # 7. Назад (last)
-            kb.button(
-                text=text("back:button"), callback_data="ManageRemainPost|cancel"
-            )
+            kb.button(text=text("back:button"), callback_data="ManageRemainPost|cancel")
 
             kb.adjust(1)
             return kb.as_markup()
