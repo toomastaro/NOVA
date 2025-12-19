@@ -141,6 +141,11 @@ async def get_message(message: types.Message, state: FSMContext) -> None:
     data["post"] = serialize_bot_post(post)
     await state.update_data(data)
 
+    # Перезагружаем главное меню
+    from main_bot.keyboards.common import Reply
+
+    await message.answer("📝 Содержимое принято", reply_markup=Reply.menu())
+
     await answer_bot_post(message, state)
 
 
@@ -401,5 +406,10 @@ async def get_value(message: types.Message, state: FSMContext) -> None:
         await message.bot.delete_message(message.chat.id, data.get("input_msg_id"))
     except Exception:
         pass
+
+    # Перезагружаем главное меню
+    from main_bot.keyboards.common import Reply
+
+    await message.answer("✅ Изменения сохранены", reply_markup=Reply.menu())
 
     await answer_bot_post(message, state)

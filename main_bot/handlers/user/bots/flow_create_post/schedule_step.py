@@ -418,6 +418,11 @@ async def get_send_time(message: types.Message, state: FSMContext) -> None:
         message.from_user.id, from_array=[i.id for i in channels]
     )
 
+    # Перезагружаем главное меню
+    from main_bot.keyboards.common import Reply
+
+    await message.answer("✅ Время принято", reply_markup=Reply.menu())
+
     # Если меняем время (уже было запланировано), сразу возвращаемся на экран "Готов к рассылке"
     if is_changing_time:
         await db.bot_post.update_bot_post(post_id=post.id, send_time=send_time)

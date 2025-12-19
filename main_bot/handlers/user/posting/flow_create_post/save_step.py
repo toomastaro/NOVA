@@ -234,6 +234,11 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
     await state.clear()
     await call.message.delete()
 
+    # Перезагружаем главное меню
+    from main_bot.keyboards.common import Reply
+
+    await call.message.answer("Главное меню", reply_markup=Reply.menu())
+
     # Отправка OTLOG
     await call.message.answer(
         otlog_text,

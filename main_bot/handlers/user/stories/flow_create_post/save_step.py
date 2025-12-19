@@ -161,6 +161,12 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
 
     await state.clear()
     await call.message.delete()
+
+    # Перезагружаем главное меню
+    from main_bot.keyboards.common import Reply
+
+    await call.message.answer("Главное меню", reply_markup=Reply.menu())
+
     await call.message.answer(
         message_text, reply_markup=keyboards.create_finish(data="MenuStories")
     )

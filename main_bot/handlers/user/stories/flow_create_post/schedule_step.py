@@ -683,6 +683,11 @@ async def get_send_time(message: types.Message, state: FSMContext):
         user_id=message.from_user.id, sort_by="stories"
     )
 
+    # Перезагружаем главное меню
+    from main_bot.keyboards.common import Reply
+
+    await message.answer("✅ Время принято", reply_markup=Reply.menu())
+
     await message.answer(
         text("manage:story:accept:date").format(
             weekday,
