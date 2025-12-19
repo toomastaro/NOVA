@@ -17,8 +17,6 @@ from aiogram.fsm.context import FSMContext
 from main_bot.database.db import db
 from main_bot.keyboards import keyboards
 from main_bot.states.admin import AdminChannels
-from main_bot.utils.lang.language import text
-from main_bot.utils.tg_utils import get_editors
 from utils.error_handler import safe_handler
 
 logger = logging.getLogger(__name__)
@@ -142,7 +140,6 @@ async def view_channel_details(call: types.CallbackQuery) -> None:
         return
 
     # Получение данных через Bot API (для справки)
-    owner_name = text("unknown")
     members_count = "N/A"
     status_bot_post = "❓"
     status_bot_mail = "❓"
@@ -151,13 +148,6 @@ async def view_channel_details(call: types.CallbackQuery) -> None:
         # Получаем количество подписчиков
         members_count = await call.bot.get_chat_member_count(channel.chat_id)
         
-        # Получаем информацию о владельце
-        try:
-            owner = await call.bot.get_chat(channel.admin_id)
-            owner_name = f"@{owner.username}" if owner.username else owner.full_name
-        except Exception:
-            owner_name = str(channel.admin_id)
-
         # Проверка прав основного бота
         try:
             bot_member = await call.bot.get_chat_member(channel.chat_id, call.bot.id)
@@ -174,8 +164,20 @@ async def view_channel_details(call: types.CallbackQuery) -> None:
     except Exception as e:
         logger.warning(f"Failed to get chat info for {channel.title}: {e}")
 
-    # Список редакторов
-    editors_str = await get_editors(call, channel.chat_id)
+    # Сбор и форматирование списка администраторов
+    admins_list = []
+    try:
+        chat_admins = await call.bot.get_chat_administrators(channel.chat_id)
+        for admin in chat_admins:
+            if admin.user.is_bot:
+                continue
+            
+            name = f"@{admin.user.username}" if admin.user.username else admin.user.full_name
+            admins_list.append(f"{name} (<code>{admin.user.id}</code>)")
+    except Exception as e:
+        logger.error(f"Failed to get admins for {channel.chat_id}: {e}")
+
+    admins_str = "\n".join(admins_list) if admins_list else "<i>Не удалось получить список</i>"
 
     # Проверка приветственных сообщений
     hello_msgs = await db.channel_bot_hello.get_hello_messages(channel.chat_id, active=True)
@@ -218,7 +220,6 @@ async def view_channel_details(call: types.CallbackQuery) -> None:
     text_msg = "📺 <b>Информация о канале</b>\n\n"
     text_msg += f"<b>Название:</b> {channel.title} (<code>{channel.chat_id}</code>)\n"
     text_msg += f"<b>Подписчиков:</b> {members_count}\n"
-    text_msg += f"<b>Владелец:</b> {owner_name} (<code>{channel.admin_id}</code>)\n"
     text_msg += f"<b>Добавлен:</b> {time.strftime('%d.%m.%Y %H:%M', time.localtime(channel.created_timestamp))}\n\n"
     
     text_msg += f"<b>Подписка:</b> {sub_status}\n"
@@ -233,7 +234,7 @@ async def view_channel_details(call: types.CallbackQuery) -> None:
         text_msg += f"<b>Клиент MTProto:</b> {client_info_text}\n"
         text_msg += f"<b>Права клиента:</b> {rights_text}\n\n"
     
-    text_msg += f"<b>Редакторы:</b>\n{editors_str if editors_str else '<i>Нет данных или не удалось получить</i>'}"
+    text_msg += f"<b>Админы:</b>\n{admins_str}"
 
     await call.message.edit_text(
         text_msg,
