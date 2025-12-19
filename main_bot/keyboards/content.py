@@ -316,7 +316,7 @@ class InlineContent(InlineKeyboardBuilder):
 
                 if getattr(post, "status", "active") == "deleted":
                     emoji = "🗑"
-                    message_text = "Удалено"
+                    # Preserve title
                 else:
                     emoji = "✅"
 
@@ -331,7 +331,7 @@ class InlineContent(InlineKeyboardBuilder):
                     emoji = "✅"
                 elif post.status == Status.DELETED:
                     emoji = "🗑"
-                    message_text = "Удалено"
+                    # Preserve title
                 elif post.status == Status.ERROR:
                     emoji = "❌"
                 else:
@@ -347,7 +347,7 @@ class InlineContent(InlineKeyboardBuilder):
                     emoji = "✅"
                 elif post.status == Status.DELETED:
                     emoji = "🗑"
-                    message_text = "Удалено"
+                    # Preserve title
                 elif post.status == Status.ERROR:
                     emoji = "❌"
                 else:
@@ -518,7 +518,7 @@ class InlineContent(InlineKeyboardBuilder):
                     obj_data = "ContentPublishedPost"
                     if objects[idx].status == "deleted":
                         emoji = "🗑"
-                        message_text = "Удалено"
+                        # Preserve title
                     else:
                         emoji = "✅"
                         message_text = "Опубликовано"
@@ -533,7 +533,7 @@ class InlineContent(InlineKeyboardBuilder):
                         emoji = "✅"  # Завершено
                     elif objects[idx].status == Status.DELETED:
                         emoji = "🗑"  # Удалено
-                        message_text = "Удалено"
+                        # Preserve title
                     elif objects[idx].status == Status.ERROR:
                         emoji = "❌"  # Ошибка
                     else:
@@ -549,7 +549,7 @@ class InlineContent(InlineKeyboardBuilder):
                         emoji = "✅"  # Опубликовано
                     elif objects[idx].status == Status.DELETED:
                         emoji = "🗑"  # Удалено
-                        message_text = "Удалено"
+                        # Preserve title
                     elif objects[idx].status == Status.ERROR:
                         emoji = "❌"  # Ошибка
                     else:

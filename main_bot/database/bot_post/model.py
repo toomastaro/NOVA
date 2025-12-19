@@ -64,3 +64,4 @@ class BotPost(Base):
     success_send: Mapped[int] = mapped_column(default=0)
     error_send: Mapped[int] = mapped_column(default=0)
     message_ids: Mapped[dict | None] = mapped_column(JSON, default=None)
+    deleted_at: Mapped[int | None] = mapped_column(default=None)

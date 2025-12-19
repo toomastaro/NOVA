@@ -252,6 +252,32 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext) -> No
             post=serialize_bot_post(post),  # Обновляем объект
         )
 
+    if post.status == Status.DELETED:
+        await call.message.delete()
+        send_date = datetime.fromtimestamp(post.send_time or post.start_timestamp)
+        deleted_date = datetime.fromtimestamp(post.deleted_at) if post.deleted_at else send_date
+        
+        try:
+            author = (await call.bot.get_chat(post.admin_id)).username or "Неизвестно"
+        except Exception:
+            author = "Неизвестно"
+            
+        options = post.message
+        message_text = options.get("text") or options.get("caption") or "Медиа"
+        if len(message_text) > 30:
+            message_text = message_text[:27] + "..."
+
+        await call.message.answer(
+            text("bot_post:deleted:report").format(
+                send_date.strftime("%d.%m.%Y %H:%M"),
+                deleted_date.strftime("%d.%m.%Y %H:%M"),
+                author,
+                message_text
+            ),
+            reply_markup=keyboards.back(data="ManageRemainBotPost|cancel"),
+        )
+        return
+
     if post.status in [Status.FINISH, Status.ERROR]:
         await call.message.delete()
         await call.message.answer(

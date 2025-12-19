@@ -308,7 +308,7 @@ class InlineBots(InlineKeyboardBuilder):
         # Третий ряд: Назад
         kb.button(text=text("back:button"), callback_data="ManageRemainBotPost|cancel")
 
-        kb.adjust(2, 2, 1)  # 2 кнопки в первом ряду, 2 во втором, 1 в третьем
+        kb.adjust(1)  # Все кнопки в 1 столбик
         return kb.as_markup()
 
     @classmethod
