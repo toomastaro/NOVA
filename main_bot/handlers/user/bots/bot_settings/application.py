@@ -9,13 +9,12 @@
 
 import asyncio
 import logging
-import time
+from datetime import datetime, timezone
 from typing import Any, List, Dict, Union
 
 from aiogram import types, F, Router
 from aiogram.fsm.context import FSMContext
 
-from hello_bot.database.db import Database
 from main_bot.database.channel_bot_settings.model import ChannelBotSetting
 from main_bot.database.db import db
 from main_bot.database.user_bot.model import UserBot
@@ -55,7 +54,7 @@ def ensure_bot_obj(bot: Union[UserBot, Dict[str, Any]]) -> Union[UserBot, DictOb
 async def choice(
     call: types.CallbackQuery,
     state: FSMContext,
-    db_obj: Database,
+    db_obj: Any,
     channel_settings: ChannelBotSetting,
 ) -> None:
     """
@@ -113,7 +112,7 @@ async def choice(
     "Боты: возврат в общее меню заявок"
 )  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def back(
-    call: types.CallbackQuery, channel_settings: ChannelBotSetting, db_obj: Database
+    call: types.CallbackQuery, channel_settings: ChannelBotSetting, db_obj: Any
 ) -> None:
     """
     Возврат в меню автоприема из подменю.
@@ -131,7 +130,7 @@ async def back(
     "Боты: выбор задержки одобрения"
 )  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def choice_application_delay(
-    call: types.CallbackQuery, db_obj: Database, channel_settings: ChannelBotSetting
+    call: types.CallbackQuery, db_obj: Any, channel_settings: ChannelBotSetting
 ) -> None:
     """
     Выбор задержки одобрения заявки.
@@ -165,7 +164,7 @@ async def choice_application_delay(
 
 
 async def approve(
-    user_bot: UserBot, chat_id: int, users: List[Any], db_obj: Database
+    user_bot: UserBot, chat_id: int, users: List[Any], db_obj: Any
 ) -> None:
     """
     Асинхронная задача одобрения заявок.
@@ -185,11 +184,11 @@ async def approve(
             try:
                 await manager.bot.approve_chat_join_request(chat_id, user.id)
                 await db_obj.update_user(
-                    user.id, is_approved=True, time_approved=int(time.time())
+                    user.id, is_approved=True, time_approved=int(datetime.now(timezone.utc).timestamp())
                 )
             except Exception as e:
                 logger.error(
-                    f"Ошибка при одобрении заявки пользователя: {e}", exc_info=True
+                    f"Ошибка при одобрении заявки пользователя {user.id}: {e}", exc_info=True
                 )
 
             await asyncio.sleep(0.25)
@@ -201,7 +200,7 @@ async def approve(
 async def choice_manual_approve(
     call: types.CallbackQuery,
     state: FSMContext,
-    db_obj: Database,
+    db_obj: Any,
     db_bot: UserBot,
     channel_settings: ChannelBotSetting,
 ) -> None:
@@ -232,7 +231,8 @@ async def choice_manual_approve(
         asyncio.create_task(
             approve(db_bot, data.get("chat_id"), not_approve_users, db_obj)
         )
-        await call.answer("Начал принимать", show_alert=True)
+        logger.info("Пользователь %s запустил массовое одобрение (%s чел) в канале %s", call.from_user.id, len(not_approve_users), data.get("chat_id"))
+        await call.answer(text("welcome:started_approving"), show_alert=True)
 
         await call.message.delete()
         await show_application(call.message, channel_settings, db_obj)
@@ -263,7 +263,7 @@ async def choice_manual_approve(
 async def input_back(
     call: types.CallbackQuery,
     state: FSMContext,
-    db_obj: Database,
+    db_obj: Any,
     channel_settings: ChannelBotSetting,
 ) -> None:
     """
@@ -294,7 +294,7 @@ async def input_back(
 async def get_count_part(
     message: types.Message,
     state: FSMContext,
-    db_obj: Database,
+    db_obj: Any,
     db_bot: UserBot,
     channel_settings: ChannelBotSetting,
 ) -> None:
@@ -324,8 +324,9 @@ async def get_count_part(
     )
 
     asyncio.create_task(approve(db_bot, data.get("chat_id"), not_approve_users, db_obj))
+    logger.info("Пользователь %s запустил частичное одобрение (%s чел) в канале %s", message.from_user.id, len(not_approve_users), data.get("chat_id"))
 
-    await message.answer("Начал принимать")
+    await message.answer(text("welcome:started_approving"))
     await show_application(message, channel_settings, db_obj)
 
 
@@ -335,7 +336,7 @@ async def get_count_part(
 async def choice_invite_url(
     call: types.CallbackQuery,
     state: FSMContext,
-    db_obj: Database,
+    db_obj: Any,
     db_bot: UserBot,
     channel_settings: ChannelBotSetting,
 ) -> None:
@@ -366,7 +367,8 @@ async def choice_invite_url(
     )
 
     asyncio.create_task(approve(db_bot, data.get("chat_id"), not_approve_users, db_obj))
-    await call.answer("Начал принимать", show_alert=True)
+    logger.info("Пользователь %s запустил одобрение по ссылке %s (%s чел) в канале %s", call.from_user.id, temp[1], len(not_approve_users), channel_settings.id)
+    await call.answer(text("welcome:started_approving"), show_alert=True)
 
     await call.message.delete()
     await show_application(call.message, channel_settings, db_obj)

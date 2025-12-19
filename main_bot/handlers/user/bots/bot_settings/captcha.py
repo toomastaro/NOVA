@@ -9,11 +9,10 @@
 """
 
 import logging
-
+from typing import Any
 from aiogram import types, F, Router
 from aiogram.fsm.context import FSMContext
 
-from hello_bot.database.db import Database
 from main_bot.database.channel_bot_settings.model import ChannelBotSetting
 from main_bot.database.db import db
 from main_bot.handlers.user.bots.bot_settings.menu import (
@@ -53,7 +52,7 @@ async def show_manage_captcha(message: types.Message, state: FSMContext) -> None
 async def choice(
     call: types.CallbackQuery,
     state: FSMContext,
-    db_obj: Database,
+    db_obj: Any,
     channel_settings: ChannelBotSetting,
 ) -> None:
     """
@@ -118,7 +117,7 @@ async def choice(
 
 @safe_handler("Боты: управление сообщением капчи")
 async def manage_hello_message(
-    call: types.CallbackQuery, state: FSMContext, db_obj: Database
+    call: types.CallbackQuery, state: FSMContext, db_obj: Any
 ) -> None:
     """
     Управление сообщением капчи (удаление, задержка, изменение).
@@ -187,7 +186,7 @@ async def manage_hello_message_post(
         except Exception:
             pass
 
-        await call.message.answer("✅ Меню возвращено", reply_markup=keyboards.menu())
+        await call.message.answer(text("welcome:menu_returned"), reply_markup=keyboards.menu())
 
         await call.message.delete()
         await show_manage_captcha(call.message, state)
@@ -209,7 +208,7 @@ async def manage_hello_message_post(
 
         message_obj = MessageOptionsCaptcha(**captcha.message)
         if not message_obj.reply_markup:
-            await call.answer("Сначала добавьте кнопки!")
+            await call.answer(text("welcome:add_buttons_first"))
             return
 
         message_obj.resize_markup = not message_obj.resize_markup
@@ -284,7 +283,7 @@ async def choice_hello_message_delay(
 
 
 @safe_handler("Боты: возврат в настройки капчи")
-async def back(call: types.CallbackQuery, state: FSMContext, db_obj: Database) -> None:
+async def back(call: types.CallbackQuery, state: FSMContext, db_obj: Any) -> None:
     """
     Возврат в меню капчи из подменю.
 
@@ -318,7 +317,7 @@ async def back(call: types.CallbackQuery, state: FSMContext, db_obj: Database) -
 
 @safe_handler("Боты: получение сообщения капчи")
 async def get_message(
-    message: types.Message, state: FSMContext, db_obj: Database
+    message: types.Message, state: FSMContext, db_obj: Any
 ) -> None:
     """
     Обработка ввода сообщения капчи.

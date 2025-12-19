@@ -107,6 +107,7 @@ async def manage_hello_message(call: types.CallbackQuery, state: FSMContext) -> 
             await db.channel_bot_hello.delete_hello_message(
                 data.get("hello_message_id")
             )
+            logger.info("Пользователь %s удалил приветствие %s", call.from_user.id, data.get("hello_message_id"))
 
         cs = await db.channel_bot_settings.get_channel_bot_setting(data.get("chat_id"))
 

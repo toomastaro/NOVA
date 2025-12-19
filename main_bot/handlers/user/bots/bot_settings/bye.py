@@ -9,21 +9,19 @@
 """
 
 import logging
-
-
+from typing import Any
 from aiogram import types, F, Router
 from aiogram.fsm.context import FSMContext
 
-from hello_bot.database.db import Database
-from hello_bot.handlers.user.menu import show_bye
-from hello_bot.states.user import Bye
-from hello_bot.utils.lang.language import text
-from hello_bot.keyboards.keyboards import keyboards
-from hello_bot.utils.schemas import Media, MessageOptions, ByeAnswer
-from hello_bot.utils.functions import answer_message
+from main_bot.states.user import Bye
+from main_bot.utils.lang.language import text
+from main_bot.keyboards import keyboards
+from main_bot.utils.schemas import Media, MessageOptions, ByeAnswer
+from main_bot.utils.functions import answer_message
+
 from main_bot.database.channel_bot_settings.model import ChannelBotSetting
 from main_bot.database.db import db
-from main_bot.handlers.user.bots.bot_settings.menu import show_channel_setting
+from main_bot.handlers.user.bots.bot_settings.menu import show_channel_setting, show_bye
 from utils.error_handler import safe_handler
 
 logger = logging.getLogger(__name__)
@@ -35,7 +33,7 @@ logger = logging.getLogger(__name__)
 async def choice(
     call: types.CallbackQuery,
     state: FSMContext,
-    db_obj: Database,
+    db_obj: Any,
     channel_settings: ChannelBotSetting,
 ) -> None:
     """
