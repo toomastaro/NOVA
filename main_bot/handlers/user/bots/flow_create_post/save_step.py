@@ -19,6 +19,7 @@ from main_bot.database.bot_post.model import BotPost
 from main_bot.database.db_types import Status
 from main_bot.utils.lang.language import text
 from main_bot.keyboards import keyboards
+from main_bot.keyboards.common import Reply
 from main_bot.states.user import Bots
 from main_bot.handlers.user.bots.flow_create_post.media_step import (
     serialize_bot_post,
@@ -200,3 +201,5 @@ async def accept(call: types.CallbackQuery, state: FSMContext) -> None:
     await call.message.answer(
         message_text, reply_markup=keyboards.create_finish(data="MenuBots")
     )
+    # Reload Main Menu (Reply) to ensure navigation is available
+    await call.message.answer("Главное меню", reply_markup=Reply.menu())

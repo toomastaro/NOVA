@@ -532,7 +532,7 @@ def _format_stats_body(stats: Dict[str, Any]) -> str:
         str: Отформатированная строка HTML.
     """
     link = stats.get("link")
-    title_link = f"<a href='{link}'>{stats['title']}</a>" if link else stats["title"]
+    title_link = f"<a href='{link}'>{html.escape(stats['title'])}</a>" if link else html.escape(stats['title'])
 
     text = f"📢 Канал: {title_link}\n"
     text += f"👥 Подписчиков: {stats['subscribers']}\n\n"
@@ -835,9 +835,9 @@ async def calculate_and_show_price(
     if single_info:
         link = single_info.get("link")
         title_link = (
-            f"<a href='{link}'>{single_info['title']}</a>"
+            f"<a href='{link}'>{html.escape(single_info['title'])}</a>"
             if link
-            else single_info["title"]
+            else html.escape(single_info['title'])
         )
         report += f"📢 Канал: {title_link}\n"
         report += f"👥 Подписчиков: {single_info['subscribers']}\n\n"
@@ -880,7 +880,7 @@ async def calculate_and_show_price(
     # Подгружаем главное меню после расчета CPM
     from main_bot.keyboards.common import Reply
 
-    await message.answer("👛 Расчет CPM завершен", reply_markup=Reply.menu())
+    await message.answer("👛 Расчет CPM завершен (см. сообщение выше ⬆️)", reply_markup=Reply.menu())
 
 
 @router.callback_query(F.data.startswith("NovaStat|calc_cpm|"))
