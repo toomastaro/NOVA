@@ -41,6 +41,7 @@ def serialize_bot_post(post: BotPost) -> Optional[Dict[str, Any]]:
         return None
     return {
         "id": post.id,
+        "chat_ids": getattr(post, "chat_ids", []),
         "bot_id": getattr(post, "bot_id", None),
         "channel_id": getattr(post, "channel_id", None),
         "message": getattr(post, "message", {}),

@@ -8,6 +8,7 @@
 """
 
 import logging
+from typing import Any, Dict, Union
 
 from aiogram import types
 from aiogram.fsm.context import FSMContext
@@ -18,10 +19,35 @@ from main_bot.database.db_types import Status
 from main_bot.utils.lang.language import text
 from main_bot.keyboards import keyboards
 from main_bot.states.user import Bots
+from main_bot.handlers.user.bots.flow_create_post.media_step import (
+    serialize_bot_post,
+)
 from utils.error_handler import safe_handler
 from main_bot.utils.backup_utils import send_to_backup, edit_backup_message
 
 logger = logging.getLogger(__name__)
+
+
+class DictObj:
+    """Вспомогательный класс для доступа к ключам словаря как к атрибутам."""
+
+    def __init__(self, in_dict: dict):
+        for key, val in in_dict.items():
+            setattr(self, key, val)
+
+    def __getattr__(self, item):
+        return None
+
+
+def ensure_bot_post_obj(
+    post: Union[BotPost, Dict[str, Any]],
+) -> Union[BotPost, DictObj]:
+    """
+    Гарантирует, что post является объектом (или DictObj).
+    """
+    if isinstance(post, dict):
+        return DictObj(post)
+    return post
 
 
 @safe_handler("Боты: подтверждение создания поста")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
@@ -41,7 +67,7 @@ async def accept(call: types.CallbackQuery, state: FSMContext) -> None:
         await call.message.delete()
         return
 
-    post: BotPost = data.get("post")
+    post: BotPost = ensure_bot_post_obj(data.get("post"))
 
     if not post:
         await call.answer(text("keys_data_error"))
@@ -106,7 +132,11 @@ async def accept(call: types.CallbackQuery, state: FSMContext) -> None:
         return
 
     # Update bot post in DB
-    await db.bot_post.update_bot_post(post_id=post.id, **kwargs)
+    post = await db.bot_post.update_bot_post(
+        post_id=post.id, return_obj=True, **kwargs
+    )
+    await state.update_data(post=serialize_bot_post(post))
+    post = ensure_bot_post_obj(serialize_bot_post(post))
 
     # Отправляем в backup если еще не отправлено
     if not post.backup_message_id:

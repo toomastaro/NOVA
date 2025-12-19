@@ -10,12 +10,16 @@
 import time
 import logging
 from datetime import datetime, timedelta
+from typing import Any, Dict, Union
 
 from aiogram import types
 from aiogram.fsm.context import FSMContext
 
 from main_bot.database.db import db
 from main_bot.database.bot_post.model import BotPost
+from main_bot.handlers.user.bots.flow_create_post.media_step import (
+    serialize_bot_post,
+)
 from main_bot.utils.message_utils import answer_bot_post
 from main_bot.utils.lang.language import text
 from main_bot.keyboards import keyboards
@@ -23,6 +27,28 @@ from main_bot.states.user import Bots
 from utils.error_handler import safe_handler
 
 logger = logging.getLogger(__name__)
+
+
+class DictObj:
+    """Вспомогательный класс для доступа к ключам словаря как к атрибутам."""
+
+    def __init__(self, in_dict: dict):
+        for key, val in in_dict.items():
+            setattr(self, key, val)
+
+    def __getattr__(self, item):
+        return None
+
+
+def ensure_bot_post_obj(
+    post: Union[BotPost, Dict[str, Any]],
+) -> Union[BotPost, DictObj]:
+    """
+    Гарантирует, что post является объектом (или DictObj).
+    """
+    if isinstance(post, dict):
+        return DictObj(post)
+    return post
 
 
 @safe_handler("Боты: финальные параметры поста")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
@@ -41,7 +67,7 @@ async def finish_params(call: types.CallbackQuery, state: FSMContext) -> None:
         await call.message.delete()
         return
 
-    post: BotPost = data.get("post")
+    post: BotPost = ensure_bot_post_obj(data.get("post"))
     chosen: list = data.get("chosen", post.chat_ids)
 
     channels = await db.channel_bot_settings.get_bot_channels(call.from_user.id)
@@ -58,7 +84,7 @@ async def finish_params(call: types.CallbackQuery, state: FSMContext) -> None:
         post = await db.bot_post.update_bot_post(
             post_id=post.id, return_obj=True, report=not post.report
         )
-        await state.update_data(post=post)
+        await state.update_data(post=serialize_bot_post(post))
         await call.message.edit_reply_markup(
             reply_markup=keyboards.finish_bot_post_params(obj=post)
         )
@@ -68,7 +94,7 @@ async def finish_params(call: types.CallbackQuery, state: FSMContext) -> None:
         post = await db.bot_post.update_bot_post(
             post_id=post.id, return_obj=True, text_with_name=not post.text_with_name
         )
-        await state.update_data(post=post)
+        await state.update_data(post=serialize_bot_post(post))
         await call.message.edit_reply_markup(
             reply_markup=keyboards.finish_bot_post_params(obj=post)
         )
@@ -127,7 +153,7 @@ async def choice_delete_time(call: types.CallbackQuery, state: FSMContext) -> No
         await call.message.delete()
         return
 
-    post: BotPost = data.get("post")
+    post: BotPost = ensure_bot_post_obj(data.get("post"))
     available: int = data.get("available")
 
     delete_time = post.delete_time
@@ -140,7 +166,7 @@ async def choice_delete_time(call: types.CallbackQuery, state: FSMContext) -> No
         post = await db.bot_post.update_bot_post(
             post_id=post.id, return_obj=True, delete_time=delete_time
         )
-        await state.update_data(post=post)
+        await state.update_data(post=serialize_bot_post(post))
         data = await state.get_data()
 
     is_edit: bool = data.get("is_edit")
@@ -315,7 +341,7 @@ async def get_send_time(message: types.Message, state: FSMContext) -> None:
 
     data = await state.get_data()
     is_edit: bool = data.get("is_edit")
-    post: BotPost = data.get("post")
+    post: BotPost = ensure_bot_post_obj(data.get("post"))
     is_changing_time = (
         data.get("send_time") is not None
     )  # Проверяем, меняем ли мы время
@@ -324,6 +350,7 @@ async def get_send_time(message: types.Message, state: FSMContext) -> None:
         post = await db.bot_post.update_bot_post(
             post_id=post.id, return_obj=True, send_time=send_time
         )
+        post = ensure_bot_post_obj(serialize_bot_post(post))
         send_date = datetime.fromtimestamp(post.send_time)
         send_date_values = (
             send_date.day,
@@ -331,8 +358,10 @@ async def get_send_time(message: types.Message, state: FSMContext) -> None:
             send_date.year,
         )
 
+        await state.update_data(send_date_values=send_date_values)
+        data = await state.get_data()
+        data["post"] = serialize_bot_post(post)
         await state.clear()
-        data["send_date_values"] = send_date_values
         await state.update_data(data)
 
         # Получаем username автора
@@ -431,7 +460,7 @@ async def back_send_time(call: types.CallbackQuery, state: FSMContext) -> None:
     await state.clear()
     await state.update_data(data)
 
-    post: BotPost = data.get("post")
+    post: BotPost = ensure_bot_post_obj(data.get("post"))
     chosen: list = (
         data.get("chosen") or post.chat_ids
     )  # Используем post.chat_ids если chosen None
