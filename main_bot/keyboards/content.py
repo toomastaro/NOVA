@@ -360,6 +360,8 @@ class InlineContent(InlineKeyboardBuilder):
 
             if message_text:
                 message_text = clean_html_text(message_text)
+                if len(message_text) > 30:
+                    message_text = message_text[:27] + "..."
 
             kb.row(
                 InlineKeyboardButton(
@@ -559,6 +561,8 @@ class InlineContent(InlineKeyboardBuilder):
 
                 if message_text:
                     message_text = clean_html_text(message_text)
+                    if len(message_text) > 30:
+                        message_text = message_text[:27] + "..."
 
                 # Пропускаем посты без времени (не должно быть, но на всякий случай)
                 timestamp = getattr(objects[idx], "send_time", 0) or getattr(

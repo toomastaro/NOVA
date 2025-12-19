@@ -85,8 +85,10 @@ async def start_delete_bot_posts() -> None:
                     delete_bot_posts(user_bot, messages[bot_id]["message_ids"])
                 )
 
-        # Обновляем delete_time, чтобы не пытаться удалять снова и снова
-        await db.bot_post.update_bot_post(post_id=bot_post.id, delete_time=None)
+        # Обновляем статус на DELETED и обнуляем delete_time, чтобы не пытаться удалять снова
+        await db.bot_post.update_bot_post(
+            post_id=bot_post.id, delete_time=None, status=Status.DELETED
+        )
 
 
 async def send_bot_messages(
