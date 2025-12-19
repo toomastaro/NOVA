@@ -13,3 +13,8 @@ class Session(StatesGroup):
 
 class AdminChannels(StatesGroup):
     searching = State()
+
+
+class AdminMailing(StatesGroup):
+    post = State()
+    confirm = State()

@@ -4,7 +4,7 @@
 
 from aiogram import Router
 
-from . import channels, promo, session, start
+from . import channels, promo, session, start, mailing
 
 
 def get_router() -> Router:
@@ -19,6 +19,7 @@ def get_router() -> Router:
         promo.get_router(),
         session.get_router(),
         channels.get_router(),
+        mailing.get_router(),
     ]
 
     router = Router(name="Admin")
