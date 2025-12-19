@@ -54,7 +54,9 @@ def serialize_bot_post(post: BotPost) -> Optional[Dict[str, Any]]:
         "backup_message_id": getattr(post, "backup_message_id", None),
         "success_send": getattr(post, "success_send", 0),
         "error_send": getattr(post, "error_send", 0),
-        "created_at": getattr(post, "created_at", None),
+        "report": getattr(post, "report", False),
+        "text_with_name": getattr(post, "text_with_name", False),
+        "created_timestamp": getattr(post, "created_timestamp", post.start_timestamp),
     }
 
 
@@ -64,6 +66,9 @@ class DictObj:
     def __init__(self, in_dict: dict):
         for key, val in in_dict.items():
             setattr(self, key, val)
+
+    def __getattr__(self, item):
+        return None
 
 
 def ensure_bot_post_obj(

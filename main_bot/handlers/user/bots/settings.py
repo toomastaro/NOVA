@@ -25,7 +25,6 @@ from main_bot.handlers.user.menu import start_bots
 from main_bot.handlers.user.bots.menu import show_settings
 from main_bot.keyboards import keyboards
 from main_bot.utils.bot_manager import BotManager
-from main_bot.utils.functions import create_emoji
 from main_bot.utils.lang.language import text
 from utils.error_handler import safe_handler
 
@@ -38,6 +37,9 @@ class DictObj:
     def __init__(self, in_dict: Dict[str, Any]):
         for key, val in in_dict.items():
             setattr(self, key, val)
+
+    def __getattr__(self, item):
+        return None
 
 
 def ensure_bot_obj(bot: Union[UserBot, Dict[str, Any]]) -> Union[UserBot, DictObj]:

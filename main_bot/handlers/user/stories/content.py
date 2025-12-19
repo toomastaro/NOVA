@@ -23,6 +23,9 @@ class DictObj:
         for key, val in in_dict.items():
             setattr(self, key, val)
 
+    def __getattr__(self, item):
+        return None
+
 
 def ensure_channel_obj(channel):
     if isinstance(channel, dict):
