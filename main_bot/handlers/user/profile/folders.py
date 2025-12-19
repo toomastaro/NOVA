@@ -85,13 +85,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
 # Лучше удалить для чистоты, но пока оставляем как заглушку
 
 
-@safe_handler(
-    "Папки: выбор типа"
-)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
-async def choice_type(call: types.CallbackQuery, state: FSMContext, user: User):
-    """Заглушка для выбора типа папки (устаревшее)."""
-    # Этот хендлер больше не используется в новом потоке
-    pass
+# choice_type removed as it's obsolete
 
 
 @safe_handler(
@@ -161,7 +155,7 @@ async def choice_object(call: types.CallbackQuery, state: FSMContext, user: User
             )
             await show_manage_folder(call.message, state)
             # Перезагрузка главного меню
-            await call.message.answer("Главное меню", reply_markup=Reply.menu())
+            await call.message.answer(text("main_menu:reload"), reply_markup=Reply.menu())
 
         return
 
@@ -231,7 +225,7 @@ async def cancel(call: types.CallbackQuery, state: FSMContext, user: User):
             parse_mode="HTML",
         )
         # Перезагрузка главного меню
-        await call.message.answer("Главное меню", reply_markup=Reply.menu())
+        await call.message.answer(text("main_menu:reload"), reply_markup=Reply.menu())
 
 
 @safe_handler(
@@ -289,11 +283,11 @@ async def get_folder_name(message: types.Message, state: FSMContext, user: User)
             ),
         )
         # Перезагрузка главного меню
-        await message.answer("Главное меню", reply_markup=Reply.menu())
+        await message.answer(text("main_menu:reload"), reply_markup=Reply.menu())
     else:
         await show_manage_folder(message, state)
         # Перезагрузка главного меню
-        await message.answer("Главное меню", reply_markup=Reply.menu())
+        await message.answer(text("main_menu:reload"), reply_markup=Reply.menu())
 
 
 @safe_handler(
@@ -315,7 +309,7 @@ async def manage_folder(call: types.CallbackQuery, state: FSMContext, user: User
 
         await show_folders(call.message)
         # Перезагрузка главного меню
-        await call.message.answer("Главное меню", reply_markup=Reply.menu())
+        await call.message.answer(text("main_menu:reload"), reply_markup=Reply.menu())
         return
 
     await state.update_data(folder_edit=True)
@@ -362,9 +356,6 @@ def get_router():
     """Регистрация роутеров для папок."""
     router = Router()
     router.callback_query.register(choice, F.data.split("|")[0] == "ChoiceFolder")
-    router.callback_query.register(
-        choice_type, F.data.split("|")[0] == "ChoiceTypeFolder"
-    )
     router.callback_query.register(
         choice_object, F.data.split("|")[0] == "ChoiceResourceFolder"
     )

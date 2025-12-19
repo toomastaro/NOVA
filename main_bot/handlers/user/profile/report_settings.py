@@ -44,7 +44,7 @@ async def show_report_settings_menu(call: types.CallbackQuery):
         ),
     )
     # Перезагрузка главного меню
-    await call.message.answer("Главное меню", reply_markup=Reply.menu())
+    await call.message.answer(text("main_menu:reload"), reply_markup=Reply.menu())
 
 
 @safe_handler(
@@ -147,7 +147,7 @@ async def finish_edit_text(message: types.Message, state: FSMContext):
         content = message.caption
 
     if not content:
-        await message.answer("❌ Текст не найден")
+        await message.answer(text("error:text_not_found"))
         return
 
     user_id = message.from_user.id
@@ -167,38 +167,21 @@ async def finish_edit_text(message: types.Message, state: FSMContext):
     if not user:
         user = await db.user.get_user(user_id)
 
-    # Логика из show_specific_setting для отправки нового сообщения
-    is_active = False
-    current_text = ""
-    title_key = ""
+    # Используем существующую функцию для отображения обновленной настройки
+    # Создаем фиктивный CallbackQuery для совместимости, если это необходимо, 
+    # или просто передаем объект сообщения.
+    # Но show_specific_setting ожидает CallbackQuery.
+    # Так как нам нужно отправить НОВОЕ сообщение, мы можем передать объект сообщения как call.message
+    
+    class FakeCall:
+        def __init__(self, msg):
+            self.message = msg
+            self.from_user = msg.from_user
 
-    if setting_type == "cpm":
-        is_active = user.cpm_signature_active
-        current_text = user.cpm_signature_text or text("default:cpm_signature")
-        title_key = "report:cpm:title"
-    elif setting_type == "exchange":
-        is_active = user.exchange_signature_active
-        current_text = user.exchange_signature_text or text(
-            "default:exchange_signature"
-        )
-        title_key = "report:exchange:title"
-    elif setting_type == "referral":
-        is_active = user.referral_signature_active
-        current_text = user.referral_signature_text or text(
-            "default:referral_signature"
-        )
-        title_key = "report:referral:title"
+    await show_specific_setting(FakeCall(message), setting_type, user=user)
 
-    status = text("on") if is_active else text("off")
-
-    await message.answer(
-        text(title_key).format(status, current_text),
-        reply_markup=InlineProfile.report_setting_item(setting_type, is_active),
-        parse_mode="HTML",
-        disable_web_page_preview=True,
-    )
     # Перезагрузка главного меню
-    await message.answer("Главное меню", reply_markup=Reply.menu())
+    await message.answer(text("main_menu:reload"), reply_markup=Reply.menu())
     await state.clear()
 
 
@@ -219,7 +202,7 @@ async def back_to_main_settings(call: types.CallbackQuery):
         profile_text, reply_markup=profile_menu, parse_mode="HTML"
     )
     # Перезагрузка главного меню
-    await call.message.answer("Главное меню", reply_markup=Reply.menu())
+    await call.message.answer(text("main_menu:reload"), reply_markup=Reply.menu())
 
 
 @safe_handler(

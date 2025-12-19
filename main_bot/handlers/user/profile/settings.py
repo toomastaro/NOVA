@@ -3,7 +3,7 @@
 (Часовой пояс, папки, отчеты).
 """
 
-from datetime import timedelta, datetime
+from datetime import timedelta, datetime, timezone
 import logging
 
 from aiogram import types, Router, F
@@ -59,14 +59,14 @@ async def choice(call: types.CallbackQuery, state: FSMContext, user: User):
         delta = timedelta(hours=abs(user.timezone))
 
         if user.timezone > 0:
-            timezone = datetime.utcnow() + delta
+            timezone_val = datetime.now(timezone.utc) + delta
         else:
-            timezone = datetime.utcnow() - delta
+            timezone_val = datetime.now(timezone.utc) - delta
 
         await call.message.answer(
             text("input_timezone").format(
                 f"+{user.timezone}" if user.timezone > 0 else user.timezone,
-                timezone.strftime("%H:%M"),
+                timezone_val.strftime("%H:%M"),
             ),
             reply_markup=keyboards.back(data="InputTimezoneCancel"),
         )
@@ -85,9 +85,9 @@ async def show_timezone(message: types.Message):
     delta = timedelta(hours=abs(user.timezone))
 
     if user.timezone > 0:
-        timezone = datetime.utcnow() + delta
+        timezone_val = datetime.now(timezone.utc) + delta
     else:
-        timezone = datetime.utcnow() - delta
+        timezone_val = datetime.now(timezone.utc) - delta
 
     await message.answer(
         text("input_timezone").format(

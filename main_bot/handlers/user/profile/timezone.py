@@ -3,7 +3,7 @@
 Позволяет пользователю установить свой часовой пояс для корректного отображения статистики и планировщика.
 """
 
-from datetime import timedelta, datetime
+from datetime import timedelta, datetime, timezone
 import logging
 
 from aiogram import types, Router, F
@@ -45,19 +45,20 @@ async def get_timezone(message: types.Message, state: FSMContext):
     # Показываем обновленное время
     delta = timedelta(hours=abs(timezone_value))
     if timezone_value > 0:
-        new_timezone = datetime.utcnow() + delta
+        new_timezone = datetime.now(timezone.utc) + delta
     else:
-        new_timezone = datetime.utcnow() - delta
+        new_timezone = datetime.now(timezone.utc) - delta
 
     await message.answer(
-        f"✅ <b>Часовой пояс успешно обновлен!</b>\n\n"
-        f"Ваш часовой пояс: <code>{'+' if timezone_value > 0 else ''}{timezone_value}</code>\n"
-        f"Текущее время: <b>{new_timezone.strftime('%H:%M')}</b>",
+        text("timezone:success_update").format(
+            f"+{timezone_value}" if timezone_value > 0 else timezone_value,
+            new_timezone.strftime("%H:%M"),
+        ),
         reply_markup=keyboards.back(data="InputTimezoneCancel"),
         parse_mode="HTML",
     )
     # Перезагрузка главного меню
-    await message.answer("Главное меню", reply_markup=Reply.menu())
+    await message.answer(text("main_menu:reload"), reply_markup=Reply.menu())
 
 
 @safe_handler(
@@ -74,7 +75,7 @@ async def cancel(call: types.CallbackQuery, state: FSMContext):
         parse_mode="HTML",
     )
     # Перезагрузка главного меню
-    await call.message.answer("Главное меню", reply_markup=Reply.menu())
+    await call.message.answer(text("main_menu:reload"), reply_markup=Reply.menu())
 
 
 def get_router():
