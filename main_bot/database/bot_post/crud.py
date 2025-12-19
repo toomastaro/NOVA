@@ -168,4 +168,4 @@ class BotPostCrud(DatabaseMixin):
         """
         stmt = select(func.count(BotPost.id)).where(BotPost.admin_id == user_id)
         result = await self.fetchrow(stmt)
-        return result[0] if result else 0
+        return result if result is not None else 0

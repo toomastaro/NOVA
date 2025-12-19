@@ -163,4 +163,4 @@ class StoryCrud(DatabaseMixin):
         """
         stmt = select(func.count(Story.id)).where(Story.admin_id == user_id)
         result = await self.fetchrow(stmt)
-        return result[0] if result else 0
+        return result if result is not None else 0
