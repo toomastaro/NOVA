@@ -236,8 +236,9 @@ async def view_channel_details(call: types.CallbackQuery) -> None:
     text_msg += f"├ Рассылка: {status_bot_mail}\n"
     text_msg += f"└ Приветствие: {status_welcome}\n\n"
 
-    text_msg += f"<b>Клиент MTProto:</b> {client_info_text}\n"
-    text_msg += f"<b>Права клиента:</b> {rights_text}\n\n"
+    if channel.last_client_id and client_info_text != "❌ Не назначен":
+        text_msg += f"<b>Клиент MTProto:</b> {client_info_text}\n"
+        text_msg += f"<b>Права клиента:</b> {rights_text}\n\n"
     
     text_msg += f"<b>Редакторы:</b>\n{editors_str if editors_str else '<i>Нет данных или не удалось получить</i>'}"
 
