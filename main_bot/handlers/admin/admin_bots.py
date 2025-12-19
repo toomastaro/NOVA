@@ -23,7 +23,7 @@ async def show_bots_list(call: types.CallbackQuery, offset: int = 0) -> None:
     total = len(all_bots)
     bots = all_bots[offset : offset + BOTS_PER_PAGE]
 
-    text = "🤖 <b>Все боты системы</b>\n\nВсего ботов: {total}\n"
+    text = f"🤖 <b>Все боты системы</b>\n\nВсего ботов: {total}\n"
     if not bots:
         text += "Боты не найдены."
 

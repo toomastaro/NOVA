@@ -9,6 +9,7 @@
 """
 
 import logging
+import time
 
 from aiogram import Router, F, types
 from aiogram.fsm.context import FSMContext
@@ -183,6 +184,41 @@ async def view_channel_details(call: types.CallbackQuery) -> None:
     await call.answer()
 
 
+@safe_handler("Admin Extend Subscription Start")
+async def extend_channel_subscription_start(call: types.CallbackQuery) -> None:
+    """Отображает меню выбора периода продления."""
+    channel_id = int(call.data.split("|")[2])
+    await call.message.edit_text(
+        "➕ <b>Продление подписки</b>\n\nВыберите период, на который хотите продлить подписку бесплатно:",
+        reply_markup=keyboards.admin_channel_subscribe_extend(channel_id),
+        parse_mode="HTML"
+    )
+    await call.answer()
+
+
+@safe_handler("Admin Extend Subscription Process")
+async def extend_channel_subscription_process(call: types.CallbackQuery) -> None:
+    """Обрабатывает логику продления подписки."""
+    data = call.data.split("|")
+    channel_id = int(data[2])
+    days = int(data[3])
+
+    channel = await db.channel.get_channel_by_id(channel_id)
+    if not channel:
+        return await call.answer("❌ Канал не найден", show_alert=True)
+
+    current_time = int(time.time())
+    # Если подписка уже кончилась или ее не было — продлеваем от текущего времени
+    # Если подписка активна — добавляем к существующей дате
+    base_time = max(current_time, channel.subscribe or 0)
+    new_expire = base_time + (days * 86400)
+
+    await db.channel.update_channel_by_id(channel_id, subscribe=new_expire)
+    
+    await call.answer(f"✅ Подписка продлена на {days} дн.", show_alert=True)
+    await view_channel_details(call)
+
+
 @safe_handler("Admin Channels Callback")
 async def channels_callback_handler(
     call: types.CallbackQuery, state: FSMContext
@@ -205,6 +241,10 @@ async def channels_callback_handler(
         await search_channel_start(call, state)
     elif action == "view":
         await view_channel_details(call)
+    elif action == "extend":
+        await extend_channel_subscription_start(call)
+    elif action == "ext_proc":
+        await extend_channel_subscription_process(call)
 
 
 def get_router() -> Router:

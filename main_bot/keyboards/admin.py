@@ -20,13 +20,13 @@ class InlineAdmin(InlineKeyboardBuilder):
         """
         kb = cls()
 
-        kb.button(text="👤 Сессии", callback_data="Admin|session")
-        kb.button(text="📺 Каналы", callback_data="AdminChannels|list|0")
-        kb.button(text="📩 Рассылка", callback_data="Admin|mail")
-        kb.button(text="🤖 Боты", callback_data="AdminBots|list|0")
         kb.button(text="👥 Админы", callback_data="AdminUsers|list|0")
+        kb.button(text="📺 Каналы", callback_data="AdminChannels|list|0")
+        kb.button(text="🤖 Боты", callback_data="AdminBots|list|0")
+        kb.button(text="📩 Рассылка", callback_data="Admin|mail")
         kb.button(text="🎁 Создать промокод", callback_data="Admin|promo")
         kb.button(text="🦋 Рекламные ссылки", callback_data="Admin|ads")
+        kb.button(text="👤 Сессии", callback_data="Admin|session")		
 
         kb.adjust(1)
         return kb.as_markup()
@@ -215,9 +215,22 @@ class InlineAdmin(InlineKeyboardBuilder):
         """
         kb = cls()
 
+        kb.button(text="➕ Продлить подписку", callback_data=f"AdminChannels|extend|{channel_id}")
         kb.button(text="◀️ К списку", callback_data="AdminChannels|list|0")
 
         kb.adjust(1)
+        return kb.as_markup()
+
+    @classmethod
+    def admin_channel_subscribe_extend(cls, channel_id: int):
+        """Выбор периода продления подписки."""
+        kb = cls()
+        kb.button(text="День", callback_data=f"AdminChannels|ext_proc|{channel_id}|1")
+        kb.button(text="Неделя", callback_data=f"AdminChannels|ext_proc|{channel_id}|7")
+        kb.button(text="Месяц", callback_data=f"AdminChannels|ext_proc|{channel_id}|30")
+        kb.button(text="3 месяца", callback_data=f"AdminChannels|ext_proc|{channel_id}|90")
+        kb.adjust(2)
+        kb.row(InlineKeyboardButton(text="◀️ Отмена", callback_data=f"AdminChannels|view|{channel_id}"))
         return kb.as_markup()
 
     @classmethod
