@@ -67,7 +67,7 @@ async def choose_donor(call: types.CallbackQuery, state: FSMContext, user: User)
 
     # Навигация
     if temp[1] in ["next", "back"]:
-        all_channels = await db.channel.get_subscribe_channels(user_id=user.id)
+        all_channels = await db.channel.get_user_channels(user_id=user.id, sort_by="subscribe")
         # Фильтруем только активные подписки
         now = int(time.time())
         channels = [ch for ch in all_channels if ch.subscribe and ch.subscribe > now]
@@ -143,7 +143,7 @@ async def choose_recipients(call: types.CallbackQuery, state: FSMContext, user: 
 
     if temp[1] == "cancel":
         # Возврат к выбору донора
-        channels = await db.channel.get_subscribe_channels(user_id=user.id)
+        channels = await db.channel.get_user_channels(user_id=user.id, sort_by="subscribe")
         await call.message.delete()
         return await call.message.answer(
             text("transfer_sub:choose_donor"),

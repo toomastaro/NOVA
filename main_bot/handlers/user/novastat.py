@@ -49,7 +49,7 @@ async def novastat_main(message: types.Message, state: FSMContext) -> None:
         message (types.Message): Сообщение пользователя.
         state (FSMContext): Контекст состояния.
     """
-    subscribed_channels = await db.channel.get_subscribe_channels(message.from_user.id)
+    subscribed_channels = await db.channel.get_user_channels(message.from_user.id, sort_by="subscribe")
     now_ts = datetime.now(timezone.utc).timestamp()
     has_active_sub = any(
         ch.subscribe and ch.subscribe > now_ts for ch in subscribed_channels
@@ -78,7 +78,7 @@ async def novastat_main_cb(call: types.CallbackQuery, state: FSMContext) -> None
         call (types.CallbackQuery): Callback запрос.
         state (FSMContext): Контекст состояния.
     """
-    subscribed_channels = await db.channel.get_subscribe_channels(call.from_user.id)
+    subscribed_channels = await db.channel.get_user_channels(call.from_user.id, sort_by="subscribe")
     now_ts = datetime.now(timezone.utc).timestamp()
     has_active_sub = any(
         ch.subscribe and ch.subscribe > now_ts for ch in subscribed_channels
