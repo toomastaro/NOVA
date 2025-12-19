@@ -14,6 +14,7 @@ from typing import Dict, Any
 
 from aiogram import Router, F, types
 from aiogram.types import CallbackQuery
+from aiogram.exceptions import TelegramBadRequest
 
 from main_bot.database.db import db
 from main_bot.keyboards import InlineAdPurchase
@@ -209,24 +210,41 @@ async def check_client_status(call: CallbackQuery) -> None:
                     f"❌ <b>{ch.title}</b>: Ошибка подключения ({client_label})"
                 )
 
-    # Формирование отчета
+    # Формирование "профессионального" отчета
     success_count = sum(1 for r in results if r.startswith("✅"))
     total_count = len(user_channels)
 
-    report_header = f"📊 <b>Результат проверки ({success_count}/{total_count})</b>"
-    report_body = "\n".join(results)
+    report_lines = []
+    report_lines.append("┏━━━━━━━━━━━━━━━━━━━━━━┓")
+    report_lines.append(f"┃  <b>ОТЧЕТ О ГОТОВНОСТИ КАНАЛОВ</b>")
+    report_lines.append(f"┗━━━━━━━━━━━━━━━━━━━━━━┛")
+    report_lines.append(f"📊 <b>Успешно:</b> {success_count} из {total_count}")
+    report_lines.append("")
 
-    main_text = (
-        "<b>💰 Рекламные закупы</b>\n\n"
-        "Для сбора статистики в канал должен быть добавлен наш технический аккаунт "
-        "с правами администратора.\n\n"
-        f"{report_header}\n"
-        f"{report_body}"
+    for res in results:
+        report_lines.append(res)
+
+    report_lines.append("")
+    report_lines.append("<i>Система Nova Bot проверяет права администратора и активность сессий для корректного сбора статистики.</i>")
+
+    main_text = "\n".join(report_lines)
+
+    # Отправляем новым сообщением
+    await call.message.answer(
+        text=main_text,
+        reply_markup=InlineAdPurchase.close_button(),
+        parse_mode="HTML"
     )
 
-    await call.message.edit_text(
-        text=main_text, reply_markup=InlineAdPurchase.main_menu(), parse_mode="HTML"
-    )
+    # Старое сообщение - просто подтверждаем проверку во всплывающем уведомлении
+    await call.answer("✅ Проверка завершена")
+
+
+@router.callback_query(F.data == "AdPurchase|close_report")
+@safe_handler("Закупы: закрыть отчет")
+async def close_report(call: CallbackQuery) -> None:
+    """Удаляет сообщение с отчетом."""
+    await call.message.delete()
 
 
 @router.callback_query(F.data == "AdPurchase|create_menu")

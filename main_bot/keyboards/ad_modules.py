@@ -65,6 +65,9 @@ class InlineAdPurchase(InlineKeyboardBuilder):
         kb = cls()
         kb.button(text="🎨 Рекламные креативы", callback_data="AdBuyMenu|creatives")
         kb.button(text="💰 Рекламные закупы", callback_data="AdBuyMenu|purchases")
+        kb.button(
+            text="⚙️ Проверить готовность", callback_data="AdPurchase|check_client_status"
+        )
         kb.adjust(1)
         return kb.as_markup()
 
@@ -78,11 +81,14 @@ class InlineAdPurchase(InlineKeyboardBuilder):
         kb.button(text="➕ Создать закуп", callback_data="AdPurchase|create_menu")
         kb.button(text="📋 Мои закупы", callback_data="AdPurchase|list")
         kb.button(text="🌍 Моя статистика", callback_data="AdPurchase|global_stats")
-        kb.button(
-            text="🔄 Проверить статус", callback_data="AdPurchase|check_client_status"
-        )
         kb.button(text="⬅️ Назад", callback_data="AdBuyMenu|menu")
         kb.adjust(1)
+        return kb.as_markup()
+
+    @classmethod
+    def close_button(cls):
+        kb = cls()
+        kb.button(text="❌ Закрыть", callback_data="AdPurchase|close_report")
         return kb.as_markup()
 
     @classmethod
