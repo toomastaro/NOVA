@@ -161,18 +161,39 @@ async def accept(call: types.CallbackQuery, state: FSMContext) -> None:
     # После нажатия "Запланировать" показываем сообщение об успехе
     await state.clear()
 
+    # Prepare detailed info for success messages
+    delete_time_text = (
+        f"{int(post.delete_time / 3600)} ч."
+        if post.delete_time
+        else "Не установлен"
+    )
+
+    channels_text = "\n".join(
+        text("resource_title").format(obj.title)
+        for obj in objects
+        if obj.chat_id in chosen[:10]
+    )
+    if len(chosen) > 10:
+        channels_text += f"\n... и еще {len(chosen) - 10}"
+
+    subscribers_count = data.get("available", 0)
+
     if send_time:
         weekday, day, month, year, _time = date_values
         message_text = text("manage:post_bot:success:date").format(
-            weekday, day, month, year, _time
+            weekday,
+            day,
+            month,
+            year,
+            _time,
+            subscribers_count,
+            channels_text,
+            delete_time_text,
         )
     else:
+        current_date = datetime.now().strftime("%d.%m.%Y %H:%M")
         message_text = text("manage:post_bot:success:public").format(
-            "\n".join(
-                text("resource_title").format(obj.title)
-                for obj in objects
-                if obj.chat_id in chosen[:10]
-            )
+            current_date, subscribers_count, channels_text, delete_time_text
         )
 
     await call.message.delete()

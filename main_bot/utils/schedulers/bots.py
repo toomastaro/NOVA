@@ -164,7 +164,8 @@ async def send_bot_messages(
             options["chat_id"] = user
             if bot_post.text_with_name:
                 get_user = await other_bot.get_chat(user)
-                added_text = f"{get_user.username or get_user.first_name}\n\n"
+                name_part = get_user.first_name or get_user.username or "Пользователь"
+                added_text = f"{name_part}!\n\n"
 
                 if message_options.text:
                     options["text"] = added_text + message_options.text
