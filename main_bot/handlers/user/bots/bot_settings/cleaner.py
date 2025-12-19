@@ -10,7 +10,7 @@
 import asyncio
 import logging
 from datetime import datetime
-from typing import Any, List
+from typing import Any, List, Dict, Union
 
 from aiogram import types, F, Router
 from aiogram.fsm.context import FSMContext
@@ -25,6 +25,23 @@ from main_bot.keyboards import keyboards
 from utils.error_handler import safe_handler
 
 logger = logging.getLogger(__name__)
+
+
+class DictObj:
+    """Вспомогательный класс для преобразования ключей словаря в атрибуты."""
+
+    def __init__(self, in_dict: Dict[str, Any]):
+        for key, val in in_dict.items():
+            setattr(self, key, val)
+
+
+def ensure_bot_obj(bot: Union[UserBot, Dict[str, Any]]) -> Union[UserBot, DictObj]:
+    """
+    Гарантирует, что входные данные являются объектом с атрибутами, а не словарем.
+    """
+    if isinstance(bot, dict):
+        return DictObj(bot)
+    return bot
 
 
 @safe_handler("Боты: выбор типа очистки")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
@@ -88,6 +105,7 @@ async def start_clean(
         users (List[Any]): Список пользователей для очистки.
         chat_id (int): ID канала.
     """
+    user_bot = ensure_bot_obj(user_bot)
     async with BotManager(user_bot.token) as manager:
         if not manager.bot:
             return

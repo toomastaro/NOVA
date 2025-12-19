@@ -106,7 +106,9 @@ async def accept(call: types.CallbackQuery, state: FSMContext) -> None:
                 data.get("channel").emoji_id,
                 data.get("channel").title
             )
-            reply_markup = keyboards.manage_remain_bot_post(post=data.get("post"))
+            reply_markup = keyboards.manage_remain_bot_post(
+                post=ensure_bot_post_obj(data.get("post"))
+            )
 
         await call.message.edit_text(message_text, reply_markup=reply_markup)
         return

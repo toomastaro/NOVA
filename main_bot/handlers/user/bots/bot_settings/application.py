@@ -10,7 +10,7 @@
 import asyncio
 import logging
 import time
-from typing import Any, List
+from typing import Any, List, Dict, Union
 
 from aiogram import types, F, Router
 from aiogram.fsm.context import FSMContext
@@ -30,6 +30,23 @@ from main_bot.keyboards import keyboards
 from utils.error_handler import safe_handler
 
 logger = logging.getLogger(__name__)
+
+
+class DictObj:
+    """Вспомогательный класс для преобразования ключей словаря в атрибуты."""
+
+    def __init__(self, in_dict: Dict[str, Any]):
+        for key, val in in_dict.items():
+            setattr(self, key, val)
+
+
+def ensure_bot_obj(bot: Union[UserBot, Dict[str, Any]]) -> Union[UserBot, DictObj]:
+    """
+    Гарантирует, что входные данные являются объектом с атрибутами, а не словарем.
+    """
+    if isinstance(bot, dict):
+        return DictObj(bot)
+    return bot
 
 
 @safe_handler("Боты: выбор в меню заявок")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
@@ -153,6 +170,7 @@ async def approve(
         users (List[Any]): Список пользователей для одобрения.
         db_obj (Database): Объект базы данных бота.
     """
+    user_bot = ensure_bot_obj(user_bot)
     async with BotManager(token=user_bot.token) as manager:
         if not manager.bot:
             return

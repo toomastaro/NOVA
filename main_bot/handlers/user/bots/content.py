@@ -27,6 +27,7 @@ from main_bot.handlers.user.bots.bot_content import (
     serialize_channel,
     serialize_bot_post,
     get_days_with_bot_posts,
+    ensure_bot_post_obj,
 )
 from utils.error_handler import safe_handler
 
@@ -441,7 +442,8 @@ async def manage_remain_post(call: types.CallbackQuery, state: FSMContext) -> No
                         chat_id=call.from_user.id,
                         message_id=msg_id,
                         reply_markup=keyboards.manage_bot_post(
-                            post=data.get("post"), is_edit=data.get("is_edit")
+                            post=ensure_bot_post_obj(data.get("post")),
+                            is_edit=data.get("is_edit"),
                         ),
                     )
             except Exception as e:
@@ -471,33 +473,20 @@ async def accept_delete_row_content(
     day_values = data.get("day_values")
     # send_date_values = data.get("send_date_values")
     channel_data = data.get("channel")
-    post = data.get("post")
+    post = ensure_bot_post_obj(data.get("post"))
 
     if temp[1] == "cancel":
         # Получаем username автора
         try:
-            admin_id = post.get("admin_id") if isinstance(post, dict) else post.admin_id
-            author = (await call.bot.get_chat(admin_id)).username or "Неизвестно"
+            author = (await call.bot.get_chat(post.admin_id)).username or "Неизвестно"
         except Exception:
             author = "Неизвестно"
 
-        send_timestamp = (
-            post.get("send_time") if isinstance(post, dict) else post.send_time
-        )
-        start_timestamp = (
-            post.get("start_timestamp")
-            if isinstance(post, dict)
-            else post.start_timestamp
-        )
-        delete_time = (
-            post.get("delete_time") if isinstance(post, dict) else post.delete_time
-        )
-
-        send_date = datetime.fromtimestamp(send_timestamp or start_timestamp)
+        send_date = datetime.fromtimestamp(post.send_time or post.start_timestamp)
 
         await call.message.edit_text(
             text("bot_post:content").format(
-                "Нет" if not delete_time else f"{int(delete_time / 3600)} час.",
+                "Нет" if not post.delete_time else f"{int(post.delete_time / 3600)} час.",
                 send_date.day,
                 text("month").get(str(send_date.month)),
                 send_date.year,
@@ -508,8 +497,7 @@ async def accept_delete_row_content(
         return
 
     if temp[1] == "accept":
-        post_id = post.get("id") if isinstance(post, dict) else post.id
-        await db.bot_post.delete_bot_post(post_id)
+        await db.bot_post.delete_bot_post(post.id)
         posts = await db.bot_post.get_bot_posts(channel_data["chat_id"], day)
 
         # Удаляем превью поста

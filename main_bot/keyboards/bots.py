@@ -13,6 +13,35 @@ from main_bot.database.bot_post.model import BotPost
 from main_bot.database.user_bot.model import UserBot
 from main_bot.utils.lang.language import text
 from main_bot.utils.schemas import MessageOptionsHello
+from typing import Any, Dict, Union
+
+
+class DictObj:
+    """Вспомогательный класс для преобразования ключей словаря в атрибуты."""
+
+    def __init__(self, in_dict: Dict[str, Any]):
+        for key, val in in_dict.items():
+            setattr(self, key, val)
+
+
+def ensure_bot_post_obj(
+    post: Union[BotPost, Dict[str, Any]]
+) -> Union[BotPost, DictObj]:
+    """
+    Гарантирует, что входные данные являются объектом с атрибутами, а не словарем.
+    """
+    if isinstance(post, dict):
+        return DictObj(post)
+    return post
+
+
+def ensure_bot_obj(bot: Union[UserBot, Dict[str, Any]]) -> Union[UserBot, DictObj]:
+    """
+    Гарантирует, что входные данные являются объектом с атрибутами, а не словарем.
+    """
+    if isinstance(bot, dict):
+        return DictObj(bot)
+    return bot
 
 
 class InlineBots(InlineKeyboardBuilder):
@@ -88,6 +117,7 @@ class InlineBots(InlineKeyboardBuilder):
     @classmethod
     def manage_bot_post(cls, post: BotPost, is_edit: bool = False):
         kb = cls()
+        post = ensure_bot_post_obj(post)
         options = MessageOptionsHello(**post.message)
 
         if options.reply_markup:
@@ -132,6 +162,7 @@ class InlineBots(InlineKeyboardBuilder):
     @classmethod
     def finish_bot_post_params(cls, obj: BotPost, data: str = "FinishBotPostParams"):
         kb = cls()
+        obj = ensure_bot_post_obj(obj)
 
         kb.button(
             text=text("manage_hello_msg:text_with_name:button").format(
@@ -249,6 +280,7 @@ class InlineBots(InlineKeyboardBuilder):
     @classmethod
     def manage_remain_bot_post(cls, post: BotPost):
         kb = cls()
+        post = ensure_bot_post_obj(post)
 
         # Первый ряд: Изменить | Дата/Время
         kb.button(
@@ -282,6 +314,7 @@ class InlineBots(InlineKeyboardBuilder):
     @classmethod
     def manage_bot(cls, user_bot: UserBot, status: bool):
         kb = cls()
+        user_bot = ensure_bot_obj(user_bot)
 
         # kb.button(
         #     text=text("manage:bot:manage"),

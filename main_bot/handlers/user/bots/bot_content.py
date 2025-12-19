@@ -6,6 +6,23 @@ from main_bot.database.db_types import Status
 from main_bot.handlers.user.common_content import serialize_channel
 
 
+class DictObj:
+    """Вспомогательный класс для преобразования ключей словаря в атрибуты."""
+
+    def __init__(self, in_dict: Dict[str, Any]):
+        for key, val in in_dict.items():
+            setattr(self, key, val)
+
+
+def ensure_bot_post_obj(post: Any) -> Any:
+    """
+    Гарантирует, что входные данные являются объектом с атрибутами, а не словарем.
+    """
+    if isinstance(post, dict):
+        return DictObj(post)
+    return post
+
+
 def serialize_bot_post(post: Any) -> Optional[Dict[str, Any]]:
     """
     Сериализует объект поста бота в словарь.
