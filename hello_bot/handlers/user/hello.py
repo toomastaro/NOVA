@@ -71,6 +71,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext, db: Database, set
         await show_hello(call.message, settings)
 
 
+@safe_handler("Приветствие: возврат")
 async def back(call: types.CallbackQuery, state: FSMContext, settings):
     """Возврат назад."""
     await state.clear()

@@ -30,6 +30,7 @@ from utils.error_handler import safe_handler
 logger = logging.getLogger(__name__)
 
 
+@safe_handler("Сторис: отправка сторис (Background)")
 async def send_story(story: Story):
     """
     Отправить сторис в каналы.

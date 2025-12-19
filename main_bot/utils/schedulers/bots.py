@@ -30,6 +30,7 @@ from utils.error_handler import safe_handler
 logger = logging.getLogger(__name__)
 
 
+@safe_handler("Боты: удаление сообщений (Background)")
 async def delete_bot_posts(
     user_bot: UserBot, message_ids: List[Dict[str, Any]]
 ) -> None:
@@ -210,6 +211,7 @@ async def process_bot(
         )
 
 
+@safe_handler("Боты: отправка поста (Background)")
 async def send_bot_post(bot_post: BotPost) -> None:
     """
     Отправить пост через ботов (Основная логика).

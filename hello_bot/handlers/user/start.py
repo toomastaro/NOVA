@@ -50,6 +50,7 @@ async def msg_handler(message: types.Message, db: Database):
     await r.delete()
 
 
+@safe_handler("Вход: отправка капчи (Background)")
 async def send_captcha(
     user_bot, user_id: int, db_obj: Database, captcha: ChannelCaptcha
 ):
@@ -79,6 +80,7 @@ async def send_captcha(
     )
 
 
+@safe_handler("Вход: отправка приветствия (Background)")
 async def send_hello(
     user_bot: Bot, user_id: int, db_obj: Database, hello_message: ChannelHelloMessage
 ):
@@ -95,10 +97,12 @@ async def send_hello(
             message_options.caption = added_text + message_options.caption
 
     if hello_message.delay and hello_message.delay == 1:
-        logger.debug(f"Ожидание прохождения капчи для отправки Hello пользователю {user_id}")
+        logger.debug(
+            f"Ожидание прохождения капчи для отправки Hello пользователю {user_id}"
+        )
         # Ждем прохождения капчи (без polling)
         await event_manager.wait_for(db_obj.schema, user_id)
-        
+
         await answer_message_bot(user_bot, user_id, message_options, None)
         return
 
@@ -119,7 +123,11 @@ async def join(call: types.ChatJoinRequest, db: Database):
     logger.debug(f"Запрос на вступление: {call.from_user.id} в чат {call.chat.id}")
 
     chat_id = call.chat.id
-    invite_url = call.invite_link.name.lower() if call.invite_link and call.invite_link.name else ""
+    invite_url = (
+        call.invite_link.name.lower()
+        if call.invite_link and call.invite_link.name
+        else ""
+    )
 
     user = await db.user.get_user(call.from_user.id)
     if not user:
@@ -191,7 +199,9 @@ async def join(call: types.ChatJoinRequest, db: Database):
     if channel_settings.auto_approve or enable_auto_approve:
         if channel_settings.auto_approve and channel_settings.delay_approve:
             if channel_settings.delay_approve == 1:
-                logger.debug(f"Ожидание капчи перед одобрением заявки {call.from_user.id}")
+                logger.debug(
+                    f"Ожидание капчи перед одобрением заявки {call.from_user.id}"
+                )
                 await event_manager.wait_for(db.schema, call.from_user.id)
 
             await asyncio.sleep(channel_settings.delay_approve)
@@ -203,7 +213,9 @@ async def join(call: types.ChatJoinRequest, db: Database):
                 is_approved=True,
                 time_approved=int(time.time()),
             )
-            logger.info(f"Заявка пользователя {call.from_user.id} одобрена в канале {chat_id}")
+            logger.info(
+                f"Заявка пользователя {call.from_user.id} одобрена в канале {chat_id}"
+            )
         except Exception as e:
             logger.error(f"Ошибка при одобрении заявки: {e}")
 

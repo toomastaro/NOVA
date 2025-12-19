@@ -60,6 +60,7 @@ async def get_views_for_post(post):
     return views, channel
 
 
+@safe_handler("Постинг: отправка поста (Background)")
 async def send(post: Post):
     """Отправить пост в каналы"""
     message_options = MessageOptions(**post.message_options)
@@ -486,7 +487,6 @@ async def delete_posts():
                 # exchange_rate_update_time = exchange_rate.last_update
 
         total_views = sum(obj["views"] for obj in message_objects)
-        rub_price = round(float(cpm_price * float(total_views / 1000)), 2)
 
         channels_text_inner = "\n".join(
             text("resource_title").format(html.escape(obj["channel"].title))
@@ -512,37 +512,47 @@ async def delete_posts():
             )
             preview_text = f"«{html.escape(preview_text_raw)}»"
 
-            def format_report(title_suffix, current_views, v24=None, v48=None, v72=None):
+            def format_report(
+                title_suffix, current_views, v24=None, v48=None, v72=None
+            ):
                 lines = []
                 # Если пост удалён до 24ч, используем упрощённый заголовок без скобок
                 if hours < 24:
                     lines.append(text("cpm:report:header:simple").format(preview_text))
                 else:
-                    lines.append(text("cpm:report:header").format(preview_text, title_suffix))
-                
+                    lines.append(
+                        text("cpm:report:header").format(preview_text, title_suffix)
+                    )
+
                 if v24 is not None:
                     rub_24 = round(float(cpm_price * float(v24 / 1000)), 2)
                     usd_24 = round(rub_24 / usd_rate, 2)
                     lines.append(
-                        text("cpm:report:history_row").format("24ч", v24, rub_24, usd_24)
+                        text("cpm:report:history_row").format(
+                            "24ч", v24, rub_24, usd_24
+                        )
                     )
                 if v48 is not None:
                     rub_48 = round(float(cpm_price * float(v48 / 1000)), 2)
                     usd_48 = round(rub_48 / usd_rate, 2)
                     lines.append(
-                        text("cpm:report:history_row").format("48ч", v48, rub_48, usd_48)
+                        text("cpm:report:history_row").format(
+                            "48ч", v48, rub_48, usd_48
+                        )
                     )
                 if v72 is not None:
                     rub_72 = round(float(cpm_price * float(v72 / 1000)), 2)
                     usd_72 = round(rub_72 / usd_rate, 2)
                     lines.append(
-                        text("cpm:report:history_row").format("72ч", v72, rub_72, usd_72)
+                        text("cpm:report:history_row").format(
+                            "72ч", v72, rub_72, usd_72
+                        )
                     )
-                    
+
                 # Добавляем ТЕКУЩИЕ данные как последнюю строку
                 curr_rub = round(float(cpm_price * float(current_views / 1000)), 2)
                 curr_usd = round(curr_rub / usd_rate, 2)
-                
+
                 # Определяем метку времени для текущей строки
                 if hours < 24:
                     time_label = "До 24ч"
@@ -550,9 +560,11 @@ async def delete_posts():
                     time_label = f"{hours}ч"
                 else:
                     time_label = f"{hours}ч"
-                    
+
                 lines.append(
-                    text("cpm:report:history_row").format(time_label, current_views, curr_rub, curr_usd)
+                    text("cpm:report:history_row").format(
+                        time_label, current_views, curr_rub, curr_usd
+                    )
                 )
 
                 lines.append(f"\nℹ️ <i>Курс: 1 USDT = {round(usd_rate, 2)}₽</i>")
@@ -577,7 +589,9 @@ async def delete_posts():
             # Но по ТЗ: "до 24 часов включительно одна цифра".
             # Если мы передаем None в v24/v48, format_report сам построит одну цифру.
 
-            report_text = format_report(title, total_views, args_v24, args_v48, args_v72)
+            report_text = format_report(
+                title, total_views, args_v24, args_v48, args_v72
+            )
 
             # Добавляем подпись
             report_text += await get_report_signatures(user, "cpm", bot)
