@@ -157,3 +157,10 @@ class StoryCrud(DatabaseMixin):
                 Story.created_timestamp < week_ago,
             )
         )
+    async def count_user_stories(self, user_id: int) -> int:
+        """
+        Подсчитывает количество запланированных историй пользователя.
+        """
+        stmt = select(func.count(Story.id)).where(Story.admin_id == user_id)
+        result = await self.fetchrow(stmt)
+        return result[0] if result else 0

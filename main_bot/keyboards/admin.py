@@ -23,7 +23,8 @@ class InlineAdmin(InlineKeyboardBuilder):
         kb.button(text="👤 Сессии", callback_data="Admin|session")
         kb.button(text="📺 Каналы", callback_data="AdminChannels|list|0")
         kb.button(text="📩 Рассылка", callback_data="Admin|mail")
-        kb.button(text="📊 Статистика сервиса", callback_data="Admin|stats")
+        kb.button(text="🤖 Боты", callback_data="AdminBots|list|0")
+        kb.button(text="👥 Админы", callback_data="AdminUsers|list|0")
         kb.button(text="🎁 Создать промокод", callback_data="Admin|promo")
         kb.button(text="🦋 Рекламные ссылки", callback_data="Admin|ads")
 
@@ -216,5 +217,65 @@ class InlineAdmin(InlineKeyboardBuilder):
 
         kb.button(text="◀️ К списку", callback_data="AdminChannels|list|0")
 
+        kb.adjust(1)
+        return kb.as_markup()
+
+    @classmethod
+    def admin_bots_list(cls, bots: list, offset: int, total: int):
+        """Список всех ботов системы."""
+        kb = cls()
+        for bot in bots:
+            kb.button(
+                text=f"{bot.title} (@{bot.username})",
+                callback_data=f"AdminBots|view|{bot.id}",
+            )
+        kb.adjust(1)
+        
+        nav = []
+        if offset > 0:
+            nav.append(InlineKeyboardButton(text="⬅️", callback_data=f"AdminBots|list|{max(0, offset-10)}"))
+        if offset + 10 < total:
+            nav.append(InlineKeyboardButton(text="➡️", callback_data=f"AdminBots|list|{offset+10}"))
+        if nav:
+            kb.row(*nav)
+        
+        kb.row(InlineKeyboardButton(text="◀️ В меню", callback_data="Admin|back"))
+        return kb.as_markup()
+
+    @classmethod
+    def admin_bot_details(cls, bot_id: int):
+        """Детали бота."""
+        kb = cls()
+        kb.button(text="◀️ К списку", callback_data="AdminBots|list|0")
+        kb.adjust(1)
+        return kb.as_markup()
+
+    @classmethod
+    def admin_users_list(cls, users: list, offset: int, total: int):
+        """Список всех пользователей."""
+        kb = cls()
+        for user in users:
+            kb.button(
+                text=f"ID: {user.id}",
+                callback_data=f"AdminUsers|view|{user.id}",
+            )
+        kb.adjust(1)
+
+        nav = []
+        if offset > 0:
+            nav.append(InlineKeyboardButton(text="⬅️", callback_data=f"AdminUsers|list|{max(0, offset-10)}"))
+        if offset + 10 < total:
+            nav.append(InlineKeyboardButton(text="➡️", callback_data=f"AdminUsers|list|{offset+10}"))
+        if nav:
+            kb.row(*nav)
+
+        kb.row(InlineKeyboardButton(text="◀️ В меню", callback_data="Admin|back"))
+        return kb.as_markup()
+
+    @classmethod
+    def admin_user_details(cls, user_id: int):
+        """Детали пользователя."""
+        kb = cls()
+        kb.button(text="◀️ К списку", callback_data="AdminUsers|list|0")
         kb.adjust(1)
         return kb.as_markup()

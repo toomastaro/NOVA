@@ -187,3 +187,11 @@ class PublishedPostCrud(DatabaseMixin):
             for u in updates
         ]
         await self.execute_many(stmts)
+    async def count_user_published(self, user_id: int) -> int:
+        """
+        Подсчитывает количество опубликованных постов пользователя.
+        """
+        from sqlalchemy import func
+        stmt = select(func.count(PublishedPost.id)).where(PublishedPost.admin_id == user_id)
+        result = await self.fetchrow(stmt)
+        return result[0] if result else 0

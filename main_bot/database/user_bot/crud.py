@@ -111,3 +111,8 @@ class UserBotCrud(DatabaseMixin):
             operation = self.execute
 
         return await operation(stmt, **{"commit": return_obj} if return_obj else {})
+    async def get_all_bots(self) -> List[UserBot]:
+        """
+        Получает список всех ботов в системе.
+        """
+        return await self.fetch(select(UserBot).order_by(UserBot.created_timestamp.desc()))

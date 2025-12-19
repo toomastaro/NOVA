@@ -19,13 +19,7 @@ class UserCrud(DatabaseMixin):
     """
 
     async def get_users(self) -> List[User]:
-        """
-        Получает список всех пользователей.
-
-        Возвращает:
-            List[User]: Список объектов User.
-        """
-        return await self.fetch(select(User))
+        return await self.fetch(select(User).order_by(User.created_timestamp.desc()))
 
     async def get_user(self, user_id: int) -> User | None:
         """

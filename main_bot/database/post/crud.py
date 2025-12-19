@@ -202,3 +202,10 @@ class PostCrud(DatabaseMixin):
         """
         logger.info(f"Массовое удаление постов: {post_ids}")
         await self.execute(delete(Post).where(Post.id.in_(post_ids)))
+    async def count_user_posts(self, user_id: int) -> int:
+        """
+        Подсчитывает количество запланированных постов пользователя.
+        """
+        stmt = select(func.count(Post.id)).where(Post.admin_id == user_id)
+        result = await self.fetchrow(stmt)
+        return result[0] if result else 0

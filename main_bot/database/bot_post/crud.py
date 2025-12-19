@@ -162,3 +162,10 @@ class BotPostCrud(DatabaseMixin):
         Удаляет список постов по ID.
         """
         await self.execute(delete(BotPost).where(BotPost.id.in_(post_ids)))
+    async def count_user_bot_posts(self, user_id: int) -> int:
+        """
+        Подсчитывает количество рассылок пользователя через ботов.
+        """
+        stmt = select(func.count(BotPost.id)).where(BotPost.admin_id == user_id)
+        result = await self.fetchrow(stmt)
+        return result[0] if result else 0
