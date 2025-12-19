@@ -1,13 +1,9 @@
-"""
-Модуль оформления подписок на каналы и ботов.
-"""
-
+import time
 from datetime import datetime
 import logging
 
 from aiogram import types, Router, F
 from aiogram.fsm.context import FSMContext
-from httpx import AsyncClient
 
 from config import Config
 from main_bot.database.db import db
@@ -17,35 +13,29 @@ from main_bot.keyboards import keyboards
 from main_bot.utils.lang.language import text
 from utils.error_handler import safe_handler
 from main_bot.utils.user_settings import get_user_view_mode, set_user_view_mode
+from main_bot.utils.currency import get_usd_rate
 
 logger = logging.getLogger(__name__)
 
 
 def get_subscribe_list_resources(objects: list, object_type: str, sort_by: str) -> str:
-    """Формирует текстовый список ресурсов для подписки."""
+    """Формирует текстовый список ресурсов для подписки с датами окончания."""
     if not objects:
         return text(f"not_found_{object_type}")
 
-    empty_text = ""
+    lines = []
     for obj in objects:
-        sub_text = text("subscribe_not_found")
-
-        if object_type == "bots":
-            if obj.subscribe:
-                sub_text = text("subscribe_date_note").format(
-                    datetime.fromtimestamp(obj.subscribe).strftime("%d.%m.%Y %H:%M")
-                )
+        sub_time = getattr(obj, "subscribe", None)
+        if sub_time and sub_time > time.time():
+            expire_str = datetime.fromtimestamp(sub_time).strftime("%d.%m.%Y %H:%M")
+            sub_note = text("subscribe_date_note").format(expire_str)
         else:
-            sub_value = obj.subscribe
-            if sub_value:
-                sub_text = text("subscribe_date_note").format(
-                    datetime.fromtimestamp(sub_value).strftime("%d.%m.%Y %H:%M")
-                )
+            sub_note = text("subscribe_not_found")
 
-        obj_text = text("resource_title").format(obj.title)
-        empty_text += obj_text + sub_text + "\n"
+        title = getattr(obj, "title", "Unknown")
+        lines.append(text("resource_title").format(title) + sub_note)
 
-    return empty_text
+    return "\n".join(lines)
 
 
 async def get_pay_info_text(state: FSMContext, user: User) -> str:
@@ -56,14 +46,7 @@ async def get_pay_info_text(state: FSMContext, user: User) -> str:
     method = data.get("method")
     total_price = data.get("total_price")
 
-    try:
-        async with AsyncClient() as client:
-            res = await client.get("https://api.coinbase.com/v2/prices/USD-RUB/spot")
-            usd_rate = float(res.json().get("data").get("amount", 100))
-    except Exception as e:
-        logger.error(f"Error fetching USD rate: {e}")
-        usd_rate = 100
-
+    usd_rate = await get_usd_rate()
     total_price_usd = round(total_price / usd_rate, 2)
     total_price_stars = int(total_price / 1.2)  # Курс: 1 Star = 1.2₽
 

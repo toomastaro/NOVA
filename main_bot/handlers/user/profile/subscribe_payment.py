@@ -20,6 +20,7 @@ from main_bot.utils.lang.language import text
 from main_bot.utils.payments.crypto_bot import crypto_bot
 from main_bot.keyboards.common import Reply
 from utils.error_handler import safe_handler
+from main_bot.utils.subscribe_service import grant_subscription
 
 logger = logging.getLogger(__name__)
 
@@ -32,84 +33,49 @@ async def safe_delete(message: types.Message):
         pass
 
 
-@safe_handler(
-    "Подписка: начисление"
-)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler("Подписка: начисление")
 async def give_subscribes(state: FSMContext, user: User):
-    """Начисляет подписку пользователю после оплаты."""
+    """Начисляет подписку пользователю после оплаты, используя централизованный сервис."""
     data = await state.get_data()
 
-    # cor = data.get('cor')
-    service = data.get("service")
-    object_type = data.get("object_type")
+    service = data.get("service", "subscribe")
+    object_type = data.get("object_type", "channels")
+    chosen = data.get("chosen", [])
+    total_days = data.get("total_days", 0)
+    total_price = data.get("total_price", 0)
+    promo_name = data.get("promo_name")
 
-    # Защита от потери данных
-    if not service:
-        service = "subscribe"
-    if not object_type:
-        object_type = "channels"
+    if not chosen or not total_days:
+        logger.warning(f"Попытка начисления подписки с пустыми данными: user={user.id}")
+        return
 
-    # Определяем функцию динамически
-    if object_type == "bots":
-        cor = db.user_bot.get_user_bots
-    else:
-        cor = db.channel.get_user_channels
-    chosen: list = data.get("chosen")
-    total_days: int = data.get("total_days")
-    total_price: int = data.get("total_price")
-    promo_name: str = data.get("promo_name")
+    # Выдача подписки через сервис
+    await grant_subscription(
+        user_id=user.id,
+        chosen=chosen,
+        total_days=total_days,
+        service=service,
+        object_type=object_type,
+    )
 
-    # database method in state / crud
-    objects = await cor(user_id=user.id, sort_by=service)
-    if object_type == "channels":
-        chosen_objects = [i for i in objects if i.chat_id in chosen]
-    else:
-        chosen_objects = [i for i in objects if i.id in chosen]
-
-    added_time = 86400 * total_days
-    for chosen_object in chosen_objects:
-        if object_type == "channels":
-            channel = await db.channel.get_channel_by_row_id(row_id=chosen_object.id)
-            subscribe_value = channel.subscribe
-
-            if not subscribe_value:
-                subscribe_value = added_time + int(time.time())
-            else:
-                subscribe_value += added_time
-
-            await db.channel.update_channel_by_chat_id(
-                chat_id=channel.chat_id, **{"subscribe": subscribe_value}
-            )
-        else:
-            user_bot = await db.user_bot.get_bot_by_id(row_id=chosen_object.id)
-            subscribe_value = user_bot.subscribe
-
-            if not subscribe_value:
-                subscribe_value = added_time + int(time.time())
-            else:
-                subscribe_value += added_time
-
-            await db.user_bot.update_bot_by_id(
-                row_id=user_bot.id, subscribe=subscribe_value
-            )
-
+    # Работа с промокодом
     if promo_name:
         promo = await db.promo.get_promo(promo_name)
-        await db.promo.use_promo(promo)
+        if promo:
+            await db.promo.use_promo(promo)
 
+    # Реферальная система
     if user.referral_id:
         ref_user = await db.user.get_user(user.referral_id)
-        if not ref_user:
-            return
+        if ref_user:
+            has_purchase = await db.purchase.has_purchase(user.id)
+            percent = 15 if has_purchase else 60
+            total_ref_earn = int(total_price / 100 * percent)
 
-        has_purchase = await db.purchase.has_purchase(user.id)
-        percent = 15 if has_purchase else 60
-        total_ref_earn = int(total_price / 100 * percent)
-
-        await db.user.add_referral_reward(
-            user_id=ref_user.id,
-            amount=total_ref_earn
-        )
+            await db.user.add_referral_reward(user_id=ref_user.id, amount=total_ref_earn)
+            logger.info(
+                f"Реферальное вознаграждение {total_ref_earn} начислено {ref_user.id}"
+            )
 
 
 @safe_handler(

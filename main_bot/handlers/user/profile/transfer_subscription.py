@@ -232,35 +232,30 @@ async def choose_recipients(call: types.CallbackQuery, state: FSMContext, user: 
         pass
 
 
-@safe_handler(
-    "Перенос: выполнение"
-)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler("Перенос: выполнение")
 async def execute_transfer(
     call: types.CallbackQuery, state: FSMContext, user: User, chosen: list
 ):
-    """Выполнить перенос подписки"""
+    """Выполнить перенос подписки с одного канала на другие."""
     data = await state.get_data()
 
     donor_chat_id = data.get("transfer_donor_chat_id")
     donor_title = data.get("transfer_donor_title")
     days_available = data.get("transfer_days_available")
 
-    # Получаем канал-донор
-    await db.channel.get_channel_by_chat_id(chat_id=donor_chat_id)
+    # Обнуляем подписку донора (оставляем до конца текущего дня)
+    now_dt = datetime.now()
+    end_of_today = datetime(now_dt.year, now_dt.month, now_dt.day, 23, 59, 59)
+    end_of_today_ts = int(end_of_today.timestamp())
 
-    # Вычисляем конец сегодняшнего дня (23:59:59)
-    now = datetime.now()
-    end_of_today = datetime(now.year, now.month, now.day, 23, 59, 59)
-    end_of_today_timestamp = int(end_of_today.timestamp())
-
-    # Обнуляем подписку донора до конца сегодняшнего дня
     await db.channel.update_channel_by_chat_id(
-        chat_id=donor_chat_id, subscribe=end_of_today_timestamp
+        chat_id=donor_chat_id, subscribe=end_of_today_ts
     )
 
-    # Распределяем дни между получателями
-    days_per_recipient = days_available // len(chosen)
+    # Распределяем дни (целое количество дней на каждого получателя)
+    days_per_recipient = int(days_available / len(chosen))
     seconds_per_recipient = days_per_recipient * 86400
+    now_ts = int(time.time())
 
     # Получаем каналы-получатели
     recipient_channels = await db.channel.get_user_channels(
@@ -269,33 +264,26 @@ async def execute_transfer(
 
     recipients_info = []
     for channel in recipient_channels:
-        # Добавляем дни к текущей подписке или создаем новую
-        if channel.subscribe and channel.subscribe > int(time.time()):
-            new_subscribe = channel.subscribe + seconds_per_recipient
-        else:
-            new_subscribe = int(time.time()) + seconds_per_recipient
+        current_sub = channel.subscribe or 0
+        new_sub = max(current_sub, now_ts) + seconds_per_recipient
 
         await db.channel.update_channel_by_chat_id(
-            chat_id=channel.chat_id, subscribe=new_subscribe
+            chat_id=channel.chat_id, subscribe=new_sub
         )
 
-        # Форматируем дату для отображения
-        new_date = datetime.fromtimestamp(new_subscribe).strftime("%d.%m.%Y")
+        new_date_str = datetime.fromtimestamp(new_sub).strftime("%d.%m.%Y")
         recipients_info.append(
-            f"📺 {channel.title} — подписка до {new_date} (+{days_per_recipient} дн.)"
+            f"📺 {channel.title} — до {new_date_str} (+{days_per_recipient} дн.)"
         )
 
-    # Форматируем дату донора
-    donor_date = end_of_today.strftime("%d.%m.%Y")
-
-    # Очищаем state
     await state.clear()
 
     # Показываем результат
+    donor_date_str = end_of_today.strftime("%d.%m.%Y")
     await call.message.delete()
     await call.message.answer(
         text("transfer_sub:success").format(
-            donor_title, donor_date, "\n".join(recipients_info)
+            donor_title, donor_date_str, "\n".join(recipients_info)
         ),
         reply_markup=keyboards.subscription_menu(),
     )

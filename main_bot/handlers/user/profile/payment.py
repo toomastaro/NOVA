@@ -8,9 +8,7 @@
 - Промокоды
 """
 
-import asyncio
 import random
-import time
 import logging
 
 from aiogram import types, Router, F
@@ -251,7 +249,7 @@ async def get_amount(message: types.Message, state: FSMContext):
             reply_markup=keyboards.back(data="BalanceAmountCancel"),
         )
 
-    wait_msg = await message.answer(
+    await message.answer(
         text("wait_payment").format(amount, method_name),
         reply_markup=keyboards.wait_payment(data="cancel_bal_pay", pay_url=pay_url),
     )
@@ -264,58 +262,16 @@ async def get_amount(message: types.Message, state: FSMContext):
         payment_method=method,
     )
 
-    end_time = time.time() + 3600
-    while time.time() < end_time:
-        # Проверяем не отменил ли пользователь оплату
-        current_data = await state.get_data()
-        if not current_data.get("waiting_payment"):
-            import logging
+    if method == PaymentMethod.STARS:
+        await state.update_data(
+            amount=amount, payment_to="balance", stars_payment=True
+        )
+        await state.set_state(Balance.pay_stars)
+        return
 
-            logging.getLogger(__name__).info(
-                f"Оплата баланса отменена пользователем для метода {method}"
-            )
-            return
-
-        if method == PaymentMethod.CRYPTO_BOT:
-            paid = await crypto_bot.is_paid(order_id)
-
-            if not paid:  # Если НЕ оплачено - ждем
-                await asyncio.sleep(5)
-                continue
-
-            # Если оплачено - начисляем баланс
-            await db.user.increment_balance(
-                user_id=message.from_user.id, amount=amount
-            )
-            user = await db.user.get_user(user_id=message.from_user.id)
-            await db.payment.add_payment(user_id=user.id, amount=amount, method=method)
-            await safe_delete(wait_msg)
-            await message.answer(text("success_payment").format(amount))
-            await show_balance(message, user)
-            return
-
-        if method == PaymentMethod.PLATEGA:
-            # Вебхук обрабатывает оплату и зачисление.
-            # Мы просто следим за обновлением статуса в БД, чтобы очистить UI.
-            payment_link = await db.payment_link.get_payment_link(order_id)
-            if payment_link and payment_link.status == "PAID":
-                await safe_delete(wait_msg)
-                # Сообщение об успехе отправляется вебхуком
-                # Просто обновляем вид баланса для пользователя
-                user = await db.user.get_user(user_id=message.from_user.id)
-                await show_balance(message, user)
-                await state.clear()
-                return
-
-            await asyncio.sleep(5)
-            continue
-
-        if method == PaymentMethod.STARS:
-            await state.update_data(
-                amount=amount, payment_to="balance", stars_payment=True
-            )
-            await state.set_state(Balance.pay_stars)
-            return
+    # Для других методов (CryptoBot, Platega) больше не нужен цикл busy-waiting.
+    # Вебхуки в main_api.py обработают зачисление и уведомят пользователя.
+    logger.info(f"Счет на пополнение создан: метод={method}, order_id={order_id}, пользователь={message.from_user.id}")
 
 
 @safe_handler(
