@@ -112,15 +112,21 @@ async def send_bot_messages(
         cor = other_bot.send_message
     elif message_options.photo:
         cor = other_bot.send_photo
-        message_options.photo = file_input
     elif message_options.video:
         cor = other_bot.send_video
-        message_options.video = file_input
     else:
         cor = other_bot.send_animation
-        message_options.animation = file_input
 
     options = message_options.model_dump()
+
+    # Внедряем файл после дампа, чтобы избежать варнингов Pydantic при сериализации
+    if file_input:
+        if message_options.photo:
+            options["photo"] = file_input
+        elif message_options.video:
+            options["video"] = file_input
+        elif message_options.animation:
+            options["animation"] = file_input
 
     # Удаляем неиспользуемые поля (Telegram API строг к лишним полям)
     keys_to_remove = [

@@ -54,7 +54,7 @@
   "manage:post:has_spoiler:button": "{} Спойлер",
   "manage:post:del_time:button": "⏳ Таймер удаления: {}",
   "manage:post:del_time:not": "Не установлен",
-  "manage:post:send_time:button": "⏰ Дата/Время",
+  "manage:post:send_time:button": "⏰ Запланировать",
   "manage:post:accept:date:button": "✅ Запланировать",
   "manage:post:public:button": "⚡️ Опубликовать",
   "manage:post:report:button": "{} Отчёт о выходе поста",

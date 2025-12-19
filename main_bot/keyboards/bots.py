@@ -186,7 +186,7 @@ class InlineBots(InlineKeyboardBuilder):
         )
         kb.button(text=text("back:button"), callback_data=f"{data}|cancel")
 
-        kb.adjust(1, 1, 2, 1)
+        kb.adjust(1)
         return kb.as_markup()
 
     @classmethod
@@ -393,10 +393,6 @@ class InlineBots(InlineKeyboardBuilder):
         kb.button(
             text=text("manage:post_bot:accept:date:button"),
             callback_data=f"{data}|send_time",
-        )
-        kb.button(
-            text=text("manage:post:send_time:button"),
-            callback_data=f"{data}|change_time",
         )
         kb.button(text=text("back:button"), callback_data=f"{data}|cancel")
 
