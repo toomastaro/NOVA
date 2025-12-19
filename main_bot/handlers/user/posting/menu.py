@@ -134,7 +134,7 @@ async def show_create_post(message: types.Message, state: FSMContext):
             exc_info=True,
         )
         await message.edit_text(
-            "❌ Произошла ошибка при загрузке каналов. Попробуйте позже.",
+            text("error_loading_channels"),
             reply_markup=keyboards.posting_menu(),
         )
 
@@ -172,7 +172,7 @@ async def back_to_main(message: types.Message):
     from main_bot.keyboards.common import Reply
 
     await message.delete()
-    await message.answer("Главное меню", reply_markup=Reply.menu())
+    await message.answer(text("reply_menu:main"), reply_markup=Reply.menu())
 
 
 def get_router():

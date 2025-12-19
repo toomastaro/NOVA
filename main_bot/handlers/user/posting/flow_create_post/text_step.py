@@ -135,7 +135,7 @@ async def get_message(message: types.Message, state: FSMContext):
             str(e),
             exc_info=True,
         )
-        return await message.answer("❌ Ошибка создания поста. Попробуйте позже.")
+        return await message.answer(text("error_post_create"))
 
     # Создание бекапа поста в резервном канале (для превью и редактирования)
     from main_bot.utils.backup_utils import send_to_backup
@@ -187,6 +187,6 @@ async def get_message(message: types.Message, state: FSMContext):
     # Показываем превью поста с возможностью редактирования
     from main_bot.keyboards.common import Reply
 
-    await message.answer("✅ Контент принят", reply_markup=Reply.menu())
+    await message.answer(text("content_accepted"), reply_markup=Reply.menu())
 
     await answer_post(message, state)

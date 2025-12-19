@@ -102,10 +102,10 @@ async def generate_post_info_text(post_obj, is_published: bool = False) -> str:
         author_name = (
             f"<a href='tg://user?id={author.id}'>{author.first_name}</a>"
             if author
-            else "Неизвестно"
+            else text("unknown_author")
         )
     except Exception:
-        author_name = "Неизвестно"
+        author_name = text("unknown_author")
 
     channels_text = ""
     # Получаем список каналов
@@ -116,23 +116,14 @@ async def generate_post_info_text(post_obj, is_published: bool = False) -> str:
             post_obj.post_id
         )
 
-        channels_text = "<blockquote>Пост опубликован в:\n"
+        channels_inner = ""
         for p in published_posts:
             channel = await db.channel.get_channel_by_chat_id(p.chat_id)
             if channel:
-                # Получаем кол-во подписчиков для display (если есть в базе)
-                _ = getattr(channel, "subscribers_count", "???")
-
-                # Построение ссылки на канал (нет username в БД, поэтому просто title)
-                # Если в будущем добавим username в БД, раскомментируем
-                # url = f"https://t.me/{channel.username}" if getattr(channel, 'username', None) else ""
-                url = ""
-                title_link = (
-                    f"<a href='{url}'>{channel.title}</a>" if url else channel.title
-                )
-
-                channels_text += f"📺 {title_link}\n"
-        channels_text += "</blockquote>"
+                title_link = channel.title
+                channels_inner += f"📺 {title_link}\n"
+        
+        channels_text = text("post_report_target_channels").format(channels_inner)
 
         # Основной блок Published
         # Ссылка на пост (берем первый попавшийся или текущий)
@@ -146,30 +137,30 @@ async def generate_post_info_text(post_obj, is_published: bool = False) -> str:
         #      post_link = f"https://t.me/{ch.username}/{post_obj.message_id}"
 
         date_str = datetime.fromtimestamp(post_obj.created_timestamp).strftime(
-            "%d %B %Y г. в %H:%M"
+            "%d.%m.%Y %H:%M"
         )
         if getattr(post_obj, "status", "active") == "deleted":
             deleted_at = getattr(post_obj, "deleted_at", None)
             del_time = (
-                datetime.fromtimestamp(deleted_at).strftime("%d %B %Y г. в %H:%M")
+                datetime.fromtimestamp(deleted_at).strftime("%d.%m.%Y %H:%M")
                 if deleted_at
-                else "Неизвестно"
+                else text("unknown")
             )
             created_str = datetime.fromtimestamp(post_obj.created_timestamp).strftime(
-                "%d %B %Y г. в %H:%M"
+                "%d.%m.%Y %H:%M"
             )
 
             return (
-                f"<b>Статус: 🗑 Удален</b>\n"
-                f"📅 Создан: {created_str}\n"
-                f"🗑 Удален: {del_time}\n\n"
+                f"{text('status_deleted')}\n"
+                f"{text('post_info_created').format(created_str)}\n"
+                f"{text('post_info_deleted').format(del_time)}\n\n"
                 f"{channels_text}"
             )
         else:
-            status_line = "<b>Статус: 👀 Опубликован</b>"
-            link_line = f"Ссылка: {post_link}\n"
+            status_line = text("status_published")
+            link_line = text("post_info_link").format(post_link)
 
-            return f"{status_line}\n{link_line}Дата: {date_str}\n\n{channels_text}"
+            return f"{status_line}\n{link_line}{text('post_info_date').format(date_str)}\n\n{channels_text}"
 
     else:
         # Пост (Запланирован или Удален)
@@ -179,34 +170,35 @@ async def generate_post_info_text(post_obj, is_published: bool = False) -> str:
             # ОТЧЕТ ОБ УДАЛЕНИИ
             deleted_at = getattr(post_obj, "deleted_at", None)
             deleted_str = (
-                datetime.fromtimestamp(deleted_at).strftime("%d %B %Y г. в %H:%M")
+                datetime.fromtimestamp(deleted_at).strftime("%d.%m.%Y %H:%M")
                 if deleted_at
-                else "Неизвестно"
+                else text("unknown")
             )
 
             # Получаем каналы куда планировалось/было
-            channels_text = "<blockquote>Пост должен был быть в:\n"
+            channels_inner = ""
             for chat_id in post_obj.get("chat_ids", []):
                 channel = await db.channel.get_channel_by_chat_id(chat_id)
                 if channel:
-                    channels_text += f"📺 {channel.title}\n"
-            channels_text += "</blockquote>"
+                    channels_inner += f"📺 {channel.title}\n"
+            
+            channels_text = text("post_report_target_channels_deleted").format(channels_inner)
 
             return (
-                f"<b>Отчёт об удалении поста</b>\n"
-                f"Удален: {deleted_str}\n"
-                f"Автор: {author_name}\n\n"
+                f"{text('post_report_deleted_title')}\n"
+                f"{text('post_info_deleted').format(deleted_str)}\n"
+                f"{text('post_report_author').format(author_name)}\n\n"
                 f"{channels_text}\n"
-                f"🗑 Таймер удаления: {int(post_obj.delete_time / 3600) if post_obj.delete_time else 'Нет'} ч\n"
+                f"{text('post_report_delete_timer').format(int(post_obj.delete_time / 3600) if post_obj.delete_time else text('post_report_delete_timer_none'))}\n"
             )
 
         else:
             # ЗАПЛАНИРОВАН
             date_str = datetime.fromtimestamp(post_obj.send_time).strftime(
-                "%d %B %Y г. в %H:%M"
+                "%d.%m.%Y %H:%M"
             )
 
-            channels_text = "<blockquote>Пост будет скопирован в:\n"
+            channels_inner = ""
             for chat_id in post_obj.chat_ids:
                 channel = await db.channel.get_channel_by_chat_id(chat_id)
                 if channel:
@@ -216,12 +208,13 @@ async def generate_post_info_text(post_obj, is_published: bool = False) -> str:
                         f"<a href='{url}'>{channel.title}</a>" if url else channel.title
                     )
 
-                    channels_text += f"📺 {title_link}\n"
-            channels_text += "</blockquote>"
+                    channels_inner += f"📺 {title_link}\n"
+            
+            channels_text = text("post_report_target_channels_pending").format(channels_inner)
 
             return (
-                f"<b>Статус: 🕔 Ожидает публикации</b>\n"
-                f"Дата: {date_str}\n\n"
+                f"{text('status_pending')}\n"
+                f"{text('post_info_date').format(date_str)}\n\n"
                 f"{channels_text}"
             )
 
@@ -737,7 +730,7 @@ async def manage_published_post(call: types.CallbackQuery, state: FSMContext):
 
         # Получение превью текста
         opts = post.message_options or {}
-        raw_text = opts.get("text") or opts.get("caption") or "Без текста"
+        raw_text = opts.get("text") or opts.get("caption") or text("no_text")
         # Очистка HTML тегов
         clean_text = re.sub(r"<[^>]+>", "", raw_text)
         preview_text_raw = (

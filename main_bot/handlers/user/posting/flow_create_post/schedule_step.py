@@ -157,7 +157,7 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
             exc_info=True,
         )
         await call.answer(
-            "❌ Ошибка загрузки каналов. Попробуйте позже.", show_alert=True
+            text("error_load_channels"), show_alert=True
         )
         return
     except Exception as e:
@@ -168,7 +168,7 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
             exc_info=True,
         )
         await call.answer(
-            "❌ Ошибка загрузки каналов. Попробуйте позже.", show_alert=True
+            text("error_load_channels"), show_alert=True
         )
         return
 
@@ -226,7 +226,7 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
                     "Ошибка при возврате к корневому уровню: %s", str(e), exc_info=True
                 )
                 await call.answer(
-                    "❌ Ошибка загрузки. Попробуйте позже.", show_alert=True
+                    text("error_load_generic"), show_alert=True
                 )
                 return
             # Сбрасываем remover при выходе из папки
@@ -298,9 +298,7 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
                 )
 
                 return await call.answer(
-                    f"❌ Невозможно выбрать все каналы\n\n"
-                    f"Следующие каналы не имеют активной подписки:\n{channels_list}\n\n"
-                    f"Оплатите подписку через меню 💎 Подписка",
+                    text("error_choice_all_no_sub").format(channels_list),
                     show_alert=True,
                 )
 
@@ -517,9 +515,7 @@ async def finish_params(call: types.CallbackQuery, state: FSMContext):
                 channels_text += f"\n... и ещё {len(invalid_channels) - 5}"
 
             return await call.answer(
-                f"⛔ Функция недоступна!\n\n"
-                f"Для настройки CPM требуется активный помощник с правами администратора в следующих каналах:\n{channels_text}\n\n"
-                f"Пожалуйста, проверьте «Права помощника» в настройках канала.",
+                text("error_cpm_perms").format(channels_text),
                 show_alert=True,
             )
 
@@ -575,7 +571,7 @@ async def finish_params(call: types.CallbackQuery, state: FSMContext):
         # Force refresh main menu
         from main_bot.keyboards.common import Reply
 
-        await call.message.answer("📝 Публикация...", reply_markup=Reply.menu())
+        await call.message.answer(text("publishing_msg"), reply_markup=Reply.menu())
 
         await call.message.answer(
             text("manage:post:accept:public").format(channels_block, delete_str),
@@ -745,7 +741,7 @@ async def get_send_time(message: types.Message, state: FSMContext):
             date = datetime.strptime(f"{today} {parts[0]}", "%d.%m.%Y %H:%M")
 
         else:
-            raise ValueError("Неверный формат")
+            raise ValueError(text("error_format"))
 
         send_time = time.mktime(date.timetuple())
 
@@ -819,13 +815,13 @@ async def get_send_time(message: types.Message, state: FSMContext):
     delete_str = text("manage:post:del_time:not")
     if post.delete_time:
         if post.delete_time < 3600:
-            delete_str = f"{int(post.delete_time / 60)} мин."
+            delete_str = f"{int(post.delete_time / 60)} {text('minutes_short')}"
         else:
-            delete_str = f"{int(post.delete_time / 3600)} ч."
+            delete_str = f"{int(post.delete_time / 3600)} {text('hours_short')}"
 
     from main_bot.keyboards.common import Reply
 
-    await message.answer("✅ Время принято", reply_markup=Reply.menu())
+    await message.answer(text("time_accepted"), reply_markup=Reply.menu())
 
     await message.answer(
         text("manage:post:accept:date").format(

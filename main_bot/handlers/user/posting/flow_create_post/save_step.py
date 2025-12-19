@@ -197,9 +197,9 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
     delete_str = ""
     if post.delete_time:
         if post.delete_time < 3600:
-            time_display = f"{int(post.delete_time / 60)} мин."
+            time_display = f"{int(post.delete_time / 60)} {text('minutes_short')}"
         else:
-            time_display = f"{int(post.delete_time / 3600)} ч."
+            time_display = f"{int(post.delete_time / 3600)} {text('hours_short')}"
         delete_str = text("post:report:delete_in").format(time_display)
 
     # Цена CPM
@@ -237,7 +237,7 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
     # Перезагружаем главное меню
     from main_bot.keyboards.common import Reply
 
-    await call.message.answer("Главное меню", reply_markup=Reply.menu())
+    await call.message.answer(text("main_menu_label"), reply_markup=Reply.menu())
 
     # Отправка OTLOG
     await call.message.answer(

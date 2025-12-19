@@ -132,7 +132,7 @@ async def manage_post(call: types.CallbackQuery, state: FSMContext):
         # Force refresh main menu
         from main_bot.keyboards.common import Reply
 
-        await call.message.answer("⚙️ Настройка публикации", reply_markup=Reply.menu())
+        await call.message.answer(text("manage_post_settings"), reply_markup=Reply.menu())
 
         return await call.message.answer(
             text("manage:post:finish_params").format(len(chosen), channels_list),
