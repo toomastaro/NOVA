@@ -141,18 +141,13 @@ async def view_channel_details(call: types.CallbackQuery) -> None:
         await call.answer("❌ Канал не найден", show_alert=True)
         return
 
-    # Получить администраторов через Bot API (для справки)
-    username = "N/A"
+    # Получение данных через Bot API (для справки)
     owner_name = text("unknown")
     members_count = "N/A"
     status_bot_post = "❓"
     status_bot_mail = "❓"
     
     try:
-        chat_info = await call.bot.get_chat(channel.chat_id)
-        if chat_info.username:
-            username = chat_info.username
-        
         # Получаем количество подписчиков
         members_count = await call.bot.get_chat_member_count(channel.chat_id)
         
@@ -221,9 +216,7 @@ async def view_channel_details(call: types.CallbackQuery) -> None:
 
     # Формирование текста
     text_msg = "📺 <b>Информация о канале</b>\n\n"
-    text_msg += f"<b>Название:</b> {channel.title}\n"
-    text_msg += f"<b>Username:</b> @{username}\n"
-    text_msg += f"<b>Chat ID:</b> <code>{channel.chat_id}</code>\n"
+    text_msg += f"<b>Название:</b> {channel.title} (<code>{channel.chat_id}</code>)\n"
     text_msg += f"<b>Подписчиков:</b> {members_count}\n"
     text_msg += f"<b>Владелец:</b> {owner_name} (<code>{channel.admin_id}</code>)\n"
     text_msg += f"<b>Добавлен:</b> {time.strftime('%d.%m.%Y %H:%M', time.localtime(channel.created_timestamp))}\n\n"
