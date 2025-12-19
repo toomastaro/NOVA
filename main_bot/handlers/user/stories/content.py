@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from aiogram import types, F, Router
 from aiogram.fsm.context import FSMContext
@@ -124,7 +124,7 @@ async def choice_channel(call: types.CallbackQuery, state: FSMContext):
     chat_id = int(temp[1])
     channel = await db.channel.get_channel_by_chat_id(chat_id)
 
-    day = datetime.today()
+    day = datetime.now(timezone.utc)
     posts = await db.story.get_stories(channel.chat_id, day)
     day_values = (
         day.day,

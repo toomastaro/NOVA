@@ -32,7 +32,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
 
     if temp[1] not in menu:
         logger.warning(f"Неизвестная опция меню: {temp[1]}")
-        return await call.answer("Неизвестная опция")
+        return await call.answer(text("error_unknown_option"))
 
     cor, args = menu[temp[1]].values()
 
@@ -124,7 +124,7 @@ async def back_to_main(message: types.Message):
     """Возврат в главное меню"""
     from main_bot.keyboards.common import Reply
 
-    await message.answer("Главное меню", reply_markup=Reply.menu())
+    await message.answer(text("main_menu_label"), reply_markup=Reply.menu())
 
 
 def get_router():

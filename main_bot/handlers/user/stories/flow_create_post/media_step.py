@@ -90,7 +90,7 @@ async def get_message(message: types.Message, state: FSMContext):
     # Подгружаем главное меню
     from main_bot.keyboards.common import Reply
 
-    await message.answer("📝 Содержимое сторис сохранено", reply_markup=Reply.menu())
+    await message.answer(text("content_accepted"), reply_markup=Reply.menu())
 
 
 @safe_handler(
@@ -350,4 +350,4 @@ async def get_value(message: types.Message, state: FSMContext):
     # Подгружаем главное меню
     from main_bot.keyboards.common import Reply
 
-    await message.answer("✅ Изменения сохранены", reply_markup=Reply.menu())
+    await message.answer(text("changes_saved_success"), reply_markup=Reply.menu())

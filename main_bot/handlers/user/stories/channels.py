@@ -42,7 +42,7 @@ async def render_channel_info(
         creator = await call.bot.get_chat(channel.admin_id)
         creator_name = f"@{creator.username}" if creator.username else creator.full_name
     except Exception:
-        creator_name = "Неизвестно"
+        creator_name = text("unknown")
 
     # Получаем количество подписчиков
     except Exception:
@@ -55,9 +55,9 @@ async def render_channel_info(
     # Статус подписки
     if channel.subscribe:
         sub_date = datetime.fromtimestamp(channel.subscribe)
-        subscribe_str = f"✅ Активна до {sub_date.strftime('%d.%m.%Y')}"
+        subscribe_str = text("status_active_until").format(sub_date.strftime("%d.%m.%Y"))
     else:
-        subscribe_str = "❌ Не активна"
+        subscribe_str = text("status_inactive")
 
     # Получаем статус помощника
     try:
@@ -96,11 +96,9 @@ async def render_channel_info(
             else:
                 assistant_name = f"@{html.escape(clean_alias)}"
             assistant_desc = "<i>Назначенный помощник для этого канала</i>"
-            assistant_header = (
-                f"🤖 <b>Статус помощника:</b> {assistant_name}\n{assistant_desc}\n"
-            )
+            assistant_header = f"🤖 <b>{text('assistant_status')}:</b> {assistant_name}\n{assistant_desc}\n"
         else:
-            assistant_header = "🤖 <b>Статус помощника:</b> Не назначен\n"
+            assistant_header = f"🤖 <b>{text('assistant_status')}:</b> {text('not_assigned')}\n"
 
     except Exception as e:
         logger.error(f"Ошибка получения статуса помощника: {e}")
@@ -108,7 +106,7 @@ async def render_channel_info(
         status_story = "❓"
         status_mail = "❓"
         status_welcome = "❓"
-        assistant_header = "🤖 <b>Статус помощника:</b> Ошибка\n"
+        assistant_header = f"🤖 <b>{text('assistant_status')}:</b> {text('error')}\n"
 
     info_text = text("channel_info").format(
         channel.title,
@@ -121,10 +119,10 @@ async def render_channel_info(
 
     info_text += (
         f"\n\n{assistant_header}"
-        f"├ 📝 Постинг: {status_post}\n"
-        f"├ 📸 Истории: {status_story}\n"
-        f"├ 📨 Рассылка: {status_mail}\n"
-        f"└ 👋 Приветствие: {status_welcome}"
+        f"├ {text('posting_label').format(status_post)}\n"
+        f"├ {text('stories_label').format(status_story)}\n"
+        f"├ {text('mailing_label').format(status_mail)}\n"
+        f"└ {text('welcome_label').format(status_welcome)}"
     )
 
     from aiogram.exceptions import TelegramBadRequest
@@ -218,7 +216,7 @@ async def manage_channel(call: types.CallbackQuery, state: FSMContext):
 
     if temp[1] == "favorite":
         # Не реализовано в stories?
-        return await call.answer("Функция в разработке", show_alert=True)
+        return await call.answer(text("function_in_development"), show_alert=True)
 
     if temp[1] == "invite_assistant":
         data = await state.get_data()
@@ -230,7 +228,7 @@ async def manage_channel(call: types.CallbackQuery, state: FSMContext):
 
         channel = await db.channel.get_channel_by_chat_id(channel_id)
         if not channel:
-            await call.answer("Канал не найден", show_alert=True)
+            await call.answer(text("error_channel_not_found"), show_alert=True)
             return
 
         # Проверяем, есть ли уже права у помощника
@@ -242,7 +240,7 @@ async def manage_channel(call: types.CallbackQuery, state: FSMContext):
             # Если оба права уже есть - помощник уже добавлен
             if can_post and can_stories:
                 await call.answer(
-                    "✅ Помощник уже добавлен в канал и имеет все необходимые права!",
+                    text("assistant_perms_success"),
                     show_alert=True,
                 )
                 # Возвращаемся на экран информации о канале
@@ -250,17 +248,17 @@ async def manage_channel(call: types.CallbackQuery, state: FSMContext):
 
         # Получаем клиента
         if not client_row or not client_row[0].client:
-            await call.answer("❌ Нет назначенного помощника", show_alert=True)
+            await call.answer(text("error_no_assistant"), show_alert=True)
             return
 
         mt_client = client_row[0].client
         session_path = Path(mt_client.session_path)
 
         if not session_path.exists():
-            await call.answer("❌ Файл сессии не найден", show_alert=True)
+            await call.answer(text("error_session_not_found"), show_alert=True)
             return
 
-        await call.answer("⏳ Создаю ссылку и добавляю помощника...", show_alert=False)
+        await call.answer(text("assistant_invite_started"), show_alert=False)
 
         try:
             # 1. Создаем ссылку приглашения
@@ -291,21 +289,7 @@ async def manage_channel(call: types.CallbackQuery, state: FSMContext):
 
                 username = mt_client.alias.replace("@", "")
 
-                msg = (
-                    f"✅ <b>Помощник успешно добавился в канал!</b>\n\n"
-                    f"Теперь вам нужно выдать ему права администратора.\n\n"
-                    f"📋 <b>Инструкция:</b>\n"
-                    f"1. Зайдите в настройки канала -> Администраторы -> Добавить администратора.\n"
-                    f"2. В поиске введите: @{html.escape(username)}\n"
-                    f"3. Выберите этого пользователя и выдайте следующие права:\n"
-                    f"   ✅ Публикация сообщений\n"
-                    f"   ✅ Редактирование сообщений\n"
-                    f"   ✅ Удаление сообщений\n"
-                    f"   ✅ Публикация историй\n"
-                    f"   ✅ Редактирование историй\n"
-                    f"   ✅ Удаление историй\n\n"
-                    f"После выдачи прав нажмите кнопку <b>«Проверить права помощника»</b>."
-                )
+                msg = text("assistant_invite_success_msg").format(html.escape(username))
                 await call.message.edit_text(
                     text=msg,
                     parse_mode="HTML",
@@ -314,7 +298,7 @@ async def manage_channel(call: types.CallbackQuery, state: FSMContext):
 
             else:
                 await call.answer(
-                    "⚠️ Не удалось добавить помощника (5 попыток). Попробуйте позже.",
+                    text("error_invite_failed"),
                     show_alert=True,
                 )
 
@@ -338,7 +322,7 @@ async def manage_channel(call: types.CallbackQuery, state: FSMContext):
             await call.answer("Канал не найден", show_alert=True)
             return
 
-        await call.answer("⏳ Проверяем права...", show_alert=False)
+        await call.answer(text("assistant_check_started"), show_alert=False)
 
         # 1. Получаем клиента
         client_row = await db.mt_client_channel.get_my_membership(channel.chat_id)
@@ -371,9 +355,9 @@ async def manage_channel(call: types.CallbackQuery, state: FSMContext):
         if perms.get("error"):
             error_code = perms["error"]
             if error_code == "USER_NOT_PARTICIPANT":
-                error_msg = "Помощник не найден в участниках канала"
+                error_msg = text("error_assistant_not_participant")
             else:
-                error_msg = f"Ошибка: {error_code}"
+                error_msg = text("error_generic").format(error_code)
 
             await call.answer(f"❌ {error_msg}", show_alert=True)
             return
@@ -401,10 +385,10 @@ async def manage_channel(call: types.CallbackQuery, state: FSMContext):
         await render_channel_info(call, state, channel_id)
 
         if is_admin and (can_stories or not perms.get("can_post_stories")):
-            await call.answer("✅ Права успешно обновлены!", show_alert=True)
+            await call.answer(text("assistant_perms_success"), show_alert=True)
         else:
             await call.answer(
-                "⚠️ Не все права выданы. Проверьте настройки админа.", show_alert=True
+                text("assistant_perms_warning"), show_alert=True
             )
 
 

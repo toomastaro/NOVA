@@ -258,9 +258,7 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
                     channels_list += f"\n... и ещё {len(channels_without_sub) - 5}"
 
                 return await call.answer(
-                    f"❌ Невозможно выбрать все каналы\n\n"
-                    f"Следующие каналы не имеют активной подписки:\n{channels_list}\n\n"
-                    f"Оплатите подписку через меню 💎 Подписка",
+                    text("error_choice_all_no_sub_detailed").format(channels_list),
                     show_alert=True,
                 )
 
@@ -275,8 +273,7 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
                     f"• {title}" for title in channels_without_session[:5]
                 )
                 return await call.answer(
-                    f"❌ Невозможно выбрать все каналы\n\n"
-                    f"Следующие каналы не имеют подключенной сессии для сторис:\n{channels_list}",
+                    text("error_choice_all_no_session_detailed").format(channels_list),
                     show_alert=True,
                 )
 
@@ -443,7 +440,7 @@ async def finish_params(call: types.CallbackQuery, state: FSMContext):
             text("manage:story:accept:public").format(
                 await get_story_report_text(chosen, objects),
                 (
-                    f"{int(options.period / 3600)} ч."  # type: ignore
+                    f"{int(options.period / 3600)} {text('hours_short')}"  # type: ignore
                     if options.period
                     else text("manage:post:del_time:not")
                 ),
@@ -686,7 +683,7 @@ async def get_send_time(message: types.Message, state: FSMContext):
     # Перезагружаем главное меню
     from main_bot.keyboards.common import Reply
 
-    await message.answer("✅ Время принято", reply_markup=Reply.menu())
+    await message.answer(text("time_accepted"), reply_markup=Reply.menu())
 
     await message.answer(
         text("manage:story:accept:date").format(
@@ -697,7 +694,7 @@ async def get_send_time(message: types.Message, state: FSMContext):
             _time,
             await get_story_report_text(chosen, objects),
             (
-                f"{int(options.period / 3600)} ч."  # type: ignore
+                f"{int(options.period / 3600)} {text('hours_short')}"  # type: ignore
                 if options.period
                 else text("manage:post:del_time:not")
             ),
