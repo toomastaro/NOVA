@@ -22,8 +22,8 @@ from main_bot.keyboards import keyboards
 from main_bot.utils.functions import answer_bot_post
 from main_bot.utils.lang.language import text
 from main_bot.utils.backup_utils import send_to_backup
+from main_bot.handlers.user.common_content import serialize_channel
 from main_bot.handlers.user.bots.bot_content import (
-    serialize_channel,
     serialize_bot_post,
     get_days_with_bot_posts,
     ensure_bot_post_obj,
