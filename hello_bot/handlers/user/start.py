@@ -28,15 +28,15 @@ async def msg_handler(message: types.Message, db: Database):
 
     Регистрирует пользователя или обновляет время последней активности (капчи).
     """
-    user = await db.user.get_user(message.from_user.id)
+    user = await db.get_user(message.from_user.id)
     if not user:
-        await db.user.add_user(
+        await db.add_user(
             id=message.from_user.id,
             walk_captcha=True,
             time_walk_captcha=int(time.time()),
         )
     else:
-        await db.user.update_user(
+        await db.update_user(
             user_id=message.from_user.id,
             walk_captcha=True,
             time_walk_captcha=int(time.time()),
@@ -129,9 +129,9 @@ async def join(call: types.ChatJoinRequest, db: Database):
         else ""
     )
 
-    user = await db.user.get_user(call.from_user.id)
+    user = await db.get_user(call.from_user.id)
     if not user:
-        await db.user.add_user(
+        await db.add_user(
             id=call.from_user.id, channel_id=chat_id, invite_url=invite_url
         )
 
@@ -208,7 +208,7 @@ async def join(call: types.ChatJoinRequest, db: Database):
 
         try:
             await call.approve()
-            await db.user.update_user(
+            await db.update_user(
                 user_id=call.from_user.id,
                 is_approved=True,
                 time_approved=int(time.time()),
@@ -238,9 +238,9 @@ async def leave(call: types.ChatMemberUpdated, db: Database):
     if not settings:
         return
 
-    user = await db.user.get_user(call.from_user.id)
+    user = await db.get_user(call.from_user.id)
     if not user:
-        await db.user.add_user(id=call.from_user.id)
+        await db.add_user(id=call.from_user.id)
 
     bye = ByeAnswer(**settings.bye)
     if not bye.active:
@@ -339,7 +339,7 @@ async def set_channel(call: types.ChatMemberUpdated, db_bot: UserBot):
 @safe_handler("Личка: статус активности")
 async def set_active(call: types.ChatMemberUpdated, db: Database):
     """Обновляет статус активности пользователя (блокировка бота)."""
-    await db.user.update_user(
+    await db.update_user(
         user_id=call.from_user.id,
         is_active=call.new_chat_member.status != ChatMemberStatus.KICKED,
     )
