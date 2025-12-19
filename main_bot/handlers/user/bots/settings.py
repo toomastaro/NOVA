@@ -74,7 +74,7 @@ def serialize_user_bot(bot: Any) -> Union[Dict[str, Any], None]:
     }
 
 
-@safe_handler("Bots Show Bot Manage")
+@safe_handler("Боты: панель управления")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def show_bot_manage(
     message: types.Message, user_bot: Union[UserBot, Dict[str, Any]]
 ) -> None:
@@ -123,7 +123,7 @@ async def show_bot_manage(
     )
 
 
-@safe_handler("Bots Settings Choice")
+@safe_handler("Боты: выбор бота")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def choice(call: types.CallbackQuery, state: FSMContext) -> None:
     """
     Выбор бота для настройки или добавления нового.
@@ -167,7 +167,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext) -> None:
     await show_bot_manage(call.message, user_bot)
 
 
-@safe_handler("Bots Settings Cancel")
+@safe_handler("Боты: отмена действий")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def cancel(call: types.CallbackQuery, state: FSMContext) -> None:
     """
     Отмена действия и возврат к списку ботов.
@@ -188,7 +188,7 @@ async def cancel(call: types.CallbackQuery, state: FSMContext) -> None:
     )
 
 
-@safe_handler("Bots Get Token")
+@safe_handler("Боты: получение токена")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def get_token(message: types.Message, state: FSMContext) -> None:
     """
     Обработка введенного токена бота.
@@ -256,7 +256,7 @@ async def get_token(message: types.Message, state: FSMContext) -> None:
     )
 
 
-@safe_handler("Bots Manage Bot")
+@safe_handler("Боты: управление ботом (callback)")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def manage_bot(call: types.CallbackQuery, state: FSMContext) -> None:
     """
     Управление настройками бота.
@@ -359,7 +359,7 @@ async def manage_bot(call: types.CallbackQuery, state: FSMContext) -> None:
         )
 
 
-@safe_handler("Bots Update Token")
+@safe_handler("Боты: обновление токена")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def update_token(message: types.Message, state: FSMContext) -> None:
     """
     Обновление токена существующего бота.
@@ -402,7 +402,7 @@ async def update_token(message: types.Message, state: FSMContext) -> None:
     await show_bot_manage(message, user_bot)
 
 
-@safe_handler("Bots Back Update")
+@safe_handler("Боты: возврат к панели")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def back_update(call: types.CallbackQuery, state: FSMContext) -> None:
     """
     Возврат после обновления или ошибки.
@@ -426,7 +426,7 @@ async def back_update(call: types.CallbackQuery, state: FSMContext) -> None:
     await show_bot_manage(call.message, user_bot)
 
 
-@safe_handler("Bots Delete Bot")
+@safe_handler("Боты: удаление бота")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def delete_bot(call: types.CallbackQuery, state: FSMContext) -> None:
     """
     Удаление бота из системы.
@@ -462,7 +462,7 @@ async def delete_bot(call: types.CallbackQuery, state: FSMContext) -> None:
     await show_bot_manage(call.message, data.get("user_bot"))
 
 
-@safe_handler("Bots Get Import File")
+@safe_handler("Боты: импорт пользователей")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def get_import_file(message: types.Message, state: FSMContext) -> None:
     """
     Импорт базы пользователей из файла (txt, xlsx, csv).
@@ -513,7 +513,7 @@ async def get_import_file(message: types.Message, state: FSMContext) -> None:
         await other_db.many_insert_user(users)
 
     except Exception as e:
-        logger.error(f"Error importing file: {e}")
+        logger.error(f"Ошибка импорта файла: {e}")
         await message.answer(text("error_import"))
         return
     finally:
@@ -527,7 +527,7 @@ async def get_import_file(message: types.Message, state: FSMContext) -> None:
     await message.answer(text("success_import"))
 
 
-@safe_handler("Bots Choice Export")
+@safe_handler("Боты: экспорт пользователей")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def choice_export(call: types.CallbackQuery, state: FSMContext) -> None:
     """
     Экспорт базы пользователей в файл.
@@ -598,14 +598,14 @@ async def choice_export(call: types.CallbackQuery, state: FSMContext) -> None:
                     export_file.write(str(user.id) + "\n")
 
     except Exception as e:
-        logger.error(f"Error exporting users: {e}")
+        logger.error(f"Ошибка экспорта пользователей: {e}")
         await call.message.answer(text("error_export"))
         return
 
     try:
         await call.message.answer_document(document=types.FSInputFile(filepath))
     except Exception as e:
-        logger.error(f"Error sending export file: {e}")
+        logger.error(f"Ошибка отправки файла экспорта: {e}")
         await call.message.answer(text("error_export"))
     finally:
         if os.path.exists(filepath):

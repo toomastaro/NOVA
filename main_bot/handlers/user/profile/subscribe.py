@@ -107,7 +107,7 @@ async def get_pay_info_text(state: FSMContext, user: User) -> str:
     )
 
 
-@safe_handler("Подписка: выбор")
+@safe_handler("Подписка: выбор")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def choice(call: types.CallbackQuery, state: FSMContext, user: User):
     """Маршрутизатор выбора типа подписки (каналы/боты)."""
     temp = call.data.split("|")
@@ -147,7 +147,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext, user: User):
     )
 
 
-@safe_handler("Подписка: выбор периода")
+@safe_handler("Подписка: выбор периода")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def choice_period(call: types.CallbackQuery, state: FSMContext, user: User):
     """Выбор периода подписки."""
     temp = call.data.split("|")
@@ -213,7 +213,7 @@ async def choice_period(call: types.CallbackQuery, state: FSMContext, user: User
     )
 
 
-@safe_handler("Подписка: выбор объекта")
+@safe_handler("Подписка: выбор объекта")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def choice_object_subscribe(
     call: types.CallbackQuery, state: FSMContext, user: User
 ):

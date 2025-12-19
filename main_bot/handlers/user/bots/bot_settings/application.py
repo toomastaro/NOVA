@@ -32,7 +32,7 @@ from utils.error_handler import safe_handler
 logger = logging.getLogger(__name__)
 
 
-@safe_handler("Bots Application Choice")
+@safe_handler("Боты: выбор в меню заявок")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def choice(
     call: types.CallbackQuery,
     state: FSMContext,
@@ -90,7 +90,7 @@ async def choice(
         )
 
 
-@safe_handler("Bots Application Back")
+@safe_handler("Боты: возврат в общее меню заявок")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def back(
     call: types.CallbackQuery, channel_settings: ChannelBotSetting, db_obj: Database
 ) -> None:
@@ -106,7 +106,7 @@ async def back(
     await show_application(call.message, channel_settings, db_obj)
 
 
-@safe_handler("Bots Application Delay Choice")
+@safe_handler("Боты: выбор задержки одобрения")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def choice_application_delay(
     call: types.CallbackQuery, db_obj: Database, channel_settings: ChannelBotSetting
 ) -> None:
@@ -164,12 +164,12 @@ async def approve(
                     user.id, is_approved=True, time_approved=int(time.time())
                 )
             except Exception as e:
-                logger.error(f"Error approving join request: {e}", exc_info=True)
+                logger.error(f"Ошибка при одобрении заявки пользователя: {e}", exc_info=True)
 
             await asyncio.sleep(0.25)
 
 
-@safe_handler("Bots Application Manual Approve Choice")
+@safe_handler("Боты: выбор метода ручного одобрения")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def choice_manual_approve(
     call: types.CallbackQuery,
     state: FSMContext,
@@ -229,7 +229,7 @@ async def choice_manual_approve(
         )
 
 
-@safe_handler("Bots Application Input Back")
+@safe_handler("Боты: возврат из ввода количества")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def input_back(
     call: types.CallbackQuery,
     state: FSMContext,
@@ -258,7 +258,7 @@ async def input_back(
     )
 
 
-@safe_handler("Bots Application Get Count Part")
+@safe_handler("Боты: получение количества для одобрения")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def get_count_part(
     message: types.Message,
     state: FSMContext,
@@ -297,7 +297,7 @@ async def get_count_part(
     await show_application(message, channel_settings, db_obj)
 
 
-@safe_handler("Bots Application Invite Url Choice")
+@safe_handler("Боты: одобрение по ссылке")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def choice_invite_url(
     call: types.CallbackQuery,
     state: FSMContext,

@@ -10,7 +10,7 @@ from main_bot.utils.lang.language import text
 from utils.error_handler import safe_handler
 
 
-@safe_handler("Инфо: главное меню")
+@safe_handler("Инфо: главное меню")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def show_info_menu(call: types.CallbackQuery):
     """Показать меню информации"""
     await call.message.answer(
@@ -18,7 +18,7 @@ async def show_info_menu(call: types.CallbackQuery):
     )
 
 
-@safe_handler("Инфо: выбор раздела")
+@safe_handler("Инфо: выбор раздела")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def choice(call: types.CallbackQuery):
     """Обработчик выбора в меню информации"""
     temp = call.data.split("|")

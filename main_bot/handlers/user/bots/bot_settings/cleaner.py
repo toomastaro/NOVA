@@ -27,7 +27,7 @@ from utils.error_handler import safe_handler
 logger = logging.getLogger(__name__)
 
 
-@safe_handler("Bots Cleaner Choice")
+@safe_handler("Боты: выбор типа очистки")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def choice(
     call: types.CallbackQuery, state: FSMContext, db_obj: Database
 ) -> None:
@@ -56,7 +56,7 @@ async def choice(
     await state.set_state(Cleaner.period)
 
 
-@safe_handler("Bots Cleaner Back")
+@safe_handler("Боты: возврат в выбор типа очистки")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def back(call: types.CallbackQuery, state: FSMContext) -> None:
     """
     Возврат в меню очистки.
@@ -99,12 +99,12 @@ async def start_clean(
                 else:
                     await manager.bot.decline_chat_join_request(chat_id, user.id)
             except Exception as e:
-                logger.error(f"Error cleaning user: {e}", exc_info=True)
+                logger.error(f"Ошибка при очистке пользователя: {e}", exc_info=True)
 
             await asyncio.sleep(0.25)
 
 
-@safe_handler("Bots Cleaner Get Period")
+@safe_handler("Боты: получение периода очистки")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def get_period(
     message: types.Message, state: FSMContext, db_obj: Database
 ) -> None:

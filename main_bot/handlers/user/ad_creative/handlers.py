@@ -27,7 +27,7 @@ router = Router(name="AdCreative")
 
 
 @router.callback_query(F.data == "AdCreative|create")
-@safe_handler("Create Creative Start")
+@safe_handler("Креативы: старт создания")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def create_creative_start(call: CallbackQuery, state: FSMContext) -> None:
     """
     Начало процесса создания креатива.
@@ -46,7 +46,7 @@ async def create_creative_start(call: CallbackQuery, state: FSMContext) -> None:
 
 
 @router.message(AdCreativeStates.waiting_for_content)
-@safe_handler("Process Creative Content")
+@safe_handler("Креативы: обработка контента")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def process_creative_content(message: Message, state: FSMContext) -> None:
     """
     Обработка пересланного контента для создания креатива.
@@ -136,7 +136,7 @@ async def process_creative_content(message: Message, state: FSMContext) -> None:
 
 
 @router.message(AdCreativeStates.waiting_for_name)
-@safe_handler("Process Creative Name")
+@safe_handler("Креативы: обработка имени")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def process_creative_name(message: Message, state: FSMContext) -> None:
     """
     Обработка ввода имени креатива.
@@ -165,7 +165,7 @@ async def process_creative_name(message: Message, state: FSMContext) -> None:
 
 
 @router.callback_query(F.data == "AdCreative|list")
-@safe_handler("List Creatives")
+@safe_handler("Креативы: список")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def list_creatives(call: CallbackQuery) -> None:
     """
     Отображение списка креативов пользователя.
@@ -194,7 +194,7 @@ async def list_creatives(call: CallbackQuery) -> None:
 
 
 @router.callback_query(F.data == "AdCreative|cancel_creation")
-@safe_handler("Cancel Creative Creation")
+@safe_handler("Креативы: отмена создания")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def cancel_creation(call: CallbackQuery, state: FSMContext) -> None:
     """
     Отмена создания креатива.
@@ -210,7 +210,7 @@ async def cancel_creation(call: CallbackQuery, state: FSMContext) -> None:
 
 
 @router.callback_query(F.data.startswith("AdCreative|delete|"))
-@safe_handler("Delete Creative")
+@safe_handler("Креативы: удаление")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def delete_creative(call: CallbackQuery) -> None:
     """
     Удаление креатива (Soft Delete - пометка удаленным).
@@ -233,7 +233,7 @@ async def delete_creative(call: CallbackQuery) -> None:
 
 
 @router.callback_query(F.data.startswith("AdCreative|view|"))
-@safe_handler("View Creative")
+@safe_handler("Креативы: просмотр")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def view_creative(call: CallbackQuery) -> None:
     """
     Просмотр подробной информации о креативе.
@@ -265,7 +265,7 @@ async def view_creative(call: CallbackQuery) -> None:
 
 
 @router.callback_query(F.data == "AdCreative|back")
-@safe_handler("Back To Ad Menu")
+@safe_handler("Креативы: возврат в админ-меню")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def back_to_menu(call: CallbackQuery) -> None:
     """
     Возврат в меню закупки рекламы.
@@ -297,7 +297,7 @@ async def back_to_menu(call: CallbackQuery) -> None:
 
 
 @router.callback_query(F.data == "AdCreative|menu")
-@safe_handler("Ad Creative Menu")
+@safe_handler("Креативы: меню креативов")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def back_to_ad_menu(call: CallbackQuery) -> None:
     """
     Возврат в меню управления креативами.

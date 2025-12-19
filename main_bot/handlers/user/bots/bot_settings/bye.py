@@ -29,7 +29,7 @@ from utils.error_handler import safe_handler
 logger = logging.getLogger(__name__)
 
 
-@safe_handler("Bots Bye Choice")
+@safe_handler("Боты: выбор в меню прощаний")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def choice(
     call: types.CallbackQuery,
     state: FSMContext,
@@ -96,7 +96,7 @@ async def choice(
         await show_bye(call.message, channel_settings)
 
 
-@safe_handler("Bots Bye Back")
+@safe_handler("Боты: возврат в настройки прощаний")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def back(
     call: types.CallbackQuery, state: FSMContext, channel_settings: ChannelBotSetting
 ) -> None:
@@ -116,7 +116,7 @@ async def back(
     await show_bye(call.message, channel_settings)
 
 
-@safe_handler("Bots Bye Get Message")
+@safe_handler("Боты: получение прощального сообщения")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def get_message(
     message: types.Message, state: FSMContext, channel_settings: ChannelBotSetting
 ) -> None:

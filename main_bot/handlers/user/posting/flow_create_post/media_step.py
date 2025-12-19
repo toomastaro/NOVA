@@ -25,7 +25,7 @@ from utils.error_handler import safe_handler
 logger = logging.getLogger(__name__)
 
 
-@safe_handler("Постинг: управление постом")
+@safe_handler("Постинг: управление постом")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def manage_post(call: types.CallbackQuery, state: FSMContext):
     """
     Управление постом - обработка различных действий с постом.
@@ -237,7 +237,7 @@ async def manage_post(call: types.CallbackQuery, state: FSMContext):
         )
 
 
-@safe_handler("Постинг: отмена значения")
+@safe_handler("Постинг: отмена значения")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def cancel_value(call: types.CallbackQuery, state: FSMContext):
     """
     Отмена редактирования параметра или удаление значения параметра.
@@ -322,7 +322,7 @@ async def cancel_value(call: types.CallbackQuery, state: FSMContext):
     await answer_post(call.message, state)
 
 
-@safe_handler("Постинг: получение значения")
+@safe_handler("Постинг: получение значения")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def get_value(message: types.Message, state: FSMContext):
     """
     Получение нового значения параметра от пользователя.

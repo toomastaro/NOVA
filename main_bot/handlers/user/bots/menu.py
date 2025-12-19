@@ -24,7 +24,7 @@ from main_bot.utils.user_settings import get_user_view_mode
 logger = logging.getLogger(__name__)
 
 
-@safe_handler("Bots Menu Choice")
+@safe_handler("Боты: выбор в меню")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def choice(call: types.CallbackQuery, state: FSMContext) -> None:
     """
     Обработчик выбора в меню ботов.
@@ -56,7 +56,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext) -> None:
     await cor(*args)
 
 
-@safe_handler("Bots Show Choice Channel")
+@safe_handler("Боты: выбор канала для рассылки")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def show_choice_channel(message: types.Message, state: FSMContext) -> None:
     """
     Начало создания рассылки для ботов.
@@ -139,7 +139,7 @@ async def show_choice_channel(message: types.Message, state: FSMContext) -> None
     )
 
 
-@safe_handler("Bots Show Create Post")
+@safe_handler("Боты: ввод сообщения поста")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def show_create_post(message: types.Message, state: FSMContext) -> None:
     """
     Переход к вводу сообщения для поста.
@@ -154,7 +154,7 @@ async def show_create_post(message: types.Message, state: FSMContext) -> None:
     await state.set_state(Bots.input_message)
 
 
-@safe_handler("Bots Show Settings")
+@safe_handler("Боты: меню настроек")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def show_settings(message: types.Message) -> None:
     """
     Отображение списка ботов для настроек.
@@ -171,7 +171,7 @@ async def show_settings(message: types.Message) -> None:
     )
 
 
-@safe_handler("Bots Show Content")
+@safe_handler("Боты: контент-план")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def show_content(message: types.Message) -> None:
     """
     Отображение контент-плана (выбор канала).
@@ -194,7 +194,7 @@ async def show_content(message: types.Message) -> None:
     )
 
 
-@safe_handler("Bots Back To Main")
+@safe_handler("Боты: возврат в главное меню")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def back_to_main(message: types.Message) -> None:
     """
     Возврат в главное меню бота.

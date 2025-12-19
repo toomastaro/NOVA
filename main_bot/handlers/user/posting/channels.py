@@ -16,6 +16,7 @@ from main_bot.utils.session_manager import SessionManager
 logger = logging.getLogger(__name__)
 
 
+@safe_handler("Постинг: фоновая проверка прав")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def check_permissions_task(chat_id: int):
     """Фоновая задача для обновления прав помощника."""
     from main_bot.utils.session_manager import SessionManager
@@ -68,9 +69,10 @@ async def check_permissions_task(chat_id: int):
                 preferred_for_stats=client_row[0].preferred_for_stats
             )
     except Exception as e:
-        logger.error(f"Error in check_permissions_task: {e}")
+        logger.error(f"Ошибка в check_permissions_task: {e}")
 
 
+@safe_handler("Постинг: информация о канале")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def render_channel_info(
     call: types.CallbackQuery, state: FSMContext, channel_id: int
 ):
@@ -210,7 +212,7 @@ async def render_channel_info(
             raise e
 
 
-@safe_handler("Постинг: выбор канала")
+@safe_handler("Постинг: выбор канала")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def choice(call: types.CallbackQuery, state: FSMContext):
     """Выбор канала для управления или добавления."""
     temp = call.data.split("|")
@@ -253,7 +255,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
     await render_channel_info(call, state, channel_id)
 
 
-@safe_handler("Постинг: отмена канала")
+@safe_handler("Постинг: отмена канала")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def cancel(call: types.CallbackQuery):
     """Отмена действий и возврат к списку каналов."""
     channels = await db.channel.get_user_channels(
@@ -267,7 +269,7 @@ async def cancel(call: types.CallbackQuery):
     )
 
 
-@safe_handler("Постинг: управление каналом")
+@safe_handler("Постинг: управление каналом")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def manage_channel(call: types.CallbackQuery, state: FSMContext):
     """Управление настройками канала (удаление, права, добавление помощника)."""
     temp = call.data.split("|")
@@ -331,7 +333,7 @@ async def manage_channel(call: types.CallbackQuery, state: FSMContext):
                             me.username
                         )  # Обновление локального объекта для отображения
                 except Exception as e:
-                    logger.error(f"Join error: {e}")
+                    logger.error(f"Ошибка при вступлении в канал: {e}")
 
             # 3. Обработка результата
             if success:
@@ -367,7 +369,7 @@ async def manage_channel(call: types.CallbackQuery, state: FSMContext):
                 )
 
         except Exception as e:
-            logger.error(f"Invite assistant error: {e}")
+            logger.error(f"Ошибка при приглашении помощника: {e}")
             await call.answer(
                 f"❌ Ошибка: удостоверьтесь, что бот - админ ({e})", show_alert=True
             )
@@ -418,7 +420,7 @@ async def manage_channel(call: types.CallbackQuery, state: FSMContext):
 
         async with SessionManager(session_path) as manager:
             perms = await manager.check_permissions(channel.chat_id)
-            logger.info(f"Manual check rights for {channel.title} ({channel.chat_id}): {perms}")
+            logger.info(f"Ручная проверка прав для {channel.title} ({channel.chat_id}): {perms}")
 
         if perms.get("error"):
             error_code = perms["error"]
@@ -445,7 +447,7 @@ async def manage_channel(call: types.CallbackQuery, state: FSMContext):
         is_admin = perms.get("is_admin", False)
         can_post = perms.get("can_post_messages", False)
         can_stories = perms.get("can_post_stories", False)
-        logger.info(f"Updating rights: admin={is_admin}, post={can_post}, stories={can_stories}")
+        logger.info(f"Обновление прав: админ={is_admin}, постинг={can_post}, истории={can_stories}")
 
         # Обновление алиаса клиента
         me = perms.get("me")

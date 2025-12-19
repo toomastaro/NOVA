@@ -24,7 +24,7 @@ from main_bot.utils.backup_utils import send_to_backup, edit_backup_message
 logger = logging.getLogger(__name__)
 
 
-@safe_handler("Bots Accept")
+@safe_handler("Боты: подтверждение создания поста")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def accept(call: types.CallbackQuery, state: FSMContext) -> None:
     """
     Финальное подтверждение создания поста.

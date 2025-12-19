@@ -111,19 +111,19 @@ class DatabaseMixin:
                 async with asyncio.timeout(DB_TIMEOUT_SECONDS):
                     async with get_session(self.schema) as session:
                         session: AsyncSession
-                        logger.debug(f"Executing SQL (schema={self.schema}): {sql}")
+                        logger.debug(f"Выполнение SQL (схема={self.schema}): {sql}")
                         await session.execute(sql)
                         if commit:
                             await session.commit()
-                            logger.debug("Transaction committed")
+                            logger.debug("Транзакция зафиксирована (commit)")
         except asyncio.TimeoutError:
             logger.error(
-                f"Database timeout in execute() after {DB_TIMEOUT_SECONDS}s (schema={self.schema})"
+                f"Таймаут базы данных в execute() после {DB_TIMEOUT_SECONDS}с (схема={self.schema})"
             )
             raise
         except Exception as e:
             logger.error(
-                f"Database error in execute() (schema={self.schema}): {e}",
+                f"Ошибка базы данных в execute() (схема={self.schema}): {e}",
                 exc_info=True,
             )
             raise
@@ -146,16 +146,16 @@ class DatabaseMixin:
                 async with asyncio.timeout(DB_TIMEOUT_SECONDS):
                     async with get_session(self.schema) as session:
                         session: AsyncSession
-                        logger.debug(f"Fetching data (schema={self.schema}): {sql}")
+                        logger.debug(f"Получение данных (схема={self.schema}): {sql}")
                         res: Result = await session.execute(sql)
                         results = res.scalars().all()
-                        logger.debug(f"Fetched {len(results)} rows")
+                        logger.debug(f"Получено строк: {len(results)}")
                         return results
         except asyncio.TimeoutError:
-            logger.error(f"Database timeout in fetch() after {DB_TIMEOUT_SECONDS}s")
+            logger.error(f"Таймаут базы данных в fetch() после {DB_TIMEOUT_SECONDS}с")
             raise
         except Exception as e:
-            logger.error(f"Database error in fetch(): {e}", exc_info=True)
+            logger.error(f"Ошибка базы данных в fetch(): {e}", exc_info=True)
             raise
 
     @retry(
@@ -177,18 +177,18 @@ class DatabaseMixin:
                 async with asyncio.timeout(DB_TIMEOUT_SECONDS):
                     async with get_session(self.schema) as session:
                         session: AsyncSession
-                        logger.debug(f"Fetching row (schema={self.schema}): {sql}")
+                        logger.debug(f"Получение одной строки (схема={self.schema}): {sql}")
                         res: Result = await session.execute(sql)
                         if commit:
                             await session.commit()
-                            logger.debug("Transaction committed")
+                            logger.debug("Транзакция зафиксирована (commit)")
                         result = res.scalar_one_or_none()
                         return result
         except asyncio.TimeoutError:
-            logger.error(f"Database timeout in fetchrow() after {DB_TIMEOUT_SECONDS}s")
+            logger.error(f"Таймаут базы данных в fetchrow() после {DB_TIMEOUT_SECONDS}с")
             raise
         except Exception as e:
-            logger.error(f"Database error in fetchrow(): {e}", exc_info=True)
+            logger.error(f"Ошибка базы данных в fetchrow(): {e}", exc_info=True)
             raise
 
     @retry(
@@ -208,16 +208,16 @@ class DatabaseMixin:
                 async with asyncio.timeout(DB_TIMEOUT_SECONDS):
                     async with get_session(self.schema) as session:
                         session: AsyncSession
-                        logger.debug(f"Fetching all rows (schema={self.schema}): {sql}")
+                        logger.debug(f"Получение всех строк (схема={self.schema}): {sql}")
                         res: Result = await session.execute(sql)
                         results = res.all()
-                        logger.debug(f"Fetched {len(results)} rows")
+                        logger.debug(f"Получено строк: {len(results)}")
                         return results
         except asyncio.TimeoutError:
-            logger.error(f"Database timeout in fetchall() after {DB_TIMEOUT_SECONDS}s")
+            logger.error(f"Таймаут базы данных в fetchall() после {DB_TIMEOUT_SECONDS}с")
             raise
         except Exception as e:
-            logger.error(f"Database error in fetchall(): {e}", exc_info=True)
+            logger.error(f"Ошибка базы данных в fetchall(): {e}", exc_info=True)
             raise
 
     @retry(
@@ -237,13 +237,13 @@ class DatabaseMixin:
                 async with asyncio.timeout(DB_TIMEOUT_SECONDS):
                     async with get_session(self.schema) as session:
                         session: AsyncSession
-                        logger.debug(f"Fetching one row (schema={self.schema}): {sql}")
+                        logger.debug(f"Получение ровно одной строки (схема={self.schema}): {sql}")
                         res: Result = await session.execute(sql)
                         result = res.one()
                         return result
         except asyncio.TimeoutError:
-            logger.error(f"Database timeout in fetchone() after {DB_TIMEOUT_SECONDS}s")
+            logger.error(f"Таймаут базы данных в fetchone() после {DB_TIMEOUT_SECONDS}с")
             raise
         except Exception as e:
-            logger.error(f"Database error in fetchone(): {e}", exc_info=True)
+            logger.error(f"Ошибка базы данных в fetchone(): {e}", exc_info=True)
             raise

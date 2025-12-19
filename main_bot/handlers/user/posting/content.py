@@ -12,23 +12,13 @@ from main_bot.handlers.user.posting.menu import show_content
 from main_bot.keyboards import keyboards
 from main_bot.utils.functions import answer_post
 from main_bot.utils.lang.language import text
+from main_bot.handlers.user.common_content import serialize_channel
 from utils.error_handler import safe_handler
 
 
 logger = logging.getLogger(__name__)
 
 
-def serialize_channel(channel):
-    if not channel:
-        return None
-    return {
-        "id": channel.id,
-        "chat_id": channel.chat_id,
-        "title": channel.title,
-        "username": getattr(channel, "username", None),
-        "subscribers_count": getattr(channel, "subscribers_count", 0),
-        "posting": getattr(channel, "posting", False),
-    }
 
 
 def serialize_post(post):
@@ -239,7 +229,7 @@ async def generate_post_info_text(post_obj, is_published: bool = False) -> str:
             )
 
 
-@safe_handler("Постинг: выбор канала")
+@safe_handler("Постинг: выбор канала для контента")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def choice_channel(call: types.CallbackQuery, state: FSMContext):
     """Выбор канала для просмотра контент-плана."""
     temp = call.data.split("|")
@@ -296,7 +286,7 @@ async def choice_channel(call: types.CallbackQuery, state: FSMContext):
     )
 
 
-@safe_handler("Постинг: выбор строки контента")
+@safe_handler("Постинг: выбор строки контента")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
     """Навигация по контент-плану (выбор дня, поста)."""
     temp = call.data.split("|")
@@ -455,7 +445,7 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
     )
 
 
-@safe_handler("Постинг: выбор времени")
+@safe_handler("Постинг: выбор времени")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def choice_time_objects(call: types.CallbackQuery, state: FSMContext):
     """Просмотр списка запланированных постов."""
     temp = call.data.split("|")
@@ -506,7 +496,7 @@ async def choice_time_objects(call: types.CallbackQuery, state: FSMContext):
         )
 
 
-@safe_handler("Постинг: управление остатком постов")
+@safe_handler("Постинг: управление остатком постов")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def manage_remain_post(call: types.CallbackQuery, state: FSMContext):
     """Управление запланированным (или черновиком) постом."""
     temp = call.data.split("|")
@@ -598,7 +588,7 @@ async def manage_remain_post(call: types.CallbackQuery, state: FSMContext):
         return
 
 
-@safe_handler("Постинг: подтверждение удаления контента")
+@safe_handler("Постинг: подтверждение удаления контента")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def accept_delete_row_content(call: types.CallbackQuery, state: FSMContext):
     """Подтверждение удаления поста."""
     # ... logic existing ...
@@ -668,7 +658,7 @@ async def accept_delete_row_content(call: types.CallbackQuery, state: FSMContext
         )
 
 
-@safe_handler("Постинг: управление опубликованными")
+@safe_handler("Постинг: управление опубликованными")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def manage_published_post(call: types.CallbackQuery, state: FSMContext):
     """Управление уже опубликованным постом (отчеты, удаление)."""
     temp = call.data.split("|")
@@ -874,14 +864,14 @@ async def manage_published_post(call: types.CallbackQuery, state: FSMContext):
         return
 
 
-@safe_handler("Постинг: удаление опубликованного")
+@safe_handler("Постинг: удаление опубликованного")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def accept_delete_published_post(call: types.CallbackQuery, state: FSMContext):
     """Подтверждение удаления опубликованного поста (удаление из каналов и БД)."""
     temp = call.data.split("|")
     data = await state.get_data()
     if not data:
         logger.warning(
-            f"No state data found for user {call.from_user.id} in accept_delete_published_post"
+            f"Нет данных состояния для пользователя {call.from_user.id} в accept_delete_published_post"
         )
         await call.answer(text("keys_data_error"))
         return await call.message.delete()
@@ -908,7 +898,7 @@ async def accept_delete_published_post(call: types.CallbackQuery, state: FSMCont
     if temp[1] == "accept":
         await db.post.delete_post(post["id"])
         logger.info(
-            f"User {call.from_user.id} deleting published post {post['id']} (message_id: {post.get('message_id')}) and all related posts"
+            f"Пользователь {call.from_user.id} удаляет опубликованный пост {post['id']} (message_id: {post.get('message_id')}) и все связанные публикации"
         )
 
         # Fetch all related published posts
@@ -924,7 +914,7 @@ async def accept_delete_published_post(call: types.CallbackQuery, state: FSMCont
                 await call.bot.delete_message(p.chat_id, p.message_id)
             except Exception as e:
                 logger.error(
-                    f"Error deleting message {p.message_id} from {p.chat_id}: {e}",
+                    f"Ошибка при удалении сообщения {p.message_id} из {p.chat_id}: {e}",
                     exc_info=True,
                 )
 

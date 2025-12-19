@@ -66,7 +66,7 @@ def _get_instruction_text(
     )
 
 
-@safe_handler("Set Admins", log_start=False)
+@safe_handler("Ресурс: установка админов", log_start=False)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def set_admins(
     bot: Bot,
     chat_id: int,
@@ -111,7 +111,7 @@ async def set_admins(
         )
 
 
-@safe_handler("Setup Channel Task", log_start=False)
+@safe_handler("Ресурс: фоновая настройка канала", log_start=False)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def setup_channel_task(
     bot: Bot, chat_id: int, chat_title: str, user_id: int
 ) -> None:
@@ -146,7 +146,7 @@ async def setup_channel_task(
         logger.error(f"Не удалось отправить инструкцию пользователю {user_id}")
 
 
-@safe_handler("Set Channel")
+@safe_handler("Ресурс: событие бота в канале")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def set_channel(call: types.ChatMemberUpdated) -> None:
     """
     Обработчик события добавления/удаления бота в канале.
@@ -193,7 +193,7 @@ async def set_channel(call: types.ChatMemberUpdated) -> None:
         )
 
 
-@safe_handler("Set Admin", log_start=False)
+@safe_handler("Ресурс: событие админа/участника", log_start=False)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def set_admin(call: types.ChatMemberUpdated) -> None:
     """
     Обработчик изменения прав участников канала.
@@ -271,7 +271,7 @@ async def set_admin(call: types.ChatMemberUpdated) -> None:
         await db.channel.add_channel(**add_kwargs)
 
 
-@safe_handler("Set Active")
+@safe_handler("Ресурс: активность в ЛС")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def set_active(call: types.ChatMemberUpdated) -> None:
     """
     Обновляет статус активности пользователя (blocked/unblocked bot).
@@ -285,7 +285,7 @@ async def set_active(call: types.ChatMemberUpdated) -> None:
     )
 
 
-@safe_handler("Manual Add Channel")
+@safe_handler("Ресурс: ручное добавление")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def manual_add_channel(message: types.Message, state: FSMContext) -> None:
     """
     Ручное добавление канала через отправку ссылки или форвард.

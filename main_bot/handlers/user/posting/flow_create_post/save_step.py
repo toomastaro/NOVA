@@ -23,7 +23,7 @@ from utils.error_handler import safe_handler
 logger = logging.getLogger(__name__)
 
 
-@safe_handler("Подтверждение публикации")
+@safe_handler("Подтверждение публикации")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def accept(call: types.CallbackQuery, state: FSMContext):
     """
     Подтверждение и сохранение поста.

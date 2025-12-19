@@ -11,7 +11,7 @@ from utils.error_handler import safe_handler
 logger = logging.getLogger(__name__)
 
 
-@safe_handler("Выбор в меню постинга")
+@safe_handler("Постинг: выбор в меню")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def choice(call: types.CallbackQuery, state: FSMContext):
     """
     Главное меню постинга.
@@ -48,7 +48,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
         logger.warning("Неизвестная команда меню постинга: %s", temp[1])
 
 
-@safe_handler("Показ создания поста")
+@safe_handler("Постинг: показ создания поста")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def show_create_post(message: types.Message, state: FSMContext):
     """
     Начало процедуры создания поста.
@@ -135,7 +135,7 @@ async def show_create_post(message: types.Message, state: FSMContext):
         )
 
 
-@safe_handler("Показ настроек постинга")
+@safe_handler("Постинг: меню настроек")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def show_settings(message: types.Message):
     """Показывает меню управления каналами."""
     channels = await db.channel.get_user_channels(
@@ -146,7 +146,7 @@ async def show_settings(message: types.Message):
     )
 
 
-@safe_handler("Показ контент-плана")
+@safe_handler("Постинг: контент-план")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def show_content(message: types.Message):
     """Показывает меню выбора канала для контент-плана."""
     channels = await db.channel.get_user_channels(user_id=message.chat.id)
@@ -156,7 +156,7 @@ async def show_content(message: types.Message):
     )
 
 
-@safe_handler("Возврат в главное меню")
+@safe_handler("Постинг: возврат в главное меню")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def back_to_main(message: types.Message):
     """Возврат в главное меню"""
     from main_bot.keyboards.common import Reply

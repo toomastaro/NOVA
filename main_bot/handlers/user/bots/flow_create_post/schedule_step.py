@@ -25,7 +25,7 @@ from utils.error_handler import safe_handler
 logger = logging.getLogger(__name__)
 
 
-@safe_handler("Bots Finish Params")
+@safe_handler("Боты: финальные параметры поста")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def finish_params(call: types.CallbackQuery, state: FSMContext) -> None:
     """
     Экран финальной настройки параметров поста (отчет, удаление, время).
@@ -111,7 +111,7 @@ async def finish_params(call: types.CallbackQuery, state: FSMContext) -> None:
         )
 
 
-@safe_handler("Боты: выбор времени удаления")
+@safe_handler("Боты: выбор времени удаления")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def choice_delete_time(call: types.CallbackQuery, state: FSMContext) -> None:
     """
     Выбор времени автоудаления поста.
@@ -188,7 +188,7 @@ async def choice_delete_time(call: types.CallbackQuery, state: FSMContext) -> No
     )
 
 
-@safe_handler("Боты: выбор времени отправки (инлайн)")
+@safe_handler("Боты: выбор времени отправки (инлайн)")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def send_time_inline(call: types.CallbackQuery, state: FSMContext) -> None:
     """
     Обработка навигации по календарю выбора даты отправки.
@@ -267,7 +267,7 @@ async def send_time_inline(call: types.CallbackQuery, state: FSMContext) -> None
         )
 
 
-@safe_handler("Боты: получение времени отправки")
+@safe_handler("Боты: получение времени отправки")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def get_send_time(message: types.Message, state: FSMContext) -> None:
     """
     Обработка ввода времени отправки (текстом).
@@ -418,7 +418,7 @@ async def get_send_time(message: types.Message, state: FSMContext) -> None:
     )
 
 
-@safe_handler("Боты: возврат к времени отправки")
+@safe_handler("Боты: возврат к времени отправки")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def back_send_time(call: types.CallbackQuery, state: FSMContext) -> None:
     """
     Возврат из меню настройки времени к общим параметрам.

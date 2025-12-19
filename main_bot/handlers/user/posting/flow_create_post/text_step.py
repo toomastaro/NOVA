@@ -22,7 +22,7 @@ from utils.error_handler import safe_handler
 logger = logging.getLogger(__name__)
 
 
-@safe_handler("Отмена создания поста")
+@safe_handler("Отмена создания поста")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def cancel_message(call: types.CallbackQuery, state: FSMContext):
     """
     Отмена создания поста - очистка состояния и возврат в меню постинга.
@@ -37,7 +37,7 @@ async def cancel_message(call: types.CallbackQuery, state: FSMContext):
     await start_posting(call.message)
 
 
-@safe_handler("Получение сообщения для поста")
+@safe_handler("Получение сообщения для поста")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def get_message(message: types.Message, state: FSMContext):
     """
     Получение первичного сообщения для создания поста.

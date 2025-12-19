@@ -21,7 +21,7 @@ from utils.error_handler import safe_handler
 logger = logging.getLogger(__name__)
 
 
-@safe_handler("Support Back")
+@safe_handler("Поддержка: возврат")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def support_back(call: types.CallbackQuery, state: FSMContext) -> None:
     """
     Возврат из меню поддержки в профиль.
@@ -42,7 +42,7 @@ async def support_back(call: types.CallbackQuery, state: FSMContext) -> None:
     )
 
 
-@safe_handler("Get User Message")
+@safe_handler("Поддержка: прием сообщения от пользователя")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def get_user_message(message: types.Message, state: FSMContext) -> None:
     """
     Принимает сообщение от пользователя и отправляет его админу поддержки.
@@ -78,7 +78,7 @@ async def get_user_message(message: types.Message, state: FSMContext) -> None:
     await message.answer(text("success_msg_support"))
 
 
-@safe_handler("Get Support Message")
+@safe_handler("Поддержка: ответ администратора")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def get_support_message(message: types.Message) -> None:
     """
     Обработчик ответа администратора пользователю.

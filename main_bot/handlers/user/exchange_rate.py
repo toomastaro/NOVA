@@ -101,7 +101,7 @@ async def _get_and_format_exchange_rate(
     return None, None
 
 
-@safe_handler("Курс валют: главное меню")
+@safe_handler("Курс валют: главное меню")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def start_exchange_rate(message: types.Message, state: FSMContext) -> None:
     """
     Отображает главное меню курса валют с возможностью расчета.
@@ -138,7 +138,7 @@ async def start_exchange_rate(message: types.Message, state: FSMContext) -> None
         )
 
 
-@safe_handler("Курс валют: настройки")
+@safe_handler("Курс валют: настройки")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def settings_of_exchange_rate(
     call: types.CallbackQuery, state: FSMContext
 ) -> None:
@@ -159,7 +159,7 @@ async def settings_of_exchange_rate(
     )
 
 
-@safe_handler("Курс валют: выбор ресурса")
+@safe_handler("Курс валют: выбор ресурса")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def choice_of_exchange_resources(
     call: types.CallbackQuery, state: FSMContext
 ) -> None:
@@ -186,7 +186,7 @@ async def choice_of_exchange_resources(
     )
 
 
-@safe_handler("Курс валют: возврат")
+@safe_handler("Курс валют: возврат")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def back_to_start_exchange_rate(
     call: types.CallbackQuery, state: FSMContext
 ) -> None:
@@ -225,7 +225,7 @@ async def back_to_start_exchange_rate(
     )
 
 
-@safe_handler("Курс валют: расчет суммы")
+@safe_handler("Курс валют: расчет суммы")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def get_exchange_rate_of_custom_amount(
     message: types.Message, state: FSMContext
 ) -> None:
@@ -269,7 +269,7 @@ async def get_exchange_rate_of_custom_amount(
         )
 
 
-@safe_handler("Курс валют: выход")
+@safe_handler("Курс валют: выход")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def back_to_main_menu(call: types.CallbackQuery) -> None:
     """
     Возврат в главное меню.

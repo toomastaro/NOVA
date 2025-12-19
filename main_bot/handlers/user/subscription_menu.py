@@ -31,7 +31,7 @@ router = Router()
 
 
 @router.callback_query(F.data.split("|")[0] == "MenuSubscription")
-@safe_handler("Subscription Menu Choice")
+@safe_handler("Подписка: выбор в меню")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def choice(call: types.CallbackQuery, state: FSMContext) -> None:
     """
     Обработчик выбора в меню подписки.
@@ -85,7 +85,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext) -> None:
         logger.warning(f"Неизвестное действие меню подписки: {temp[1]}")
 
 
-@safe_handler("Show Top Up Menu")
+@safe_handler("Подписка: меню пополнения")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def show_top_up_menu(call: types.CallbackQuery, state: FSMContext) -> None:
     """
     Показать меню пополнения баланса.
@@ -97,7 +97,7 @@ async def show_top_up_menu(call: types.CallbackQuery, state: FSMContext) -> None
     await show_top_up(call.message, state)
 
 
-@safe_handler("Show Subscribe Menu")
+@safe_handler("Подписка: меню покупки")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def show_subscribe_menu(call: types.CallbackQuery, state: FSMContext) -> None:
     """
     Перенаправление на меню подписки из профиля.
@@ -109,7 +109,7 @@ async def show_subscribe_menu(call: types.CallbackQuery, state: FSMContext) -> N
     await show_subscribe(call.message, state)
 
 
-@safe_handler("Show Referral Menu")
+@safe_handler("Подписка: реферальное меню")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def show_referral_menu(call: types.CallbackQuery) -> None:
     """
     Перенаправление на меню реферальной системы из профиля.
@@ -121,7 +121,7 @@ async def show_referral_menu(call: types.CallbackQuery) -> None:
     await show_referral(call.message, user)
 
 
-@safe_handler("Show Align Sub Menu")
+@safe_handler("Подписка: выравнивание подписки")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def show_align_sub_menu(call: types.CallbackQuery, state: FSMContext) -> None:
     """
     Показать меню выравнивания подписки.
@@ -152,7 +152,7 @@ async def show_align_sub_menu(call: types.CallbackQuery, state: FSMContext) -> N
     )
 
 
-@safe_handler("Show Transfer Sub Menu")
+@safe_handler("Подписка: перенос подписки")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def show_transfer_sub_menu(call: types.CallbackQuery, state: FSMContext) -> None:
     """
     Показать меню переноса подписки.
@@ -164,7 +164,7 @@ async def show_transfer_sub_menu(call: types.CallbackQuery, state: FSMContext) -
     await transfer_menu(call, state)
 
 
-@safe_handler("Инфо: главное меню")
+@safe_handler("Инфо: главное меню")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def show_info_menu(call: types.CallbackQuery) -> None:
     """
     Показать меню информации.
@@ -175,7 +175,7 @@ async def show_info_menu(call: types.CallbackQuery) -> None:
     await info_menu(call)
 
 
-@safe_handler("Subscription Back To Main")
+@safe_handler("Подписка: возврат в главное меню")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def back_to_main(message: types.Message) -> None:
     """
     Возврат в главное меню.

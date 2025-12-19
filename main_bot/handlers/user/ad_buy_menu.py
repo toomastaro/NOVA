@@ -18,7 +18,7 @@ from utils.error_handler import safe_handler
 logger = logging.getLogger(__name__)
 
 
-@safe_handler("Show Ad Buy Menu")
+@safe_handler("Закуп: показ меню")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def show_ad_buy_menu(event: Union[types.Message, types.CallbackQuery]) -> None:
     """
     Показать меню закупов с рекламными креативами и закупами.
@@ -57,7 +57,7 @@ async def show_ad_buy_menu(event: Union[types.Message, types.CallbackQuery]) -> 
         )
 
 
-@safe_handler("Show Creatives")
+@safe_handler("Закуп: показ креативов")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def show_creatives(call: types.CallbackQuery) -> None:
     """
     Показать меню рекламных креативов.
@@ -70,7 +70,7 @@ async def show_creatives(call: types.CallbackQuery) -> None:
     )
 
 
-@safe_handler("Show Purchases")
+@safe_handler("Закуп: показ закупов")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def show_purchases(call: types.CallbackQuery) -> None:
     """
     Показать меню рекламных закупов.
@@ -83,7 +83,7 @@ async def show_purchases(call: types.CallbackQuery) -> None:
     )
 
 
-@safe_handler("Ad Buy Back To Main")
+@safe_handler("Закуп: возврат в главное меню")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def back_to_main(call: types.CallbackQuery) -> None:
     """
     Возврат в главное меню.

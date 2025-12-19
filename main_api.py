@@ -380,6 +380,22 @@ async def cryptobot_webhook(request: Request):
     return {"ok": True}
 
 
+bot_instances = {}
+
+
+def get_bot_instance(token: str) -> Bot:
+    """
+    Получает или создает экземпляр бота для данного токена.
+    Использует кэш для предотвращения утечек сессий и лишних соединений.
+    """
+    if token not in bot_instances:
+        logger.info(f"Создание нового экземпляра Bot для токена {token[:10]}...")
+        bot_instances[token] = Bot(
+            token=token, default=DefaultBotProperties(parse_mode=ParseMode.HTML)
+        )
+    return bot_instances[token]
+
+
 @app.post("/webhook/{token}")
 @safe_handler("API: webhook UserBot — приём update")
 async def other_update(request: Request, token: str):
@@ -398,11 +414,9 @@ async def other_update(request: Request, token: str):
         return
 
     try:
-        other_bot = Bot(
-            token=token, default=DefaultBotProperties(parse_mode=ParseMode.HTML)
-        )
+        other_bot = get_bot_instance(token)
     except Exception as e:
-        logger.error(f"Ошибка создания бота для токена {token}: {e}", exc_info=True)
+        logger.error(f"Ошибка получения бота для токена {token}: {e}", exc_info=True)
         return
 
     other_dp = set_dispatcher(exist)

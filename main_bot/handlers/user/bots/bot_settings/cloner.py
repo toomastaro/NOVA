@@ -23,7 +23,7 @@ from utils.error_handler import safe_handler
 logger = logging.getLogger(__name__)
 
 
-@safe_handler("Bots Cloner Choice Channel")
+@safe_handler("Боты: клонирование — выбор канала-цели")
 async def choice_channel(
     call: types.CallbackQuery, state: FSMContext, db_obj: Database
 ) -> None:
@@ -166,7 +166,7 @@ async def start_clone(
                 )
 
 
-@safe_handler("Bots Cloner Choice")
+@safe_handler("Боты: клонирование — выбор настроек")
 async def choice(
     call: types.CallbackQuery, state: FSMContext, db_obj: Database
 ) -> None:

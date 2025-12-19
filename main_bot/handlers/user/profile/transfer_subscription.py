@@ -19,7 +19,7 @@ from utils.error_handler import safe_handler
 logger = logging.getLogger(__name__)
 
 
-@safe_handler("Перенос: меню подписок")
+@safe_handler("Перенос: меню подписок")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def show_transfer_sub_menu(call: types.CallbackQuery, state: FSMContext):
     """Показать меню выбора канала-донора для переноса подписки"""
     user = await db.user.get_user(user_id=call.from_user.id)
@@ -43,7 +43,7 @@ async def show_transfer_sub_menu(call: types.CallbackQuery, state: FSMContext):
     )
 
 
-@safe_handler("Перенос: выбор донора")
+@safe_handler("Перенос: выбор донора")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def choose_donor(call: types.CallbackQuery, state: FSMContext, user: User):
     """Обработчик выбора канала-донора"""
 
@@ -112,7 +112,7 @@ async def choose_donor(call: types.CallbackQuery, state: FSMContext, user: User)
     )
 
 
-@safe_handler("Перенос: выбор получателя")
+@safe_handler("Перенос: выбор получателя")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def choose_recipients(call: types.CallbackQuery, state: FSMContext, user: User):
     """Обработчик выбора каналов-получателей"""
 
@@ -223,7 +223,7 @@ async def choose_recipients(call: types.CallbackQuery, state: FSMContext, user: 
         pass
 
 
-@safe_handler("Перенос: выполнение")
+@safe_handler("Перенос: выполнение")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def execute_transfer(
     call: types.CallbackQuery, state: FSMContext, user: User, chosen: list
 ):

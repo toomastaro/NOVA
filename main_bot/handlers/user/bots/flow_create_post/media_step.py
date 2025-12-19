@@ -83,7 +83,7 @@ def ensure_bot_post_obj(
     return post
 
 
-@safe_handler("Bots Cancel Message")
+@safe_handler("Боты: отмена сообщения")
 async def cancel_message(call: types.CallbackQuery, state: FSMContext) -> None:
     """
     Отмена создания сообщения и возврат к выбору каналов.
@@ -100,7 +100,7 @@ async def cancel_message(call: types.CallbackQuery, state: FSMContext) -> None:
     await show_choice_channel(call.message, state)
 
 
-@safe_handler("Bots Get Message")
+@safe_handler("Боты: получение сообщения")
 async def get_message(message: types.Message, state: FSMContext) -> None:
     """
     Обработка первого сообщения для создания поста.
@@ -141,7 +141,7 @@ async def get_message(message: types.Message, state: FSMContext) -> None:
     await answer_bot_post(message, state)
 
 
-@safe_handler("Bots Manage Post")
+@safe_handler("Боты: меню управления постом")
 async def manage_post(call: types.CallbackQuery, state: FSMContext) -> None:
     """
     Меню управления созданным постом (редактирование, удаление, продолжение).
@@ -234,7 +234,7 @@ async def manage_post(call: types.CallbackQuery, state: FSMContext) -> None:
         await state.update_data(input_msg_id=input_msg.message_id)
 
 
-@safe_handler("Bots Cancel Value")
+@safe_handler("Боты: отмена значения параметра")
 async def cancel_value(call: types.CallbackQuery, state: FSMContext) -> None:
     """
     Отмена или удаление значения конкретного параметра (текст, медиа, кнопки).
@@ -303,7 +303,7 @@ async def cancel_value(call: types.CallbackQuery, state: FSMContext) -> None:
     await answer_bot_post(call.message, state)
 
 
-@safe_handler("Bots Get Value")
+@safe_handler("Боты: получение значения параметра")
 async def get_value(message: types.Message, state: FSMContext) -> None:
     """
     Сохранение введенного значения для параметра поста.

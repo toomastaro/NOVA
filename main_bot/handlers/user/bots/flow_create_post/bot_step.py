@@ -69,7 +69,7 @@ async def set_folder_content(
     return chosen, chosen_folders
 
 
-@safe_handler("Bots Choice Bots")
+@safe_handler("Боты: выбор ботов")
 async def choice_bots(call: types.CallbackQuery, state: FSMContext) -> None:
     """
     Обработчик меню выбора ботов для постинга.

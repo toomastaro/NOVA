@@ -22,7 +22,7 @@ from utils.error_handler import safe_handler
 logger = logging.getLogger(__name__)
 
 
-@safe_handler("Постинг: скрытие значения")
+@safe_handler("Постинг: скрытие значения")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def add_hide_value(call: types.CallbackQuery, state: FSMContext):
     """
     Начало добавления hide кнопки.
@@ -51,7 +51,7 @@ async def add_hide_value(call: types.CallbackQuery, state: FSMContext):
         await state.set_state(AddHide.button_name)
 
 
-@safe_handler("Постинг: назад к вводу кнопки")
+@safe_handler("Постинг: назад к вводу кнопки")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def back_input_button_name(call: types.CallbackQuery, state: FSMContext):
     """
     Возврат назад при добавлении hide кнопки.
@@ -96,7 +96,7 @@ async def back_input_button_name(call: types.CallbackQuery, state: FSMContext):
         return await state.set_state(AddHide.not_member_text)
 
 
-@safe_handler("Постинг: получение имени кнопки")
+@safe_handler("Постинг: получение имени кнопки")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def get_button_name(message: types.Message, state: FSMContext):
     """
     Получение имени hide кнопки.
@@ -114,7 +114,7 @@ async def get_button_name(message: types.Message, state: FSMContext):
     await state.set_state(AddHide.not_member_text)
 
 
-@safe_handler("Постинг: текст для не-подписчика")
+@safe_handler("Постинг: текст для не-подписчика")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def get_not_member_text(message: types.Message, state: FSMContext):
     """
     Получение текста для неподписчиков.
@@ -135,7 +135,7 @@ async def get_not_member_text(message: types.Message, state: FSMContext):
     await state.set_state(AddHide.for_member_text)
 
 
-@safe_handler("Постинг: текст для подписчика")
+@safe_handler("Постинг: текст для подписчика")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def get_for_member_text(message: types.Message, state: FSMContext):
     """
     Получение текста для подписчиков и сохранение hide кнопки.
@@ -173,7 +173,7 @@ async def get_for_member_text(message: types.Message, state: FSMContext):
     )
 
 
-@safe_handler("Постинг: клик скрытия")
+@safe_handler("Постинг: клик скрытия")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def click_hide(call: types.CallbackQuery):
     """
     Обработка клика на hide кнопку в опубликованном посте.
@@ -207,7 +207,7 @@ async def click_hide(call: types.CallbackQuery):
         )
 
 
-@safe_handler("Постинг: клик реакции")
+@safe_handler("Постинг: клик реакции")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def click_react(call: types.CallbackQuery):
     """
     Обработка клика на реакцию в опубликованном посте.

@@ -33,7 +33,7 @@ import json
 logger = logging.getLogger(__name__)
 
 
-@safe_handler("Выбор каналов для постинга")
+@safe_handler("Выбор каналов для постинга")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def choice_channels(call: types.CallbackQuery, state: FSMContext):
     """
     Выбор каналов для публикации поста.
@@ -442,7 +442,7 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
         await call.answer()
 
 
-@safe_handler("Финальные параметры постинга")
+@safe_handler("Финальные параметры постинга")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def finish_params(call: types.CallbackQuery, state: FSMContext):
     """
     Настройка финальных параметров поста перед публикацией.
@@ -583,7 +583,7 @@ async def finish_params(call: types.CallbackQuery, state: FSMContext):
         return
 
 
-@safe_handler("Выбор времени удаления")
+@safe_handler("Выбор времени удаления")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def choice_delete_time(call: types.CallbackQuery, state: FSMContext):
     """
     Выбор времени автоудаления поста.
@@ -658,7 +658,7 @@ async def choice_delete_time(call: types.CallbackQuery, state: FSMContext):
     )
 
 
-@safe_handler("Отмена ввода времени")
+@safe_handler("Отмена ввода времени")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def cancel_send_time(call: types.CallbackQuery, state: FSMContext):
     """
     Отмена ввода времени отправки.
@@ -704,7 +704,7 @@ async def cancel_send_time(call: types.CallbackQuery, state: FSMContext):
     )
 
 
-@safe_handler("Получение времени отправки")
+@safe_handler("Получение времени отправки")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def get_send_time(message: types.Message, state: FSMContext):
     """
     Получение времени отправки от пользователя.

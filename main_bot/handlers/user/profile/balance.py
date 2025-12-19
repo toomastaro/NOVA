@@ -14,7 +14,7 @@ from utils.error_handler import safe_handler
 logger = logging.getLogger(__name__)
 
 
-@safe_handler("Баланс: выбор действия")
+@safe_handler("Баланс: выбор действия")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def choice(call: types.CallbackQuery, state: FSMContext):
     """Маршрутизатор меню баланса."""
     temp = call.data.split("|")
@@ -33,7 +33,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
         await show_top_up(call.message, state)
 
 
-@safe_handler("Баланс: меню пополнения")
+@safe_handler("Баланс: меню пополнения")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def show_top_up(message: types.Message, state: FSMContext):
     """Показать методы пополнения баланса."""
     await state.update_data(payment_to="balance")

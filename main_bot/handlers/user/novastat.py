@@ -40,7 +40,7 @@ router = Router()
 
 
 @router.message(F.text == text("reply_menu:novastat"))
-@safe_handler("NOVASTAT: главное меню")
+@safe_handler("NOVASTAT: главное меню")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def novastat_main(message: types.Message, state: FSMContext) -> None:
     """
     Главное меню аналитики.
@@ -78,7 +78,7 @@ async def novastat_main(message: types.Message, state: FSMContext) -> None:
 
 
 @router.callback_query(F.data == "NovaStat|main")
-@safe_handler("NOVASTAT: возврат в меню")
+@safe_handler("NOVASTAT: возврат в меню")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def novastat_main_cb(call: types.CallbackQuery, state: FSMContext) -> None:
     """
     Возврат в главное меню аналитики через callback.
@@ -116,7 +116,7 @@ async def novastat_main_cb(call: types.CallbackQuery, state: FSMContext) -> None
 
 
 @router.callback_query(F.data == "NovaStat|exit")
-@safe_handler("NOVASTAT: выход")
+@safe_handler("NOVASTAT: выход")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def novastat_exit(call: types.CallbackQuery, state: FSMContext) -> None:
     """
     Выход из меню NOVAstat в главное меню бота.
@@ -131,7 +131,7 @@ async def novastat_exit(call: types.CallbackQuery, state: FSMContext) -> None:
 
 
 @router.callback_query(F.data == "NovaStat|settings")
-@safe_handler("NOVASTAT: настройки")
+@safe_handler("NOVASTAT: настройки")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def novastat_settings(call: types.CallbackQuery) -> None:
     """
     Меню настроек NOVAstat (глубина анализа).
@@ -150,7 +150,7 @@ async def novastat_settings(call: types.CallbackQuery) -> None:
 
 
 @router.callback_query(F.data.startswith("NovaStat|set_depth|"))
-@safe_handler("NOVASTAT: установка глубины")
+@safe_handler("NOVASTAT: установка глубины")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def novastat_set_depth(call: types.CallbackQuery) -> None:
     """
     Установка глубины анализа.
@@ -174,7 +174,7 @@ async def novastat_set_depth(call: types.CallbackQuery) -> None:
 
 
 @router.callback_query(F.data == "NovaStat|collections")
-@safe_handler("NOVASTAT: список коллекций")
+@safe_handler("NOVASTAT: список коллекций")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def novastat_collections(call: types.CallbackQuery) -> None:
     """
     Просмотр списка коллекций каналов.
@@ -202,7 +202,7 @@ async def novastat_collections(call: types.CallbackQuery) -> None:
 
 
 @router.callback_query(F.data == "NovaStat|col_create")
-@safe_handler("NOVASTAT: коллекция — старт создания")
+@safe_handler("NOVASTAT: коллекция — старт создания")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def novastat_create_col_start(
     call: types.CallbackQuery, state: FSMContext
 ) -> None:
@@ -219,7 +219,7 @@ async def novastat_create_col_start(
 
 
 @router.message(NovaStatStates.waiting_for_collection_name)
-@safe_handler("NOVASTAT: коллекция — сохранение названия")
+@safe_handler("NOVASTAT: коллекция — сохранение имени")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def novastat_create_col_finish(message: types.Message, state: FSMContext) -> None:
     """
     Завершение создания коллекции (сохранение названия).
@@ -241,7 +241,7 @@ async def novastat_create_col_finish(message: types.Message, state: FSMContext) 
 
 
 @router.callback_query(F.data.startswith("NovaStat|col_open|"))
-@safe_handler("NOVASTAT: коллекция — открытие")
+@safe_handler("NOVASTAT: коллекция — открытие")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def novastat_open_col(call: types.CallbackQuery) -> None:
     """
     Открытие конкретной коллекции.
@@ -268,7 +268,7 @@ async def novastat_open_col(call: types.CallbackQuery) -> None:
 
 
 @router.callback_query(F.data.startswith("NovaStat|col_delete|"))
-@safe_handler("NOVASTAT: коллекция — удаление")
+@safe_handler("NOVASTAT: коллекция — удаление")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def novastat_delete_col(call: types.CallbackQuery) -> None:
     """
     Удаление коллекции.
@@ -283,7 +283,7 @@ async def novastat_delete_col(call: types.CallbackQuery) -> None:
 
 
 @router.callback_query(F.data.startswith("NovaStat|col_rename|"))
-@safe_handler("NOVASTAT: коллекция — старт переименования")
+@safe_handler("NOVASTAT: коллекция — старт переименования")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def novastat_rename_col_start(
     call: types.CallbackQuery, state: FSMContext
 ) -> None:
@@ -481,6 +481,7 @@ async def process_analysis(
         await run_analysis_logic(message, channels, depth, state, status_msg)
 
 
+@safe_handler("NOVASTAT: фоновый анализ")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def run_analysis_background(
     message: types.Message, channels: List[str], depth: int, state: FSMContext
 ) -> None:
@@ -493,13 +494,7 @@ async def run_analysis_background(
         depth (int): Глубина анализа.
         state (FSMContext): Контекст состояния.
     """
-    try:
-        await run_analysis_logic(message, channels, depth, state, None)
-    except Exception:
-        logger.exception("Ошибка фонового анализа для %s", message.from_user.id)
-        await message.answer(
-            "❌ Произошла внутренняя ошибка при анализе. Попробуйте позже."
-        )
+    await run_analysis_logic(message, channels, depth, state, None)
 
 
 def _format_stats_body(stats: Dict[str, Any]) -> str:
@@ -682,7 +677,7 @@ async def run_analysis_logic(
 
 
 @router.message(NovaStatStates.waiting_for_channels)
-@safe_handler("NOVASTAT: анализ текста")
+@safe_handler("NOVASTAT: анализ текста")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def novastat_analyze_text(message: types.Message, state: FSMContext) -> None:
     """
     Обработка ввода списка каналов текстом.
@@ -708,7 +703,7 @@ async def novastat_analyze_text(message: types.Message, state: FSMContext) -> No
 
 
 @router.callback_query(F.data.startswith("NovaStat|col_analyze|"))
-@safe_handler("NOVASTAT: анализ коллекции")
+@safe_handler("NOVASTAT: анализ коллекции")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def novastat_analyze_collection(
     call: types.CallbackQuery, state: FSMContext
 ) -> None:
@@ -733,7 +728,7 @@ async def novastat_analyze_collection(
 
 # --- Расчет CPM ---
 @router.callback_query(F.data == "NovaStat|calc_cpm_start")
-@safe_handler("NOVASTAT: CPM — старт")
+@safe_handler("NOVASTAT: CPM — старт")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def novastat_cpm_start(call: types.CallbackQuery, state: FSMContext) -> None:
     """
     Запуск калькулятора CPM (выбор цены).
@@ -856,6 +851,7 @@ async def calculate_and_show_price(
 
 
 @router.callback_query(F.data.startswith("NovaStat|calc_cpm|"))
+@safe_handler("NOVASTAT: CPM — выбор значения")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def novastat_cpm_cb(call: types.CallbackQuery, state: FSMContext) -> None:
     """
     Выбор значения CPM из предустановленных вариантов.
@@ -872,6 +868,7 @@ async def novastat_cpm_cb(call: types.CallbackQuery, state: FSMContext) -> None:
 
 
 @router.message(NovaStatStates.waiting_for_cpm)
+@safe_handler("NOVASTAT: CPM — ввод текста")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def novastat_cpm_text(message: types.Message, state: FSMContext) -> None:
     """
     Ввод значения CPM текстом.
@@ -889,6 +886,7 @@ async def novastat_cpm_text(message: types.Message, state: FSMContext) -> None:
 
 # --- My Channels Selection ---
 @router.callback_query(F.data == "NovaStat|my_channels")
+@safe_handler("NOVASTAT: выбор моих каналов")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def novastat_my_channels(call: types.CallbackQuery, state: FSMContext) -> None:
     """
     Открытие меню выбора собственных каналов для анализа.
@@ -930,6 +928,7 @@ async def novastat_my_channels(call: types.CallbackQuery, state: FSMContext) -> 
 
 
 @router.callback_query(F.data.startswith("ChoiceNovaStatChannels"))
+@safe_handler("NOVASTAT: обработка выбора каналов")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def novastat_choice_channels(
     call: types.CallbackQuery, state: FSMContext
 ) -> None:

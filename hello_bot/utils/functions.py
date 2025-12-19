@@ -31,7 +31,7 @@ def get_protect_tag(protect: Protect):
 
 
 async def answer_message_bot(
-    bot: Bot, chat_id: int, message_options: MessageOptions, reply
+    bot: Bot, chat_id: int, message_options: MessageOptions, reply=None
 ):
     """
     Отправляет сообщение от имени бота.

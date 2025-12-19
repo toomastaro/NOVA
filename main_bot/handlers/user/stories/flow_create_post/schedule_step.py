@@ -102,7 +102,7 @@ async def set_folder_content(
     return chosen, chosen_folders
 
 
-@safe_handler("Сторис: выбор каналов")
+@safe_handler("Сторис: выбор каналов")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def choice_channels(call: types.CallbackQuery, state: FSMContext):
     """Выбор каналов для публикации stories."""
     temp = call.data.split("|")
@@ -367,7 +367,7 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
     )
 
 
-@safe_handler("Сторис: завершение параметров")
+@safe_handler("Сторис: завершение параметров")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def finish_params(call: types.CallbackQuery, state: FSMContext):
     """Настройка финальных параметров stories перед публикацией."""
     temp = call.data.split("|")
@@ -448,7 +448,7 @@ async def finish_params(call: types.CallbackQuery, state: FSMContext):
         )
 
 
-@safe_handler("Сторис: время удаления")
+@safe_handler("Сторис: время удаления")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def choice_delete_time(call: types.CallbackQuery, state: FSMContext):
     """Выбор времени автоудаления stories."""
     temp = call.data.split("|")
@@ -514,7 +514,7 @@ async def choice_delete_time(call: types.CallbackQuery, state: FSMContext):
     )
 
 
-@safe_handler("Сторис: отмена времени отправки")
+@safe_handler("Сторис: отмена времени отправки")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def cancel_send_time(call: types.CallbackQuery, state: FSMContext):
     """Отмена ввода времени отправки."""
     data = await state.get_data()
@@ -562,7 +562,7 @@ async def cancel_send_time(call: types.CallbackQuery, state: FSMContext):
     )
 
 
-@safe_handler("Сторис: время отправки")
+@safe_handler("Сторис: время отправки")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def get_send_time(message: types.Message, state: FSMContext):
     """
     Получение времени отправки от пользователя.

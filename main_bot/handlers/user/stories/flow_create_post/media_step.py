@@ -24,7 +24,7 @@ from utils.error_handler import safe_handler
 logger = logging.getLogger(__name__)
 
 
-@safe_handler("Сторис: отмена сообщения")
+@safe_handler("Сторис: отмена сообщения")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def cancel_message(call: types.CallbackQuery, state: FSMContext):
     """Отмена создания stories - очистка состояния и возврат в меню."""
     await state.clear()
@@ -32,7 +32,7 @@ async def cancel_message(call: types.CallbackQuery, state: FSMContext):
     await start_stories(call.message)
 
 
-@safe_handler("Сторис: получение сообщения")
+@safe_handler("Сторис: получение сообщения")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def get_message(message: types.Message, state: FSMContext):
     """
     Получение медиа для создания stories.
@@ -88,7 +88,7 @@ async def get_message(message: types.Message, state: FSMContext):
     await message.answer("📝 Содержимое сторис сохранено", reply_markup=Reply.menu())
 
 
-@safe_handler("Сторис: управление постом")
+@safe_handler("Сторис: управление постом")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def manage_post(call: types.CallbackQuery, state: FSMContext):
     """Управление stories - обработка различных действий."""
     temp = call.data.split("|")
@@ -207,7 +207,7 @@ async def manage_post(call: types.CallbackQuery, state: FSMContext):
         await state.update_data(input_msg_id=input_msg.message_id)
 
 
-@safe_handler("Сторис: отмена значения")
+@safe_handler("Сторис: отмена значения")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def cancel_value(call: types.CallbackQuery, state: FSMContext):
     """Отмена редактирования параметра или удаление значения."""
     temp = call.data.split("|")

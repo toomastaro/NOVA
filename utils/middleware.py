@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 created_db_objects = {}
+initialized_schemas = set()
 
 
 class SetCrud(BaseMiddleware):
@@ -22,18 +23,22 @@ class SetCrud(BaseMiddleware):
     Middleware для инициализации БД hello_bot.
 
     Создает подключение к схеме конкретного бота и добавляет его в data.
+    Кэширует инициализацию схем.
     """
 
     async def __call__(self, handler, event, data):
-        db_bot = await db.user_bot.get_bot_by_id(event.bot.id)
+        bot_id = event.bot.id
+        db_bot = await db.user_bot.get_bot_by_id(bot_id)
 
         from hello_bot.database.db import Database as HelloDatabase
 
         other_db = HelloDatabase()
-        if not other_db.schema:
-            other_db.schema = db_bot.schema
+        other_db.schema = db_bot.schema
 
-        await other_db.create_tables()
+        if db_bot.schema not in initialized_schemas:
+            logger.info(f"Инициализация таблиц для схемы: {db_bot.schema}")
+            await other_db.create_tables()
+            initialized_schemas.add(db_bot.schema)
 
         data["db"] = other_db
         data["db_bot"] = db_bot

@@ -35,7 +35,7 @@ router = Router(name="AdPurchase")
 
 
 @router.callback_query(F.data.startswith("AdPurchase|create|"))
-@safe_handler("Create Purchase Start")
+@safe_handler("Закуп: старт создания")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def create_purchase_start(call: CallbackQuery, state: FSMContext) -> None:
     """
     Начало создания закупа.
@@ -55,7 +55,7 @@ async def create_purchase_start(call: CallbackQuery, state: FSMContext) -> None:
 
 
 @router.callback_query(F.data.startswith("AdPurchase|pricing|"))
-@safe_handler("Process Pricing Type")
+@safe_handler("Закуп: выбор типа оплаты")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def process_pricing_type(call: CallbackQuery, state: FSMContext) -> None:
     """
     Обработка выбора типа оплаты.
@@ -81,7 +81,7 @@ async def process_pricing_type(call: CallbackQuery, state: FSMContext) -> None:
 
 
 @router.message(AdPurchaseStates.waiting_for_price)
-@safe_handler("Process Price")
+@safe_handler("Закуп: ввод цены")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def process_price(message: Message, state: FSMContext) -> None:
     """
     Обработка ввода цены.
@@ -104,7 +104,7 @@ async def process_price(message: Message, state: FSMContext) -> None:
 
 
 @router.message(AdPurchaseStates.waiting_for_comment)
-@safe_handler("Process Comment")
+@safe_handler("Закуп: обработка комментария")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def process_comment(message: Message, state: FSMContext) -> None:
     """
     Обработка комментария и создание закупа.
@@ -133,7 +133,7 @@ async def process_comment(message: Message, state: FSMContext) -> None:
     await state.clear()
 
 
-@safe_handler("Start Mapping")
+@safe_handler("Закуп: старт маппинга")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def start_mapping(message: Message, purchase_id: int, creative_id: int) -> None:
     """
     Начало процесса маппинга ссылок.
@@ -174,7 +174,7 @@ async def start_mapping(message: Message, purchase_id: int, creative_id: int) ->
     await show_mapping_menu(message, purchase_id)
 
 
-@safe_handler("Show Mapping Menu")
+@safe_handler("Закуп: меню маппинга")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def show_mapping_menu(message: Message, purchase_id: int) -> None:
     """
     Отображение меню маппинга ссылок.
@@ -216,7 +216,7 @@ async def show_mapping_menu(message: Message, purchase_id: int) -> None:
 
 
 @router.callback_query(F.data.startswith("AdPurchase|map_link|"))
-@safe_handler("Edit Link Mapping")
+@safe_handler("Закуп: редактирование маппинга")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def edit_link_mapping(call: CallbackQuery) -> None:
     """
     Редактирование привязки конкретной ссылки.
@@ -235,7 +235,7 @@ async def edit_link_mapping(call: CallbackQuery) -> None:
 
 
 @router.callback_query(F.data.startswith("AdPurchase|select_channel_list|"))
-@safe_handler("Show Channel List")
+@safe_handler("Закуп: выбор канала")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def show_channel_list(call: CallbackQuery) -> None:
     """
     Показ списка каналов пользователя для выбора привязки.
@@ -256,7 +256,7 @@ async def show_channel_list(call: CallbackQuery) -> None:
 
 
 @router.callback_query(F.data.startswith("AdPurchase|set_channel|"))
-@safe_handler("Save Mapping Channel")
+@safe_handler("Закуп: сохранение маппинга канала")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def save_mapping_channel(call: CallbackQuery) -> None:
     """
     Сохранение привязки ссылки к выбранному каналу.
@@ -297,7 +297,7 @@ async def save_mapping_channel(call: CallbackQuery) -> None:
 
 
 @router.callback_query(F.data.startswith("AdPurchase|set_external|"))
-@safe_handler("Save Mapping External")
+@safe_handler("Закуп: сохранение внешнего маппинга")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def save_mapping_external(call: CallbackQuery) -> None:
     """
     Установка типа 'внешняя ссылка' (без трекинга).
@@ -323,7 +323,7 @@ async def save_mapping_external(call: CallbackQuery) -> None:
 
 
 @router.callback_query(F.data.startswith("AdPurchase|mapping|"))
-@safe_handler("Back To Mapping")
+@safe_handler("Закуп: возврат к маппингу")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def back_to_mapping(call: CallbackQuery) -> None:
     """
     Возврат к главному меню маппинга.
@@ -337,7 +337,7 @@ async def back_to_mapping(call: CallbackQuery) -> None:
 
 
 @router.callback_query(F.data.startswith("AdPurchase|save_mapping|"))
-@safe_handler("Finish Mapping")
+@safe_handler("Закуп: завершение маппинга")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def finish_mapping(call: CallbackQuery) -> None:
     """
     Завершение маппинга и переход к просмотру закупа.
@@ -352,7 +352,7 @@ async def finish_mapping(call: CallbackQuery) -> None:
 
 
 @router.callback_query(F.data == "AdPurchase|cancel")
-@safe_handler("Cancel Purchase")
+@safe_handler("Закуп: отмена")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def cancel_purchase(call: CallbackQuery, state: FSMContext) -> None:
     """
     Отмена процесса создания закупа.
@@ -367,7 +367,7 @@ async def cancel_purchase(call: CallbackQuery, state: FSMContext) -> None:
 
 
 @router.callback_query(F.data.startswith("AdPurchase|view|"))
-@safe_handler("View Purchase Callback")
+@safe_handler("Закуп: просмотр (callback)")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def view_purchase_callback(call: CallbackQuery) -> None:
     """
     Callback для просмотра закупа.
@@ -379,7 +379,7 @@ async def view_purchase_callback(call: CallbackQuery) -> None:
     await view_purchase(call, purchase_id)
 
 
-@safe_handler("View Purchase")
+@safe_handler("Закуп: просмотр деталей")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def view_purchase(call: CallbackQuery, purchase_id: int) -> None:
     """
     Отображение деталей существующего закупа.
@@ -430,7 +430,7 @@ async def view_purchase(call: CallbackQuery, purchase_id: int) -> None:
 
 
 @router.callback_query(F.data.startswith("AdPurchase|delete|"))
-@safe_handler("Delete Purchase")
+@safe_handler("Закуп: удаление")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def delete_purchase(call: CallbackQuery) -> None:
     """
     Удаление закупа (Soft Delete).
@@ -457,7 +457,7 @@ async def delete_purchase(call: CallbackQuery) -> None:
 
 
 @router.callback_query(F.data.startswith("AdPurchase|stats|"))
-@safe_handler("Show Stats Default")
+@safe_handler("Закуп: статистика (дефолт)")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def show_stats_default(call: CallbackQuery) -> None:
     """
     Показ статистики (по умолчанию за все время).
@@ -470,7 +470,7 @@ async def show_stats_default(call: CallbackQuery) -> None:
 
 
 @router.callback_query(F.data.startswith("AdPurchase|stats_period|"))
-@safe_handler("Show Stats Period")
+@safe_handler("Закуп: статистика (период)")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def show_stats_period(call: CallbackQuery) -> None:
     """
     Показ статистики за выбранный период.
@@ -484,7 +484,7 @@ async def show_stats_period(call: CallbackQuery) -> None:
     await render_purchase_stats(call, purchase_id, period)
 
 
-@safe_handler("Render Purchase Stats")
+@safe_handler("Закуп: расчет статистики")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def render_purchase_stats(
     call: CallbackQuery, purchase_id: int, period: str
 ) -> None:
@@ -624,7 +624,7 @@ async def render_purchase_stats(
 
 
 @router.callback_query(F.data == "AdPurchase|global_stats")
-@safe_handler("Show Global Stats Menu")
+@safe_handler("Закуп: меню общей статистики")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def show_global_stats_menu(call: CallbackQuery) -> None:
     """
     Меню глобальной статистики пользователя.
@@ -639,7 +639,7 @@ async def show_global_stats_menu(call: CallbackQuery) -> None:
 
 
 @router.callback_query(F.data.startswith("AdPurchase|global_stats_period|"))
-@safe_handler("Show Global Stats")
+@safe_handler("Закуп: генерация Excel (все закупы)")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def show_global_stats(call: CallbackQuery) -> None:
     """
     Генерация и отправка общего отчета по закупам в формате Excel.
@@ -773,7 +773,7 @@ async def show_global_stats(call: CallbackQuery) -> None:
 
 
 @router.callback_query(F.data.startswith("AdPurchase|gen_post|"))
-@safe_handler("Generate Post")
+@safe_handler("Закуп: генерация рекламного поста")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def generate_post(call: CallbackQuery) -> None:
     """
     Генерация поста с замененными ссылками для публикации.

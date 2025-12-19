@@ -23,108 +23,19 @@ from main_bot.keyboards import keyboards
 from main_bot.utils.functions import answer_bot_post
 from main_bot.utils.lang.language import text
 from main_bot.utils.backup_utils import send_to_backup
+from main_bot.handlers.user.bots.bot_content import (
+    serialize_channel,
+    serialize_bot_post,
+    get_days_with_bot_posts,
+)
 from utils.error_handler import safe_handler
 
 logger = logging.getLogger(__name__)
 
 
-def serialize_channel(channel: Any) -> Optional[Dict[str, Any]]:
-    """
-    Сериализует объект канала в словарь.
-
-    Аргументы:
-        channel: Объект канала.
-
-    Возвращает:
-        dict: Данные канала или None.
-    """
-    if not channel:
-        return None
-    return {
-        "id": channel.id,
-        "chat_id": channel.chat_id,
-        "title": channel.title,
-        "username": getattr(channel, "username", None),
-        "subscribers_count": getattr(channel, "subscribers_count", 0),
-        "posting": getattr(channel, "posting", False),
-    }
 
 
-def serialize_bot_post(post: Any) -> Optional[Dict[str, Any]]:
-    """
-    Сериализует объект поста бота в словарь.
-
-    Аргументы:
-        post: Объект поста.
-
-    Возвращает:
-        dict: Данные поста или None.
-    """
-    if not post:
-        return None
-    return {
-        "id": post.id,
-        "bot_id": getattr(post, "bot_id", None),
-        "channel_id": getattr(post, "channel_id", None),
-        "message": getattr(post, "message", {}),
-        "status": getattr(post, "status", "active"),
-        "start_timestamp": post.start_timestamp,
-        "end_timestamp": getattr(post, "end_timestamp", None),
-        "send_time": getattr(post, "send_time", None),
-        "delete_time": getattr(post, "delete_time", None),
-        "admin_id": post.admin_id,
-        "backup_chat_id": getattr(post, "backup_chat_id", None),
-        "backup_message_id": getattr(post, "backup_message_id", None),
-        "success_send": getattr(post, "success_send", 0),
-        "error_send": getattr(post, "error_send", 0),
-        "created_at": getattr(post, "created_at", None),
-    }
-
-
-async def get_days_with_bot_posts(
-    bot_id: int, year: int, month: int
-) -> Dict[int, Dict[str, bool]]:
-    """
-    Получает информацию о днях месяца с рассылками и их статусах.
-
-    Аргументы:
-        bot_id (int): ID бота (chat_id канала).
-        year (int): Год.
-        month (int): Месяц.
-
-    Возвращает:
-        dict: Словарь {день: {"has_finished": bool, "has_pending": bool}}
-    """
-    from calendar import monthrange
-
-    _, last_day = monthrange(year, month)
-    month_start = datetime(year, month, 1)
-    month_end = datetime(year, month, last_day, 23, 59, 59)
-
-    # Получаем все рассылки
-    all_month_posts = await db.bot_post.get_bot_posts(bot_id)
-
-    days_info = {}
-    for post in all_month_posts:
-        timestamp = post.start_timestamp or post.send_time
-        if not timestamp:
-            continue
-        post_date = datetime.fromtimestamp(timestamp)
-        if month_start <= post_date <= month_end:
-            day = post_date.day
-            if day not in days_info:
-                days_info[day] = {"has_finished": False, "has_pending": False}
-
-            # Определяем статус
-            if post.status == Status.FINISH:
-                days_info[day]["has_finished"] = True
-            elif post.status == Status.PENDING:
-                days_info[day]["has_pending"] = True
-
-    return days_info
-
-
-@safe_handler("Bots Content Choice Channel")
+@safe_handler("Боты: контент — выбор канала")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def choice_channel(call: types.CallbackQuery, state: FSMContext) -> None:
     """
     Выбор канала для просмотра контент-плана бота.
@@ -188,7 +99,7 @@ async def choice_channel(call: types.CallbackQuery, state: FSMContext) -> None:
     )
 
 
-@safe_handler("Bots Content Choice Row")
+@safe_handler("Боты: контент — выбор дня/поста")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def choice_row_content(call: types.CallbackQuery, state: FSMContext) -> None:
     """
     Выбор дня или навигация по календарю контента.
@@ -358,9 +269,9 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext) -> No
 
     # Получаем username автора
     try:
-        author = (await call.bot.get_chat(post.admin_id)).username or "Unknown"
+        author = (await call.bot.get_chat(post.admin_id)).username or "Неизвестно"
     except Exception:
-        author = "Unknown"
+        author = "Неизвестно"
 
     await call.message.answer(
         text("bot_post:content").format(
@@ -374,7 +285,7 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext) -> No
     )
 
 
-@safe_handler("Bots Content Choice Time Objects")
+@safe_handler("Боты: контент — список постов")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def choice_time_objects(call: types.CallbackQuery, state: FSMContext) -> None:
     """
     Выбор конкретного поста из списка time objects.
@@ -433,7 +344,7 @@ async def choice_time_objects(call: types.CallbackQuery, state: FSMContext) -> N
         )
 
 
-@safe_handler("Bots Manage Remain Post")
+@safe_handler("Боты: контент — управление постом")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def manage_remain_post(call: types.CallbackQuery, state: FSMContext) -> None:
     """
     Управление запланированным постом.
@@ -537,7 +448,7 @@ async def manage_remain_post(call: types.CallbackQuery, state: FSMContext) -> No
                 logger.error(f"Ошибка редактирования клавиатуры: {e}")
 
 
-@safe_handler("Bots Accept Delete Post")
+@safe_handler("Боты: контент — подтверждение удаления")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def accept_delete_row_content(
     call: types.CallbackQuery, state: FSMContext
 ) -> None:
@@ -566,9 +477,9 @@ async def accept_delete_row_content(
         # Получаем username автора
         try:
             admin_id = post.get("admin_id") if isinstance(post, dict) else post.admin_id
-            author = (await call.bot.get_chat(admin_id)).username or "Unknown"
+            author = (await call.bot.get_chat(admin_id)).username or "Неизвестно"
         except Exception:
-            author = "Unknown"
+            author = "Неизвестно"
 
         send_timestamp = (
             post.get("send_time") if isinstance(post, dict) else post.send_time

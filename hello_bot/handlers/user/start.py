@@ -18,6 +18,7 @@ from main_bot.database.user_bot.model import UserBot
 from main_bot.database.db import db as main_db
 from main_bot.keyboards import keyboards
 from utils.error_handler import safe_handler
+from hello_bot.utils.events import event_manager
 
 
 @safe_handler("Личка: любое сообщение")
@@ -41,6 +42,9 @@ async def msg_handler(message: types.Message, db: Database):
             time_walk_captcha=int(time.time()),
         )
 
+    # Уведомляем систему, что капча пройдена
+    event_manager.notify(db.schema, message.from_user.id)
+
     await message.delete()
     r = await message.answer(".", reply_markup=types.ReplyKeyboardRemove())
     await r.delete()
@@ -52,15 +56,23 @@ async def send_captcha(
     """Отправляет сообщение с капчей пользователю."""
     if captcha.delay:
         while True:
-            user = await db_obj.get_user(user_id)
+            # Ожидаем прохождения капчи в течение delay секунд
+            passed = await event_manager.wait_for(
+                db_obj.schema, user_id, timeout=captcha.delay
+            )
+            if passed:
+                logger.info(f"Пользователь {user_id} прошел капчу (через событие)")
+                return
 
+            # Если таймаут — проверяем статус в БД (на случай перезагрузки или рассинхрона)
+            user = await db_obj.get_user(user_id)
             if not user or user.walk_captcha:
                 return
 
+            # Шлем напоминание, так как капча все еще не пройдена
             await answer_message_bot(
-                user_bot, user_id, MessageOptionsCaptcha(**captcha.message)
+                user_bot, user_id, MessageOptionsCaptcha(**captcha.message), None
             )
-            await asyncio.sleep(captcha.delay)  # type: ignore
 
     await answer_message_bot(
         user_bot, user_id, MessageOptionsCaptcha(**captcha.message)
@@ -83,15 +95,12 @@ async def send_hello(
             message_options.caption = added_text + message_options.caption
 
     if hello_message.delay and hello_message.delay == 1:
-        while True:
-            user = await db_obj.get_user(user_id)
-
-            if not user.walk_captcha:
-                await asyncio.sleep(3)
-                continue
-
-            await answer_message_bot(user_bot, user_id, message_options)
-            return
+        logger.debug(f"Ожидание прохождения капчи для отправки Hello пользователю {user_id}")
+        # Ждем прохождения капчи (без polling)
+        await event_manager.wait_for(db_obj.schema, user_id)
+        
+        await answer_message_bot(user_bot, user_id, message_options, None)
+        return
 
     if hello_message.delay:
         await asyncio.sleep(hello_message.delay)  # type: ignore
@@ -182,14 +191,8 @@ async def join(call: types.ChatJoinRequest, db: Database):
     if channel_settings.auto_approve or enable_auto_approve:
         if channel_settings.auto_approve and channel_settings.delay_approve:
             if channel_settings.delay_approve == 1:
-                while True:
-                    user = await db.user.get_user(call.from_user.id)
-
-                    if not user.walk_captcha:
-                        await asyncio.sleep(3)
-                        continue
-
-                    break
+                logger.debug(f"Ожидание капчи перед одобрением заявки {call.from_user.id}")
+                await event_manager.wait_for(db.schema, call.from_user.id)
 
             await asyncio.sleep(channel_settings.delay_approve)
 

@@ -13,7 +13,7 @@ router = Router(name="AdCreativeMenu")
 
 
 @router.message(F.text == "Рекламные креативы")
-@safe_handler("Show Ad Creative Menu")
+@safe_handler("Креативы: показ меню")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def show_ad_creative_menu(message: types.Message) -> None:
     """
     Показывает главное меню рекламных креативов.

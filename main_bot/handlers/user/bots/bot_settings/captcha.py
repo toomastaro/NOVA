@@ -30,7 +30,7 @@ from utils.error_handler import safe_handler
 logger = logging.getLogger(__name__)
 
 
-@safe_handler("Bots Show Manage Captcha")
+@safe_handler("Боты: меню управления капчей")
 async def show_manage_captcha(message: types.Message, state: FSMContext) -> None:
     """
     Отображение меню управления конкретной капчей.
@@ -49,7 +49,7 @@ async def show_manage_captcha(message: types.Message, state: FSMContext) -> None
     )
 
 
-@safe_handler("Bots Captcha Choice")
+@safe_handler("Боты: выбор капчи")
 async def choice(
     call: types.CallbackQuery,
     state: FSMContext,
@@ -116,7 +116,7 @@ async def choice(
         await show_manage_captcha(call.message, state)
 
 
-@safe_handler("Bots Manage Hello Message")
+@safe_handler("Боты: управление сообщением капчи")
 async def manage_hello_message(
     call: types.CallbackQuery, state: FSMContext, db_obj: Database
 ) -> None:
@@ -166,7 +166,7 @@ async def manage_hello_message(
         )
 
 
-@safe_handler("Bots Manage Hello Message Post")
+@safe_handler("Боты: предпросмотр капчи")
 async def manage_hello_message_post(
     call: types.CallbackQuery, state: FSMContext
 ) -> None:
@@ -252,7 +252,7 @@ async def manage_hello_message_post(
         await state.set_state(Captcha.message)
 
 
-@safe_handler("Bots Choice Hello Message Delay")
+@safe_handler("Боты: выбор задержки капчи")
 async def choice_hello_message_delay(
     call: types.CallbackQuery, state: FSMContext
 ) -> None:
@@ -283,7 +283,7 @@ async def choice_hello_message_delay(
     )
 
 
-@safe_handler("Bots Captcha Back")
+@safe_handler("Боты: возврат в настройки капчи")
 async def back(call: types.CallbackQuery, state: FSMContext, db_obj: Database) -> None:
     """
     Возврат в меню капчи из подменю.
@@ -316,7 +316,7 @@ async def back(call: types.CallbackQuery, state: FSMContext, db_obj: Database) -
         await show_captcha(call.message, cs, db_obj)
 
 
-@safe_handler("Bots Captcha Get Message")
+@safe_handler("Боты: получение сообщения капчи")
 async def get_message(
     message: types.Message, state: FSMContext, db_obj: Database
 ) -> None:
@@ -387,7 +387,7 @@ async def get_message(
         await show_captcha(message, cs, db_obj)
 
 
-@safe_handler("Bots Captcha Get Buttons")
+@safe_handler("Боты: получение кнопок капчи")
 async def get_buttons(message: types.Message, state: FSMContext) -> None:
     """
     Обработка ввода кнопок для капчи.

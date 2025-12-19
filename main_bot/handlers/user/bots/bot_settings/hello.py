@@ -31,7 +31,7 @@ from utils.error_handler import safe_handler
 logger = logging.getLogger(__name__)
 
 
-@safe_handler("Bots Show Manage Hello Message")
+@safe_handler("Боты: меню управления приветствием")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def show_manage_hello_message(message: types.Message, state: FSMContext) -> None:
     """
     Показывает меню управления конкретным приветственным сообщением.
@@ -51,7 +51,7 @@ async def show_manage_hello_message(message: types.Message, state: FSMContext) -
     )
 
 
-@safe_handler("Bots Hello Choice")
+@safe_handler("Боты: выбор приветствия")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def choice(
     call: types.CallbackQuery, state: FSMContext, db_obj: Database
 ) -> None:
@@ -84,7 +84,7 @@ async def choice(
     await show_manage_hello_message(call.message, state)
 
 
-@safe_handler("Bots Manage Hello Message")
+@safe_handler("Боты: управление настройками приветствия")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def manage_hello_message(call: types.CallbackQuery, state: FSMContext) -> None:
     """
     Управление настройками приветствия (активность, задержка, удаление).
@@ -160,7 +160,7 @@ async def manage_hello_message(call: types.CallbackQuery, state: FSMContext) -> 
         )
 
 
-@safe_handler("Bots Manage Hello Message Post")
+@safe_handler("Боты: предпросмотр приветствия")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def manage_hello_message_post(
     call: types.CallbackQuery, state: FSMContext
 ) -> None:
@@ -200,7 +200,7 @@ async def manage_hello_message_post(
         await state.set_state(Hello.message)
 
 
-@safe_handler("Bots Choice Hello Message Delay")
+@safe_handler("Боты: выбор задержки приветствия")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def choice_hello_message_delay(
     call: types.CallbackQuery, state: FSMContext
 ) -> None:
@@ -231,7 +231,7 @@ async def choice_hello_message_delay(
     )
 
 
-@safe_handler("Bots Hello Back")
+@safe_handler("Боты: возврат в настройки приветствия")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def back(call: types.CallbackQuery, state: FSMContext) -> None:
     """
     Возврат в меню приветствий из подменю.
@@ -255,7 +255,7 @@ async def back(call: types.CallbackQuery, state: FSMContext) -> None:
         await show_hello(call.message, cs)
 
 
-@safe_handler("Bots Hello Get Message")
+@safe_handler("Боты: получение сообщения приветствия")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def get_message(message: types.Message, state: FSMContext) -> None:
     """
     Обработка ввода сообщения приветствия.
@@ -320,7 +320,7 @@ async def get_message(message: types.Message, state: FSMContext) -> None:
         await show_hello(message, cs)
 
 
-@safe_handler("Bots Hello Get Buttons")
+@safe_handler("Боты: получение кнопок приветствия")  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def get_buttons(message: types.Message, state: FSMContext) -> None:
     """
     Обработка кнопок для приветствия.
