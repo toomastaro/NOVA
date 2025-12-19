@@ -1,5 +1,6 @@
 """
-Клавиатуры для админ-панели.
+Модуль клавиатур для панели администратора.
+Обеспечивает навигацию и управление сессиями, каналами и промокодами.
 """
 
 from aiogram.types import InlineKeyboardButton
@@ -9,10 +10,14 @@ from main_bot.utils.lang.language import text
 
 
 class InlineAdmin(InlineKeyboardBuilder):
-    """Клавиатуры для админ-панели"""
+    """Клавиатуры для административных функций бота"""
 
     @classmethod
     def admin(cls):
+        """
+        Главное меню администратора.
+        Все кнопки выстроены в один столбик.
+        """
         kb = cls()
 
         kb.button(text="👤 Сессии", callback_data="Admin|session")
@@ -22,17 +27,23 @@ class InlineAdmin(InlineKeyboardBuilder):
         kb.button(text="🎁 Создать промокод", callback_data="Admin|promo")
         kb.button(text="🦋 Рекламные ссылки", callback_data="Admin|ads")
 
-        kb.adjust(2, 2, 1, 1)
+        kb.adjust(1)
         return kb.as_markup()
 
     @classmethod
     def admin_sessions(cls, clients: list = None, orphaned_sessions: list = None):
+        """
+        Меню управления сессиями MTProto.
+
+        Аргументы:
+            clients (list): Список активных клиентов.
+            orphaned_sessions (list): Список файлов сессий без записи в БД.
+        """
         kb = cls()
 
         if clients or orphaned_sessions:
             if orphaned_sessions:
                 for session_file in orphaned_sessions:
-                    # session_file is filename string
                     kb.button(
                         text=f"❓ {session_file}",
                         callback_data=f"AdminSession|add_orphan|{session_file}",
@@ -40,7 +51,6 @@ class InlineAdmin(InlineKeyboardBuilder):
 
             if clients:
                 for client in clients:
-                    # client is MtClient object
                     status_emoji = "✅" if client.is_active else "🔴"
                     if client.status == "RESETTING":
                         status_emoji = "🔄"
@@ -64,19 +74,25 @@ class InlineAdmin(InlineKeyboardBuilder):
             kb.button(text="🔍 Сканировать", callback_data="AdminSession|scan")
             kb.button(text=text("add:button"), callback_data="AdminSession|add")
             kb.button(text=text("back:button"), callback_data="Admin|back")
-            kb.adjust(2, 1, 1, 1)
+            kb.adjust(1)
 
         return kb.as_markup()
 
     @classmethod
     def admin_client_manage(cls, client_id: int):
+        """
+        Меню управления конкретным клиентом.
+
+        Аргументы:
+            client_id (int): Идентификатор клиента.
+        """
         kb = cls()
         kb.button(
-            text="🔄 Check Health / Activate",
+            text="🔄 Проверить состояние / Активировать",
             callback_data=f"AdminSession|check_health|{client_id}",
         )
         kb.button(
-            text="🔄 Reset Client", callback_data=f"AdminSession|reset_ask|{client_id}"
+            text="🔄 Сбросить клиента", callback_data=f"AdminSession|reset_ask|{client_id}"
         )
         kb.button(text=text("back:button"), callback_data="AdminSession|back_to_list")
         kb.adjust(1)
@@ -84,20 +100,27 @@ class InlineAdmin(InlineKeyboardBuilder):
 
     @classmethod
     def admin_client_reset_confirm(cls, client_id: int):
+        """
+        Подтверждение сброса клиента.
+
+        Аргументы:
+            client_id (int): Идентификатор клиента.
+        """
         kb = cls()
         kb.button(
-            text="⚠️ Confirm Reset",
+            text="⚠️ Подтвердить сброс",
             callback_data=f"AdminSession|reset_confirm|{client_id}",
         )
-        kb.button(text="Cancel", callback_data=f"AdminSession|manage|{client_id}")
+        kb.button(text="Отмена", callback_data=f"AdminSession|manage|{client_id}")
         kb.adjust(1)
         return kb.as_markup()
 
     @classmethod
     def admin_session_pool_select(cls):
+        """Выбор пула для новой сессии"""
         kb = cls()
         kb.button(
-            text="Свой клиент (Internal)",
+            text="Свой клиент (Внутренний)",
             callback_data="AdminSession|pool_select|internal",
         )
         kb.button(
@@ -109,9 +132,15 @@ class InlineAdmin(InlineKeyboardBuilder):
 
     @classmethod
     def admin_orphan_pool_select(cls, session_file: str):
+        """
+        Выбор пула для найденного файла сессии.
+
+        Аргументы:
+            session_file (str): Имя файла сессии.
+        """
         kb = cls()
         kb.button(
-            text="Свой клиент (Internal)",
+            text="Свой клиент (Внутренний)",
             callback_data=f"AdminSession|orphan_pool|internal|{session_file}",
         )
         kb.button(
@@ -124,7 +153,14 @@ class InlineAdmin(InlineKeyboardBuilder):
 
     @classmethod
     def admin_channels_list(cls, channels: list, offset: int, total: int):
-        """Клавиатура со списком каналов и пагинацией"""
+        """
+        Клавиатура со списком каналов и пагинацией.
+
+        Аргументы:
+            channels (list): Список каналов для текущей страницы.
+            offset (int): Смещение для пагинации.
+            total (int): Общее количество каналов.
+        """
         kb = cls()
 
         # Кнопки каналов
@@ -170,7 +206,12 @@ class InlineAdmin(InlineKeyboardBuilder):
 
     @classmethod
     def admin_channel_details(cls, channel_id: int):
-        """Клавиатура для деталей канала"""
+        """
+        Клавиатура для деталей канала.
+
+        Аргументы:
+            channel_id (int): Идентификатор канала.
+        """
         kb = cls()
 
         kb.button(text="◀️ К списку", callback_data="AdminChannels|list|0")
