@@ -139,42 +139,61 @@ async def view_channel_details(call: types.CallbackQuery) -> None:
         await call.answer("❌ Канал не найден", show_alert=True)
         return
 
-    # Получить администраторов через Bot API
-    chat_info = None
+    # Получить администраторов через Bot API (для справки)
     username = "N/A"
     try:
         chat_info = await call.bot.get_chat(channel.chat_id)
         if chat_info.username:
             username = chat_info.username
     except Exception as e:
-        logger.warning(
-            f"Failed to get chat info for {channel.title} ({channel.id}): {e}"
-        )
+        logger.warning(f"Failed to get chat info for {channel.title}: {e}")
 
-    admins_text = ""
-    try:
-        admins = await call.bot.get_chat_administrators(channel.chat_id)
-        admins_list = [
-            f"• {admin.user.full_name} (@{admin.user.username or 'N/A'}) - {admin.status}"
-            for admin in admins[:10]  # Показать первых 10
-        ]
-        admins_text = "\n".join(admins_list)
+    # 1. Информация о клиенте MTProto
+    client_info_text = "❌ Не назначен"
+    rights_text = "❌ Нет данных"
+    if channel.last_client_id:
+        client = await db.mt_client.get_mt_client(channel.last_client_id)
+        if client:
+            client_info_text = f"<code>{client.alias}</code> (ID: {client.id}) [{client.status}]"
+            # Проверка прав конкретного клиента
+            membership = await db.mt_client_channel.get_or_create_mt_client_channel(client.id, channel.id)
+            if membership:
+                rights = []
+                if membership.is_member:
+                    rights.append("Участник")
+                if membership.is_admin:
+                    rights.append("Админ")
+                if membership.can_post_messages:
+                    rights.append("Посты")
+                if membership.can_post_stories:
+                    rights.append("Сторис")
+                rights_text = ", ".join(rights) if rights else "Ограничен (чтение)"
 
-        if len(admins) > 10:
-            admins_text += f"\n\n... и еще {len(admins) - 10} администраторов"
-    except Exception as e:
-        logger.error(f"Failed to get admins for {channel.title} ({channel.id}): {e}")
-        admins_text = f"❌ Не удалось получить список: {str(e)[:100]}"
+    # 2. Статистика постов
+    posts_count = await db.post.count_channel_posts(channel.chat_id)
+    published_count = await db.published_post.count_channel_published(channel.chat_id)
+
+    # 3. Информация о подписке
+    sub_status = "❌ Нет"
+    if channel.subscribe:
+        if channel.subscribe > time.time():
+            sub_status = f"✅ Активна (до {time.strftime('%d.%m.%Y', time.localtime(channel.subscribe))})"
+        else:
+            sub_status = f"⌛ Истекла ({time.strftime('%d.%m.%Y', time.localtime(channel.subscribe))})"
 
     # Формирование текста
     text_msg = "📺 <b>Информация о канале</b>\n\n"
     text_msg += f"<b>Название:</b> {channel.title}\n"
     text_msg += f"<b>Username:</b> @{username}\n"
     text_msg += f"<b>Chat ID:</b> <code>{channel.chat_id}</code>\n"
-    text_msg += (
-        f"<b>Подписка:</b> {'✅ Активна' if channel.subscribe else '❌ Неактивна'}\n\n"
-    )
-    text_msg += f"👥 <b>Администраторы:</b>\n{admins_text}"
+    text_msg += f"<b>Владелец (ID):</b> <code>{channel.admin_id}</code>\n"
+    text_msg += f"<b>Добавлен:</b> {time.strftime('%d.%m.%Y %H:%M', time.localtime(channel.created_timestamp))}\n\n"
+    
+    text_msg += f"<b>Подписка:</b> {sub_status}\n"
+    text_msg += f"<b>Посты:</b> {posts_count} (план) / {published_count} (архив)\n\n"
+    
+    text_msg += f"<b>Клиент MTProto:</b> {client_info_text}\n"
+    text_msg += f"<b>Права клиента:</b> {rights_text}\n"
 
     await call.message.edit_text(
         text_msg,

@@ -209,3 +209,11 @@ class PostCrud(DatabaseMixin):
         stmt = select(func.count(Post.id)).where(Post.admin_id == user_id)
         result = await self.fetchrow(stmt)
         return result if result is not None else 0
+
+    async def count_channel_posts(self, chat_id: int) -> int:
+        """
+        Подсчитывает количество запланированных постов для конкретного канала.
+        """
+        stmt = select(func.count(Post.id)).where(Post.chat_ids.contains([chat_id]))
+        result = await self.fetchrow(stmt)
+        return result if result is not None else 0

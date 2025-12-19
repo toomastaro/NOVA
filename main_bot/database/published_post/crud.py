@@ -195,3 +195,12 @@ class PublishedPostCrud(DatabaseMixin):
         stmt = select(func.count(PublishedPost.id)).where(PublishedPost.admin_id == user_id)
         result = await self.fetchrow(stmt)
         return result if result is not None else 0
+
+    async def count_channel_published(self, chat_id: int) -> int:
+        """
+        Подсчитывает количество опубликованных постов в конкретном канале.
+        """
+        from sqlalchemy import func
+        stmt = select(func.count(PublishedPost.id)).where(PublishedPost.chat_id == chat_id)
+        result = await self.fetchrow(stmt)
+        return result if result is not None else 0
