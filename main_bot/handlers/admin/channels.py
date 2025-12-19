@@ -17,6 +17,8 @@ from aiogram.fsm.context import FSMContext
 from main_bot.database.db import db
 from main_bot.keyboards import keyboards
 from main_bot.states.admin import AdminChannels
+from main_bot.utils.lang.language import text
+from main_bot.utils.tg_utils import get_editors
 from utils.error_handler import safe_handler
 
 logger = logging.getLogger(__name__)
@@ -141,12 +143,48 @@ async def view_channel_details(call: types.CallbackQuery) -> None:
 
     # Получить администраторов через Bot API (для справки)
     username = "N/A"
+    owner_name = text("unknown")
+    members_count = "N/A"
+    status_bot_post = "❓"
+    status_bot_mail = "❓"
+    
     try:
         chat_info = await call.bot.get_chat(channel.chat_id)
         if chat_info.username:
             username = chat_info.username
+        
+        # Получаем количество подписчиков
+        members_count = await call.bot.get_chat_member_count(channel.chat_id)
+        
+        # Получаем информацию о владельце
+        try:
+            owner = await call.bot.get_chat(channel.admin_id)
+            owner_name = f"@{owner.username}" if owner.username else owner.full_name
+        except Exception:
+            owner_name = str(channel.admin_id)
+
+        # Проверка прав основного бота
+        try:
+            bot_member = await call.bot.get_chat_member(channel.chat_id, call.bot.id)
+            from aiogram.enums import ChatMemberStatus
+            bot_can_post = False
+            if bot_member.status in [ChatMemberStatus.ADMINISTRATOR, ChatMemberStatus.CREATOR]:
+                bot_can_post = getattr(bot_member, "can_post_messages", True)
+            
+            status_bot_post = "✅" if bot_can_post else "❌"
+            status_bot_mail = "✅" if bot_can_post else "❌"
+        except Exception as e:
+            logger.warning(f"Failed to get bot member status: {e}")
+
     except Exception as e:
         logger.warning(f"Failed to get chat info for {channel.title}: {e}")
+
+    # Список редакторов
+    editors_str = await get_editors(call, channel.chat_id)
+
+    # Проверка приветственных сообщений
+    hello_msgs = await db.channel_bot_hello.get_hello_messages(channel.chat_id, active=True)
+    status_welcome = "✅" if hello_msgs else "❌"
 
     # 1. Информация о клиенте MTProto
     client_info_text = "❌ Не назначен"
@@ -186,14 +224,22 @@ async def view_channel_details(call: types.CallbackQuery) -> None:
     text_msg += f"<b>Название:</b> {channel.title}\n"
     text_msg += f"<b>Username:</b> @{username}\n"
     text_msg += f"<b>Chat ID:</b> <code>{channel.chat_id}</code>\n"
-    text_msg += f"<b>Владелец (ID):</b> <code>{channel.admin_id}</code>\n"
+    text_msg += f"<b>Подписчиков:</b> {members_count}\n"
+    text_msg += f"<b>Владелец:</b> {owner_name} (<code>{channel.admin_id}</code>)\n"
     text_msg += f"<b>Добавлен:</b> {time.strftime('%d.%m.%Y %H:%M', time.localtime(channel.created_timestamp))}\n\n"
     
     text_msg += f"<b>Подписка:</b> {sub_status}\n"
     text_msg += f"<b>Посты:</b> {posts_count} (план) / {published_count} (архив)\n\n"
     
+    text_msg += "🤖 <b>Статус Nova Bot:</b>\n"
+    text_msg += f"├ Постинг: {status_bot_post}\n"
+    text_msg += f"├ Рассылка: {status_bot_mail}\n"
+    text_msg += f"└ Приветствие: {status_welcome}\n\n"
+
     text_msg += f"<b>Клиент MTProto:</b> {client_info_text}\n"
-    text_msg += f"<b>Права клиента:</b> {rights_text}\n"
+    text_msg += f"<b>Права клиента:</b> {rights_text}\n\n"
+    
+    text_msg += f"<b>Редакторы:</b>\n{editors_str if editors_str else '<i>Нет данных или не удалось получить</i>'}"
 
     await call.message.edit_text(
         text_msg,
