@@ -26,12 +26,16 @@ class ChannelCrud(DatabaseMixin):
         """
         Проверяет, есть ли у пользователя хотя бы один канал с активной подпиской.
         """
-        stmt = select(Channel.id).where(
-            Channel.admin_id == user_id,
-            Channel.subscribe.is_not(None),
-            Channel.subscribe > time.time(),
-            Channel.subscribe != Config.SOFT_DELETE_TIMESTAMP,
-        ).limit(1)
+        stmt = (
+            select(Channel.id)
+            .where(
+                Channel.admin_id == user_id,
+                Channel.subscribe.is_not(None),
+                Channel.subscribe > time.time(),
+                Channel.subscribe != Config.SOFT_DELETE_TIMESTAMP,
+            )
+            .limit(1)
+        )
         result = await self.fetchrow(stmt)
         return result is not None
 

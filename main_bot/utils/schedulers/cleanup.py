@@ -64,7 +64,7 @@ async def check_subscriptions() -> None:
     актуальную (максимальную) дату подписки для уведомлений.
     """
     current_day = time.strftime("%Y-%m-%d", time.localtime())
-    
+
     # Получаем все каналы (включая дубликаты для разных админов)
     stmt = select(Channel).where(
         or_(
@@ -73,7 +73,7 @@ async def check_subscriptions() -> None:
         )
     )
     all_channels = await db.fetch(stmt)
-    
+
     # Группируем по chat_id: {chat_id: {"expire": max_expire, "admins": [admin_id, ...], "title": title}}
     channel_groups = {}
     for ch in all_channels:
@@ -81,7 +81,7 @@ async def check_subscriptions() -> None:
             channel_groups[ch.chat_id] = {
                 "expire": ch.subscribe or 0,
                 "admins": {ch.admin_id},
-                "title": ch.title
+                "title": ch.title,
             }
         else:
             group = channel_groups[ch.chat_id]
@@ -93,7 +93,7 @@ async def check_subscriptions() -> None:
         expire_time = data["expire"]
         if not expire_time:
             continue
-            
+
         status, days = get_sub_status(expire_time)
         if not status:
             continue
@@ -119,7 +119,7 @@ async def check_subscriptions() -> None:
                 logger.error(
                     f"Ошибка уведомления для админа {admin_id} канала {data['title']}: {e}"
                 )
-        
+
         _sent_notifications.add(notification_key)
 
 

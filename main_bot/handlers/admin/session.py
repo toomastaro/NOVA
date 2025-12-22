@@ -40,8 +40,6 @@ logger = logging.getLogger(__name__)
 apps: Dict[str, SessionManager] = {}
 
 
-
-
 @safe_handler("Admin Session Choice")
 async def choice(call: types.CallbackQuery, state: FSMContext) -> None:
     """
@@ -285,7 +283,8 @@ async def choice(call: types.CallbackQuery, state: FSMContext) -> None:
             info += f"⏳ Флуд до: {flood_time}\n"
 
         await call.message.edit_text(
-            info, reply_markup=keyboards.admin_client_manage(client_id, client.pool_type)
+            info,
+            reply_markup=keyboards.admin_client_manage(client_id, client.pool_type),
         )
         return
 
@@ -409,7 +408,8 @@ async def choice(call: types.CallbackQuery, state: FSMContext) -> None:
             info += f"⏳ Флуд до: {flood_time}\n"
 
         await call.message.edit_text(
-            info, reply_markup=keyboards.admin_client_manage(client_id, client.pool_type)
+            info,
+            reply_markup=keyboards.admin_client_manage(client_id, client.pool_type),
         )
         await call.answer(msg, show_alert=True)
         return
