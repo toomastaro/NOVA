@@ -36,29 +36,32 @@ logger = logging.getLogger(__name__)
 apps: Dict[str, SessionManager] = {}
 
 
-def determine_pool_type(username: Optional[str]) -> str:
+def determine_pool_type(
+    username: Optional[str],
+    first_name: Optional[str] = None,
+    last_name: Optional[str] = None,
+) -> str:
     """
-    Определяет тип пула на основе username клиента.
+    Определяет тип пула на основе данных клиента (username, имя, фамилия).
 
     Правила:
-    - Если username содержит 'super' → 'internal' (свои)
-    - Если username содержит 'ultra' → 'external' (внешний)
+    - Если в данных содержится 'super' → 'internal' (свои)
+    - Если в данных содержится 'ultra' → 'external' (внешний)
     - По умолчанию → 'internal'
 
     Args:
-        username: Username клиента в Telegram (может быть None)
+        username: Username клиента в Telegram
+        first_name: Имя клиента
+        last_name: Фамилия клиента
 
     Returns:
         'internal' или 'external'
     """
-    if not username:
-        return "internal"  # по умолчанию
+    search_str = f"{username or ''} {first_name or ''} {last_name or ''}".lower()
 
-    username_lower = username.lower()
-
-    if "super" in username_lower:
+    if "super" in search_str:
         return "internal"
-    elif "ultra" in username_lower:
+    elif "ultra" in search_str:
         return "external"
     else:
         return "internal"  # по умолчанию
@@ -178,7 +181,11 @@ async def choice(call: types.CallbackQuery, state: FSMContext) -> None:
                         continue
 
                     username = me.username if me else None
-                    pool_type = determine_pool_type(username)
+                    pool_type = determine_pool_type(
+                        username,
+                        me.first_name if me else None,
+                        me.last_name if me else None,
+                    )
 
                     # Формируем alias
                     first_name = me.first_name or ""
@@ -598,9 +605,13 @@ async def get_code(message: types.Message, state: FSMContext) -> None:
     try:
         me = await app.me()
         if me:
-            # Получаем username для определения пула
+            # Получаем данные для определения пула
             username = me.username if me else None
-            pool_type = determine_pool_type(username)
+            pool_type = determine_pool_type(
+                username,
+                me.first_name if me else None,
+                me.last_name if me else None,
+            )
 
             logger.info(
                 f"Автоопределение пула для сессии {number}: "
