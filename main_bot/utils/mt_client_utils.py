@@ -1,10 +1,52 @@
 import logging
+import time
 from pathlib import Path
+from typing import Optional
 
 from main_bot.database.db import db
 from main_bot.utils.session_manager import SessionManager
 
 logger = logging.getLogger(__name__)
+
+
+def determine_pool_type(
+    username: Optional[str],
+    first_name: Optional[str] = None,
+    last_name: Optional[str] = None,
+) -> str:
+    """
+    Определяет тип пула на основе данных клиента (username, имя, фамилия).
+    """
+    search_str = f"{username or ''} {first_name or ''} {last_name or ''}".lower()
+
+    if "super" in search_str:
+        return "internal"
+    elif "ultra" in search_str:
+        return "external"
+    else:
+        return "internal"  # по умолчанию
+
+
+def generate_client_alias(me, pool_type: str = "internal", count: int = 0) -> str:
+    """
+    Генерирует псевдоним клиента на основе его данных из Telegram.
+    Формат: 👤 Имя Фамилия (@username)
+    """
+    if not me:
+        return f"{pool_type}-auto-{count + 1}"
+
+    first_name = getattr(me, "first_name", "") or ""
+    last_name = getattr(me, "last_name", "") or ""
+    full_name = f"{first_name} {last_name}".strip()
+    username = getattr(me, "username", None)
+    username_str = f" (@{username})" if username else ""
+
+    if full_name:
+        return f"👤 {full_name}{username_str}"
+    elif username:
+        return f"👤 {username}"
+    else:
+        return f"{pool_type}-auto-{count + 1}"
 
 
 async def reset_client_task(client_id: int):

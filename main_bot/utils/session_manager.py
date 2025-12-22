@@ -107,7 +107,7 @@ class SessionManager:
             if not me:
                 return {"ok": False, "error_code": "USER_NOT_FOUND"}
 
-            return {"ok": True}
+            return {"ok": True, "me": me}
 
         except UserDeactivatedError:
             return {"ok": False, "error_code": "USER_DEACTIVATED"}

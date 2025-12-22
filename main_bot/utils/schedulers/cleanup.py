@@ -19,6 +19,7 @@ from main_bot.database.db import db
 from main_bot.database.channel.model import Channel
 from main_bot.database.mt_client.model import MtClient
 from main_bot.utils.lang.language import text
+from main_bot.utils.mt_client_utils import generate_client_alias
 from main_bot.utils.session_manager import SessionManager
 from main_bot.utils.support_log import SupportAlert, send_support_alert
 from utils.error_handler import safe_handler
@@ -180,6 +181,16 @@ async def mt_clients_self_check() -> None:
                     updates["is_active"] = True
                     updates["last_error_code"] = None
                     updates["flood_wait_until"] = None
+
+                    # Синхронизация имени/юзернейма
+                    me = res.get("me")
+                    if me:
+                        new_alias = generate_client_alias(me, client.pool_type)
+                        if new_alias and new_alias != client.alias:
+                            updates["alias"] = new_alias
+                            logger.info(
+                                f"Плановая синхронизация клиента {client.id}: {client.alias} -> {new_alias}"
+                            )
                 else:
                     error_code = res.get("error_code", "UNKNOWN")
                     updates["last_error_code"] = error_code

@@ -26,7 +26,11 @@ from main_bot.database.db import db
 from main_bot.keyboards import keyboards
 from main_bot.states.admin import Session
 from main_bot.utils.lang.language import text
-from main_bot.utils.mt_client_utils import reset_client_task
+from main_bot.utils.mt_client_utils import (
+    reset_client_task,
+    determine_pool_type,
+    generate_client_alias,
+)
 from main_bot.utils.session_manager import SessionManager
 from main_bot.utils.support_log import send_support_alert, SupportAlert
 from utils.error_handler import safe_handler
@@ -36,35 +40,6 @@ logger = logging.getLogger(__name__)
 apps: Dict[str, SessionManager] = {}
 
 
-def determine_pool_type(
-    username: Optional[str],
-    first_name: Optional[str] = None,
-    last_name: Optional[str] = None,
-) -> str:
-    """
-    Определяет тип пула на основе данных клиента (username, имя, фамилия).
-
-    Правила:
-    - Если в данных содержится 'super' → 'internal' (свои)
-    - Если в данных содержится 'ultra' → 'external' (внешний)
-    - По умолчанию → 'internal'
-
-    Args:
-        username: Username клиента в Telegram
-        first_name: Имя клиента
-        last_name: Фамилия клиента
-
-    Returns:
-        'internal' или 'external'
-    """
-    search_str = f"{username or ''} {first_name or ''} {last_name or ''}".lower()
-
-    if "super" in search_str:
-        return "internal"
-    elif "ultra" in search_str:
-        return "external"
-    else:
-        return "internal"  # по умолчанию
 
 
 @safe_handler("Admin Session Choice")
@@ -162,6 +137,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext) -> None:
         # Автоматическое добавление всех найденных сессий
         added_sessions = []
         errors = []
+        added_count = 0
 
         for session_path in orphaned:
             try:
@@ -188,17 +164,10 @@ async def choice(call: types.CallbackQuery, state: FSMContext) -> None:
                     )
 
                     # Формируем alias
-                    first_name = me.first_name or ""
-                    last_name = me.last_name or ""
-                    full_name = f"{first_name} {last_name}".strip()
-
-                    if full_name:
-                        alias = f"👤 {full_name}"
-                    else:
-                        existing_clients = await db.mt_client.get_mt_clients_by_pool(
-                            pool_type
-                        )
-                        alias = f"{pool_type}-auto-{len(existing_clients) + 1}"
+                    alias = generate_client_alias(
+                        me, pool_type, len(all_clients) + added_count
+                    )
+                    added_count += 1
 
                     # Создаем клиента в БД
                     new_client = await db.mt_client.create_mt_client(
@@ -356,6 +325,16 @@ async def choice(call: types.CallbackQuery, state: FSMContext) -> None:
             updates["status"] = "ACTIVE"
             updates["is_active"] = True
             msg = text("admin:session:active")
+
+            # Синхронизация имени/юзернейма
+            me = health.get("me")
+            if me:
+                new_alias = generate_client_alias(me, client.pool_type)
+                if new_alias and new_alias != client.alias:
+                    updates["alias"] = new_alias
+                    logger.info(
+                        f"Синхронизация клиента {client.id}: {client.alias} -> {new_alias}"
+                    )
         else:
             updates["status"] = "DISABLED"
             updates["is_active"] = False
@@ -671,12 +650,8 @@ async def get_code(message: types.Message, state: FSMContext) -> None:
                 f"username=@{username or 'N/A'}, pool={pool_type}"
             )
 
-            # Формат alias: "👤 Имя Фамилия"
-            first_name = me.first_name or ""
-            last_name = me.last_name or ""
-            full_name = f"{first_name} {last_name}".strip()
-            if full_name:
-                alias = f"👤 {full_name}"
+            # Формат alias: 👤 Имя Фамилия (@username)
+            alias = generate_client_alias(me, pool_type)
     except Exception as e:
         logger.error(f"Error getting user info: {e}")
 
