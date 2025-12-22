@@ -51,7 +51,7 @@ class InlineAdmin(InlineKeyboardBuilder):
                     )
 
             if clients:
-                for client in clients:
+                for i, client in enumerate(clients, 1):
                     status_emoji = "✅" if client.is_active else "🔴"
                     if client.status == "RESETTING":
                         status_emoji = "🔄"
@@ -59,7 +59,7 @@ class InlineAdmin(InlineKeyboardBuilder):
                         status_emoji = "⏳"
 
                     kb.button(
-                        text=f"{status_emoji} {client.alias or client.id}",
+                        text=f"{i}. {status_emoji} {client.alias or client.id}",
                         callback_data=f"AdminSession|manage|{client.id}",
                     )
             kb.adjust(1)
@@ -80,12 +80,13 @@ class InlineAdmin(InlineKeyboardBuilder):
         return kb.as_markup()
 
     @classmethod
-    def admin_client_manage(cls, client_id: int):
+    def admin_client_manage(cls, client_id: int, current_pool: str):
         """
         Меню управления конкретным клиентом.
 
         Аргументы:
             client_id (int): Идентификатор клиента.
+            current_pool (str): Текущий пул клиента.
         """
         kb = cls()
         kb.button(
@@ -93,8 +94,22 @@ class InlineAdmin(InlineKeyboardBuilder):
             callback_data=f"AdminSession|check_health|{client_id}",
         )
         kb.button(
-            text="🔄 Сбросить клиента", callback_data=f"AdminSession|reset_ask|{client_id}"
+            text="🔄 Сбросить клиента",
+            callback_data=f"AdminSession|reset_ask|{client_id}",
         )
+
+        # Кнопка переноса в другой пул
+        other_pool = "external" if current_pool == "internal" else "internal"
+        transfer_text = (
+            "🌐 Перенести в External"
+            if other_pool == "external"
+            else "🏠 Перенести в Internal"
+        )
+        kb.button(
+            text=transfer_text,
+            callback_data=f"AdminSession|move_pool|{client_id}|{other_pool}",
+        )
+
         kb.button(text=text("back:button"), callback_data="AdminSession|back_to_list")
         kb.adjust(1)
         return kb.as_markup()

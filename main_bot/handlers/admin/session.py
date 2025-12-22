@@ -123,7 +123,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext) -> None:
         await state.update_data(current_pool=pool_type)
 
         await call.message.edit_text(
-            text("admin:session:list").format(pool_type),
+            text("admin:session:list").format(pool_type, len(clients)),
             reply_markup=keyboards.admin_sessions(clients=clients),
         )
         return
@@ -133,7 +133,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext) -> None:
         pool_type = data.get("current_pool", "internal")
         clients = await db.mt_client.get_mt_clients_by_pool(pool_type)
         await call.message.edit_text(
-            text("admin:session:list").format(pool_type),
+            text("admin:session:list").format(pool_type, len(clients)),
             reply_markup=keyboards.admin_sessions(clients=clients),
         )
         return
@@ -316,7 +316,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext) -> None:
             info += f"⏳ Флуд до: {flood_time}\n"
 
         await call.message.edit_text(
-            info, reply_markup=keyboards.admin_client_manage(client_id)
+            info, reply_markup=keyboards.admin_client_manage(client_id, client.pool_type)
         )
         return
 
@@ -430,7 +430,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext) -> None:
             info += f"⏳ Флуд до: {flood_time}\n"
 
         await call.message.edit_text(
-            info, reply_markup=keyboards.admin_client_manage(client_id)
+            info, reply_markup=keyboards.admin_client_manage(client_id, client.pool_type)
         )
         await call.answer(msg, show_alert=True)
         return
@@ -462,7 +462,60 @@ async def choice(call: types.CallbackQuery, state: FSMContext) -> None:
             f"🔛 Активен: False\n"
         )
         await call.message.edit_text(
-            info, reply_markup=keyboards.admin_client_manage(client_id)
+            info,
+            reply_markup=keyboards.admin_client_manage(client_id, client.pool_type),
+        )
+        return
+
+    if action == "move_pool":
+        client_id = int(temp[2])
+        new_pool = temp[3]
+
+        client = await db.mt_client.get_mt_client(client_id)
+        if not client:
+            await call.answer(text("admin:session:not_found"), show_alert=True)
+            return
+
+        await db.mt_client.update_mt_client(client_id=client_id, pool_type=new_pool)
+        await call.answer(
+            f"✅ Клиент перенесен в пул {new_pool.upper()}", show_alert=True
+        )
+
+        # Обновляем вид
+        client = await db.mt_client.get_mt_client(client_id)
+
+        created_at = "N/A"
+        if client.created_at:
+            created_at = datetime.fromtimestamp(client.created_at).strftime(
+                "%d.%m.%Y %H:%M"
+            )
+
+        last_check = "N/A"
+        if client.last_self_check_at:
+            last_check = datetime.fromtimestamp(client.last_self_check_at).strftime(
+                "%d.%m.%Y %H:%M"
+            )
+
+        info = (
+            f"🆔 ID: {client.id}\n"
+            f"👤 Псевдоним: {client.alias}\n"
+            f"🏊 Пул: {client.pool_type}\n"
+            f"📊 Статус: {client.status}\n"
+            f"🔛 Активен: {client.is_active}\n"
+            f"📅 Создан: {created_at}\n"
+            f"🕒 Последняя проверка: {last_check}\n"
+        )
+        if client.last_error_code:
+            error_time = (
+                datetime.fromtimestamp(client.last_error_at).strftime("%d.%m.%Y %H:%M")
+                if client.last_error_at
+                else "N/A"
+            )
+            info += f"❌ Последняя ошибка: {client.last_error_code} ({error_time})\n"
+
+        await call.message.edit_text(
+            info,
+            reply_markup=keyboards.admin_client_manage(client_id, client.pool_type),
         )
         return
 

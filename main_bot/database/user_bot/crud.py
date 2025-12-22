@@ -59,6 +59,8 @@ class UserBotCrud(DatabaseMixin):
 
         if sort_by:
             stmt = stmt.order_by(desc(UserBot.subscribe))
+        else:
+            stmt = stmt.order_by(UserBot.title.asc())
         if limit:
             stmt = stmt.limit(limit)
 
@@ -115,4 +117,4 @@ class UserBotCrud(DatabaseMixin):
         """
         Получает список всех ботов в системе.
         """
-        return await self.fetch(select(UserBot).order_by(UserBot.created_timestamp.desc()))
+        return await self.fetch(select(UserBot).order_by(UserBot.title.asc()))

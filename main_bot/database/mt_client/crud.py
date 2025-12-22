@@ -45,7 +45,11 @@ class MtClientCrud(DatabaseMixin):
         Аргументы:
             pool_type (str): Тип пула.
         """
-        return await self.fetch(select(MtClient).where(MtClient.pool_type == pool_type))
+        return await self.fetch(
+            select(MtClient)
+            .where(MtClient.pool_type == pool_type)
+            .order_by(MtClient.alias.asc())
+        )
 
     async def update_mt_client(self, client_id: int, **kwargs) -> None:
         """

@@ -62,8 +62,10 @@ class ChannelCrud(DatabaseMixin):
             ),
         )
 
-        if sort_by:
+        if sort_by == "subscribe":
             stmt = stmt.order_by(desc(Channel.subscribe))
+        else:
+            stmt = stmt.order_by(Channel.title.asc())
 
         if limit:
             stmt = stmt.limit(limit)
@@ -251,7 +253,7 @@ class ChannelCrud(DatabaseMixin):
         if excluded_chat_ids:
             stmt = stmt.where(Channel.chat_id.notin_(excluded_chat_ids))
 
-        return await self.fetch(stmt)
+        return await self.fetch(stmt.order_by(Channel.title.asc()))
 
     async def update_last_client(self, channel_id: int, client_id: int) -> None:
         """
@@ -273,7 +275,7 @@ class ChannelCrud(DatabaseMixin):
         """
         # Используем DISTINCT ON (postgres only) для выбора уникальных каналов
         # Сортировка по chat_id обязательна для distinct on
-        stmt = (
+        subq = (
             select(Channel)
             .where(
                 or_(
@@ -283,8 +285,9 @@ class ChannelCrud(DatabaseMixin):
             )
             .distinct(Channel.chat_id)
             .order_by(Channel.chat_id, Channel.id.desc())
+            .subquery()
         )
-        return await self.fetch(stmt)
+        return await self.fetch(select(subq).order_by(subq.c.title.asc()))
 
     async def get_channels(self) -> List[Channel]:
         """Alias for get_all_channels"""
