@@ -98,13 +98,17 @@ class ChannelCrud(DatabaseMixin):
 
     async def get_channel_by_chat_id(self, chat_id: int) -> Channel | None:
         """
-        Получает канал по Telegram chat_id.
+        Получает канал по Telegram chat_id. При наличии нескольких записей
+        возвращает запись с наиболее поздней датой окончания подписки.
 
         Аргументы:
             chat_id (int): ID канала в Telegram.
         """
         return await self.fetchrow(
-            select(Channel).where(Channel.chat_id == chat_id).limit(1)
+            select(Channel)
+            .where(Channel.chat_id == chat_id)
+            .order_by(Channel.subscribe.desc().nulls_last())
+            .limit(1)
         )
 
     async def update_channel_by_chat_id(self, chat_id: int, **kwargs) -> None:

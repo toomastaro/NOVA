@@ -273,7 +273,7 @@ async def extend_channel_subscription_process(call: types.CallbackQuery) -> None
     base_time = max(current_time, channel.subscribe or 0)
     new_expire = base_time + (days * 86400)
 
-    await db.channel.update_channel_by_id(channel_id, subscribe=new_expire)
+    await db.channel.update_channel_by_chat_id(channel.chat_id, subscribe=new_expire)
     
     await call.answer(f"✅ Подписка продлена на {days} дн.", show_alert=True)
     await view_channel_details(call)
