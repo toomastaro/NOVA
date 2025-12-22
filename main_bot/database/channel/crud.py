@@ -275,8 +275,8 @@ class ChannelCrud(DatabaseMixin):
         """
         # Используем DISTINCT ON (postgres only) для выбора уникальных каналов
         # Сортировка по chat_id обязательна для distinct on
-        subq = (
-            select(Channel)
+        distinct_stmt = (
+            select(Channel.id)
             .where(
                 or_(
                     Channel.subscribe != Config.SOFT_DELETE_TIMESTAMP,
@@ -285,9 +285,15 @@ class ChannelCrud(DatabaseMixin):
             )
             .distinct(Channel.chat_id)
             .order_by(Channel.chat_id, Channel.id.desc())
-            .subquery()
+        ).subquery()
+
+        # Теперь выбираем полные объекты и сортируем их по заголовку
+        stmt = (
+            select(Channel)
+            .where(Channel.id.in_(select(distinct_stmt)))
+            .order_by(Channel.title.asc())
         )
-        return await self.fetch(select(subq).order_by(subq.c.title.asc()))
+        return await self.fetch(stmt)
 
     async def get_channels(self) -> List[Channel]:
         """Alias for get_all_channels"""
