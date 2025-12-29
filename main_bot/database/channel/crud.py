@@ -149,14 +149,22 @@ class ChannelCrud(DatabaseMixin):
         chat_id = kwargs.get("chat_id")
         admin_id = kwargs.get("admin_id")
 
-        # 1. Проверяем, был ли канал в базе ВООБЩЕ (для Trial проверяем только по chat_id)
-        # Существование записи гарантирует, что кто-то уже добавлял этот канал
-        existing_any_admin = await self.fetchrow(
-            select(Channel).where(Channel.chat_id == chat_id).limit(1)
-        )
+        # 1. Проверяем наличие канала у любого админа (берём запись с лучшей подпиской)
+        existing_any_admin = await self.get_channel_by_chat_id(chat_id)
 
-        # 2. Если канала нет совсем и включен Trial — начисляем дни
-        if not existing_any_admin and Config.TRIAL:
+        # 2. Логика синхронизации или начисления Trial
+        if existing_any_admin:
+            # Если канал уже у кого-то есть, наследуем подписку
+            if (
+                existing_any_admin.subscribe
+                and existing_any_admin.subscribe != Config.SOFT_DELETE_TIMESTAMP
+            ):
+                kwargs["subscribe"] = existing_any_admin.subscribe
+                logger.debug(
+                    f"Синхронизирована подписка для {chat_id} от другого админа: {existing_any_admin.subscribe}"
+                )
+        elif Config.TRIAL:
+            # Если канала нет совсем — начисляем Trial
             trial_end = int(time.time()) + (Config.TRIAL_DAYS * 86400)
             kwargs["subscribe"] = trial_end
             logger.info(
