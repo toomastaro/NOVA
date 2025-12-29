@@ -159,6 +159,7 @@ class NovaStatService:
         return None
 
     def _map_error(self, e: Exception) -> str:
+        """Сопоставление технических ошибок с понятными пользователю сообщениями."""
         err_str = str(e)
         if "InviteHashInvalid" in err_str:
             return "Некорректная ссылка приглашения. Проверьте адрес."
@@ -172,6 +173,8 @@ class NovaStatService:
             return "Требуются права администратора для просмотра."
         if "CHANNEL_PRIVATE" in err_str:
             return "Канал приватный и недоступен."
+        if "No user has" in err_str and "as username" in err_str:
+            return "Канал с таким юзернеймом не найден."
         return f"{err_str}"
 
     async def async_refresh_stats(
@@ -339,7 +342,7 @@ class NovaStatService:
                         )
 
                 logger.info(
-                    f"Канал {channel_identifier} это наш канал (id={channel_id}), используем стат. из БД"
+                    f"Канал {channel_identifier} является нашим (id={channel_id}), используем статистику из БД"
                 )
 
                 # Формируем статистику из БД
@@ -529,78 +532,14 @@ class NovaStatService:
                     await asyncio.sleep(delay)
                 else:
                     # Последняя попытка не удалась
-                    logger.error(
-                        f"get_entity не удалось после 3 попыток для {channel_identifier}: {e}"
-                    )
-
-                    # Проверить, стал ли клиент подписчиком (если join был выполнен)
-                    if join_attempted and "USER_NOT_PARTICIPANT" in error_str:
-                        # Join был, но клиент все равно не участник
-                        # Это значит либо ссылка без автоприема, либо проблемы с Telegram
-                        raise Exception(
-                            "Не удалось вступить в канал. Вероятно, ссылка не имеет автоприёма (требуется одобрение админа)."
-                        )
-
-                    # Отправить alert для других ошибок доступа
-                    if (
-                        "USER_NOT_PARTICIPANT" in error_str
-                        or "CHAT_ADMIN_REQUIRED" in error_str
-                        or "CHANNEL_PRIVATE" in error_str
-                    ):
-                        from main_bot.utils.support_log import (
-                            send_support_alert,
-                            SupportAlert,
-                        )
-                        from instance_bot import bot as main_bot_obj
-
-                        # Попытка получить информацию о канале
-                        channel = None
-                        channel_id = None
-                        try:
-                            # Извлечь ID канала из идентификатора если это ссылка
-                            if (
-                                isinstance(channel_identifier, str)
-                                and "t.me/" in channel_identifier
-                            ):
-                                username = channel_identifier.split("/")[-1]
-                                channel = await db.get_channel_by_username(username)
-                                if channel:
-                                    channel_id = channel.chat_id
-                        except Exception:
-                            pass
-
-                        safe_username = (
-                            channel_identifier
-                            if isinstance(channel_identifier, str)
-                            else str(channel_identifier)
-                        )
-
-                        await send_support_alert(
-                            main_bot_obj,
-                            SupportAlert(
-                                event_type="STATS_ACCESS_DENIED",
-                                client_id=None,  # External client, we don't track which one
-                                client_alias=None,
-                                pool_type="external",
-                                channel_id=channel_id,
-                                channel_username=(
-                                    safe_username if not channel_id else None
-                                ),
-                                is_our_channel=channel is not None,
-                                error_code=(
-                                    error_str.split("(")[0].strip()
-                                    if "(" in error_str
-                                    else error_str[:50]
-                                ),
-                                error_text=f"Не удалось получить статистику канала: {error_str[:100]}",
-                            ),
-                        )
-
-                    return None
+                    error_msg = f"Не удалось получить информацию о канале {channel_identifier} после всех попыток: {e}"
+                    logger.error(error_msg)
+                    raise Exception(self._map_error(e))
 
         if not entity:
-            logger.error(f"Entity is None для {channel_identifier} после всех попыток")
-            return None
+            error_msg = f"Сущность не найдена для {channel_identifier} после всех попыток"
+            logger.error(error_msg)
+            raise Exception("Не удалось найти канал.")
 
         title = getattr(entity, "title", getattr(entity, "username", str(entity)))
         username = getattr(entity, "username", None)

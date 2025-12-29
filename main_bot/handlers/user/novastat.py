@@ -585,17 +585,21 @@ async def run_analysis_logic(
 
         else:
             # Обработка ошибки
-            error_msg = str(error) if error else "Неизвестная ошибка"
-            logger.warning("Ошибка анализа канала %s: %s", ch, error_msg)
+            error_reason = "Неизвестная ошибка"
+            cache = await db.novastat_cache.get_cache(str(ch), 24)
+            if cache and cache.error_message:
+                error_reason = cache.error_message
+            elif error:
+                error_reason = str(error)
+
+            logger.warning("Ошибка анализа канала %s: %s", ch, error_reason)
 
             error_text = text("novastat_analysis_error_collect").format(
                 html.escape(str(ch))
             )
-            cache = await db.novastat_cache.get_cache(str(ch), 24)
-            if cache and cache.error_message:
-                error_text += "\n" + text("novastat_analysis_error_reason").format(
-                    html.escape(cache.error_message)
-                )
+            error_text += "\n" + text("novastat_analysis_error_reason").format(
+                html.escape(error_reason)
+            )
 
             await message.answer(
                 error_text,
