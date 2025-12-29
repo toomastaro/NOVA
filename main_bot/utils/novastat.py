@@ -61,39 +61,62 @@ class NovaStatService:
         return int(pts[-1][1])
 
     async def get_external_client(self) -> Optional[tuple]:
-        """Получить наименее используемого внешнего MtClient и SessionManager (алгоритм least-used)"""
-        client = await db.mt_client.get_next_external_client()
+        """Получить наименее используемого активного внешнего MtClient и SessionManager."""
+        # Получаем список всех активных внешних клиентов
+        clients = await db.mt_client.fetch(
+            select(db.mt_client.model)
+            .where(db.mt_client.model.pool_type == "external")
+            .where(db.mt_client.model.is_active)
+            .where(db.mt_client.model.status == "ACTIVE")
+            .order_by(db.mt_client.model.usage_count.asc(), db.mt_client.model.last_used_at.asc())
+        )
 
-        if not client:
+        if not clients:
             logger.warning("Нет активных внешних клиентов")
             return None
 
-        logger.debug(
-            f"🔄 Выбран внешний клиент {client.id} ({client.alias}) с использованием={client.usage_count}"
-        )
-
-        session_path = Path(client.session_path)
-
-        if not session_path.exists():
-            logger.error(
-                f"Файл сессии не найден для внешнего клиента {client.id}: {session_path}"
+        for client in clients:
+            logger.debug(
+                f"🔄 Проверка внешнего клиента {client.id} ({client.alias}) с использованием={client.usage_count}"
             )
-            return None
 
-        manager = SessionManager(session_path)
-        await manager.init_client()
+            session_path = Path(client.session_path)
+            if not session_path.exists():
+                logger.error(
+                    f"Файл сессии не найден для внешнего клиента {client.id}: {session_path}"
+                )
+                continue
 
-        if not manager.client:
-            logger.error(
-                f"Не удалось инициализировать клиент для внешнего клиента {client.id}"
-            )
-            return None
+            manager = SessionManager(session_path)
+            await manager.init_client()
 
-        # Увеличить счетчик использования
-        await db.mt_client.increment_usage(client.id)
-        logger.debug(f"Увеличен счетчик использования для клиента {client.id}")
+            if not manager.client:
+                logger.error(
+                    f"Не удалось инициализировать клиент для внешнего клиента {client.id}"
+                )
+                await manager.close()
+                continue
 
-        return (client, manager)
+            # Проверка авторизации
+            try:
+                if not await manager.client.is_user_authorized():
+                    logger.error(f"Клиент {client.id} ({client.alias}) не авторизован! Деактивация.")
+                    await db.mt_client.update_mt_client(client.id, is_active=False, status="UNAUTHORIZED")
+                    await manager.close()
+                    continue
+            except Exception as e:
+                logger.error(f"Ошибка проверки авторизации клиента {client.id}: {e}")
+                await manager.close()
+                continue
+
+            # Увеличить счетчик использования
+            await db.mt_client.increment_usage(client.id)
+            logger.debug(f"Выбран клиент {client.id}, счетчик использования увеличен")
+
+            return (client, manager)
+
+        logger.error("Все внешние клиенты не прошли проверку авторизации или инициализации")
+        return None
 
     def normalize_cache_keys(self, data: Optional[Dict]) -> Optional[Dict]:
         """Преобразовать строковые ключи из JSON обратно в числовые"""

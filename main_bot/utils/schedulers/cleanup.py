@@ -136,13 +136,14 @@ async def mt_clients_self_check() -> None:
     """
     logger.info("Запуск самопроверки MT клиентов")
 
-    stmt = select(MtClient).where(MtClient.is_active)
-    active_clients = await db.fetch(stmt)
+    # Получаем все сессии из БД для проверки и потенциального восстановления
+    stmt = select(MtClient)
+    all_clients = await db.fetch(stmt)
 
-    if not active_clients:
+    if not all_clients:
         return
 
-    for client in active_clients:
+    for client in all_clients:
         try:
             session_path = Path(client.session_path)
             if not session_path.exists():

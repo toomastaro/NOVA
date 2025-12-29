@@ -143,13 +143,13 @@ def init_scheduler(scheduler: AsyncIOScheduler) -> None:
         name="Проверка подписок",
     )
 
-    # Самопроверка MT клиентов (каждый день в 3:00 по Москве)
+    # Самопроверка MT клиентов (каждый час в 00 минут)
     scheduler.add_job(
         func=mt_clients_self_check,
-        trigger=CronTrigger(hour="3", minute="0", timezone="Europe/Moscow"),
-        id="mt_clients_self_check_daily",
+        trigger=CronTrigger(minute="0"),
+        id="mt_clients_self_check_hourly",
         replace_existing=True,
-        name="Самопроверка MT клиентов",
+        name="Самопроверка MT клиентов (Ежечасно)",
     )
 
     # === ВСПОМОГАТЕЛЬНЫЕ ===
