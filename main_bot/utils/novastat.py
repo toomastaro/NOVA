@@ -9,6 +9,7 @@ from pathlib import Path
 
 from aiogram import Bot
 from telethon import TelegramClient
+from sqlalchemy import select
 from telethon.tl import functions, types
 from telethon.errors import RPCError
 from config import Config
