@@ -10,6 +10,7 @@ from pathlib import Path
 from aiogram import Bot
 from telethon import TelegramClient
 from sqlalchemy import select
+from main_bot.database.mt_client.model import MtClient
 from telethon.tl import functions, types
 from telethon.errors import RPCError
 from config import Config
@@ -65,11 +66,11 @@ class NovaStatService:
         """Получить наименее используемого активного внешнего MtClient и SessionManager."""
         # Получаем список всех активных внешних клиентов
         clients = await db.mt_client.fetch(
-            select(db.mt_client.model)
-            .where(db.mt_client.model.pool_type == "external")
-            .where(db.mt_client.model.is_active)
-            .where(db.mt_client.model.status == "ACTIVE")
-            .order_by(db.mt_client.model.usage_count.asc(), db.mt_client.model.last_used_at.asc())
+            select(MtClient)
+            .where(MtClient.pool_type == "external")
+            .where(MtClient.is_active)
+            .where(MtClient.status == "ACTIVE")
+            .order_by(MtClient.usage_count.asc(), MtClient.last_used_at.asc())
         )
 
         if not clients:
