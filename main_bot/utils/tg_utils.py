@@ -310,14 +310,14 @@ async def set_channel_session(chat_id: int):
             preferred_for_stats=is_preferred,
         )
 
+        # Обновление сессии и last_client_id для всех админов канала (синхронизация)
         await db.channel.update_channel_by_chat_id(
-            chat_id=chat_id, session_path=str(session_path)
+            chat_id=chat_id,
+            session_path=str(session_path),
+            last_client_id=client.id
         )
-
-        # Обновление last_client_id для всех админов канала (синхронизация)
-        await db.channel.update_last_client(chat_id, client.id)
         logger.info(
-            f"✅ Обновлен last_client_id для канала {chat_id} на {client.id}"
+            f"✅ Обновлены сессия и last_client_id для канала {chat_id} (клиент: {client.id})"
         )
 
         return {

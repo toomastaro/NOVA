@@ -113,7 +113,11 @@ class ChannelCrud(DatabaseMixin):
         stmt = (
             select(Channel)
             .where(Channel.chat_id == chat_id)
-            .order_by(desc(Channel.subscribe))
+            .order_by(
+                desc(Channel.last_client_id.is_not(None)), # Сначала те, где есть клиент
+                desc(Channel.subscribe),                   # Потом по подписке
+                desc(Channel.id)
+            )
             .limit(1)
         )
         return await self.fetchrow(stmt)

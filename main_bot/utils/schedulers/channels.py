@@ -123,11 +123,11 @@ async def update_channel_stats(channel_id: int) -> None:
                 )
                 subs = int(getattr(full.full_chat, "participants_count", 0) or 0)
 
-                # Обновляем в БД
-                await db.channel.update_channel_by_id(
-                    channel.id, subscribers_count=subs
+                # Обновляем в БД для ВСЕХ администраторов этого канала
+                await db.channel.update_channel_by_chat_id(
+                    channel.chat_id, subscribers_count=subs
                 )
-                logger.debug(f"Обновлены подписчики для {channel.title}: {subs}")
+                logger.debug(f"Обновлены подписчики для {channel.title} (все админы): {subs}")
             except Exception as e:
                 logger.error(f"Не удалось получить подписчиков: {e}")
 
@@ -140,13 +140,14 @@ async def update_channel_stats(channel_id: int) -> None:
                 if stats and "views" in stats:
                     views_data = stats["views"]  # {24: ..., 48: ..., 72: ...}
 
-                    await db.channel.update_channel_by_id(
-                        channel.id,
+                    # Обновляем в БД для ВСЕХ администраторов этого канала
+                    await db.channel.update_channel_by_chat_id(
+                        channel.chat_id,
                         novastat_24h=views_data.get(24, 0),
                         novastat_48h=views_data.get(48, 0),
                         novastat_72h=views_data.get(72, 0),
                     )
-                    logger.debug(f"Обновлен кэш NovaStat для {channel.title}")
+                    logger.debug(f"Обновлен кэш NovaStat для {channel.title} (все админы)")
             except Exception as e:
                 logger.error(f"Не удалось собрать NovaStat: {e}")
 
