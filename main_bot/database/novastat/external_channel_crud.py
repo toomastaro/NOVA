@@ -26,6 +26,14 @@ class ExternalChannelCrud(DatabaseMixin):
             select(ExternalChannel).where(ExternalChannel.chat_id == chat_id)
         )
 
+    async def get_by_username(self, username: str) -> Optional[ExternalChannel]:
+        """Получить внешний канал по юзернейму."""
+        # Убираем @ если есть
+        clean_username = username.lstrip("@").lower()
+        return await self.fetchrow(
+            select(ExternalChannel).where(ExternalChannel.username.ilike(clean_username))
+        )
+
     async def upsert_external_channel(self, **kwargs) -> None:
         """Добавить или обновить данные внешнего канала."""
         if "updated_at" not in kwargs:

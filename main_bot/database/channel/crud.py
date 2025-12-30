@@ -5,7 +5,7 @@
 import logging
 from typing import List, Literal
 
-from sqlalchemy import desc, select, update, or_
+from sqlalchemy import desc, select, update, or_, func
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from config import Config
@@ -102,7 +102,7 @@ class ChannelCrud(DatabaseMixin):
             )
         )
 
-    async def get_channel_by_chat_id(self, chat_id: int) -> Channel | None:
+    async def get_channel_by_chat_id(self, chat_id: int) -> Optional[Channel]:
         """
         Получает канал по Telegram chat_id. При наличии нескольких записей
         возвращает запись с наиболее поздней датой окончания подписки.
@@ -110,12 +110,24 @@ class ChannelCrud(DatabaseMixin):
         Аргументы:
             chat_id (int): ID канала в Telegram.
         """
-        return await self.fetchrow(
+        stmt = (
             select(Channel)
             .where(Channel.chat_id == chat_id)
-            .order_by(Channel.subscribe.desc().nulls_last())
+            .order_by(desc(Channel.subscribe))
             .limit(1)
         )
+        return await self.fetchrow(stmt)
+
+    async def get_by_username(self, username: str) -> Optional[Channel]:
+        """Получить канал пользователя по юзернейму."""
+        clean_username = username.lstrip("@").lower()
+        stmt = (
+            select(Channel)
+            .where(func.lower(Channel.username) == clean_username)
+            .order_by(desc(Channel.subscribe))
+            .limit(1)
+        )
+        return await self.fetchrow(stmt)
 
     async def update_channel_by_chat_id(self, chat_id: int, **kwargs) -> None:
         """

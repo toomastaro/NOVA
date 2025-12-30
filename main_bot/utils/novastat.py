@@ -8,7 +8,7 @@ from typing import List, Tuple, Dict, Optional
 from pathlib import Path
 
 from aiogram import Bot
-from telethon import TelegramClient
+from telethon import TelegramClient, utils
 from sqlalchemy import select
 from main_bot.database.mt_client.model import MtClient
 from telethon.tl import functions, types
@@ -120,6 +120,44 @@ class NovaStatService:
         logger.error("Все внешние клиенты не прошли проверку авторизации или инициализации")
         return None
 
+    def normalize_identifier(self, identifier: str) -> str:
+        """
+        Нормализует идентификатор канала.
+        Убирает @, t.me/, пробелы и приводит к нижнему регистру.
+        Если это приватная ссылка, возвращает её целиком.
+        """
+        if not identifier:
+            return ""
+        
+        s = str(identifier).strip().lower()
+        
+        # 1. Если это числовой ID, возвращаем как есть
+        if s.lstrip("-").isdigit():
+            return s
+            
+        # 2. Обработка ссылок t.me
+        if "t.me/" in s:
+            # Убираем параметры запроса (?start=...) и якоря
+            s = s.split("?")[0].split("#")[0]
+            # Убираем слеш в конце
+            s = s.rstrip("/")
+            
+            # Если это приватная ссылка, возвращаем её целиком для ImportChatInvite
+            if "t.me/+" in s or "joinchat/" in s:
+                return s
+            
+            # Берем последний сегмент (username)
+            parts = s.split("/")
+            if parts[-1]:
+                s = parts[-1]
+            elif len(parts) > 1:
+                s = parts[-2]
+            
+        # 3. Базовая очистка
+        s = s.replace("@", "").strip()
+        
+        return s
+
     def normalize_cache_keys(self, data: Optional[Dict]) -> Optional[Dict]:
         """Преобразовать строковые ключи из JSON обратно в числовые"""
         if not data:
@@ -158,32 +196,26 @@ class NovaStatService:
 
         # 1. Попытка определить chat_id (нормализация)
         chat_id = None
-        # Проверяем, не числовой ли это ID уже
-        if id_str.lstrip("-").replace(" ", "").isdigit():
-            chat_id = int(id_str)
+        clean_id = self.normalize_identifier(id_str)
+        
+        # Проверяем, не числовой ли это ID
+        if clean_id.lstrip("-").isdigit():
+            chat_id = int(clean_id)
         else:
             # Сначала проверяем "свои" каналы
-            username = id_str
-            if "t.me/" in id_str:
-                username = id_str.split("/")[-1].replace("@", "")
-            elif id_str.startswith("@"):
-                username = id_str[1:]
-            
-            # Поиск в Channel
-            channels = await db.channel.get_channels()
-            for ch in channels:
-                 if ch.title == username or (hasattr(ch, "username") and ch.username == username):
-                    chat_id = ch.chat_id
-                    break
+            our_ch = await db.channel.get_by_username(clean_id)
+            if our_ch:
+                chat_id = our_ch.chat_id
             
             # Если не нашли в своих, ищем во внешних
             if not chat_id:
-                # В ExternalChannel мы храним chat_id как PK, но можем искать по username
-                # Но проще дождаться первого анализа, который получит chat_id от Telegram
-                pass
+                ext_ch = await db.external_channel.get_by_username(clean_id)
+                if ext_ch:
+                    chat_id = ext_ch.chat_id
 
         # Ключ для таблицы кэша (предпочтительно chat_id, если он есть)
-        cache_key = str(chat_id) if chat_id else id_str
+        # Если chat_id известен, используем его. Иначе используем нормализованный clean_id
+        cache_key = str(chat_id) if chat_id else clean_id
 
         # 2. Получить кэш
         cache = await db.novastat_cache.get_cache(cache_key, horizon)
@@ -208,15 +240,10 @@ class NovaStatService:
             return None
 
         # 5. Обновить синхронно
-        logger.debug(f"Промах кэша для {cache_key}, получение свежих данных...")
+        logger.info(f"🚀 Запуск сбора данных NovaStat для {id_str} (cache_key: {cache_key})")
         await self.async_refresh_stats(id_str, days_limit, horizon, bot=bot)
 
-        # 6. Получить результат (теперь пробуем по chat_id, если он стал известен)
-        if not chat_id:
-             # Пытаемся найти chat_id повторно (он мог появиться в ExternalChannel после async_refresh_stats)
-             # Но для простоты берем по исходному id_str, так как async_refresh_stats запишет туда результат
-             pass
-        
+        # 6. Получить результат по тому же ключу
         cache = await db.novastat_cache.get_cache(cache_key, horizon)
         if cache and cache.value_json and not cache.error_message:
             return self.normalize_cache_keys(cache.value_json)
@@ -246,44 +273,45 @@ class NovaStatService:
         self, channel_identifier: str, days_limit: int, horizon: int, bot: Bot = None
     ):
         """Асинхронное обновление статистики в кэше и ExternalChannel"""
+        clean_id = self.normalize_identifier(channel_identifier)
+        lock_id = clean_id # По умолчанию блокируем по чистому юзернейму
+        
         try:
-            # 1. Попытка захватить блокировку
-            lock_acquired = await db.novastat_cache.try_acquire_refresh_lock(
-                channel_identifier, horizon
-            )
-            if not lock_acquired:
-                return
-
-            # 2. Определяем, является ли канал "своим"
+            # 1. Сначала пытаемся найти chat_id в базе, чтобы блокировка была единой 
+            # (и для юзернейма, и для ID)
             our_channel = None
             chat_id = None
             
-            if isinstance(channel_identifier, int) or (
-                isinstance(channel_identifier, str) and channel_identifier.lstrip("-").isdigit()
-            ):
-                chat_id = int(str(channel_identifier).replace(" ", ""))
+            if clean_id.lstrip("-").isdigit():
+                chat_id = int(clean_id)
                 our_channel = await db.channel.get_channel_by_chat_id(chat_id)
             else:
-                # Поиск по юзернейму
-                username = channel_identifier
-                if "t.me/" in channel_identifier:
-                    username = channel_identifier.split("/")[-1].replace("@", "")
-                elif channel_identifier.startswith("@"):
-                    username = channel_identifier[1:]
-                
-                channels = await db.channel.get_channels()
-                for ch in channels:
-                    if ch.title == username or (hasattr(ch, "username") and ch.username == username):
-                        our_channel = ch
-                        chat_id = ch.chat_id
-                        break
+                # Поиск в своих
+                our_channel = await db.channel.get_by_username(clean_id)
+                if our_channel:
+                    chat_id = our_channel.chat_id
+                else:
+                    # Поиск во внешних
+                    ext_ch = await db.external_channel.get_by_username(clean_id)
+                    if ext_ch:
+                        chat_id = ext_ch.chat_id
+
+            if chat_id:
+                lock_id = str(chat_id)
+
+            # 2. Захват блокировки
+            lock_acquired = await db.novastat_cache.try_acquire_refresh_lock(
+                lock_id, horizon
+            )
+            if not lock_acquired:
+                return
 
             # 3. Если канал "свой", использовать данные из БД (обновляемые ежечасно)
             if our_channel:
                 subs = our_channel.subscribers_count
                 # Если статистики нет (0 просмотров) и есть сессия - попробуем обновить позже через MTProto
-                if our_channel.novastat_24h > 0 or not our_channel.session_path:
-                    logger.info(f"Канал {channel_identifier} является нашим (id={chat_id}), используем статистику из БД")
+                if (our_channel.novastat_24h > 0 and subs > 0) or not our_channel.session_path:
+                    logger.info(f"Канал {clean_id} является нашим (id={chat_id}), используем статистику из БД")
                     
                     views_res = {
                         24: our_channel.novastat_24h,
@@ -299,14 +327,16 @@ class NovaStatService:
 
                     stats = {
                         "title": our_channel.title,
-                        "username": getattr(our_channel, "username", channel_identifier),
-                        "link": f"https://t.me/{our_channel.username}" if hasattr(our_channel, "username") and our_channel.username else None,
+                        "username": our_channel.username or clean_id,
+                        "link": f"https://t.me/{our_channel.username}" if our_channel.username else None,
                         "subscribers": subs,
                         "views": views_res,
                         "er": er_res,
                         "chat_id": chat_id
                     }
                     await db.novastat_cache.set_cache(channel_identifier, horizon, stats)
+                    await db.novastat_cache.set_cache(clean_id, horizon, stats)
+                    await db.novastat_cache.set_cache(str(chat_id), horizon, stats)
                     return
 
             # 4. Получаем данные через MTProto (свой или внешний)
@@ -361,6 +391,7 @@ class NovaStatService:
             if stats:
                 # 5. Сохранение в ExternalChannel (если не свой)
                 if not our_channel and final_chat_id:
+                    logger.info(f"📥 Сохранение данных внешнего канала {final_chat_id} в БД")
                     await db.external_channel.upsert_external_channel(
                         chat_id=final_chat_id,
                         title=stats["title"],
@@ -373,20 +404,32 @@ class NovaStatService:
                 
                 # 6. Обновление кэша (и по исходному ID, и по chat_id если он есть)
                 await db.novastat_cache.set_cache(channel_identifier, horizon, stats)
-                if final_chat_id and str(final_chat_id) != str(channel_identifier):
+                await db.novastat_cache.set_cache(clean_id, horizon, stats)
+                if final_chat_id:
                      await db.novastat_cache.set_cache(str(final_chat_id), horizon, stats)
                 
             else:
+                logger.warning(f"❌ Сбор статистики для {channel_identifier} не удался.")
                 await db.novastat_cache.set_cache(
                     channel_identifier, horizon, {}, error_message="Не удалось собрать статистику"
                 )
+                if clean_id != channel_identifier:
+                    await db.novastat_cache.set_cache(
+                        clean_id, horizon, {}, error_message="Не удалось собрать статистику"
+                    )
 
         except Exception as e:
             error_msg = self._map_error(e)
             logger.error(f"Ошибка NovaStat для {channel_identifier}: {e}")
-            await db.novastat_cache.set_cache(channel_identifier, horizon, {}, error_message=error_msg)
+            
+            keys_to_save = {lock_id, clean_id, str(channel_identifier)}
+            for k in keys_to_save:
+                await db.novastat_cache.set_cache(k, horizon, {}, error_message=error_msg)
         finally:
-            await db.novastat_cache.mark_refresh_in_progress(channel_identifier, horizon, False)
+            # Разблокируем все возможные ключи
+            keys_to_unlock = {lock_id, clean_id, str(channel_identifier)}
+            for k in keys_to_unlock:
+                await db.novastat_cache.mark_refresh_in_progress(k, horizon, False)
 
     async def _collect_stats_impl(
         self, client: TelegramClient, channel_identifier: str, days_limit: int
@@ -396,28 +439,40 @@ class NovaStatService:
         now_local = datetime.now(tz)
         now_utc = now_local.astimezone(timezone.utc)
 
-        # Попытка получить entity с 3 попытками (для авто-приема)
-        # Если канал приватный с автоприемом, может потребоваться несколько попыток
+        # Нормализация для Telethon
+        clean_target = self.normalize_identifier(channel_identifier)
+        logger.info(f"📍 Начало сбора статистики для '{clean_target}' (из оригинала: '{channel_identifier}')")
+        
         entity = None
-        entity = None
-        # last_error = None
         join_attempted = False
 
         for attempt in range(3):
             try:
-                entity = await client.get_entity(channel_identifier)
-                logger.info(
-                    f"Успешно получен entity для {channel_identifier} с попытки {attempt + 1}"
-                )
+                logger.info(f"🔍 [Попытка {attempt + 1}/3] get_entity('{clean_target}')")
+                entity = await client.get_entity(clean_target)
+                logger.info(f"✅ Entity успешно получен: ID={entity.id}, Type={type(entity).__name__}")
                 break  # Success
             except Exception as e:
-                # last_error = e
                 error_str = str(e)
+                logger.warning(f"⚠️ get_entity не удался: {error_str}")
+
+                # Если канал не найден — пробуем ResolveUsernameRequest
+                if ("No user has" in error_str or "Could not find" in error_str) and not clean_target.lstrip("-").isdigit():
+                    try:
+                        logger.info(f"🛠 [Resolver] Пробую ResolveUsernameRequest('{clean_target}')")
+                        res = await client(functions.contacts.ResolveUsernameRequest(clean_target))
+                        if res.chats:
+                            entity = res.chats[0]
+                            logger.info(f"✅ Resolver успешно нашел канал: ID={entity.id}")
+                            break
+                    except Exception as res_err:
+                        logger.warning(f"❌ ResolveUsernameRequest failed: {res_err}")
 
                 # Если это ошибка доступа и мы еще не пытались join
                 if (
                     "USER_NOT_PARTICIPANT" in error_str
                     or "CHANNEL_PRIVATE" in error_str
+                    or "CHAT_ADMIN_REQUIRED" in error_str
                 ) and not join_attempted:
                     logger.info(
                         f"Канал {channel_identifier} требует вступления, попытка join..."
@@ -616,7 +671,7 @@ class NovaStatService:
             "subscribers": members,
             "views": views_res,
             "er": er_res,
-            "chat_id": getattr(entity, "id", None)
+            "chat_id": utils.get_peer_id(entity)
         }
 
 
