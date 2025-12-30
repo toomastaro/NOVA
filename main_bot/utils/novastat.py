@@ -285,8 +285,8 @@ class NovaStatService:
             return "Требуются права администратора для просмотра."
         if "CHANNEL_PRIVATE" in err_str:
             return "Канал приватный и недоступен."
-        if "No user has" in err_str and "as username" in err_str:
-            return "Канал с таким юзернеймом не найден."
+        if ("No user has" in err_str and "as username" in err_str) or "Cannot find any entity" in err_str:
+            return "Канал не найден или недоступен боту. Если канал приватный — убедитесь, что бот в нём есть."
         return f"{err_str}"
 
     async def async_refresh_stats(
@@ -488,16 +488,39 @@ class NovaStatService:
 
             for attempt in range(3):
                 try:
-                    logger.info(f"🔍 [Попытка {attempt + 1}/3] получение сущности ({target_entity})")
-                    entity = await client.get_entity(target_entity)
-                    logger.info(f"✅ Сущность успешно получена: ID={entity.id}, тип={type(entity).__name__}")
-                    break  # Успех
+                    # 0.1 Если это инвайт-ссылка, пробуем проверить её
+                    if isinstance(target_entity, str) and ("t.me/+" in target_entity or "joinchat/" in target_entity):
+                        try:
+                            hash_arg = target_entity.split("/")[-1].replace("+", "")
+                            logger.info(f"🛠 [Приватная ссылка] Пробую CheckChatInviteRequest('{hash_arg}')")
+                            res = await client(functions.messages.CheckChatInviteRequest(hash=hash_arg))
+                            
+                            # Если мы уже в чате, там будет объект chat
+                            if hasattr(res, 'chat') and res.chat:
+                                entity = res.chat
+                                logger.info(f"✅ Сущность получена через CheckChatInvite (уже в канале): ID={entity.id}")
+                                break
+                            
+                            # Если мы не в чате, получим ChatInvite (не entity)
+                            # В этом случае провалимся дальше в логику вступления
+                            logger.info("ℹ️ Ссылка валидна, но мы не в канале. Переход к Join.")
+                            error_str = "USER_NOT_PARTICIPANT" # Симулируем ошибку для триггера Join
+                        except Exception as check_err:
+                            error_str = str(check_err)
+                            logger.warning(f"❌ CheckChatInviteRequest не удался: {error_str}")
+
+                    # 0.2 Обычный get_entity (если еще не получили)
+                    if not entity:
+                        logger.info(f"🔍 [Попытка {attempt + 1}/3] получение сущности ({target_entity})")
+                        entity = await client.get_entity(target_entity)
+                        logger.info(f"✅ Сущность успешно получена: ID={entity.id}, тип={type(entity).__name__}")
+                        break  # Успех
                 except Exception as e:
                     error_str = str(e)
                     logger.warning(f"⚠️ получение сущности не удалось: {error_str}")
 
                     # Если канал не найден — пробуем запрос разрешения юзернейма
-                    if ("No user has" in error_str or "Could not find" in error_str) and not clean_target.lstrip("-").isdigit():
+                    if ("No user has" in error_str or "Could not find" in error_str) and not str(clean_target).lstrip("-").isdigit():
                         try:
                             logger.info(f"🛠 [Разрешитель] Пробую ResolveUsernameRequest('{clean_target}')")
                             res = await client(functions.contacts.ResolveUsernameRequest(clean_target))
