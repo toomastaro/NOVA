@@ -118,12 +118,11 @@ class ChannelCrud(DatabaseMixin):
         )
         return await self.fetchrow(stmt)
 
-    async def get_by_username(self, username: str) -> Optional[Channel]:
-        """Получить канал пользователя по юзернейму."""
-        clean_username = username.lstrip("@").lower()
+    async def get_channel_by_title(self, title: str) -> Optional[Channel]:
+        """Получить канал пользователя по названию (title)."""
         stmt = (
             select(Channel)
-            .where(func.lower(Channel.username) == clean_username)
+            .where(func.lower(Channel.title) == title.lower())
             .order_by(desc(Channel.subscribe))
             .limit(1)
         )

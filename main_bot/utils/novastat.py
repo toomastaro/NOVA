@@ -202,8 +202,8 @@ class NovaStatService:
         if clean_id.lstrip("-").isdigit():
             chat_id = int(clean_id)
         else:
-            # Сначала проверяем "свои" каналы
-            our_ch = await db.channel.get_by_username(clean_id)
+            # Сначала проверяем "свои" каналы по названию
+            our_ch = await db.channel.get_channel_by_title(clean_id)
             if our_ch:
                 chat_id = our_ch.chat_id
             
@@ -286,8 +286,8 @@ class NovaStatService:
                 chat_id = int(clean_id)
                 our_channel = await db.channel.get_channel_by_chat_id(chat_id)
             else:
-                # Поиск в своих
-                our_channel = await db.channel.get_by_username(clean_id)
+                # Поиск в своих по названию
+                our_channel = await db.channel.get_channel_by_title(clean_id)
                 if our_channel:
                     chat_id = our_channel.chat_id
                 else:
@@ -441,6 +441,13 @@ class NovaStatService:
 
         # Нормализация для Telethon
         clean_target = self.normalize_identifier(channel_identifier)
+        
+        # Если это числовой ID, приводим к int для получения сущности
+        target_entity = clean_target
+        if clean_target.lstrip("-").isdigit():
+            target_entity = int(clean_target)
+            logger.info(f"🔢 Приведение строкового ID '{clean_target}' к целому числу для Telethon")
+
         logger.info(f"📍 Начало сбора статистики для '{clean_target}' (из оригинала: '{channel_identifier}')")
         
         entity = None
@@ -448,25 +455,25 @@ class NovaStatService:
 
         for attempt in range(3):
             try:
-                logger.info(f"🔍 [Попытка {attempt + 1}/3] get_entity('{clean_target}')")
-                entity = await client.get_entity(clean_target)
-                logger.info(f"✅ Entity успешно получен: ID={entity.id}, Type={type(entity).__name__}")
-                break  # Success
+                logger.info(f"🔍 [Попытка {attempt + 1}/3] получение сущности ({target_entity})")
+                entity = await client.get_entity(target_entity)
+                logger.info(f"✅ Сущность успешно получена: ID={entity.id}, тип={type(entity).__name__}")
+                break  # Успех
             except Exception as e:
                 error_str = str(e)
-                logger.warning(f"⚠️ get_entity не удался: {error_str}")
+                logger.warning(f"⚠️ получение сущности не удалось: {error_str}")
 
-                # Если канал не найден — пробуем ResolveUsernameRequest
+                # Если канал не найден — пробуем запрос разрешения юзернейма
                 if ("No user has" in error_str or "Could not find" in error_str) and not clean_target.lstrip("-").isdigit():
                     try:
-                        logger.info(f"🛠 [Resolver] Пробую ResolveUsernameRequest('{clean_target}')")
+                        logger.info(f"🛠 [Разрешитель] Пробую ResolveUsernameRequest('{clean_target}')")
                         res = await client(functions.contacts.ResolveUsernameRequest(clean_target))
                         if res.chats:
                             entity = res.chats[0]
-                            logger.info(f"✅ Resolver успешно нашел канал: ID={entity.id}")
+                            logger.info(f"✅ Разрешитель успешно нашел канал: ID={entity.id}")
                             break
                     except Exception as res_err:
-                        logger.warning(f"❌ ResolveUsernameRequest failed: {res_err}")
+                        logger.warning(f"❌ Запрос ResolveUsernameRequest не удался: {res_err}")
 
                 # Если это ошибка доступа и мы еще не пытались join
                 if (

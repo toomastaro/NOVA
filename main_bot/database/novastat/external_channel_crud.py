@@ -6,7 +6,7 @@ import logging
 import time
 from typing import List, Optional
 
-from sqlalchemy import select, update, delete
+from sqlalchemy import select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from main_bot.database import DatabaseMixin
@@ -65,7 +65,7 @@ class ExternalChannelCrud(DatabaseMixin):
         cutoff = int(time.time()) - interval_seconds
         stmt = (
             select(ExternalChannel)
-            .where(ExternalChannel.is_active == True)
+            .where(ExternalChannel.is_active)
             .where(ExternalChannel.updated_at < cutoff)
         )
         return await self.fetch(stmt)
@@ -75,7 +75,7 @@ class ExternalChannelCrud(DatabaseMixin):
         cutoff = int(time.time()) - (days * 86400)
         stmt = (
             update(ExternalChannel)
-            .where(ExternalChannel.is_active == True)
+            .where(ExternalChannel.is_active)
             .where(ExternalChannel.last_requested_at < cutoff)
             .values(is_active=False)
             .returning(ExternalChannel.chat_id)
