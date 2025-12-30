@@ -129,13 +129,20 @@ class NovaStatService:
         if not identifier:
             return ""
         
-        s = str(identifier).strip().lower()
+        s = str(identifier).strip()
         
         # 0. Если это команда, считаем её недопустимым идентификатором канала
         if s.startswith("/"):
             return ""
 
-        # 1. Если это числовой ID, возвращаем как есть
+        # 0.1 ОПРЕДЕЛЕНИЕ: Ссылки-приглашения (t.me/+) ЧУВСТВИТЕЛЬНЫ К РЕГИСТРУ
+        # Если это ссылка или юзернейм с регистром, мы должны быть осторожны.
+        # Но Telegram USERNAME всегда нечувствительны к регистру в поиске.
+        # А вот Private Join Links - чувствительны.
+        is_sensitive = "t.me/+" in s or "joinchat/" in s
+        
+        if not is_sensitive:
+            s = s.lower()
         if s.lstrip("-").isdigit():
             return s
             
@@ -477,6 +484,7 @@ class NovaStatService:
             
             entity = None
             join_attempted = False
+            error_str = "Неизвестная ошибка"
 
             for attempt in range(3):
                 try:
@@ -575,14 +583,14 @@ class NovaStatService:
                 if attempt < 2:  # Not the last attempt
                     delay = attempt + 1  # 1s on first retry, 2s on second retry
                     logger.warning(
-                        f"Попытка get_entity {attempt + 1} не удалась для {channel_identifier}: {e}. Повтор через {delay}с..."
+                        f"Попытка get_entity {attempt + 1} не удалась для {channel_identifier}: {error_str}. Повтор через {delay}с..."
                     )
                     await asyncio.sleep(delay)
                 else:
                     # Последняя попытка не удалась
-                    error_msg = f"Не удалось получить информацию о канале {channel_identifier} после всех попыток: {e}"
+                    error_msg = f"Не удалось получить информацию о канале {channel_identifier} после всех попыток: {error_str}"
                     logger.error(error_msg)
-                    raise Exception(self._map_error(e))
+                    raise Exception(self._map_error(error_str))
 
         if not entity:
             error_msg = f"Сущность не найдена для {channel_identifier} после всех попыток"
