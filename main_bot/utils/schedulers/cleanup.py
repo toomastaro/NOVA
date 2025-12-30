@@ -6,6 +6,7 @@
 - Самопроверки MT клиентов
 """
 
+import asyncio
 import logging
 import time
 from pathlib import Path
@@ -267,3 +268,35 @@ async def mt_clients_self_check() -> None:
                 last_error_at=int(time.time()),
                 is_active=False,
             )
+
+@safe_handler("Обслуживание: обновление внешних каналов", log_start=False)
+async def update_external_channels_stats() -> None:
+    """
+    Периодическая задача: обновление статистики для внешних каналов
+    и деактивация старых (14 дней без запросов).
+    """
+    # 1. Деактивация (14 дней)
+    deactivated = await db.external_channel.deactivate_old_channels(days=14)
+    if deactivated > 0:
+        logger.info(f"Деактивировано {deactivated} внешних каналов по сроку давности")
+
+    # 2. Получение активных для обновления (раз в 3 часа)
+    # Используем интервал 3 часа (10800 сек)
+    active_channels = await db.external_channel.get_active_for_update(interval_seconds=10800)
+    
+    if not active_channels:
+        return
+
+    logger.info(f"Запуск планового обновления для {len(active_channels)} внешних каналов")
+    
+    from main_bot.utils.novastat import novastat_service
+    
+    for channel in active_channels:
+        try:
+            # Плановое обновление (async_refresh_stats сам запишет в БД и кэш)
+            await novastat_service.async_refresh_stats(str(channel.chat_id), days_limit=7, horizon=24)
+            
+            # Небольшая пауза между каналами для распределения нагрузки
+            await asyncio.sleep(2)
+        except Exception as e:
+            logger.error(f"Ошибка при плановом обновлении внешнего канала {channel.chat_id}: {e}")

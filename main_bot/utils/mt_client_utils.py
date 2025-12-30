@@ -75,12 +75,17 @@ async def reset_client_task(client_id: int):
     # 3. Выходим из каналов
     if Path(client.session_path).exists():
         async with SessionManager(Path(client.session_path)) as manager:
-            for channel in channels:
+            total = len(channels)
+            for i, channel in enumerate(channels, 1):
                 try:
                     logger.info(
-                        f"Клиент {client_id} покидает канал {channel.channel_id}"
+                        f"Клиент {client_id} покидает канал {channel.channel_id} ({i}/{total})"
                     )
                     await manager.leave_channel(channel.channel_id)
+                    
+                    # Защита от флуда при массовом выходе
+                    if i < total:
+                        await asyncio.sleep(5)
                 except Exception as e:
                     logger.error(
                         f"Ошибка выхода из канала {channel.channel_id} для клиента {client_id}: {e}"

@@ -227,7 +227,7 @@ async def set_channel_session(chat_id: int):
         return {"error": "Channel Not Found"}
 
     # 2. Получить следующего внутреннего клиента используя round-robin
-    client = await db.mt_client.get_next_internal_client(channel.id)
+    client = await db.mt_client.get_next_internal_client(chat_id)
 
     if not client:
         logger.error("Нет активных внутренних клиентов")
@@ -314,10 +314,10 @@ async def set_channel_session(chat_id: int):
             chat_id=chat_id, session_path=str(session_path)
         )
 
-        # Обновление last_client_id для round-robin
-        await db.channel.update_last_client(channel.id, client.id)
+        # Обновление last_client_id для всех админов канала (синхронизация)
+        await db.channel.update_last_client(chat_id, client.id)
         logger.info(
-            f"✅ Обновлен last_client_id для канала {channel.id} на {client.id}"
+            f"✅ Обновлен last_client_id для канала {chat_id} на {client.id}"
         )
 
         return {

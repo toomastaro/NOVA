@@ -34,6 +34,7 @@ from .channels import (
 from .cleanup import (
     check_subscriptions,
     mt_clients_self_check,
+    update_external_channels_stats,
 )
 from .extra import (
     update_exchange_rates_in_db,
@@ -152,6 +153,15 @@ def init_scheduler(scheduler: AsyncIOScheduler) -> None:
         name="Самопроверка MT клиентов (Ежечасно)",
     )
 
+    # Обслуживание внешних каналов (каждый час в 30 минут)
+    scheduler.add_job(
+        func=update_external_channels_stats,
+        trigger=CronTrigger(minute="30"),
+        id="update_external_channels_periodic",
+        replace_existing=True,
+        name="Обслуживание внешних каналов (NovaStat)",
+    )
+
     # === ВСПОМОГАТЕЛЬНЫЕ ===
     # Обновление курсов валют
     rub_usdt_timer = int(os.getenv("RUBUSDTTIMER", "3600"))
@@ -197,6 +207,7 @@ __all__ = [
     # Очистка и обслуживание
     "check_subscriptions",
     "mt_clients_self_check",
+    "update_external_channels_stats",
     # Вспомогательные
     "update_exchange_rates_in_db",
     # Channels

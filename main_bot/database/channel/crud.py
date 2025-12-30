@@ -154,7 +154,7 @@ class ChannelCrud(DatabaseMixin):
 
         # 2. Логика синхронизации или начисления Trial
         if existing_any_admin:
-            # Если канал уже у кого-то есть, наследуем подписку
+            # Если канал уже у кого-то есть, наследуем подписку и last_client_id
             if (
                 existing_any_admin.subscribe
                 and existing_any_admin.subscribe != Config.SOFT_DELETE_TIMESTAMP
@@ -162,6 +162,12 @@ class ChannelCrud(DatabaseMixin):
                 kwargs["subscribe"] = existing_any_admin.subscribe
                 logger.debug(
                     f"Синхронизирована подписка для {chat_id} от другого админа: {existing_any_admin.subscribe}"
+                )
+            
+            if existing_any_admin.last_client_id:
+                kwargs["last_client_id"] = existing_any_admin.last_client_id
+                logger.debug(
+                    f"Синхронизирован last_client_id для {chat_id} от другого админа: {existing_any_admin.last_client_id}"
                 )
         elif Config.TRIAL:
             # Если канала нет совсем — начисляем Trial
@@ -267,17 +273,17 @@ class ChannelCrud(DatabaseMixin):
 
         return await self.fetch(stmt.order_by(Channel.title.asc()))
 
-    async def update_last_client(self, channel_id: int, client_id: int) -> None:
+    async def update_last_client(self, chat_id: int, client_id: int) -> None:
         """
-        Обновить last_client_id для канала (для round-robin распределения).
+        Обновить last_client_id для канала для ВСЕХ администраторов (синхронизация).
 
         Аргументы:
-            channel_id (int): ID канала (row id, не chat_id).
+            chat_id (int): Telegram ID канала.
             client_id (int): ID клиента.
         """
         await self.execute(
             update(Channel)
-            .where(Channel.id == channel_id)
+            .where(Channel.chat_id == chat_id)
             .values(last_client_id=client_id)
         )
 

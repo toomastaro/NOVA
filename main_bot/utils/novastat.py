@@ -145,39 +145,79 @@ class NovaStatService:
         bot: Bot = None,
     ) -> Optional[Dict]:
         """
-        Собрать статистику для канала с кэшированием.
+        Собрать статистику для канала с кэшированием и учетом ExternalChannel.
         """
-        channel_identifier = str(channel_identifier)
+        # 0. Валидация ввода
+        if not channel_identifier or not str(channel_identifier).strip():
+            return None
+        
+        id_str = str(channel_identifier).strip()
+        if id_str.startswith("/"):
+            logger.warning(f"Игнорирование команды в NovaStat: {id_str}")
+            return None
 
-        # 1. Получить кэш один раз
-        cache = await db.novastat_cache.get_cache(channel_identifier, horizon)
+        # 1. Попытка определить chat_id (нормализация)
+        chat_id = None
+        # Проверяем, не числовой ли это ID уже
+        if id_str.lstrip("-").replace(" ", "").isdigit():
+            chat_id = int(id_str)
+        else:
+            # Сначала проверяем "свои" каналы
+            username = id_str
+            if "t.me/" in id_str:
+                username = id_str.split("/")[-1].replace("@", "")
+            elif id_str.startswith("@"):
+                username = id_str[1:]
+            
+            # Поиск в Channel
+            channels = await db.channel.get_channels()
+            for ch in channels:
+                 if ch.title == username or (hasattr(ch, "username") and ch.username == username):
+                    chat_id = ch.chat_id
+                    break
+            
+            # Если не нашли в своих, ищем во внешних
+            if not chat_id:
+                # В ExternalChannel мы храним chat_id как PK, но можем искать по username
+                # Но проще дождаться первого анализа, который получит chat_id от Telegram
+                pass
 
-        # 2. Проверить "свежесть" в памяти
+        # Ключ для таблицы кэша (предпочтительно chat_id, если он есть)
+        cache_key = str(chat_id) if chat_id else id_str
+
+        # 2. Получить кэш
+        cache = await db.novastat_cache.get_cache(cache_key, horizon)
+
+        # 3. Проверить "свежесть"
         if cache and not cache.refresh_in_progress and not cache.error_message:
             current_time = int(time.time())
             if (current_time - cache.updated_at) < CACHE_TTL_SECONDS:
                 data = self.normalize_cache_keys(cache.value_json)
                 views = data.get("views", {})
                 if views.get(24, 0) > 0:
+                    # Если это внешний канал, обновляем время последнего запроса
+                    if chat_id:
+                        await db.external_channel.mark_requested(chat_id)
                     return data
-                logger.debug(
-                    f"В кэше 0 просмотров для {channel_identifier}, принудительное обновление."
-                )
+                logger.debug(f"В кэше 0 просмотров для {cache_key}, принудительное обновление.")
 
-        # 3. Если идет обновление - вернуть старые данные
+        # 4. Если идет обновление - вернуть старые данные
         if cache and cache.refresh_in_progress:
             if cache.value_json:
                 return self.normalize_cache_keys(cache.value_json)
             return None
 
-        # 4. Обновить синхронно (ждать результата)
-        logger.debug(
-            f"Промах кэша для {channel_identifier}, получение свежих данных..."
-        )
-        await self.async_refresh_stats(channel_identifier, days_limit, horizon, bot=bot)
+        # 5. Обновить синхронно
+        logger.debug(f"Промах кэша для {cache_key}, получение свежих данных...")
+        await self.async_refresh_stats(id_str, days_limit, horizon, bot=bot)
 
-        # 5. Получить результат
-        cache = await db.novastat_cache.get_cache(channel_identifier, horizon)
+        # 6. Получить результат (теперь пробуем по chat_id, если он стал известен)
+        if not chat_id:
+             # Пытаемся найти chat_id повторно (он мог появиться в ExternalChannel после async_refresh_stats)
+             # Но для простоты берем по исходному id_str, так как async_refresh_stats запишет туда результат
+             pass
+        
+        cache = await db.novastat_cache.get_cache(cache_key, horizon)
         if cache and cache.value_json and not cache.error_message:
             return self.normalize_cache_keys(cache.value_json)
 
@@ -205,252 +245,148 @@ class NovaStatService:
     async def async_refresh_stats(
         self, channel_identifier: str, days_limit: int, horizon: int, bot: Bot = None
     ):
-        """Асинхронное обновление статистики в кэше"""
+        """Асинхронное обновление статистики в кэше и ExternalChannel"""
         try:
-            # Попытка захватить атомарную блокировку
+            # 1. Попытка захватить блокировку
             lock_acquired = await db.novastat_cache.try_acquire_refresh_lock(
                 channel_identifier, horizon
             )
             if not lock_acquired:
-                logger.debug(
-                    f"Обновление для {channel_identifier} уже выполняется другим процессом."
-                )
                 return
 
-            # Шаг 1: Проверить, является ли канал "своим" (в нашем боте)
+            # 2. Определяем, является ли канал "своим"
             our_channel = None
-            channel_id = None
+            chat_id = None
+            
+            if isinstance(channel_identifier, int) or (
+                isinstance(channel_identifier, str) and channel_identifier.lstrip("-").isdigit()
+            ):
+                chat_id = int(str(channel_identifier).replace(" ", ""))
+                our_channel = await db.channel.get_channel_by_chat_id(chat_id)
+            else:
+                # Поиск по юзернейму
+                username = channel_identifier
+                if "t.me/" in channel_identifier:
+                    username = channel_identifier.split("/")[-1].replace("@", "")
+                elif channel_identifier.startswith("@"):
+                    username = channel_identifier[1:]
+                
+                channels = await db.channel.get_channels()
+                for ch in channels:
+                    if ch.title == username or (hasattr(ch, "username") and ch.username == username):
+                        our_channel = ch
+                        chat_id = ch.chat_id
+                        break
 
-            # Попытаться найти канал по username или ссылке
-            try:
-                if isinstance(channel_identifier, int) or (
-                    isinstance(channel_identifier, str)
-                    and channel_identifier.lstrip("-").replace(" ", "").isdigit()
-                ):
-                    channel_id = int(channel_identifier)
-                    our_channel = await db.channel.get_channel_by_chat_id(channel_id)
-                    username = our_channel.title if our_channel else str(channel_id)
-                else:
-                    if "t.me/" in channel_identifier:
-                        username = channel_identifier.split("/")[-1].replace("@", "")
-                    elif channel_identifier.startswith("@"):
-                        username = channel_identifier[1:]
-                    else:
-                        username = channel_identifier.replace("@", "")
-
-                    # Поиск канала в базе
-                    channels = await db.channel.get_channels()
-                    for ch in channels:
-                        if ch.title == username or (
-                            hasattr(ch, "username") and ch.username == username
-                        ):
-                            our_channel = ch
-                            channel_id = ch.chat_id
-                            break
-            except Exception as e:
-                logger.debug(
-                    f"Не удалось определить, является ли канал {channel_identifier} нашим: {e}"
-                )
-
-            # Шаг 2: Если канал "свой", использовать данные из БД (обновляемые ежечасно)
-            if our_channel and channel_id:
+            # 3. Если канал "свой", использовать данные из БД (обновляемые ежечасно)
+            if our_channel:
                 subs = our_channel.subscribers_count
+                # Если статистики нет (0 просмотров) и есть сессия - попробуем обновить позже через MTProto
+                if our_channel.novastat_24h > 0 or not our_channel.session_path:
+                    logger.info(f"Канал {channel_identifier} является нашим (id={chat_id}), используем статистику из БД")
+                    
+                    views_res = {
+                        24: our_channel.novastat_24h,
+                        48: our_channel.novastat_48h,
+                        72: our_channel.novastat_72h,
+                    }
+                    er_res = {}
+                    for h in [24, 48, 72]:
+                        if subs > 0:
+                            er_res[h] = round((views_res[h] / subs) * 100, 2)
+                        else:
+                            er_res[h] = 0.0
 
-                # Если подписчиков нет, пробуем получить их прямо сейчас
-                if subs <= 0:
+                    stats = {
+                        "title": our_channel.title,
+                        "username": getattr(our_channel, "username", channel_identifier),
+                        "link": f"https://t.me/{our_channel.username}" if hasattr(our_channel, "username") and our_channel.username else None,
+                        "subscribers": subs,
+                        "views": views_res,
+                        "er": er_res,
+                        "chat_id": chat_id
+                    }
+                    await db.novastat_cache.set_cache(channel_identifier, horizon, stats)
+                    return
+
+            # 4. Получаем данные через MTProto (свой или внешний)
+            stats = None
+            final_chat_id = chat_id
+            
+            if our_channel and our_channel.session_path:
+                # Попытка через внутренний клиент (если в БД было 0)
+                manager = SessionManager(our_channel.session_path)
+                await manager.init_client()
+                if manager.client:
                     try:
-                        logger.info(
-                            f"Количество подписчиков 0 для {channel_id}, попытка получения..."
-                        )
+                        logger.info(f"Использование внутреннего клиента для {channel_identifier}")
+                        stats = await self._collect_stats_impl(manager.client, chat_id or channel_identifier, days_limit)
+                        if stats and stats.get("chat_id"):
+                            final_chat_id = stats["chat_id"]
+                            # Обновляем в Channel для следующего раза
+                            v = stats["views"]
+                            await db.channel.update_channel_by_chat_id(
+                                chat_id,
+                                novastat_24h=v.get(24, 0),
+                                novastat_48h=v.get(48, 0),
+                                novastat_72h=v.get(72, 0),
+                                subscribers_count=stats["subscribers"]
+                            )
+                    finally:
+                        await manager.close()
 
-                        updated_via_bot = False
-
-                        # 1. Попытка через Bot API (если передан бот)
-                        if bot:
-                            try:
-                                count = await bot.get_chat_member_count(channel_id)
-                                if count > 0:
-                                    await db.channel.update_channel_by_chat_id(
-                                        our_channel.chat_id, subscribers_count=count
-                                    )
-                                    our_channel.subscribers_count = count
-                                    subs = count
-                                    updated_via_bot = True
-                                    logger.info(
-                                        f"Обновлено количество подписчиков для {our_channel.chat_id} через Bot API: {subs}"
-                                    )
-                            except Exception as e_bot:
-                                logger.info(
-                                    f"Ошибка получения подписчиков через Bot API для {channel_id}: {e_bot}"
-                                )
-
-                        # 2. Если Bot API не сработал - пробуем External Client
-                        if not updated_via_bot:
-                            # Используем external клиент
-                            client_data = await self.get_external_client()
-                            if client_data:
-                                client, manager = client_data
-                                try:
-                                    # Получаем entity
-                                    # Для int ID может потребоваться PeerChannel или просто int
-                                    entity = await manager.client.get_entity(channel_id)
-
-                                    # get_entity часто возвращает Chat/Channel с participants_count
-                                    if (
-                                        hasattr(entity, "participants_count")
-                                        and entity.participants_count
-                                    ):
-                                        subs = entity.participants_count
-                                    else:
-                                        # Возврат к get_full_channel, если простой entity не имеет счетчика
-                                        full = await manager.client(
-                                            functions.channels.GetFullChannelRequest(
-                                                entity
-                                            )
-                                        )
-                                        subs = full.full_chat.participants_count
-
-                                    if subs > 0:
-                                        await db.channel.update_channel_by_chat_id(
-                                            our_channel.chat_id, subscribers_count=subs
-                                        )
-                                        # Обновляем объект в памяти для этого запуска
-                                        our_channel.subscribers_count = subs
-                                        logger.info(
-                                            f"Обновлено начальное количество подписчиков для {our_channel.chat_id}: {subs}"
-                                        )
-
-                                finally:
-                                    # Обязательно закрываем сессию
-                                    await manager.close()
-                    except Exception as e:
-                        logger.warning(
-                            f"Не удалось получить начальное количество подписчиков для {channel_id}: {e}"
-                        )
-
-                # Если статистики нет (0 просмотров) и есть сессия - обновить через свой клиент
-                if our_channel.novastat_24h == 0 and our_channel.session_path:
+            if not stats:
+                # Попытка через внешний пул
+                logger.info(f"Использование внешнего пула для {channel_identifier}")
+                # Мы можем попробовать РАЗНЫХ клиентов если первый упадет
+                for _ in range(3): # До 3 попыток с разными клиентами
+                    client_data = await self.get_external_client()
+                    if not client_data:
+                        break
+                    
+                    client_obj, manager = client_data
+                    logger.info(f"Выбран внешний клиент: {client_obj.alias} (ID: {client_obj.id})")
+                    
                     try:
-                        logger.info(
-                            f"Просмотры 0 для 'нашего' канала {channel_id}, пробуем внутренний клиент..."
-                        )
-                        # SessionManager импортируется из utils
-                        manager = SessionManager(our_channel.session_path)
-                        await manager.init_client()
-                        if manager.client:
-                            try:
-                                entity = await manager.client.get_entity(channel_id)
-                                # _collect_stats_impl доступен в этом классе
-                                stats = await self._collect_stats_impl(
-                                    manager.client, entity, days_limit=4
-                                )
-                                if stats and "views" in stats:
-                                    v = stats["views"]
-                                    await db.channel.update_channel_by_id(
-                                        our_channel.id,
-                                        novastat_24h=v.get(24, 0),
-                                        novastat_48h=v.get(48, 0),
-                                        novastat_72h=v.get(72, 0),
-                                    )
-                                    # Обновление объекта в памяти
-                                    our_channel.novastat_24h = v.get(24, 0)
-                                    our_channel.novastat_48h = v.get(48, 0)
-                                    our_channel.novastat_72h = v.get(72, 0)
-                                    logger.info(
-                                        f"Обновлены просмотры через внутренний клиент: {v}"
-                                    )
-                            finally:
-                                await manager.close()
+                        stats = await self._collect_stats_impl(manager.client, channel_identifier, days_limit)
+                        if stats:
+                            if stats.get("chat_id"):
+                                final_chat_id = stats["chat_id"]
+                            break # Успех
                     except Exception as e:
-                        logger.warning(
-                            f"Не удалось получить просмотры через внутренний клиент: {e}"
-                        )
+                        logger.warning(f"Клиент {client_obj.alias} не справился с {channel_identifier}: {e}")
+                    finally:
+                        await manager.close()
 
-                logger.info(
-                    f"Канал {channel_identifier} является нашим (id={channel_id}), используем статистику из БД"
-                )
-
-                # Формируем статистику из БД
-                views_res = {
-                    24: our_channel.novastat_24h,
-                    48: our_channel.novastat_48h,
-                    72: our_channel.novastat_72h,
-                }
-
-                er_res = {}
-                subs = our_channel.subscribers_count
-                for h in [24, 48, 72]:
-                    if subs > 0:
-                        er_res[h] = round((views_res[h] / subs) * 100, 2)
-                    else:
-                        er_res[h] = 0.0
-
-                stats = {
-                    "title": our_channel.title,
-                    "username": getattr(our_channel, "username", username),
-                    "link": (
-                        f"https://t.me/{getattr(our_channel, 'username', username)}"
-                        if getattr(our_channel, "username", None)
-                        else None
-                    ),
-                    "subscribers": subs,
-                    "views": views_res,
-                    "er": er_res,
-                }
-
-                await db.novastat_cache.set_cache(
-                    channel_identifier, horizon, stats, error_message=None
-                )
-                return
-
-            # Шаг 3: Канал не "свой" или нет internal клиента - использовать external клиента
-            logger.debug(f"Используем внешний клиент для канала {channel_identifier}")
-
-            # Получить external клиента
-            client_data = await self.get_external_client()
-            if not client_data:
-                await db.novastat_cache.set_cache(
-                    channel_identifier,
-                    horizon,
-                    {},
-                    error_message="Нет доступных клиентов для анализа",
-                )
-                return
-
-            client_obj, manager = client_data
-
-            try:
-                # Собрать статистику
-                stats = await self._collect_stats_impl(
-                    manager.client, channel_identifier, days_limit
-                )
-
-                if stats:
-                    # Сохранить в кэш
-                    await db.novastat_cache.set_cache(
-                        channel_identifier, horizon, stats, error_message=None
+            if stats:
+                # 5. Сохранение в ExternalChannel (если не свой)
+                if not our_channel and final_chat_id:
+                    await db.external_channel.upsert_external_channel(
+                        chat_id=final_chat_id,
+                        title=stats["title"],
+                        username=stats.get("username"),
+                        subscribers_count=stats["subscribers"],
+                        novastat_24h=stats["views"].get(24, 0),
+                        novastat_48h=stats["views"].get(48, 0),
+                        novastat_72h=stats["views"].get(72, 0)
                     )
-                else:
-                    await db.novastat_cache.set_cache(
-                        channel_identifier,
-                        horizon,
-                        {},
-                        error_message="Не удалось собрать статистику",
-                    )
-            finally:
-                await manager.close()
+                
+                # 6. Обновление кэша (и по исходному ID, и по chat_id если он есть)
+                await db.novastat_cache.set_cache(channel_identifier, horizon, stats)
+                if final_chat_id and str(final_chat_id) != str(channel_identifier):
+                     await db.novastat_cache.set_cache(str(final_chat_id), horizon, stats)
+                
+            else:
+                await db.novastat_cache.set_cache(
+                    channel_identifier, horizon, {}, error_message="Не удалось собрать статистику"
+                )
 
         except Exception as e:
             error_msg = self._map_error(e)
-
-            await db.novastat_cache.set_cache(
-                channel_identifier, horizon, {}, error_message=error_msg
-            )
+            logger.error(f"Ошибка NovaStat для {channel_identifier}: {e}")
+            await db.novastat_cache.set_cache(channel_identifier, horizon, {}, error_message=error_msg)
         finally:
-            # Сбросить флаг обновления
-            await db.novastat_cache.mark_refresh_in_progress(
-                channel_identifier, horizon, False
-            )
+            await db.novastat_cache.mark_refresh_in_progress(channel_identifier, horizon, False)
 
     async def _collect_stats_impl(
         self, client: TelegramClient, channel_identifier: str, days_limit: int
@@ -680,6 +616,7 @@ class NovaStatService:
             "subscribers": members,
             "views": views_res,
             "er": er_res,
+            "chat_id": getattr(entity, "id", None)
         }
 
 

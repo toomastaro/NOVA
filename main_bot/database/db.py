@@ -21,6 +21,7 @@ from main_bot.database.exchange_rate.crud import ExchangeRateCrud
 from main_bot.database.mt_client.crud import MtClientCrud
 from main_bot.database.mt_client_channel.crud import MtClientChannelCrud
 from main_bot.database.novastat.crud import NovaStatCrud
+from main_bot.database.novastat.external_channel_crud import ExternalChannelCrud
 from main_bot.database.novastat_cache.crud import NovaStatCacheCrud
 from main_bot.database.payment.crud import PaymentCrud
 from main_bot.database.payment_link.crud import PaymentLinkCrud
@@ -63,6 +64,7 @@ class Database(DatabaseMixin):
         self.mt_client: MtClientCrud = MtClientCrud()
         self.mt_client_channel: MtClientChannelCrud = MtClientChannelCrud()
         self.novastat: NovaStatCrud = NovaStatCrud()
+        self.external_channel: ExternalChannelCrud = ExternalChannelCrud()
         self.novastat_cache: NovaStatCacheCrud = NovaStatCacheCrud()
         self.payment: PaymentCrud = PaymentCrud()
         self.payment_link: PaymentLinkCrud = PaymentLinkCrud()

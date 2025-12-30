@@ -63,12 +63,12 @@ class MtClientCrud(DatabaseMixin):
             update(MtClient).where(MtClient.id == client_id).values(**kwargs)
         )
 
-    async def get_next_internal_client(self, channel_id: int) -> Optional[MtClient]:
+    async def get_next_internal_client(self, chat_id: int) -> Optional[MtClient]:
         """
         Получает следующего internal клиента для канала по алгоритму round-robin.
 
         Аргументы:
-            channel_id (int): ID канала.
+            chat_id (int): Telegram ID канала.
 
         Возвращает:
             MtClient | None: Следующий internal клиент или None если нет активных.
@@ -85,10 +85,14 @@ class MtClientCrud(DatabaseMixin):
         if not clients:
             return None
 
-        # Получить last_client_id канала
+        # Получить last_client_id канала (берём от любого админа, так как они синхронизированы)
         from main_bot.database.channel.model import Channel
 
-        channel = await self.fetchrow(select(Channel).where(Channel.id == channel_id))
+        channel = await self.fetchrow(
+            select(Channel)
+            .where(Channel.chat_id == chat_id)
+            .limit(1)
+        )
 
         if not channel or not channel.last_client_id:
             # Первый раз - вернуть первого клиента
