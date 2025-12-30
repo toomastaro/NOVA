@@ -200,6 +200,8 @@ class NovaStatService:
             logger.warning(f"Недопустимый формат идентификатора канала: {id_str}")
             return {"error": "Некорректный формат (команды и пустой текст не поддерживаются)"}
         
+        # 1. Поиск chat_id
+        chat_id = None
         # Проверяем, не числовой ли это ID
         if clean_id.lstrip("-").isdigit():
             chat_id = int(clean_id)
@@ -301,8 +303,9 @@ class NovaStatService:
                 our_channel = await db.channel.get_channel_by_title(clean_id)
                 if our_channel:
                     chat_id = our_channel.chat_id
-                else:
-                    # Поиск во внешних
+                
+                # Поиск во внешних (только если не нашли в своих)
+                if not chat_id:
                     ext_ch = await db.external_channel.get_by_username(clean_id)
                     if ext_ch:
                         chat_id = ext_ch.chat_id
