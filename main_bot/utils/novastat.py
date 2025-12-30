@@ -456,41 +456,46 @@ class NovaStatService:
         now_local = datetime.now(tz)
         now_utc = now_local.astimezone(timezone.utc)
 
-        # Нормализация для Telethon
-        clean_target = self.normalize_identifier(channel_identifier)
-        
-        # Если это числовой ID, приводим к int для получения сущности
-        target_entity = clean_target
-        if clean_target.lstrip("-").isdigit():
-            target_entity = int(clean_target)
-            logger.info(f"🔢 Приведение строкового ID '{clean_target}' к целому числу для Telethon")
+        # 0. Если нам уже передали готовую сущность (из планировщика) - используем её
+        if not isinstance(channel_identifier, (str, int)):
+            entity = channel_identifier
+            logger.info(f"✅ Использование переданной сущности напрямую: тип={type(entity).__name__}")
+        else:
+            # Нормализация для Telethon
+            clean_target = self.normalize_identifier(str(channel_identifier))
+            
+            # Если это числовой ID, приводим к int для получения сущности
+            target_entity = clean_target
+            if clean_target.lstrip("-").isdigit():
+                target_entity = int(clean_target)
+                logger.info(f"🔢 Приведение строкового ID '{clean_target}' к целому числу для Telethon")
 
-        logger.info(f"📍 Начало сбора статистики для '{clean_target}' (из оригинала: '{channel_identifier}')")
-        
-        entity = None
-        join_attempted = False
+            logger.info(f"📍 Начало сбора статистики для '{clean_target}' (из оригинала: '{channel_identifier}')")
+            
+            entity = None
+            join_attempted = False
 
-        for attempt in range(3):
-            try:
-                logger.info(f"🔍 [Попытка {attempt + 1}/3] получение сущности ({target_entity})")
-                entity = await client.get_entity(target_entity)
-                logger.info(f"✅ Сущность успешно получена: ID={entity.id}, тип={type(entity).__name__}")
-                break  # Успех
-            except Exception as e:
-                error_str = str(e)
-                logger.warning(f"⚠️ получение сущности не удалось: {error_str}")
+            for attempt in range(3):
+                try:
+                    logger.info(f"🔍 [Попытка {attempt + 1}/3] получение сущности ({target_entity})")
+                    entity = await client.get_entity(target_entity)
+                    logger.info(f"✅ Сущность успешно получена: ID={entity.id}, тип={type(entity).__name__}")
+                    break  # Успех
+                except Exception as e:
+                    error_str = str(e)
+                    logger.warning(f"⚠️ получение сущности не удалось: {error_str}")
 
-                # Если канал не найден — пробуем запрос разрешения юзернейма
-                if ("No user has" in error_str or "Could not find" in error_str) and not clean_target.lstrip("-").isdigit():
-                    try:
-                        logger.info(f"🛠 [Разрешитель] Пробую ResolveUsernameRequest('{clean_target}')")
-                        res = await client(functions.contacts.ResolveUsernameRequest(clean_target))
-                        if res.chats:
-                            entity = res.chats[0]
-                            logger.info(f"✅ Разрешитель успешно нашел канал: ID={entity.id}")
-                            break
-                    except Exception as res_err:
-                        logger.warning(f"❌ Запрос ResolveUsernameRequest не удался: {res_err}")
+                    # Если канал не найден — пробуем запрос разрешения юзернейма
+                    if ("No user has" in error_str or "Could not find" in error_str) and not clean_target.lstrip("-").isdigit():
+                        try:
+                            logger.info(f"🛠 [Разрешитель] Пробую ResolveUsernameRequest('{clean_target}')")
+                            res = await client(functions.contacts.ResolveUsernameRequest(clean_target))
+                            if res.chats:
+                                entity = res.chats[0]
+                                logger.info(f"✅ Разрешитель успешно нашел канал: ID={entity.id}")
+                                break
+                        except Exception as res_err:
+                            logger.warning(f"❌ Запрос ResolveUsernameRequest не удался: {res_err}")
 
                 # Если это ошибка доступа и мы еще не пытались join
                 if (
