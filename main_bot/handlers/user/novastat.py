@@ -556,7 +556,11 @@ async def run_analysis_logic(
 
     # Обрабатываем результаты по порядку
     for i, ch, stats, error in sorted(analysis_results, key=lambda x: x[0]):
-        if stats:
+        # Если вернулась ошибка формата — просто пропускаем молча
+        if isinstance(stats, dict) and stats.get("error") == "Некорректный формат (команды и пустой текст не поддерживаются)":
+            continue
+
+        if stats and not stats.get("error"):
             valid_count += 1
             results.append(stats)
 

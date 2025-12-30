@@ -131,6 +131,10 @@ class NovaStatService:
         
         s = str(identifier).strip().lower()
         
+        # 0. Если это команда, считаем её недопустимым идентификатором канала
+        if s.startswith("/"):
+            return ""
+
         # 1. Если это числовой ID, возвращаем как есть
         if s.lstrip("-").isdigit():
             return s
@@ -190,13 +194,11 @@ class NovaStatService:
             return None
         
         id_str = str(channel_identifier).strip()
-        if id_str.startswith("/"):
-            logger.warning(f"Игнорирование команды в NovaStat: {id_str}")
-            return None
-
-        # 1. Попытка определить chat_id (нормализация)
-        chat_id = None
         clean_id = self.normalize_identifier(id_str)
+        
+        if not clean_id:
+            logger.warning(f"Недопустимый формат идентификатора канала: {id_str}")
+            return {"error": "Некорректный формат (команды и пустой текст не поддерживаются)"}
         
         # Проверяем, не числовой ли это ID
         if clean_id.lstrip("-").isdigit():
