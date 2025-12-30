@@ -153,14 +153,14 @@ def init_scheduler(scheduler: AsyncIOScheduler) -> None:
         name="Самопроверка MT клиентов (Ежечасно)",
     )
 
-    # Обслуживание внешних каналов (каждый час в 30 минут)
-    scheduler.add_job(
-        func=update_external_channels_stats,
-        trigger=CronTrigger(minute="30"),
-        id="update_external_channels_periodic",
-        replace_existing=True,
-        name="Обслуживание внешних каналов (NovaStat)",
-    )
+    # Обслуживание внешних каналов (ОТКЛЮЧЕНО ПО ЗАПРОСУ - ПРИВОДИТ К FROZEN)
+    # scheduler.add_job(
+    #     func=update_external_channels_stats,
+    #     trigger=CronTrigger(minute="30"),
+    #     id="update_external_channels_periodic",
+    #     replace_existing=True,
+    #     name="Обслуживание внешних каналов (NovaStat)",
+    # )
 
     # === ВСПОМОГАТЕЛЬНЫЕ ===
     # Обновление курсов валют
