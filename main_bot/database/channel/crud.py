@@ -3,7 +3,7 @@
 """
 
 import logging
-from typing import List, Literal
+from typing import List, Literal, Optional
 
 from sqlalchemy import desc, select, update, or_, func
 from sqlalchemy.dialects.postgresql import insert as pg_insert
