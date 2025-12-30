@@ -144,14 +144,14 @@ def init_scheduler(scheduler: AsyncIOScheduler) -> None:
         name="Проверка подписок",
     )
 
-    # Самопроверка MT клиентов (каждый час в 00 минут)
-    scheduler.add_job(
-        func=mt_clients_self_check,
-        trigger=CronTrigger(minute="0"),
-        id="mt_clients_self_check_hourly",
-        replace_existing=True,
-        name="Самопроверка MT клиентов (Ежечасно)",
-    )
+    # Самопроверка MT клиентов (ОТКЛЮЧЕНО ПО ЗАПРОСУ)
+    # scheduler.add_job(
+    #     func=mt_clients_self_check,
+    #     trigger=CronTrigger(minute="0"),
+    #     id="mt_clients_self_check_hourly",
+    #     replace_existing=True,
+    #     name="Самопроверка MT клиентов (Ежечасно)",
+    # )
 
     # Обслуживание внешних каналов (ОТКЛЮЧЕНО ПО ЗАПРОСУ - ПРИВОДИТ К FROZEN)
     # scheduler.add_job(
