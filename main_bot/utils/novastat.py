@@ -243,8 +243,24 @@ class NovaStatService:
         logger.info(f"🚀 Запуск сбора данных NovaStat для {id_str} (cache_key: {cache_key})")
         await self.async_refresh_stats(id_str, days_limit, horizon, bot=bot)
 
-        # 6. Получить результат по тому же ключу
-        cache = await db.novastat_cache.get_cache(cache_key, horizon)
+        # 6. Получить результат. Мы заново разрешаем ключ, так как ID мог быть получен в процессе сбора.
+        final_chat_id = None
+        current_clean = self.normalize_identifier(id_str)
+        if current_clean.lstrip("-").isdigit():
+            final_chat_id = int(current_clean)
+        else:
+            # Сначала проверяем свои, потом внешние
+            our_ch = await db.channel.get_channel_by_title(current_clean)
+            if our_ch:
+                final_chat_id = our_ch.chat_id
+            if not final_chat_id:
+                ext_ch = await db.external_channel.get_by_username(current_clean)
+                if ext_ch:
+                    final_chat_id = ext_ch.chat_id
+        
+        final_key = str(final_chat_id) if final_chat_id else current_clean
+        cache = await db.novastat_cache.get_cache(final_key, horizon)
+        
         if cache and cache.value_json and not cache.error_message:
             return self.normalize_cache_keys(cache.value_json)
 
@@ -306,12 +322,12 @@ class NovaStatService:
             if not lock_acquired:
                 return
 
-            # 3. Если канал "свой", использовать данные из БД (обновляемые ежечасно)
+            # 3. Если канал "свой", использовать данные из БД (если они там есть)
             if our_channel:
                 subs = our_channel.subscribers_count
-                # Если статистики нет (0 просмотров) и есть сессия - попробуем обновить позже через MTProto
-                if (our_channel.novastat_24h > 0 and subs > 0) or not our_channel.session_path:
-                    logger.info(f"Канал {clean_id} является нашим (id={chat_id}), используем статистику из БД")
+                # Если статистика уже есть — отдаем из БД
+                if our_channel.novastat_24h > 0:
+                    logger.info(f"Канал {clean_id} является внутренним (id={chat_id}), отдаем статистику из БД")
                     
                     views_res = {
                         24: our_channel.novastat_24h,
@@ -327,17 +343,20 @@ class NovaStatService:
 
                     stats = {
                         "title": our_channel.title,
-                        "username": our_channel.username or clean_id,
-                        "link": f"https://t.me/{our_channel.username}" if our_channel.username else None,
+                        "username": clean_id if not clean_id.lstrip("-").isdigit() else None,
+                        "link": f"https://t.me/{clean_id}" if not clean_id.lstrip("-").isdigit() else None,
                         "subscribers": subs,
                         "views": views_res,
                         "er": er_res,
                         "chat_id": chat_id
                     }
-                    await db.novastat_cache.set_cache(channel_identifier, horizon, stats)
-                    await db.novastat_cache.set_cache(clean_id, horizon, stats)
-                    await db.novastat_cache.set_cache(str(chat_id), horizon, stats)
+                    
+                    # Обновляем кэш только под каноническим ключом (Chat ID)
+                    await db.novastat_cache.set_cache(lock_id, horizon, stats)
                     return
+                
+                # Если статистики нет (0), продолжаем сбор через MTProto
+                logger.info(f"Статистика для внутреннего канала {clean_id} (id={chat_id}) нулевая, запускаем принудительный сбор")
 
             # 4. Получаем данные через MTProto (свой или внешний)
             stats = None
@@ -353,15 +372,6 @@ class NovaStatService:
                         stats = await self._collect_stats_impl(manager.client, chat_id or channel_identifier, days_limit)
                         if stats and stats.get("chat_id"):
                             final_chat_id = stats["chat_id"]
-                            # Обновляем в Channel для следующего раза
-                            v = stats["views"]
-                            await db.channel.update_channel_by_chat_id(
-                                chat_id,
-                                novastat_24h=v.get(24, 0),
-                                novastat_48h=v.get(48, 0),
-                                novastat_72h=v.get(72, 0),
-                                subscribers_count=stats["subscribers"]
-                            )
                     finally:
                         await manager.close()
 
@@ -389,47 +399,53 @@ class NovaStatService:
                         await manager.close()
 
             if stats:
-                # 5. Сохранение в ExternalChannel (если не свой)
-                if not our_channel and final_chat_id:
-                    logger.info(f"📥 Сохранение данных внешнего канала {final_chat_id} в БД")
-                    await db.external_channel.upsert_external_channel(
-                        chat_id=final_chat_id,
-                        title=stats["title"],
-                        username=stats.get("username"),
-                        subscribers_count=stats["subscribers"],
-                        novastat_24h=stats["views"].get(24, 0),
-                        novastat_48h=stats["views"].get(48, 0),
-                        novastat_72h=stats["views"].get(72, 0)
-                    )
-                
-                # 6. Обновление кэша (и по исходному ID, и по chat_id если он есть)
-                await db.novastat_cache.set_cache(channel_identifier, horizon, stats)
-                await db.novastat_cache.set_cache(clean_id, horizon, stats)
+                # 5. Сохранение данных в БД
                 if final_chat_id:
-                     await db.novastat_cache.set_cache(str(final_chat_id), horizon, stats)
+                    v = stats["views"]
+                    if our_channel:
+                        # Если это свой канал - обновляем в channels
+                        logger.info(f"📥 Обновление статистики внутреннего канала {final_chat_id} в БД")
+                        await db.channel.update_channel_by_chat_id(
+                            final_chat_id,
+                            novastat_24h=v.get(24, 0),
+                            novastat_48h=v.get(48, 0),
+                            novastat_72h=v.get(72, 0),
+                            subscribers_count=stats["subscribers"]
+                        )
+                    else:
+                        # Если это внешний канал - сохраняем в external_channels
+                        logger.info(f"📥 Сохранение данных внешнего канала {final_chat_id} в БД")
+                        await db.external_channel.upsert_external_channel(
+                            chat_id=final_chat_id,
+                            title=stats["title"],
+                            username=stats.get("username"),
+                            subscribers_count=stats["subscribers"],
+                            novastat_24h=v.get(24, 0),
+                            novastat_48h=v.get(48, 0),
+                            novastat_72h=v.get(72, 0)
+                        )
+                
+                # 6. Обновление кэша (только под каноническим ключом)
+                cache_final_key = str(final_chat_id) if final_chat_id else lock_id
+                await db.novastat_cache.set_cache(cache_final_key, horizon, stats)
+                
+                # Если ключ изменился (был юзернейм, стал ID), снимаем блокировку со старого
+                if cache_final_key != lock_id:
+                    await db.novastat_cache.mark_refresh_in_progress(lock_id, horizon, False)
                 
             else:
                 logger.warning(f"❌ Сбор статистики для {channel_identifier} не удался.")
                 await db.novastat_cache.set_cache(
-                    channel_identifier, horizon, {}, error_message="Не удалось собрать статистику"
+                    lock_id, horizon, {}, error_message="Не удалось собрать статистику"
                 )
-                if clean_id != channel_identifier:
-                    await db.novastat_cache.set_cache(
-                        clean_id, horizon, {}, error_message="Не удалось собрать статистику"
-                    )
 
         except Exception as e:
             error_msg = self._map_error(e)
             logger.error(f"Ошибка NovaStat для {channel_identifier}: {e}")
-            
-            keys_to_save = {lock_id, clean_id, str(channel_identifier)}
-            for k in keys_to_save:
-                await db.novastat_cache.set_cache(k, horizon, {}, error_message=error_msg)
+            await db.novastat_cache.set_cache(lock_id, horizon, {}, error_message=error_msg)
         finally:
-            # Разблокируем все возможные ключи
-            keys_to_unlock = {lock_id, clean_id, str(channel_identifier)}
-            for k in keys_to_unlock:
-                await db.novastat_cache.mark_refresh_in_progress(k, horizon, False)
+            # Разблокируем канонический ключ
+            await db.novastat_cache.mark_refresh_in_progress(lock_id, horizon, False)
 
     async def _collect_stats_impl(
         self, client: TelegramClient, channel_identifier: str, days_limit: int
