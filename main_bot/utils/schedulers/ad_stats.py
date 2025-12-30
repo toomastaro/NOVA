@@ -54,17 +54,22 @@ async def process_ad_stats() -> None:
     current_time = int(time.time())
 
     # 1. Находим пользователей, у которых есть хотя бы одна активная платная подписка на канал
-    # Запрашиваем Channels напрямую
-    query = select(Channel.admin_id).where(Channel.subscribe > current_time).distinct()
+    query = (
+        select(Channel.admin_id)
+        .where(
+            Channel.subscribe > current_time,
+            Channel.subscribe != Config.SOFT_DELETE_TIMESTAMP
+        )
+        .distinct()
+    )
 
     paid_admin_ids = await db.fetch(query)
-    # db.fetch для одного поля возвращает список значений (scalars)
     admin_ids = list(paid_admin_ids) if paid_admin_ids else []
 
     if not admin_ids:
         return
 
-    logger.info(f"Сканирование статистики рекламы для {len(admin_ids)} платных админов")
+    logger.info(f"Найдено {len(admin_ids)} платных админов для проверки рекламы: {admin_ids}")
 
     # 2. Для этих админов находим АКТИВНЫЕ закупки рекламы (Ad Purchases)
     query = select(AdPurchase).where(
@@ -75,27 +80,31 @@ async def process_ad_stats() -> None:
     if not active_purchases:
         return
 
-    # 3. Для каждой закупки получаем привязки (mappings)
+    # 3. Собираем ВСЕ привязки (mappings) по всем закупкам
+    # Группируем их по каналу, чтобы сделать только ОДИН запрос Admin Log на канал
+    all_channel_mappings = {} # {channel_id: [mappings]}
+
     for purchase in active_purchases:
         mappings = await db.ad_purchase.get_link_mappings(purchase.id)
-
-        # Группируем привязки по каналу, чтобы минимизировать вызовы getAdminLog
-        # Нас интересует только тип цели CHANNEL, где включено отслеживание
-        channel_mappings = {}  # {channel_id: [mappings]}
-
         for m in mappings:
             if (
                 m.target_type == AdTargetType.CHANNEL
                 and m.track_enabled
                 and m.target_channel_id
             ):
-                if m.target_channel_id not in channel_mappings:
-                    channel_mappings[m.target_channel_id] = []
-                channel_mappings[m.target_channel_id].append(m)
+                if m.target_channel_id not in all_channel_mappings:
+                    all_channel_mappings[m.target_channel_id] = []
+                all_channel_mappings[m.target_channel_id].append(m)
 
-        # Обрабатываем каждый канал
-        for channel_id, maps in channel_mappings.items():
-            await process_channel_logs(channel_id, maps)
+    if not all_channel_mappings:
+        logger.debug("Нет активных привязок для отслеживания статистики")
+        return
+
+    logger.info(f"📊 Обработка статистики для {len(all_channel_mappings)} уникальных каналов")
+
+    # 4. Обрабатываем каждый канал ровно один раз
+    for channel_id, combined_maps in all_channel_mappings.items():
+        await process_channel_logs(channel_id, combined_maps)
 
 
 async def process_channel_logs(
