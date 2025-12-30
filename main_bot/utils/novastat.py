@@ -541,66 +541,35 @@ class NovaStatService:
                         f"Канал {channel_identifier} требует вступления, попытка join..."
                     )
 
-                    # Попытаться присоединиться через SessionManager
-                    try:
-                        # Попытка join
-                        if isinstance(channel_identifier, str):
-                            if "t.me/" in channel_identifier:
-                                # Это ссылка
-                                if (
-                                    "t.me/+" in channel_identifier
-                                    or "joinchat" in channel_identifier
-                                ):
-                                    # Приватная ссылка приглашения
-                                    hash_arg = channel_identifier.split("/")[
-                                        -1
-                                    ].replace("+", "")
-                                    await client(
-                                        functions.messages.ImportChatInviteRequest(
-                                            hash=hash_arg
-                                        )
-                                    )
+                    # Попытаться присоединиться (до 2 попыток)
+                    for join_attempt in range(2):
+                        try:
+                            if isinstance(channel_identifier, str):
+                                if "t.me/" in channel_identifier:
+                                    if "t.me/+" in channel_identifier or "joinchat" in channel_identifier:
+                                        hash_arg = channel_identifier.split("/")[-1].replace("+", "")
+                                        await client(functions.messages.ImportChatInviteRequest(hash=hash_arg))
+                                    else:
+                                        username = channel_identifier.split("/")[-1]
+                                        await client(functions.channels.JoinChannelRequest(channel=username))
+                                elif channel_identifier.startswith("@"):
+                                    await client(functions.channels.JoinChannelRequest(channel=channel_identifier[1:]))
                                 else:
-                                    # Публичная ссылка
-                                    username = channel_identifier.split("/")[-1]
-                                    await client(
-                                        functions.channels.JoinChannelRequest(
-                                            channel=username
-                                        )
-                                    )
-                            elif channel_identifier.startswith("@"):
-                                # Юзернейм
-                                await client(
-                                    functions.channels.JoinChannelRequest(
-                                        channel=channel_identifier[1:]
-                                    )
-                                )
-                            else:
-                                # Предполагаем юзернейм без @
-                                await client(
-                                    functions.channels.JoinChannelRequest(
-                                        channel=channel_identifier
-                                    )
-                                )
-                        else:
-                            logger.warning(
-                                f"Невозможно автоматически вступить в канал по ID/Entity: {channel_identifier}"
-                            )
-
-                        join_attempted = True
-                        logger.info(
-                            f"Попытка вступления успешна для {channel_identifier}, повтор get_entity..."
-                        )
-
-                        # Подождать немного и попробовать снова
-                        await asyncio.sleep(1)
-                        continue
-
-                    except Exception as join_error:
-                        logger.error(
-                            f"Ошибка вступления для {channel_identifier}: {join_error}"
-                        )
-                        join_attempted = True
+                                    await client(functions.channels.JoinChannelRequest(channel=channel_identifier))
+                            
+                            logger.info(f"✅ Вступление успешно ({join_attempt+1}/2) для {channel_identifier}")
+                            join_attempted = True
+                            await asyncio.sleep(2) # Пауза для обновления кэша Telegram
+                            break 
+                        except Exception as join_error:
+                            logger.warning(f"⚠️ Попытка вступления {join_attempt+1}/2 не удалась: {join_error}")
+                            if "FLOOD" in str(join_error):
+                                break 
+                            if join_attempt < 1:
+                                await asyncio.sleep(3) # Ждем перед повтором вступления
+                    
+                    join_attempted = True # В любом случае отмечаем, что пробовали
+                    continue # Повторяем внешний цикл (get_entity), чтобы проверить результат вступления
 
                 # Если не последняя попытка - ждем и пробуем снова
                 if attempt < 2:  # Not the last attempt
