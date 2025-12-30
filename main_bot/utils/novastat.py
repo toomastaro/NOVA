@@ -221,6 +221,9 @@ class NovaStatService:
             # Если не нашли в своих, ищем во внешних
             if not chat_id:
                 ext_ch = await db.external_channel.get_by_username(clean_id)
+                if not ext_ch and ("t.me/+" in clean_id or "joinchat/" in clean_id):
+                    ext_ch = await db.external_channel.get_by_link(clean_id)
+                
                 if ext_ch:
                     chat_id = ext_ch.chat_id
 
@@ -259,6 +262,9 @@ class NovaStatService:
                 final_chat_id = our_ch.chat_id
             if not final_chat_id:
                 ext_ch = await db.external_channel.get_by_username(current_clean)
+                if not ext_ch and ("t.me/+" in current_clean or "joinchat/" in current_clean):
+                    ext_ch = await db.external_channel.get_by_link(current_clean)
+                
                 if ext_ch:
                     final_chat_id = ext_ch.chat_id
         
@@ -314,6 +320,9 @@ class NovaStatService:
                 # Поиск во внешних (только если не нашли в своих)
                 if not chat_id:
                     ext_ch = await db.external_channel.get_by_username(clean_id)
+                    if not ext_ch and ("t.me/+" in clean_id or "joinchat/" in clean_id):
+                        ext_ch = await db.external_channel.get_by_link(clean_id)
+                    
                     if ext_ch:
                         chat_id = ext_ch.chat_id
 
@@ -426,10 +435,17 @@ class NovaStatService:
                     else:
                         # Если это внешний канал - сохраняем в external_channels
                         logger.info(f"📥 Сохранение данных внешнего канала {final_chat_id} в БД")
+                        
+                        # Если идентификатор - ссылка, сохраняем её для маппинга
+                        invite_link = None
+                        if "t.me/+" in clean_id or "joinchat/" in clean_id:
+                            invite_link = clean_id
+
                         await db.external_channel.upsert_external_channel(
                             chat_id=final_chat_id,
                             title=stats["title"],
                             username=stats.get("username"),
+                            invite_link=invite_link,
                             subscribers_count=stats["subscribers"],
                             novastat_24h=v.get(24, 0),
                             novastat_48h=v.get(48, 0),

@@ -34,6 +34,12 @@ class ExternalChannelCrud(DatabaseMixin):
             select(ExternalChannel).where(ExternalChannel.username.ilike(clean_username))
         )
 
+    async def get_by_link(self, link: str) -> Optional[ExternalChannel]:
+        """Получить внешний канал по ссылке-приглашению (чувствительно к регистру)."""
+        return await self.fetchrow(
+            select(ExternalChannel).where(ExternalChannel.invite_link == link)
+        )
+
     async def upsert_external_channel(self, **kwargs) -> None:
         """Добавить или обновить данные внешнего канала."""
         if "updated_at" not in kwargs:

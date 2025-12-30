@@ -30,6 +30,9 @@ class ExternalChannel(Base):
     username: Mapped[Optional[str]] = mapped_column(
         String(255), nullable=True, comment="Юзернейм канала"
     )
+    invite_link: Mapped[Optional[str]] = mapped_column(
+        String(255), nullable=True, comment="Приватная ссылка приглашения"
+    )
     last_requested_at: Mapped[int] = mapped_column(
         BigInteger, default=lambda: int(time.time()), comment="Последний запрос от пользователя"
     )
