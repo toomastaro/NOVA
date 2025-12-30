@@ -224,14 +224,7 @@ class NovaStatService:
         if cache and not cache.refresh_in_progress and not cache.error_message:
             current_time = int(time.time())
             if (current_time - cache.updated_at) < CACHE_TTL_SECONDS:
-                data = self.normalize_cache_keys(cache.value_json)
-                views = data.get("views", {})
-                if views.get(24, 0) > 0:
-                    # Если это внешний канал, обновляем время последнего запроса
-                    if chat_id:
-                        await db.external_channel.mark_requested(chat_id)
-                    return data
-                logger.debug(f"В кэше 0 просмотров для {cache_key}, принудительное обновление.")
+                return self.normalize_cache_keys(cache.value_json)
 
         # 4. Если идет обновление - вернуть старые данные
         if cache and cache.refresh_in_progress:
@@ -351,12 +344,18 @@ class NovaStatService:
                         "chat_id": chat_id
                     }
                     
-                    # Обновляем кэш только под каноническим ключом (Chat ID)
+                    # Обновляем кэш под каноническим ключом
                     await db.novastat_cache.set_cache(lock_id, horizon, stats)
                     return
                 
+                # Если статистики нет в БД (0), но есть СВЕЖИЙ кэш — значит мы уже пробовали собрать и там реально 0
+                cache = await db.novastat_cache.get_cache(lock_id, horizon)
+                if cache and not cache.error_message and (int(time.time()) - cache.updated_at) < CACHE_TTL_SECONDS:
+                    logger.info(f"Статистика в БД нулевая, но в кэше есть свежая запись для {lock_id}. Пропуск MTProto.")
+                    return
+
                 # Если статистики нет (0), продолжаем сбор через MTProto
-                logger.info(f"Статистика для внутреннего канала {clean_id} (id={chat_id}) нулевая, запускаем принудительный сбор")
+                logger.info(f"Статистика для внутреннего канала {clean_id} (id={chat_id}) нулевая в БД и кэше, запускаем сбор")
 
             # 4. Получаем данные через MTProto (свой или внешний)
             stats = None
