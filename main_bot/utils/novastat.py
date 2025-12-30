@@ -291,6 +291,8 @@ class NovaStatService:
             return "Требуются права администратора для просмотра."
         if "CHANNEL_PRIVATE" in err_str:
             return "Канал приватный и недоступен."
+        if "без автоприема" in err_str:
+            return err_str
         if ("No user has" in err_str and "as username" in err_str) or "Cannot find any entity" in err_str:
             return "Канал не найден или недоступен боту. Если канал приватный — убедитесь, что бот в нём есть."
         return f"{err_str}"
@@ -557,8 +559,9 @@ class NovaStatService:
                         f"Канал {channel_identifier} требует вступления, попытка join..."
                     )
 
-                    # Попытаться присоединиться (до 2 попыток)
-                    for join_attempt in range(2):
+                    last_join_error = ""
+                    # Попытаться присоединиться (до 3 попыток по запросу пользователя)
+                    for join_attempt in range(3):
                         try:
                             if isinstance(channel_identifier, str):
                                 if "t.me/" in channel_identifier:
@@ -573,19 +576,29 @@ class NovaStatService:
                                 else:
                                     await client(functions.channels.JoinChannelRequest(channel=channel_identifier))
                             
-                            logger.info(f"✅ Вступление успешно ({join_attempt+1}/2) для {channel_identifier}")
+                            logger.info(f"✅ Вступление успешно ({join_attempt+1}/3) для {channel_identifier}")
                             join_attempted = True
                             await asyncio.sleep(2) # Пауза для обновления кэша Telegram
                             break 
                         except Exception as join_error:
-                            logger.warning(f"⚠️ Попытка вступления {join_attempt+1}/2 не удалась: {join_error}")
-                            if "FLOOD" in str(join_error):
+                            last_join_error = str(join_error)
+                            logger.warning(f"⚠️ Попытка вступления {join_attempt+1}/3 не удалась: {last_join_error}")
+                            
+                            if "FLOOD" in last_join_error:
                                 break 
-                            if join_attempt < 1:
-                                await asyncio.sleep(3) # Ждем перед повтором вступления
+                            
+                            if join_attempt == 0:
+                                await asyncio.sleep(1) # Ждем 1 сек после первой попытки
+                            elif join_attempt == 1:
+                                await asyncio.sleep(2) # Ждем 2 сек после второй попытки
+                            else:
+                                # После 3 неудачных попыток
+                                error_msg = f"Не удалось вступить в канал {channel_identifier}. Возможно, ссылка без автоприема (требуется одобрение админа), и клиент-помощник не может попасть на канал."
+                                logger.error(error_msg)
+                                raise Exception(error_msg)
                     
-                    join_attempted = True # В любом случае отмечаем, что пробовали
-                    continue # Повторяем внешний цикл (get_entity), чтобы проверить результат вступления
+                    join_attempted = True 
+                    continue 
 
                 # Если не последняя попытка - ждем и пробуем снова
                 if attempt < 2:  # Not the last attempt
