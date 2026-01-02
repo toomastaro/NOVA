@@ -19,7 +19,7 @@ class MtClient(Base):
     Атрибуты:
         id (int): Уникальный ID.
         alias (str): Псевдоним клиента.
-        pool_type (str): Тип пула ('internal' или 'external').
+        pool_type (str): Тип пула ('internal', 'external' или 'unassigned').
         session_path (str): Путь к файлу сессии.
         status (str): Статус клиента (NEW, ACTIVE, BANNED, ERROR).
         is_active (bool): Флаг активности (включен/выключен).

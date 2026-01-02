@@ -13,6 +13,7 @@ import asyncio
 import logging
 import os
 import time
+import random
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, Optional
@@ -72,13 +73,14 @@ async def choice(call: types.CallbackQuery, state: FSMContext) -> None:
 
     if action == "cancel" or action == "back_to_main":
         # Показываем только клиенты из БД (без автосканирования)
-        all_clients = await db.mt_client.get_mt_clients_by_pool(
-            "internal"
-        ) + await db.mt_client.get_mt_clients_by_pool("external")
+        internal = await db.mt_client.get_mt_clients_by_pool("internal")
+        external = await db.mt_client.get_mt_clients_by_pool("external")
+        unassigned = await db.mt_client.get_mt_clients_by_pool("unassigned")
+        all_count = len(internal) + len(external) + len(unassigned)
 
         try:
             await call.message.edit_text(
-                text("admin:session:main_menu").format(len(all_clients)),
+                text("admin:session:main_menu").format(all_count),
                 reply_markup=keyboards.admin_sessions(),
             )
         except TelegramBadRequest as e:
@@ -88,13 +90,16 @@ async def choice(call: types.CallbackQuery, state: FSMContext) -> None:
                 raise
         return
 
-    if action in ["internal", "external"]:
+    if action == "scan":
+        # Запуск сканирования в фоновом режиме
+        await call.answer("🔍 Сканирование запущено в фоновом режиме. Вы получите уведомление по завершении.", show_alert=True)
+        asyncio.create_task(scan_orphaned_sessions_task(call.from_user.id))
+        return
+
+    if action in ["internal", "external", "unassigned"]:
         pool_type = action
         clients = await db.mt_client.get_mt_clients_by_pool(pool_type)
-
-        # Сохраняем тип пула в состояние, чтобы вернуться к списку позже, если потребуется
         await state.update_data(current_pool=pool_type)
-
         await call.message.edit_text(
             text("admin:session:list").format(pool_type, len(clients)),
             reply_markup=keyboards.admin_sessions(clients=clients),
@@ -108,136 +113,6 @@ async def choice(call: types.CallbackQuery, state: FSMContext) -> None:
         await call.message.edit_text(
             text("admin:session:list").format(pool_type, len(clients)),
             reply_markup=keyboards.admin_sessions(clients=clients),
-        )
-        return
-
-    if action == "scan":
-        # Автоматическое сканирование и добавление orphaned сессий
-        await call.answer("🔍 Сканирую сессии...", show_alert=False)
-
-        all_clients = await db.mt_client.get_mt_clients_by_pool(
-            "internal"
-        ) + await db.mt_client.get_mt_clients_by_pool("external")
-        db_session_paths = {Path(c.session_path).name for c in all_clients}
-
-        # Сканируем директорию
-        session_dir = Path("main_bot/utils/sessions/")
-        orphaned = []
-        if session_dir.exists():
-            for file in session_dir.glob("*.session"):
-                if file.name not in db_session_paths:
-                    orphaned.append(file)
-
-        if not orphaned:
-            await call.answer("✅ Неучтённых сессий не найдено", show_alert=True)
-            return
-
-        # Автоматическое добавление всех найденных сессий
-        added_sessions = []
-        errors = []
-        added_count = 0
-
-        for session_path in orphaned:
-            try:
-                async with SessionManager(session_path) as manager:
-                    if not manager.client:
-                        errors.append(
-                            f"❌ {session_path.name}: не удалось подключиться"
-                        )
-                        continue
-
-                    # Получаем информацию о клиенте
-                    me = await manager.me()
-                    if not me:
-                        errors.append(
-                            f"❌ {session_path.name}: не удалось получить данные"
-                        )
-                        continue
-
-                    username = me.username if me else None
-                    pool_type = determine_pool_type(
-                        username,
-                        me.first_name if me else None,
-                        me.last_name if me else None,
-                    )
-
-                    # Формируем alias
-                    alias = generate_client_alias(
-                        me, pool_type, len(all_clients) + added_count
-                    )
-                    added_count += 1
-
-                    # Создаем клиента в БД
-                    new_client = await db.mt_client.create_mt_client(
-                        alias=alias,
-                        pool_type=pool_type,
-                        session_path=str(session_path),
-                        status="NEW",
-                        is_active=False,
-                    )
-
-                    # Health check
-                    health = await manager.health_check()
-                    current_time = int(time.time())
-                    updates = {"last_self_check_at": current_time}
-
-                    if health["ok"]:
-                        updates["status"] = "ACTIVE"
-                        updates["is_active"] = True
-                        status_icon = "✅"
-                    else:
-                        updates["status"] = "DISABLED"
-                        updates["is_active"] = False
-                        updates["last_error_code"] = health.get("error_code", "UNKNOWN")
-                        updates["last_error_at"] = current_time
-                        status_icon = "❌"
-
-                    await db.mt_client.update_mt_client(
-                        client_id=new_client.id, **updates
-                    )
-
-                    added_sessions.append(
-                        {
-                            "file": session_path.name,
-                            "alias": alias,
-                            "pool": pool_type,
-                            "status": status_icon,
-                            "username": username or "N/A",
-                        }
-                    )
-
-                    logger.info(
-                        f"Автоматически добавлена сессия: {session_path.name} → {pool_type} (username: {username})"
-                    )
-
-            except Exception as e:
-                logger.error(
-                    f"Ошибка обработки {session_path.name}: {e}", exc_info=True
-                )
-                errors.append(f"❌ {session_path.name}: {str(e)[:50]}")
-
-        # Формируем отчёт
-        report = "🔍 Результаты сканирования:\n\n"
-
-        if added_sessions:
-            report += f"✅ Добавлено сессий: {len(added_sessions)}\n\n"
-            for s in added_sessions:
-                pool_emoji = "🏠" if s["pool"] == "internal" else "🌐"
-                report += f"{s['status']} {pool_emoji} {s['alias']}\n"
-                report += f"   Username: @{s['username']}\n"
-
-        if errors:
-            report += f"\n\n❌ Ошибки: {len(errors)}\n"
-            for err in errors[:5]:  # Показываем только первые 5 ошибок
-                report += f"{err}\n"
-            if len(errors) > 5:
-                report += f"... и ещё {len(errors) - 5}\n"
-
-        if not added_sessions and not errors:
-            report = "✅ Все сессии уже добавлены в систему"
-
-        await call.message.edit_text(
-            report, reply_markup=keyboards.back(data="AdminSession|back_to_main")
         )
         return
 
@@ -527,13 +402,14 @@ async def admin_session_back(call: types.CallbackQuery, state: FSMContext) -> No
     await state.clear()
 
     # Получаем все сессии из базы данных (без автосканирования)
-    all_clients = await db.mt_client.get_mt_clients_by_pool(
-        "internal"
-    ) + await db.mt_client.get_mt_clients_by_pool("external")
+    internal = await db.mt_client.get_mt_clients_by_pool("internal")
+    external = await db.mt_client.get_mt_clients_by_pool("external")
+    unassigned = await db.mt_client.get_mt_clients_by_pool("unassigned")
+    all_count = len(internal) + len(external) + len(unassigned)
 
     await call.message.delete()
     await call.message.answer(
-        text("admin:session:main_menu").format(len(all_clients)),
+        text("admin:session:main_menu").format(all_count),
         reply_markup=keyboards.admin_sessions(),
     )
 
@@ -700,6 +576,117 @@ async def get_code(message: types.Message, state: FSMContext) -> None:
         ),
         reply_markup=keyboards.admin_sessions(),
     )
+
+
+async def scan_orphaned_sessions_task(user_id: int):
+    """
+    Фоновая задача сканирования orphaned сессий с рандомными задержками.
+    """
+    logger.info(f"Начато фоновое сканирование сессий для пользователя {user_id}")
+    
+    internal = await db.mt_client.get_mt_clients_by_pool("internal")
+    external = await db.mt_client.get_mt_clients_by_pool("external")
+    unassigned = await db.mt_client.get_mt_clients_by_pool("unassigned")
+    
+    db_session_paths = {Path(c.session_path).name for c in (internal + external + unassigned)}
+
+    session_dir = Path("main_bot/utils/sessions/")
+    orphaned = []
+    if session_dir.exists():
+        for file in session_dir.glob("*.session"):
+            if file.name not in db_session_paths:
+                orphaned.append(file)
+
+    if not orphaned:
+        await main_bot_obj.send_message(user_id, "✅ Фоновое сканирование завершено: неучтённых сессий не найдено.")
+        return
+
+    added_sessions = []
+    errors = []
+    total_db_count = len(internal) + len(external) + len(unassigned)
+
+    for i, session_path in enumerate(orphaned):
+        # Рандомная задержка перед проверкой следующей сессии (кроме первой)
+        if i > 0:
+            delay = random.uniform(5, 15)  # 5-15 секунд
+            logger.info(f"Пауза {delay:.2f}с перед сканированием {session_path.name}")
+            await asyncio.sleep(delay)
+
+        try:
+            async with SessionManager(session_path) as manager:
+                if not manager.client:
+                    errors.append(f"❌ {session_path.name}: не удалось подключиться")
+                    continue
+
+                me = await manager.me()
+                if not me:
+                    errors.append(f"❌ {session_path.name}: не удалось получить данные")
+                    continue
+
+                username = me.username if me else None
+                pool_type = determine_pool_type(
+                    username,
+                    me.first_name if me else None,
+                    me.last_name if me else None,
+                )
+
+                alias = generate_client_alias(me, pool_type, total_db_count + len(added_sessions))
+
+                new_client = await db.mt_client.create_mt_client(
+                    alias=alias,
+                    pool_type=pool_type,
+                    session_path=str(session_path),
+                    status="NEW",
+                    is_active=False,
+                )
+
+                health = await manager.health_check()
+                current_time = int(time.time())
+                updates = {"last_self_check_at": current_time}
+
+                if health["ok"]:
+                    updates["status"] = "ACTIVE"
+                    updates["is_active"] = True
+                    status_icon = "✅"
+                else:
+                    updates["status"] = "DISABLED"
+                    updates["is_active"] = False
+                    updates["last_error_code"] = health.get("error_code", "UNKNOWN")
+                    updates["last_error_at"] = current_time
+                    status_icon = "❌"
+
+                await db.mt_client.update_mt_client(client_id=new_client.id, **updates)
+
+                added_sessions.append(
+                    {
+                        "alias": alias,
+                        "pool": pool_type,
+                        "status": status_icon,
+                        "username": username or "N/A",
+                    }
+                )
+                logger.info(f"Фоновое добавление: {session_path.name} -> {pool_type}")
+
+        except Exception as e:
+            logger.error(f"Ошибка фонового сканирования {session_path.name}: {e}")
+            errors.append(f"❌ {session_path.name}: {str(e)[:50]}")
+
+    # Формируем финальный отчет
+    report = "🏁 Фоновое сканирование завершено!\n\n"
+    if added_sessions:
+        report += f"✅ Добавлено: {len(added_sessions)}\n"
+        for s in added_sessions[:15]: # Лимит на длину сообщения
+            pool_emoji = "🏠" if s["pool"] == "internal" else ("🌐" if s["pool"] == "external" else "❓")
+            report += f"{s['status']} {pool_emoji} {s['alias']} (@{s['username']})\n"
+        if len(added_sessions) > 15:
+            report += f"... и еще {len(added_sessions)-15}\n"
+
+    if errors:
+        report += f"\n❌ Ошибки: {len(errors)}\n"
+        for err in errors[:10]:
+            report += f"{err}\n"
+
+    await main_bot_obj.send_message(user_id, report)
 
 
 def get_router() -> Router:

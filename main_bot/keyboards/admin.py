@@ -70,8 +70,9 @@ class InlineAdmin(InlineKeyboardBuilder):
                 )
             )
         else:
-            kb.button(text="Свои", callback_data="AdminSession|internal")
-            kb.button(text="Внешние", callback_data="AdminSession|external")
+            kb.button(text="🏠 Свои", callback_data="AdminSession|internal")
+            kb.button(text="🌐 Внешние", callback_data="AdminSession|external")
+            kb.button(text="❓ Неопределенные", callback_data="AdminSession|unassigned")
             kb.button(text="🔍 Сканировать", callback_data="AdminSession|scan")
             kb.button(text=text("add:button"), callback_data="AdminSession|add")
             kb.button(text=text("back:button"), callback_data="Admin|back")
@@ -90,7 +91,7 @@ class InlineAdmin(InlineKeyboardBuilder):
         """
         kb = cls()
         kb.button(
-            text="🔄 Проверить состояние / Активировать",
+            text="❄️ Проверить на Frozen",
             callback_data=f"AdminSession|check_health|{client_id}",
         )
         kb.button(
@@ -98,17 +99,15 @@ class InlineAdmin(InlineKeyboardBuilder):
             callback_data=f"AdminSession|reset_ask|{client_id}",
         )
 
-        # Кнопка переноса в другой пул
-        other_pool = "external" if current_pool == "internal" else "internal"
-        transfer_text = (
-            "🌐 Перенести в External"
-            if other_pool == "external"
-            else "🏠 Перенести в Internal"
-        )
-        kb.button(
-            text=transfer_text,
-            callback_data=f"AdminSession|move_pool|{client_id}|{other_pool}",
-        )
+        # Кнопки переноса пола
+        if current_pool != "internal":
+            kb.button(text="🏠 Перенести в Internal", callback_data=f"AdminSession|move_pool|{client_id}|internal")
+        
+        if current_pool != "external":
+            kb.button(text="🌐 Перенести в External", callback_data=f"AdminSession|move_pool|{client_id}|external")
+            
+        if current_pool != "unassigned":
+            kb.button(text="🗑 Удалить из категории", callback_data=f"AdminSession|move_pool|{client_id}|unassigned")
 
         kb.button(text=text("back:button"), callback_data="AdminSession|back_to_list")
         kb.adjust(1)
@@ -141,6 +140,9 @@ class InlineAdmin(InlineKeyboardBuilder):
         )
         kb.button(
             text="Внешний (NovaStat)", callback_data="AdminSession|pool_select|external"
+        )
+        kb.button(
+            text="Неопределенный (Отстойник)", callback_data="AdminSession|pool_select|unassigned"
         )
         kb.button(text=text("back:button"), callback_data="AdminSession|cancel")
         kb.adjust(1)

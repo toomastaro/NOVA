@@ -40,7 +40,7 @@ class MtClientCrud(DatabaseMixin):
 
     async def get_mt_clients_by_pool(self, pool_type: str) -> List[MtClient]:
         """
-        Получает список клиентов по типу пула ('internal' или 'external').
+        Получает список клиентов по типу пула ('internal', 'external' или 'unassigned').
 
         Аргументы:
             pool_type (str): Тип пула.

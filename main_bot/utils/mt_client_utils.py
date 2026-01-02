@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from pathlib import Path
 from typing import Optional
@@ -15,6 +16,8 @@ def determine_pool_type(
 ) -> str:
     """
     Определяет тип пула на основе данных клиента (username, имя, фамилия).
+    Если не найдено ключевых слов 'super' (internal) или 'ultra' (external),
+    возвращает 'unassigned'.
     """
     search_str = f"{username or ''} {first_name or ''} {last_name or ''}".lower()
 
@@ -23,7 +26,7 @@ def determine_pool_type(
     elif "ultra" in search_str:
         return "external"
     else:
-        return "internal"  # по умолчанию
+        return "unassigned"  # Пул для ожидания ручной модерации
 
 
 def generate_client_alias(me, pool_type: str = "internal", count: int = 0) -> str:
