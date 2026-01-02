@@ -61,12 +61,12 @@ class InlineAdCreative(InlineKeyboardBuilder):
         kb = cls()
         for ch in channels:
             is_selected = ch.chat_id in selected_ids
-            prefix = "✅ " if is_selected else "⬜️ "
+            prefix = "🔘 " if is_selected else "⬜️ "
             kb.button(
                 text=f"{prefix}{ch.title}",
                 callback_data=f"AdCreative|toggle_res|{ch.chat_id}",
             )
-        kb.button(text="✅ Готово", callback_data="AdCreative|confirm_resources")
+        kb.button(text="🚀 Готово", callback_data="AdCreative|confirm_resources")
         kb.button(text="❌ Отмена", callback_data="AdCreative|cancel_creation")
         kb.adjust(1)
         return kb.as_markup()
@@ -83,7 +83,7 @@ class InlineAdCreative(InlineKeyboardBuilder):
                 text=f"{status}",
                 callback_data=f"AdCreative|map_slot|{link['slot_id']}",
             )
-        kb.button(text="✅ Завершить", callback_data="AdCreative|finish_mapping")
+        kb.button(text="🚀 Завершить", callback_data="AdCreative|finish_mapping")
         kb.button(text="❌ Отмена", callback_data="AdCreative|cancel_creation")
         
         sizes = [2] * len(links_data) + [1, 1]
