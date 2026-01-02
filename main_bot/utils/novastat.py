@@ -468,7 +468,7 @@ class NovaStatService:
                             er_res[h] = 0.0
 
                     stats = {
-                        "title": our_channel.title,
+                        "title": our_channel.title or str(chat_id) or clean_id,
                         "username": clean_id if not clean_id.lstrip("-").isdigit() else None,
                         "link": f"https://t.me/{clean_id}" if not clean_id.lstrip("-").isdigit() else None,
                         "subscribers": subs,
@@ -773,7 +773,7 @@ class NovaStatService:
                         er_res[h] = 0.0
 
                 return {
-                    "title": fresh_internal.title,
+                    "title": fresh_internal.title or str(resolved_chat_id),
                     "username": getattr(entity, 'username', None),
                     "link": f"https://t.me/{getattr(entity, 'username', '')}" if getattr(entity, 'username', None) else None,
                     "subscribers": subs,
@@ -785,7 +785,8 @@ class NovaStatService:
             logger.warning(f"Ошибка при проверке внутреннего канала после резолва: {check_internal_err}")
         # ------------------------------
 
-        title = getattr(entity, "title", getattr(entity, "username", str(entity)))
+        # Определяем заголовок
+        title = getattr(entity, "title", None) or getattr(entity, "username", None) or str(getattr(entity, "id", "Unknown"))
         username = getattr(entity, "username", None)
         logger.info(
             f"Получена информация о сущности: title={title}, username={username}"

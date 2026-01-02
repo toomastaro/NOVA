@@ -494,10 +494,11 @@ def _format_stats_body(stats: Dict[str, Any]) -> str:
         str: Отформатированная строка HTML.
     """
     link = stats.get("link")
+    raw_title = stats.get("title") or stats.get("username") or "Без названия"
     title_link = (
-        f"<a href='{link}'>{html.escape(stats['title'])}</a>"
+        f"<a href='{link}'>{html.escape(str(raw_title))}</a>"
         if link
-        else html.escape(stats["title"])
+        else html.escape(str(raw_title))
     )
 
     return text("novastat_analysis_channel_body_main").format(
