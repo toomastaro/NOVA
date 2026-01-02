@@ -139,10 +139,10 @@ async def process_creative_content(message: Message, state: FSMContext) -> None:
 
     await message.answer(text("ad_creative:enter_name"))
     await state.update_data(creative_id=creative_id)
-    await state.set_state(AdCreativeStates.waiting_for_name)
+    await state.set_state(AdCreativeStates.entering_name)
 
 
-@router.message(AdCreativeStates.waiting_for_name)
+@router.message(AdCreativeStates.entering_name)
 @safe_handler(
     "Креативы: обработка имени"
 )  # Безопасная обёртка: логирование + перехват ошибок без падения бота
@@ -416,8 +416,86 @@ async def confirm_resources(call: CallbackQuery, state: FSMContext) -> None:
             await db.execute(stmt)
             auto_mapped_count += 1
 
+    await call.message.edit_text(f"✅ Авто-проверка завершена. Найдено совпадений: {auto_mapped_count}.\n\nВы можете вручную сопоставить оставшиеся ссылки или изменить текущие.")
+    await _show_creative_mapping_menu(call, state)
+
+
+async def _show_creative_mapping_menu(call: CallbackQuery, state: FSMContext):
+    """Вспомогательная функция для показа меню маппинга креатива"""
+    data = await state.get_data()
+    creative_id = data.get("creative_id")
+    
+    slots = await db.ad_creative.get_slots(creative_id)
+    channels = await db.channel.get_user_channels(call.from_user.id)
+    channels_map = {ch.chat_id: ch.title for ch in channels}
+    
+    links_data = []
+    for s in slots:
+        links_data.append({
+            "slot_id": s.id,
+            "original_url": s.original_url[:30] + "..." if len(s.original_url) > 30 else s.original_url,
+            "channel_name": channels_map.get(s.suggested_channel_id) if s.suggested_channel_id else None
+        })
+        
+    await call.message.edit_text(
+        text("ad_creative:manual_mapping_title"),
+        reply_markup=InlineAdCreative.creative_mapping_menu(links_data)
+    )
+    await state.set_state(AdCreativeStates.mapping_links)
+
+
+@router.callback_query(AdCreativeStates.mapping_links, F.data.startswith("AdCreative|map_slot|"))
+@safe_handler("Креативы: выбор канала для слота")
+async def manual_map_slot(call: CallbackQuery, state: FSMContext) -> None:
+    """Показ меню выбора канала для конкретного слота"""
+    slot_id = int(call.data.split("|")[2])
+    channels = await db.channel.get_user_channels(call.from_user.id)
+    
+    await call.message.edit_text(
+        text("ad_creative:select_channel_for_slot"),
+        reply_markup=InlineAdCreative.channel_selection(channels, slot_id)
+    )
+
+
+@router.callback_query(AdCreativeStates.mapping_links, F.data.startswith("AdCreative|set_slot|"))
+@safe_handler("Креативы: привязка канала к слоту")
+async def handle_set_slot(call: CallbackQuery, state: FSMContext) -> None:
+    """Привязка выбранного канала к слоту в БД"""
+    parts = call.data.split("|")
+    slot_id = int(parts[2])
+    chat_id_str = parts[3]
+    
+    chat_id = int(chat_id_str) if chat_id_str != "none" else None
+    
+    from sqlalchemy import update
+    from main_bot.database.ad_creative.model import AdCreativeLinkSlot
+    
+    stmt = update(AdCreativeLinkSlot).where(AdCreativeLinkSlot.id == slot_id).values(
+        suggested_channel_id=chat_id
+    )
+    await db.execute(stmt)
+    
+    await _show_creative_mapping_menu(call, state)
+    await call.answer()
+
+
+@router.callback_query(AdCreativeStates.mapping_links, F.data == "AdCreative|back_to_mapping")
+@safe_handler("Креативы: возврат к маппингу")
+async def handle_back_to_mapping(call: CallbackQuery, state: FSMContext) -> None:
+    """Возврат из меню выбора канала в меню маппинга"""
+    await _show_creative_mapping_menu(call, state)
+    await call.answer()
+
+
+@router.callback_query(AdCreativeStates.mapping_links, F.data == "AdCreative|finish_mapping")
+@safe_handler("Креативы: завершение создания")
+async def handle_finish_mapping(call: CallbackQuery, state: FSMContext) -> None:
+    """Окончательное завершение создания креатива"""
+    data = await state.get_data()
+    name = data.get("name")
+    
     await call.message.answer(
-        text("ad_creative:created_success_auto").format(name, auto_mapped_count),
+        text("ad_creative:created_success").format(name),
         reply_markup=InlineAdCreative.menu(),
     )
     # Перезагрузка главного меню

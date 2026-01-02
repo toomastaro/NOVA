@@ -71,6 +71,36 @@ class InlineAdCreative(InlineKeyboardBuilder):
         kb.adjust(1)
         return kb.as_markup()
 
+    @classmethod
+    def creative_mapping_menu(cls, links_data: list):
+        """Меню ручного маппинга ссылок внутри креатива"""
+        kb = cls()
+        # links_data: {slot_id, original_url, channel_name}
+        for link in links_data:
+            kb.button(text=f"👉 {link['original_url']}", callback_data="noop")
+            status = link.get("channel_name") or "❌ Не привязан"
+            kb.button(
+                text=f"{status}",
+                callback_data=f"AdCreative|map_slot|{link['slot_id']}",
+            )
+        kb.button(text="✅ Завершить", callback_data="AdCreative|finish_mapping")
+        kb.button(text="❌ Отмена", callback_data="AdCreative|cancel_creation")
+        
+        sizes = [2] * len(links_data) + [1, 1]
+        kb.adjust(*sizes)
+        return kb.as_markup()
+
+    @classmethod
+    def channel_selection(cls, channels: list, slot_id: int):
+        """Выбор канала для конкретного слота"""
+        kb = cls()
+        for ch in channels:
+            kb.button(text=ch.title, callback_data=f"AdCreative|set_slot|{slot_id}|{ch.chat_id}")
+        kb.button(text="❌ Без трекинга", callback_data=f"AdCreative|set_slot|{slot_id}|none")
+        kb.button(text="⬅️ Назад", callback_data="AdCreative|back_to_mapping")
+        kb.adjust(1)
+        return kb.as_markup()
+
 
 class InlineAdPurchase(InlineKeyboardBuilder):
     """Клавиатуры для рекламных закупов"""
