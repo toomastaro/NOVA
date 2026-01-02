@@ -341,39 +341,36 @@ class NovaStatService:
             # 3. Если канал "свой", использовать данные из БД (если они там есть)
             if our_channel:
                 subs = our_channel.subscribers_count
-                # Если статистика уже есть — отдаем из БД
-                if our_channel.novastat_24h > 0:
-                    logger.info(f"Канал {clean_id} является внутренним (id={chat_id}), отдаем статистику из БД")
-                    
-                    views_res = {
-                        24: our_channel.novastat_24h,
-                        48: our_channel.novastat_48h,
-                        72: our_channel.novastat_72h,
-                    }
-                    er_res = {}
-                    for h in [24, 48, 72]:
-                        if subs > 0:
-                            er_res[h] = round((views_res[h] / subs) * 100, 2)
-                        else:
-                            er_res[h] = 0.0
-
-                    stats = {
-                        "title": our_channel.title,
-                        "username": clean_id if not clean_id.lstrip("-").isdigit() else None,
-                        "link": f"https://t.me/{clean_id}" if not clean_id.lstrip("-").isdigit() else None,
-                        "subscribers": subs,
-                        "views": views_res,
-                        "er": er_res,
-                        "chat_id": chat_id
-                    }
-                    
-                    # Обновляем кэш под каноническим ключом
-                    await db.novastat_cache.set_cache(lock_id, horizon, stats)
-                    return
+                # Для внутренних каналов ВСЕГДА отдаем данные из БД (даже если 0).
+                # Сбор данных происходит только через фоновый планировщик (channels.py).
+                logger.info(f"Канал {clean_id} является внутренним (id={chat_id}), отдаем имеющуюся статистику из БД")
                 
+                views_res = {
+                    24: our_channel.novastat_24h,
+                    48: our_channel.novastat_48h,
+                    72: our_channel.novastat_72h,
+                }
+                er_res = {}
+                for h in [24, 48, 72]:
+                    if subs > 0:
+                        er_res[h] = round((views_res[h] / subs) * 100, 2)
+                    else:
+                        er_res[h] = 0.0
 
-                # Если статистики нет (0), продолжаем сбор через MTProto
-                logger.info(f"Статистика для внутреннего канала {clean_id} (id={chat_id}) нулевая в БД и кэше, запускаем сбор")
+                stats = {
+                    "title": our_channel.title,
+                    "username": clean_id if not clean_id.lstrip("-").isdigit() else None,
+                    "link": f"https://t.me/{clean_id}" if not clean_id.lstrip("-").isdigit() else None,
+                    "subscribers": subs,
+                    "views": views_res,
+                    "er": er_res,
+                    "chat_id": chat_id
+                }
+                
+                # Обновляем кэш под каноническим ключом
+                await db.novastat_cache.set_cache(lock_id, horizon, stats)
+                return
+
 
             # 4. Получаем данные через MTProto (свой или внешний)
             stats = None
