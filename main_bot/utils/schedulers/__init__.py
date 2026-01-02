@@ -145,22 +145,18 @@ def init_scheduler(scheduler: AsyncIOScheduler) -> None:
     )
 
     # Самопроверка MT клиентов (ОТКЛЮЧЕНО ПО ЗАПРОСУ)
-    # scheduler.add_job(
-    #     func=mt_clients_self_check,
-    #     trigger=CronTrigger(minute="0"),
-    #     id="mt_clients_self_check_hourly",
-    #     replace_existing=True,
-    #     name="Самопроверка MT клиентов (Ежечасно)",
-    # )
+    try:
+        scheduler.remove_job("mt_clients_self_check_hourly")
+        logger.info("🗑 Удалена устаревшая задача: mt_clients_self_check_hourly")
+    except Exception:
+        pass
 
     # Обслуживание внешних каналов (ОТКЛЮЧЕНО ПО ЗАПРОСУ - ПРИВОДИТ К FROZEN)
-    # scheduler.add_job(
-    #     func=update_external_channels_stats,
-    #     trigger=CronTrigger(minute="30"),
-    #     id="update_external_channels_periodic",
-    #     replace_existing=True,
-    #     name="Обслуживание внешних каналов (NovaStat)",
-    # )
+    try:
+        scheduler.remove_job("update_external_channels_periodic")
+        logger.info("🗑 Удалена устаревшая задача: update_external_channels_periodic")
+    except Exception:
+        pass
 
     # === ВСПОМОГАТЕЛЬНЫЕ ===
     # Обновление курсов валют
