@@ -371,11 +371,6 @@ class NovaStatService:
                     await db.novastat_cache.set_cache(lock_id, horizon, stats)
                     return
                 
-                # Если статистики нет в БД (0), но есть СВЕЖИЙ кэш — значит мы уже пробовали собрать и там реально 0
-                cache = await db.novastat_cache.get_cache(lock_id, horizon)
-                if cache and not cache.error_message and (int(time.time()) - cache.updated_at) < CACHE_TTL_SECONDS:
-                    logger.info(f"Статистика в БД нулевая, но в кэше есть свежая запись для {lock_id}. Пропуск MTProto.")
-                    return
 
                 # Если статистики нет (0), продолжаем сбор через MTProto
                 logger.info(f"Статистика для внутреннего канала {clean_id} (id={chat_id}) нулевая в БД и кэше, запускаем сбор")
