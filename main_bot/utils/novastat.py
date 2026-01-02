@@ -230,6 +230,40 @@ class NovaStatService:
         # Ключ для таблицы кэша (предпочтительно chat_id, если он есть)
         # Если chat_id известен, используем его. Иначе используем нормализованный clean_id
         cache_key = str(chat_id) if chat_id else clean_id
+        
+        # --- FAST PATH FOR INTERNAL CHANNELS ---
+        # Если канал является внутренним, мы возвращаем данные напрямую из БД (таблица channels),
+        # минуя всю сложность с блокировками кэша NovaStat и MTProto сбором.
+        # Данные в таблице channels обновляются фоновым планировщиком (channels.py) раз в час.
+        if chat_id:
+            # Получаем свежие данные канала из БД прямо сейчас (чтобы не зависеть от stale our_ch объекта)
+            our_channel_fresh = await db.channel.get_channel_by_chat_id(chat_id)
+            if our_channel_fresh:
+                logger.info(f"⚡ Fast Path: Канал {clean_id} - внутренний. Возврат данных из channels table.")
+                
+                subs = our_channel_fresh.subscribers_count
+                views_res = {
+                    24: our_channel_fresh.novastat_24h,
+                    48: our_channel_fresh.novastat_48h,
+                    72: our_channel_fresh.novastat_72h,
+                }
+                er_res = {}
+                for h in [24, 48, 72]:
+                    if subs > 0:
+                        er_res[h] = round((views_res[h] / subs) * 100, 2)
+                    else:
+                        er_res[h] = 0.0
+
+                return {
+                    "title": our_channel_fresh.title,
+                    "username": clean_id if not clean_id.lstrip("-").isdigit() else None,
+                    "link": f"https://t.me/{clean_id}" if not clean_id.lstrip("-").isdigit() else None,
+                    "subscribers": subs,
+                    "views": views_res,
+                    "er": er_res,
+                    "chat_id": chat_id
+                }
+        # ---------------------------------------
 
         # 2. Получить кэш
         cache = await db.novastat_cache.get_cache(cache_key, horizon)
