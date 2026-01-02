@@ -373,24 +373,21 @@ async def answer_message(
 
 async def reload_main_menu(message: types.Message) -> None:
     """
-    Обновляет главное меню (Reply Keyboard) и удаляет сервисное сообщение.
-    Это позволяет избежать накопления лишних сообщений 'Главное меню' в чате.
+    Обновляет главное меню (Reply Keyboard).
+    Использует невидимый символ для бесшовного обновления без текста в чате.
 
     Аргументы:
         message (types.Message): Сообщение, от которого вызывается ответ.
     """
     from main_bot.keyboards.common import Reply
-    import asyncio
 
-    # Используем bot.send_message напрямую к ID чата для большей стабильности
     try:
-        msg = await message.bot.send_message(
+        # Используем невидимый символ (Braille Pattern Blank), чтобы не было текста
+        await message.bot.send_message(
             chat_id=message.chat.id,
-            text=text("main_menu:reload"),
-            reply_markup=Reply.menu()
+            text="⠀",
+            reply_markup=Reply.menu(),
+            disable_notification=True
         )
-        # Небольшая пауза, чтобы клиент успел получить и отобразить новую клавиатуру
-        await asyncio.sleep(0.5)
-        await msg.delete()
     except Exception as e:
         logger.error(f"Ошибка при обновлении главного меню: {e}")
