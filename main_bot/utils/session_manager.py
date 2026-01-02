@@ -95,28 +95,57 @@ class SessionManager:
     async def health_check(self) -> dict:
         """
         Проверяет, жива ли сессия и работает ли она.
-        Возвращает: {"ok": True} или {"ok": False, "error_code": "..."}
+        Выполняет глубокую проверку, включая статус ограничений (Restricted).
+        Возвращает: {"ok": True, "me": ...} или {"ok": False, "error_code": "..."}
         """
-        if not self.client or not self.client.is_connected():
-            return {"ok": False, "error_code": "CLIENT_NOT_CONNECTED"}
+        # 1. Проверка и попытка восстановления соединения
+        if not self.client:
+             return {"ok": False, "error_code": "CLIENT_NOT_INITIALIZED"}
+
+        if not self.client.is_connected():
+            try:
+                await self.client.connect()
+            except Exception as e:
+                return {"ok": False, "error_code": f"CONNECTION_FAILED: {str(e)}"}
 
         try:
-            # Простой RPC вызов для проверки соединения и авторизации
-            await self.client(functions.help.GetConfigRequest())
+            # 2. Запрос информации о текущем пользователе (GetMe)
+            # Это самый надежный способ проверить валидность AuthKey
             me = await self.client.get_me()
+            
             if not me:
+                # Иногда бывает, если аккаунт удален, но ошибка не вылетела
                 return {"ok": False, "error_code": "USER_NOT_FOUND"}
+
+            # 3. Проверка на ограничения (Спам-блок и т.д.)
+            if getattr(me, "restricted", False):
+                reasons = []
+                if me.restriction_reason:
+                    for r in me.restriction_reason:
+                        reasons.append(f"{r.platform}: {r.text}")
+                reason_str = " | ".join(reasons)
+                return {"ok": False, "error_code": f"RESTRICTED: {reason_str}"}
+
+            # 4. Проверка на метку SCAM / FAKE (опционально, но полезно знать)
+            if getattr(me, "scam", False):
+                 return {"ok": False, "error_code": "ACCOUNT_MARKED_AS_SCAM"}
+            
+            if getattr(me, "fake", False):
+                 return {"ok": False, "error_code": "ACCOUNT_MARKED_AS_FAKE"}
 
             return {"ok": True, "me": me}
 
         except UserDeactivatedError:
             return {"ok": False, "error_code": "USER_DEACTIVATED"}
+        except rpcerrorlist.UserDeactivatedBanError:
+            return {"ok": False, "error_code": "USER_BANNED"}
         except AuthKeyUnregisteredError:
             return {"ok": False, "error_code": "AUTH_KEY_UNREGISTERED"}
         except FloodWaitError as e:
             return {"ok": False, "error_code": f"FLOOD_WAIT_{e.seconds}"}
         except Exception as e:
-            return {"ok": False, "error_code": f"UNKNOWN_ERROR_{str(e)}"}
+            logger.error(f"Ошибка health_check: {e}")
+            return {"ok": False, "error_code": f"UNKNOWN: {str(e)}"}
 
     async def join(self, invite_link_or_username: str, max_attempts: int = 10) -> bool:
         """
