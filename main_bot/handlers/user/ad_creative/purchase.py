@@ -1002,7 +1002,7 @@ async def generate_post(call: CallbackQuery) -> None:
             caption = message_data.get("caption", "")
             if len(caption) > 1024:
                 await call.answer(
-                    text("ad_purchase:generate:error_too_long_caption"),
+                    text("ad_purchase:gen_post:caption_too_long"),
                     show_alert=True,
                 )
                 return
@@ -1019,7 +1019,7 @@ async def generate_post(call: CallbackQuery) -> None:
             caption = message_data.get("caption", "")
             if len(caption) > 1024:
                 await call.answer(
-                    text("ad_purchase:generate:error_too_long_caption"),
+                    text("ad_purchase:gen_post:caption_too_long"),
                     show_alert=True,
                 )
                 return
@@ -1035,7 +1035,7 @@ async def generate_post(call: CallbackQuery) -> None:
             text_content = message_data["text"]
             if len(text_content) > 4096:
                 await call.answer(
-                    text("ad_purchase:generate:error_too_long_text"),
+                    text("ad_purchase:gen_post:text_too_long"),
                     show_alert=True,
                 )
                 return
@@ -1049,13 +1049,13 @@ async def generate_post(call: CallbackQuery) -> None:
             )
         else:
             await call.answer(
-                text("ad_purchase:generate:error_unsupported"), show_alert=True
+                text("ad_purchase:gen_post:unsupported"), show_alert=True
             )
             return
 
-        success_msg = text("ad_purchase:generate:success_header")
+        success_msg = text("ad_purchase:gen_post:success")
         if replaced_count > 0:
-            success_msg += "\n" + text("ad_purchase:generate:replaced_count").format(
+            success_msg += "\n" + text("ad_purchase:gen_post:replaced_stats").format(
                 replaced_count
             )
         await call.message.answer(success_msg)
@@ -1069,9 +1069,9 @@ async def generate_post(call: CallbackQuery) -> None:
         err_str = str(e)
         if "MESSAGE_TOO_LONG" in err_str:
             await call.answer(
-                text("ad_purchase:generate:error_too_long_generic"), show_alert=True
+                text("ad_purchase:gen_post:too_long_error"), show_alert=True
             )
         else:
             await call.answer(
-                text("ad_purchase:generate:error_send").format(e), show_alert=True
+                text("ad_purchase:gen_post:send_error").format(e), show_alert=True
             )
