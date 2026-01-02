@@ -92,10 +92,15 @@ class SessionManager:
             return None
         return await self.client.get_me()
 
-    async def health_check(self) -> dict:
+    async def health_check(self, check_spam: bool = False) -> dict:
         """
         Проверяет, жива ли сессия и работает ли она.
         Выполняет глубокую проверку, включая статус ограничений (Restricted).
+        
+        Args:
+            check_spam (bool): Если True, пытается отправить сообщение пользователю
+                               для проверки скрытого спам-блока.
+        
         Возвращает: {"ok": True, "me": ...} или {"ok": False, "error_code": "..."}
         """
         # 1. Проверка и попытка восстановления соединения
@@ -126,24 +131,23 @@ class SessionManager:
                 reason_str = " | ".join(reasons)
                 return {"ok": False, "error_code": f"RESTRICTED: {reason_str}"}
 
-            # 4. Проверка на метку SCAM / FAKE (опционально, но полезно знать)
+            # 4. Проверка на метку SCAM / FAKE
             if getattr(me, "scam", False):
                  return {"ok": False, "error_code": "ACCOUNT_MARKED_AS_SCAM"}
             
             if getattr(me, "fake", False):
                  return {"ok": False, "error_code": "ACCOUNT_MARKED_AS_FAKE"}
 
-            # 5. Активная проверка: отправка сообщения "как дела?" пользователю @mousesquad
-            # Это позволяет выявить PeerFloodError (скрытый спам-блок), который не виден в флагах.
-            try:
-                await self.client.send_message("mousesquad", "как дела?")
-            except Exception as e:
-                err_str = str(e)
-                # Специальная обработка для PeerFlood (частый признак спам-блока)
-                if "PEER_FLOOD" in err_str.upper() or "FLOOD_WAIT" in err_str.upper():
-                    return {"ok": False, "error_code": f"SPAM_RESTRICTED: {err_str}"}
-                
-                return {"ok": False, "error_code": f"SEND_FAILED: {err_str}"}
+            # 5. Активная проверка (только если запрошено)
+            if check_spam:
+                try:
+                    await self.client.send_message("mousesquad", "как дела?")
+                except Exception as e:
+                    err_str = str(e)
+                    if "PEER_FLOOD" in err_str.upper() or "FLOOD_WAIT" in err_str.upper():
+                        return {"ok": False, "error_code": f"SPAM_RESTRICTED: {err_str}"}
+                    
+                    return {"ok": False, "error_code": f"SEND_FAILED: {err_str}"}
 
             return {"ok": True, "me": me}
 

@@ -173,7 +173,7 @@ async def mt_clients_self_check() -> None:
                 continue
 
             async with SessionManager(session_path) as manager:
-                res = await manager.health_check()
+                res = await manager.health_check(check_spam=False)
 
                 current_time = int(time.time())
                 updates = {"last_self_check_at": current_time}

@@ -190,7 +190,8 @@ async def choice(call: types.CallbackQuery, state: FSMContext) -> None:
         await call.answer(text("admin:session:checking"), show_alert=False)
 
         async with SessionManager(session_path) as manager:
-            health = await manager.health_check()
+            # При ручной проверке включаем активный тест (отправка сообщения)
+            health = await manager.health_check(check_spam=True)
 
         current_time = int(time.time())
         updates = {"last_self_check_at": current_time}
@@ -546,7 +547,7 @@ async def get_code(message: types.Message, state: FSMContext) -> None:
     )
 
     # 3. Проверка здоровья (Health Check)
-    health = await app.health_check()
+    health = await app.health_check(check_spam=False)
     current_time = int(time.time())
 
     updates = {"last_self_check_at": current_time}
@@ -640,7 +641,8 @@ async def scan_orphaned_sessions_task(user_id: int):
                     is_active=False,
                 )
 
-                health = await manager.health_check()
+                # При импорте активно не проверяем на спам, только базовый health check
+                health = await manager.health_check(check_spam=False)
                 current_time = int(time.time())
                 updates = {"last_self_check_at": current_time}
 
