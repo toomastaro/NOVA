@@ -834,15 +834,17 @@ class NovaStatService:
                     continue
 
                 age_hours = (now_utc - msg_dt_utc).total_seconds() / 3600.0
-                views = int(m.views)
+                views = int(m.views) if m.views is not None else 0
                 raw_points.append((age_hours, views))
+                
+                if len(raw_points) == 1:
+                    logger.info(f"📍 [NovaStat] Самый свежий пост: date={msg_dt_utc}, views={views}")
+                if len(raw_points) % 50 == 0:
+                    logger.debug(f"📜 [NovaStat] Собрано {len(raw_points)} постов...")
         except Exception as iter_error:
-            logger.error(
-                f"Ошибка итерации сообщений для {channel_identifier}: {iter_error}"
-            )
-            # Продолжаем с тем что успели собрать
-
-        logger.debug(f"Собрано {len(raw_points)} точек данных для {channel_identifier}")
+            logger.error(f"❌ [NovaStat] Ошибка итерации сообщений для {channel_identifier}: {iter_error}")
+        
+        logger.info(f"📊 [NovaStat] Итог итерации: собрано {len(raw_points)} точек данных за {days_limit} дней (cutoff={cutoff_utc})")
 
         # Определить ссылку
         link = None
@@ -893,7 +895,7 @@ class NovaStatService:
             else:
                 er_res[h] = 0.0
 
-        return {
+        result = {
             "title": title,
             "username": username,
             "link": link,
@@ -902,6 +904,8 @@ class NovaStatService:
             "er": er_res,
             "chat_id": utils.get_peer_id(entity)
         }
+        logger.info(f"✅ [NovaStat] Сбор завершен: title='{title}', subs={members}, views_24h={views_res.get(24)}, er_24h={er_res.get(24)}%")
+        return result
 
 
 novastat_service = NovaStatService()
