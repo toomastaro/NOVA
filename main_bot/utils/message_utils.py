@@ -370,3 +370,20 @@ async def answer_message(
     post_message = await cor(**message_options.model_dump(), parse_mode="HTML")
 
     return post_message
+
+async def reload_main_menu(message: types.Message) -> None:
+    """
+    Обновляет главное меню (Reply Keyboard) и удаляет сервисное сообщение.
+    Это позволяет избежать накопления лишних сообщений 'Главное меню' в чате.
+
+    Аргументы:
+        message (types.Message): Сообщение, от которого вызывается ответ.
+    """
+    from main_bot.keyboards.common import Reply
+
+    msg = await message.answer(text("main_menu:reload"), reply_markup=Reply.menu())
+    try:
+        await msg.delete()
+    except Exception:
+        # Если не удалось удалить (например, прошло >48ч или нет прав, хотя в ЛС права всегда есть)
+        pass

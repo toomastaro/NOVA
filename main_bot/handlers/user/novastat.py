@@ -20,9 +20,9 @@ from aiogram.fsm.context import FSMContext
 
 from main_bot.database.db import db
 from main_bot.keyboards import keyboards, InlineNovaStat
-from main_bot.keyboards.common import Reply
 from main_bot.states.user import NovaStatStates
 from main_bot.utils.lang.language import text
+from main_bot.utils.message_utils import reload_main_menu
 from utils.error_handler import safe_handler
 from main_bot.utils.novastat import novastat_service
 from main_bot.utils.report_signature import get_report_signatures
@@ -109,7 +109,7 @@ async def novastat_exit(call: types.CallbackQuery, state: FSMContext) -> None:
     """
     await state.clear()
     await call.message.delete()
-    await call.message.answer(text("main_menu:reload"), reply_markup=Reply.menu())
+    await reload_main_menu(call.message)
 
 
 @router.callback_query(F.data == "NovaStat|settings")
@@ -216,7 +216,7 @@ async def novastat_create_col_finish(message: types.Message, state: FSMContext) 
         reply_markup=InlineNovaStat.collections_list(collections),
     )
     # Перезагрузка главного меню
-    await message.answer(text("main_menu:reload"), reply_markup=Reply.menu())
+    await reload_main_menu(message)
     await state.clear()
 
 
@@ -259,7 +259,7 @@ async def novastat_delete_col(call: types.CallbackQuery) -> None:
     col_id = int(call.data.split("|")[2])
     await db.novastat.delete_collection(col_id)
     await call.answer(text("novastat_col_delete_success"))
-    await call.message.answer(text("main_menu:reload"), reply_markup=Reply.menu())
+    await reload_main_menu(call.message)
     await novastat_collections(call)
 
 
@@ -314,7 +314,7 @@ async def novastat_rename_col_finish(message: types.Message, state: FSMContext) 
         parse_mode="HTML",
     )
     # Перезагрузка главного меню
-    await message.answer(text("main_menu:reload"), reply_markup=Reply.menu())
+    await reload_main_menu(message)
     await state.clear()
 
 
@@ -393,7 +393,7 @@ async def novastat_add_channel_finish(
         parse_mode="HTML",
     )
     # Перезагрузка главного меню
-    await message.answer(text("main_menu:reload"), reply_markup=Reply.menu())
+    await reload_main_menu(message)
     await state.clear()
 
 
@@ -436,7 +436,7 @@ async def novastat_del_channel(call: types.CallbackQuery) -> None:
         reply_markup=InlineNovaStat.collection_channels_delete(col_id, channels)
     )
     # Перезагрузка главного меню
-    await call.message.answer(text("main_menu:reload"), reply_markup=Reply.menu())
+    await reload_main_menu(call.message)
 
 
 # --- Логика анализа ---
@@ -651,7 +651,7 @@ async def run_analysis_logic(
             link_preview_options=types.LinkPreviewOptions(is_disabled=True),
         )
         # Подгружаем главное меню
-        await message.answer(text("novastat_analysis_caption"), reply_markup=Reply.menu())
+        await reload_main_menu(message)
 
     else:
         # Сводка
@@ -675,9 +675,7 @@ async def run_analysis_logic(
             link_preview_options=types.LinkPreviewOptions(is_disabled=True),
         )
         # Подгружаем главное меню
-        await message.answer(
-            text("novastat_analysis_caption_multi"), reply_markup=Reply.menu()
-        )
+        await reload_main_menu(message)
 
 
 @router.message(NovaStatStates.waiting_for_channels)
@@ -848,7 +846,7 @@ async def calculate_and_show_price(
         )
 
     # Подгружаем главное меню после расчета CPM
-    await message.answer(text("novastat_cpm_finished"), reply_markup=Reply.menu())
+    await reload_main_menu(message)
 
 
 @router.callback_query(F.data.startswith("NovaStat|calc_cpm|"))

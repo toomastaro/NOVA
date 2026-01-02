@@ -29,6 +29,7 @@ from main_bot.keyboards import InlineAdPurchase
 from main_bot.states.user import AdPurchaseStates
 from main_bot.keyboards.common import Reply
 from main_bot.utils.lang.language import text
+from main_bot.utils.message_utils import reload_main_menu
 from utils.error_handler import safe_handler
 
 logger = logging.getLogger(__name__)
@@ -397,7 +398,8 @@ async def finish_mapping(call: CallbackQuery) -> None:
     purchase_id = int(call.data.split("|")[2])
     await call.answer(text("ad_purchase:mapping:success"))
     # Перезагрузка главного меню
-    await call.message.answer(text("main_menu:reload"), reply_markup=Reply.menu())
+    await reload_main_menu(call.message)
+    await call.answer()
     # Возврат к просмотру закупа
     await view_purchase(call, purchase_id)
 
@@ -503,7 +505,8 @@ async def delete_purchase(call: CallbackQuery) -> None:
     await db.ad_purchase.update_purchase_status(purchase_id, "deleted")
     await call.answer(text("ad_purchase:deleted_ok"))
     # Перезагрузка главного меню
-    await call.message.answer(text("main_menu:reload"), reply_markup=Reply.menu())
+    await reload_main_menu(call.message)
+    await call.answer()
 
     # Проверка оставшихся
     purchases = await db.ad_purchase.get_user_purchases(call.from_user.id)
@@ -832,7 +835,8 @@ async def show_global_stats(call: CallbackQuery) -> None:
         caption=text("ad_purchase:global_stats:caption").format(period),
     )
     # Перезагрузка главного меню
-    await call.message.answer(text("main_menu:reload"), reply_markup=Reply.menu())
+    await reload_main_menu(call.message)
+    await call.answer()
 
 
 @router.callback_query(F.data.startswith("AdPurchase|gen_post|"))

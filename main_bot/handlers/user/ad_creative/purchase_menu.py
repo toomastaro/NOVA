@@ -17,8 +17,8 @@ from aiogram.types import CallbackQuery
 
 from main_bot.database.db import db
 from main_bot.keyboards import InlineAdPurchase
-from main_bot.keyboards.common import Reply
 from main_bot.utils.lang.language import text
+from main_bot.utils.message_utils import reload_main_menu
 from utils.error_handler import safe_handler
 from main_bot.utils.session_manager import SessionManager
 
@@ -109,7 +109,7 @@ async def show_ad_purchase_menu_internal(
         await message.answer(main_text, reply_markup=kb, parse_mode="HTML")
 
     # Перезагрузка главного меню
-    await message.answer(text("main_menu:reload"), reply_markup=Reply.menu())
+    await reload_main_menu(message)
 
 
 @router.callback_query(F.data == "AdPurchase|check_client_status")
@@ -306,4 +306,4 @@ async def show_purchase_list(call: CallbackQuery, send_new: bool = False) -> Non
         await call.message.edit_text(main_text, reply_markup=kb)
 
     # Перезагрузка главного меню
-    await call.message.answer(text("main_menu:reload"), reply_markup=Reply.menu())
+    await reload_main_menu(call.message)

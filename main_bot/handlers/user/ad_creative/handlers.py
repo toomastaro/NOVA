@@ -21,7 +21,7 @@ from main_bot.database.ad_creative.model import AdCreative
 from main_bot.keyboards import InlineAdCreative
 from main_bot.states.user import AdCreativeStates
 from main_bot.utils.lang.language import text
-from main_bot.keyboards.common import Reply
+from main_bot.utils.message_utils import reload_main_menu
 from utils.error_handler import safe_handler
 
 router = Router(name="AdCreative")
@@ -46,7 +46,7 @@ async def create_creative_start(call: CallbackQuery, state: FSMContext) -> None:
     )
     await state.set_state(AdCreativeStates.waiting_for_content)
     # Перезагрузка главного меню
-    await call.message.answer(text("main_menu:reload"), reply_markup=Reply.menu())
+    await reload_main_menu(call.message)
     await call.answer()
 
 
@@ -243,7 +243,7 @@ async def delete_creative(call: CallbackQuery) -> None:
     await db.ad_creative.update_creative_status(creative_id, "deleted")
     await call.answer(text("ad_creative:deleted"))
     # Перезагрузка главного меню
-    await call.message.answer(text("main_menu:reload"), reply_markup=Reply.menu())
+    await reload_main_menu(call.message)
 
     # Проверка оставшихся
     creatives = await db.ad_creative.get_user_creatives(call.from_user.id)
@@ -499,6 +499,6 @@ async def handle_finish_mapping(call: CallbackQuery, state: FSMContext) -> None:
         reply_markup=InlineAdCreative.menu(),
     )
     # Перезагрузка главного меню
-    await call.message.answer(text("main_menu:reload"), reply_markup=Reply.menu())
+    await reload_main_menu(call.message)
     await state.clear()
     await call.answer()

@@ -15,9 +15,9 @@ from main_bot.database.user.model import User
 
 from main_bot.handlers.user.profile.settings import show_folders
 from main_bot.keyboards import keyboards
-from main_bot.keyboards.common import Reply
 from main_bot.states.user import Folder
 from main_bot.utils.lang.language import text
+from main_bot.utils.message_utils import reload_main_menu
 from utils.error_handler import safe_handler
 
 logger = logging.getLogger(__name__)
@@ -155,7 +155,7 @@ async def choice_object(call: types.CallbackQuery, state: FSMContext, user: User
             )
             await show_manage_folder(call.message, state)
             # Перезагрузка главного меню
-            await call.message.answer(text("main_menu:reload"), reply_markup=Reply.menu())
+            await reload_main_menu(call.message)
 
         return
 
@@ -225,7 +225,7 @@ async def cancel(call: types.CallbackQuery, state: FSMContext, user: User):
             parse_mode="HTML",
         )
         # Перезагрузка главного меню
-        await call.message.answer(text("main_menu:reload"), reply_markup=Reply.menu())
+        await reload_main_menu(call.message)
 
 
 @safe_handler(
@@ -283,11 +283,11 @@ async def get_folder_name(message: types.Message, state: FSMContext, user: User)
             ),
         )
         # Перезагрузка главного меню
-        await message.answer(text("main_menu:reload"), reply_markup=Reply.menu())
+        await reload_main_menu(message)
     else:
         await show_manage_folder(message, state)
         # Перезагрузка главного меню
-        await message.answer(text("main_menu:reload"), reply_markup=Reply.menu())
+        await reload_main_menu(message)
 
 
 @safe_handler(
@@ -309,7 +309,7 @@ async def manage_folder(call: types.CallbackQuery, state: FSMContext, user: User
 
         await show_folders(call.message)
         # Перезагрузка главного меню
-        await call.message.answer(text("main_menu:reload"), reply_markup=Reply.menu())
+        await reload_main_menu(call.message)
         return
 
     await state.update_data(folder_edit=True)

@@ -13,7 +13,7 @@ from main_bot.database.db import db
 from main_bot.keyboards import keyboards
 from main_bot.states.user import Setting
 from main_bot.utils.lang.language import text
-from main_bot.keyboards.common import Reply
+from main_bot.utils.message_utils import reload_main_menu
 from utils.error_handler import safe_handler
 
 logger = logging.getLogger(__name__)
@@ -58,7 +58,7 @@ async def get_timezone(message: types.Message, state: FSMContext):
         parse_mode="HTML",
     )
     # Перезагрузка главного меню
-    await message.answer(text("main_menu:reload"), reply_markup=Reply.menu())
+    await reload_main_menu(message)
 
 
 @safe_handler(
@@ -75,7 +75,7 @@ async def cancel(call: types.CallbackQuery, state: FSMContext):
         parse_mode="HTML",
     )
     # Перезагрузка главного меню
-    await call.message.answer(text("main_menu:reload"), reply_markup=Reply.menu())
+    await reload_main_menu(call.message)
 
 
 def get_router():
