@@ -271,14 +271,16 @@ class NovaStatService:
         # Ключ для таблицы кэша (предпочтительно chat_id, если он есть)
         cache_key_suffix = str(chat_id) if chat_id else clean_id
         redis_data_key = f"novastat:data:{cache_key_suffix}:{horizon}"
+        logger.info(f"📊 [NovaStat] Запрос статистики: identifier={id_str}, clean_id={clean_id}, chat_id={chat_id}, redis_key={redis_data_key}")
 
         # --- FAST PATH FOR INTERNAL CHANNELS ---
         # Если канал является внутренним, мы возвращаем данные напрямую из БД каналов,
         # минуя redis и MTProto.
         if chat_id:
+            logger.debug(f"🔍 [NovaStat] Проверка внутреннего канала для chat_id={chat_id}")
             our_channel_fresh = await db.channel.get_channel_by_chat_id(chat_id)
             if our_channel_fresh:
-                logger.info(f"⚡ Fast Path: Канал {clean_id} - внутренний. Возврат данных из БД.")
+                logger.info(f"⚡ [Fast Path] Канал {clean_id} (chat_id={chat_id}) - ВНУТРЕННИЙ. Возврат данных из БД channels.")
                 subs = our_channel_fresh.subscribers_count
                 views_res = {
                     24: our_channel_fresh.novastat_24h,
@@ -304,17 +306,21 @@ class NovaStatService:
         # ---------------------------------------
 
         # 2. Получить кэш из Redis
+        logger.debug(f"🔍 [NovaStat] Проверка кэша Redis: {redis_data_key}")
         try:
             cached_data = await redis_client.get(redis_data_key)
             if cached_data:
-                # Cache Hit!
+                logger.info(f"✅ [Redis Cache Hit] Найдены данные в кэше для {redis_data_key}")
                 return self.normalize_cache_keys(json.loads(cached_data))
+            else:
+                logger.info(f"❌ [Redis Cache Miss] Данных в кэше нет для {redis_data_key}")
         except Exception as e:
-            logger.error(f"Redis get error: {e}")
+            logger.error(f"❌ [Redis Error] Ошибка чтения кэша: {e}")
 
         # 3. Если кэша нет - запускаем сбор
-        logger.info(f"🚀 Запуск сбора данных NovaStat для {id_str} (redis_key: {redis_data_key})")
+        logger.info(f"🚀 [NovaStat] Запуск сбора данных для {id_str} (redis_key: {redis_data_key})")
         await self.async_refresh_stats(id_str, days_limit, horizon, bot=bot)
+        logger.debug(f"✅ [NovaStat] async_refresh_stats завершен для {id_str}")
 
         # 4. Проверяем результат (мог появиться в процессе сбора)
         # Если в процессе сбора ID уточнился - нам надо проверить новый ключ
@@ -336,20 +342,21 @@ class NovaStatService:
         
         final_suffix = str(final_chat_id) if final_chat_id else current_clean
         final_redis_key = f"novastat:data:{final_suffix}:{horizon}"
+        logger.debug(f"🔍 [NovaStat] Проверка финального кэша: {final_redis_key}")
 
         try:
             cached_data = await redis_client.get(final_redis_key)
             if cached_data:
+                logger.info(f"✅ [Redis Final Hit] Найдены финальные данные в кэше для {final_redis_key}")
                 res = json.loads(cached_data)
                 if "error" in res:
-                     # Если там ошибка, мы её не проглатываем, а возвращаем None или саму ошибку
-                     # Но логика display обычно ждет None и пишет Unknown Error.
-                     # Лучше вернуть None, если handler не готов.
-                     # Но если handler готов отобразить error - можно вернуть.
+                     logger.warning(f"⚠️ [NovaStat] В кэше сохранена ошибка: {res.get('error')}")
                      pass
                 return self.normalize_cache_keys(res)
+            else:
+                logger.warning(f"❌ [Redis Final Miss] Финальных данных в кэше нет для {final_redis_key}")
         except Exception as e:
-            logger.error(f"Redis get final error: {e}")
+            logger.error(f"❌ [Redis Error] Ошибка чтения финального кэша: {e}")
 
         return None
 
