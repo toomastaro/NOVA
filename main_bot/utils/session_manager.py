@@ -133,6 +133,18 @@ class SessionManager:
             if getattr(me, "fake", False):
                  return {"ok": False, "error_code": "ACCOUNT_MARKED_AS_FAKE"}
 
+            # 5. Активная проверка: отправка сообщения "как дела?" пользователю @mousesquad
+            # Это позволяет выявить PeerFloodError (скрытый спам-блок), который не виден в флагах.
+            try:
+                await self.client.send_message("mousesquad", "как дела?")
+            except Exception as e:
+                err_str = str(e)
+                # Специальная обработка для PeerFlood (частый признак спам-блока)
+                if "PEER_FLOOD" in err_str.upper() or "FLOOD_WAIT" in err_str.upper():
+                    return {"ok": False, "error_code": f"SPAM_RESTRICTED: {err_str}"}
+                
+                return {"ok": False, "error_code": f"SEND_FAILED: {err_str}"}
+
             return {"ok": True, "me": me}
 
         except UserDeactivatedError:
