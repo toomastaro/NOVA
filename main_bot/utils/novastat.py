@@ -386,7 +386,8 @@ class NovaStatService:
     ):
         """Асинхронное обновление статистики в кэше и ExternalChannel"""
         clean_id = self.normalize_identifier(channel_identifier)
-        lock_id = clean_id # По умолчанию блокируем по чистому юзернейму
+        lock_id = clean_id
+        logger.info(f"🔄 [async_refresh_stats] START: channel={channel_identifier}, clean_id={clean_id}, horizon={horizon}h")
         
         # 1. Сначала пытаемся найти chat_id в базе, чтобы блокировка была единой 
         # (и для юзернейма, и для ID)
@@ -425,171 +426,177 @@ class NovaStatService:
         # Пытаемся занять ключ на 600 сек (10 мин)
         is_locked = await redis_client.set(redis_lock_key, "LOCKED", nx=True, ex=600)
         if not is_locked:
-            logger.info(f"🔒 Сбор статистики для {lock_id} уже выполняется (Redis lock).")
+            logger.warning("⏳ [async_refresh_stats] Lock занят, выход")
             return
+        logger.info(f"✅ [async_refresh_stats] Lock захвачен: {redis_lock_key}")
 
-            try:
-                # 3. Если канал "свой" - Fast Path (Redundant here but consistent)
-                if our_channel:
-                    # Logic already handled in collect_stats fast path, 
-                    # BUT async_refresh_stats is also called by Scheduler!
-                    # So we MUST keep this logic here for scheduler.
-                    # Код тот же, что и был.
-                    
-                    if our_channel.novastat_24h > 0:
-                        # ... (existing DB fetch logic) ...
-                        # ... (skipped for brevity, assuming we keep logic but use Redis set) ...
-                        # We need to retain the logic body but change set_cache call.
-                        # Since I'm replacing the whole block, I need to rewrite it.
-                        
-                        logger.info(f"Канал {clean_id} (внутренний), берем из БД.")
-                        subs = our_channel.subscribers_count
-                        views_res = {
-                            24: our_channel.novastat_24h,
-                            48: our_channel.novastat_48h,
-                            72: our_channel.novastat_72h,
-                        }
-                        er_res = {}
-                        for h in [24, 48, 72]:
-                            if subs > 0:
-                                er_res[h] = round((views_res[h] / subs) * 100, 2)
-                            else:
-                                er_res[h] = 0.0
-
-                        stats = {
-                            "title": our_channel.title,
-                            "username": clean_id if not clean_id.lstrip("-").isdigit() else None,
-                            "link": f"https://t.me/{clean_id}" if not clean_id.lstrip("-").isdigit() else None,
-                            "subscribers": subs,
-                            "views": views_res,
-                            "er": er_res,
-                            "chat_id": chat_id
-                        }
-                        
-                        # Сохраняем в Redis
-                        await redis_client.set(f"novastat:data:{lock_id}:{horizon}", json.dumps(stats), ex=CACHE_TTL_SECONDS)
-                        return
-                    
-                    # Если 0, продолжаем... (though Fast Path excludes this, but Scheduler might start fresh)
-
-                # 4. Получаем данные через MTProto
-                stats = None
-                final_chat_id = chat_id
+        try:
+            logger.info("🛠 [async_refresh_stats] Начало сбора данных")
+            # 3. Если канал "свой" - Fast Path (Redundant here but consistent)
+            if our_channel:
+                # Logic already handled in collect_stats fast path, 
+                # BUT async_refresh_stats is also called by Scheduler!
+                # So we MUST keep this logic here for scheduler.
+                # Код тот же, что и был.
                 
-                # ... (Internal client logic) ...
-                if our_channel and our_channel.session_path:
-                    # ... copy paste existing logic ...
-                    manager = SessionManager(our_channel.session_path)
-                    await manager.init_client()
-                    if manager.client:
-                        try:
-                            logger.info(f"Использование внутреннего клиента для {channel_identifier}")
-                            stats = await self._collect_stats_impl(manager.client, chat_id or channel_identifier, days_limit)
-                            if stats and stats.get("chat_id"):
-                                final_chat_id = stats["chat_id"]
-                        finally:
-                            await manager.close()
-
-                if not stats:
-                    # ... (External client logic) ...
-                    logger.info(f"Использование внешнего пула для {channel_identifier}")
+                if our_channel.novastat_24h > 0:
+                    # ... (existing DB fetch logic) ...
+                    # ... (skipped for brevity, assuming we keep logic but use Redis set) ...
+                    # We need to retain the logic body but change set_cache call.
+                    # Since I'm replacing the whole block, I need to rewrite it.
                     
-                    pinned_client_id = None
-                    try:
-                        target_ext_ch = None
-                        if final_chat_id: 
-                            target_ext_ch = await db.external_channel.get_external_channel(final_chat_id)
-                        elif not str(channel_identifier).strip().lstrip("-").isdigit(): 
-                             target_ext_ch = await db.external_channel.get_by_username(channel_identifier)
-                             if not target_ext_ch and ("t.me/+" in str(channel_identifier) or "joinchat" in str(channel_identifier)):
-                                 target_ext_ch = await db.external_channel.get_by_link(str(channel_identifier))
-                        
-                        if target_ext_ch:
-                            pinned_client_id = target_ext_ch.pinned_client_id
-                    except Exception:
-                        pass
-
-                    for _ in range(3): 
-                        client_data = await self.get_external_client(preferred_client_id=pinned_client_id)
-                        if not client_data:
-                            break
-                        
-                        client_obj, manager = client_data
-                        logger.info(f"Выбран внешний клиент: {client_obj.alias} (ID: {client_obj.id})")
-                        
-                        try:
-                            stats = await self._collect_stats_impl(manager.client, channel_identifier, days_limit)
-                            if stats:
-                                if stats.get("chat_id"):
-                                    final_chat_id = stats["chat_id"]
-                                
-                                successful_client_id = client_obj.id
-                                break 
-                        except Exception as e:
-                            logger.warning(f"Клиент {client_obj.alias} не справился с {channel_identifier}: {e}")
-                        finally:
-                            await manager.close()
-
-                if stats:
-                    # 5. Сохранение данных в БД (Persistent)
-                    if final_chat_id:
-                        v = stats["views"]
-                        if our_channel:
-                            logger.info(f"📥 Обновление статистики внутреннего канала {final_chat_id} в БД")
-                            await db.channel.update_channel_by_chat_id(
-                                final_chat_id,
-                                novastat_24h=v.get(24, 0),
-                                novastat_48h=v.get(48, 0),
-                                novastat_72h=v.get(72, 0),
-                                subscribers_count=stats["subscribers"]
-                            )
+                    logger.info(f"Канал {clean_id} (внутренний), берем из БД.")
+                    subs = our_channel.subscribers_count
+                    views_res = {
+                        24: our_channel.novastat_24h,
+                        48: our_channel.novastat_48h,
+                        72: our_channel.novastat_72h,
+                    }
+                    er_res = {}
+                    for h in [24, 48, 72]:
+                        if subs > 0:
+                            er_res[h] = round((views_res[h] / subs) * 100, 2)
                         else:
-                            logger.info(f"📥 Сохранение данных внешнего канала {final_chat_id} в БД")
-                            invite_link = None
-                            if "t.me/+" in clean_id or "joinchat/" in clean_id:
-                                invite_link = clean_id
+                            er_res[h] = 0.0
+
+                    stats = {
+                        "title": our_channel.title,
+                        "username": clean_id if not clean_id.lstrip("-").isdigit() else None,
+                        "link": f"https://t.me/{clean_id}" if not clean_id.lstrip("-").isdigit() else None,
+                        "subscribers": subs,
+                        "views": views_res,
+                        "er": er_res,
+                        "chat_id": chat_id
+                    }
+                    
+                    # Сохраняем в Redis
+                    await redis_client.set(f"novastat:data:{lock_id}:{horizon}", json.dumps(stats), ex=CACHE_TTL_SECONDS)
+                    return
+                
+                # Если 0, продолжаем... (though Fast Path excludes this, but Scheduler might start fresh)
+
+            # 4. Получаем данные через MTProto
+            stats = None
+            final_chat_id = chat_id
+            
+            # ... (Internal client logic) ...
+            if our_channel and our_channel.session_path:
+                # ... copy paste existing logic ...
+                manager = SessionManager(our_channel.session_path)
+                await manager.init_client()
+                if manager.client:
+                    try:
+                        logger.info(f"Использование внутреннего клиента для {channel_identifier}")
+                        stats = await self._collect_stats_impl(manager.client, chat_id or channel_identifier, days_limit)
+                        if stats and stats.get("chat_id"):
+                            final_chat_id = stats["chat_id"]
+                    finally:
+                        await manager.close()
+
+            if not stats:
+                # ... (External client logic) ...
+                logger.info(f"Использование внешнего пула для {channel_identifier}")
+                
+                pinned_client_id = None
+                try:
+                    target_ext_ch = None
+                    if final_chat_id: 
+                        target_ext_ch = await db.external_channel.get_external_channel(final_chat_id)
+                    elif not str(channel_identifier).strip().lstrip("-").isdigit(): 
+                         target_ext_ch = await db.external_channel.get_by_username(channel_identifier)
+                         if not target_ext_ch and ("t.me/+" in str(channel_identifier) or "joinchat" in str(channel_identifier)):
+                             target_ext_ch = await db.external_channel.get_by_link(str(channel_identifier))
+                    
+                    if target_ext_ch:
+                        pinned_client_id = target_ext_ch.pinned_client_id
+                except Exception:
+                    pass
+
+                for _ in range(3): 
+                    client_data = await self.get_external_client(preferred_client_id=pinned_client_id)
+                    if not client_data:
+                        break
+                    
+                    client_obj, manager = client_data
+                    logger.info(f"Выбран внешний клиент: {client_obj.alias} (ID: {client_obj.id})")
+                    
+                    try:
+                        stats = await self._collect_stats_impl(manager.client, channel_identifier, days_limit)
+                        if stats:
+                            if stats.get("chat_id"):
+                                final_chat_id = stats["chat_id"]
                             
-                            current_pinned_client = locals().get('successful_client_id', None)
+                            successful_client_id = client_obj.id
+                            break 
+                    except Exception as e:
+                        logger.warning(f"Клиент {client_obj.alias} не справился с {channel_identifier}: {e}")
+                    finally:
+                        await manager.close()
 
-                            await db.external_channel.upsert_external_channel(
-                                chat_id=final_chat_id,
-                                title=stats["title"],
-                                username=stats.get("username"),
-                                invite_link=invite_link,
-                                subscribers_count=stats["subscribers"],
-                                novastat_24h=v.get(24, 0),
-                                novastat_48h=v.get(48, 0),
-                                novastat_72h=v.get(72, 0),
-                                pinned_client_id=current_pinned_client 
-                            )
-                    
-                    # 6. Обновление кэша в Redis
-                    cache_final_key = f"novastat:data:{final_chat_id}:{horizon}" if final_chat_id else f"novastat:data:{lock_id}:{horizon}"
-                    
-                    await redis_client.set(cache_final_key, json.dumps(stats), ex=CACHE_TTL_SECONDS)
-                    
-                    # Если ключ изменился (был юзернейм, стал ID), сохраним и под старым ключом (алиас), или просто заьбем.
-                    # Лучше сохранить и под старым, если они разные.
-                    final_redis_key = f"novastat:data:{lock_id}:{horizon}"
-                    if cache_final_key != final_redis_key:
-                        # Также сохраним под юзернеймом/ссылкой
-                         await redis_client.set(final_redis_key, json.dumps(stats), ex=CACHE_TTL_SECONDS)
+            if stats:
+                logger.info("✅ [async_refresh_stats] Статистика успешно собрана")
+                # 5. Сохранение данных в БД (Persistent)
+                if final_chat_id:
+                    v = stats["views"]
+                    if our_channel:
+                        logger.info(f"📥 Обновление статистики внутреннего канала {final_chat_id} в БД")
+                        await db.channel.update_channel_by_chat_id(
+                            final_chat_id,
+                            novastat_24h=v.get(24, 0),
+                            novastat_48h=v.get(48, 0),
+                            novastat_72h=v.get(72, 0),
+                            subscribers_count=stats["subscribers"]
+                        )
+                    else:
+                        logger.info(f"📥 Сохранение данных внешнего канала {final_chat_id} в БД")
+                        invite_link = None
+                        if "t.me/+" in clean_id or "joinchat/" in clean_id:
+                            invite_link = clean_id
+                        
+                        current_pinned_client = locals().get('successful_client_id', None)
 
-                else:
-                    logger.warning(f"❌ Сбор статистики для {channel_identifier} не удался.")
-                    # Сохраняем ошибку в кэш, чтобы не долбить (TTL короче, например 5 минут)
-                    err_json = json.dumps({"error": "Не удалось собрать статистику"})
-                    await redis_client.set(f"novastat:data:{lock_id}:{horizon}", err_json, ex=300)
+                        await db.external_channel.upsert_external_channel(
+                            chat_id=final_chat_id,
+                            title=stats["title"],
+                            username=stats.get("username"),
+                            invite_link=invite_link,
+                            subscribers_count=stats["subscribers"],
+                            novastat_24h=v.get(24, 0),
+                            novastat_48h=v.get(48, 0),
+                            novastat_72h=v.get(72, 0),
+                            pinned_client_id=current_pinned_client 
+                        )
+                    
+                # 6. Обновление кэша в Redis
+                cache_final_key = f"novastat:data:{final_chat_id}:{horizon}" if final_chat_id else f"novastat:data:{lock_id}:{horizon}"
+                logger.info(f"💾 [async_refresh_stats] Сохранение в Redis: {cache_final_key}")
+                
+                await redis_client.set(cache_final_key, json.dumps(stats), ex=CACHE_TTL_SECONDS)
+                
+                # Если ключ изменился (был юзернейм, стал ID), сохраним и под старым ключом (алиас), или просто заьбем.
+                # Лучше сохранить и под старым, если они разные.
+                final_redis_key = f"novastat:data:{lock_id}:{horizon}"
+                if cache_final_key != final_redis_key:
+                    # Также сохраним под юзернеймом/ссылкой
+                     await redis_client.set(final_redis_key, json.dumps(stats), ex=CACHE_TTL_SECONDS)
 
-            except Exception as e:
-                error_msg = self._map_error(e)
-                logger.error(f"Ошибка NovaStat для {channel_identifier}: {e}")
-                err_json = json.dumps({"error": error_msg})
-                # Сохраняем ошибку
+            else:
+                logger.error("❌ [async_refresh_stats] Сбор статистики НЕ УДАЛСЯ (stats=None)")
+                # Сохраняем ошибку в кэш, чтобы не долбить (TTL короче, например 5 минут)
+                err_json = json.dumps({"error": "Не удалось собрать статистику"})
                 await redis_client.set(f"novastat:data:{lock_id}:{horizon}", err_json, ex=300)
-            finally:
-                # Разблокируем
-                await redis_client.delete(redis_lock_key)
+
+        except Exception as e:
+            error_msg = self._map_error(e)
+            logger.error(f"❌ [async_refresh_stats] EXCEPTION: {e}", exc_info=True)
+            err_json = json.dumps({"error": error_msg})
+            # Сохраняем ошибку
+            await redis_client.set(f"novastat:data:{lock_id}:{horizon}", err_json, ex=300)
+        finally:
+            # Разблокируем
+            logger.debug(f"🔓 [async_refresh_stats] Снятие блокировки: {redis_lock_key}")
+            await redis_client.delete(redis_lock_key)
+            logger.info("✅ [async_refresh_stats] END")
 
     async def _collect_stats_impl(
         self, client: TelegramClient, channel_identifier: str, days_limit: int
