@@ -166,13 +166,17 @@ async def process_creative_name(message: Message, state: FSMContext) -> None:
     query = update(AdCreative).where(AdCreative.id == creative_id).values(name=name)
     await db.execute(query)
 
+    await state.update_data(name=name)
+    
+    # Вместо завершения, переходим к выбору ресурсов
+    channels = await db.channel.get_user_channels(message.from_user.id)
+    await state.update_data(selected_resource_ids=[])
+    
     await message.answer(
-        text("ad_creative:created_success").format(name),
-        reply_markup=InlineAdCreative.menu(),
+        text("ad_creative:select_resources_text"),
+        reply_markup=InlineAdCreative.resource_selection_menu(channels, []),
     )
-    # Перезагрузка главного меню
-    await message.answer(text("main_menu:reload"), reply_markup=Reply.menu())
-    await state.clear()
+    await state.set_state(AdCreativeStates.selecting_resources)
 
 
 @router.callback_query(F.data == "AdCreative|list")
@@ -333,3 +337,90 @@ async def back_to_ad_menu(call: CallbackQuery) -> None:
     await call.message.edit_text(
         text("ad_creative:menu_title"), reply_markup=InlineAdCreative.menu()
     )
+
+
+@router.callback_query(AdCreativeStates.selecting_resources, F.data.startswith("AdCreative|toggle_res|"))
+@safe_handler("Креативы: переключение ресурса")
+async def toggle_resource(call: CallbackQuery, state: FSMContext) -> None:
+    """Переключение выбора ресурса (канала) для авто-маппинга"""
+    chat_id = int(call.data.split("|")[2])
+    data = await state.get_data()
+    selected = data.get("selected_resource_ids", [])
+    
+    if chat_id in selected:
+        selected.remove(chat_id)
+    else:
+        selected.append(chat_id)
+        
+    await state.update_data(selected_resource_ids=selected)
+    
+    channels = await db.channel.get_user_channels(call.from_user.id)
+    await call.message.edit_reply_markup(
+        reply_markup=InlineAdCreative.resource_selection_menu(channels, selected)
+    )
+    await call.answer()
+
+
+@router.callback_query(AdCreativeStates.selecting_resources, F.data == "AdCreative|confirm_resources")
+@safe_handler("Креативы: подтверждение ресурсов и авто-маппинг")
+async def confirm_resources(call: CallbackQuery, state: FSMContext) -> None:
+    """Запуск процесса авто-маппинга и завершение создания креатива"""
+    data = await state.get_data()
+    creative_id = data.get("creative_id")
+    selected_ids = data.get("selected_resource_ids", [])
+    name = data.get("name")
+    
+    await call.message.edit_text("⏳ Запускаю автоматическую проверку ссылок...")
+    
+    from sqlalchemy import update
+    from main_bot.database.ad_creative.model import AdCreativeLinkSlot
+    
+    # 1. Сохраняем имя креатива (которое ввели на прошлом шаге)
+    query = update(AdCreative).where(AdCreative.id == creative_id).values(name=name)
+    await db.execute(query)
+    
+    # 2. Получаем слоты
+    slots = await db.ad_creative.get_slots(creative_id)
+    auto_mapped_count = 0
+    
+    for slot in slots:
+        found_channel_id = None
+        orig_url = slot.original_url.lower().strip()
+        
+        # А) Проверка публичных ссылок t.me/username
+        if "t.me/" in orig_url and "+" not in orig_url and "joinchat/" not in orig_url:
+            username = orig_url.split("t.me/")[-1].split("/")[0].replace("@", "")
+            for ch_id in selected_ids:
+                try:
+                    chat = await call.bot.get_chat(ch_id)
+                    if chat.username and chat.username.lower() == username:
+                        found_channel_id = ch_id
+                        break
+                except Exception:
+                    continue
+        
+        # Б) Проверка пригласительных ссылок через getChatInviteLink
+        if not found_channel_id and ("t.me/+" in orig_url or "joinchat" in orig_url):
+            for ch_id in selected_ids:
+                try:
+                    await call.bot.get_chat_invite_link(ch_id, slot.original_url)
+                    found_channel_id = ch_id
+                    break
+                except Exception:
+                    continue
+                    
+        if found_channel_id:
+            stmt = update(AdCreativeLinkSlot).where(AdCreativeLinkSlot.id == slot.id).values(
+                suggested_channel_id=found_channel_id
+            )
+            await db.execute(stmt)
+            auto_mapped_count += 1
+
+    await call.message.answer(
+        text("ad_creative:created_success_auto").format(name, auto_mapped_count),
+        reply_markup=InlineAdCreative.menu(),
+    )
+    # Перезагрузка главного меню
+    await call.message.answer(text("main_menu:reload"), reply_markup=Reply.menu())
+    await state.clear()
+    await call.answer()

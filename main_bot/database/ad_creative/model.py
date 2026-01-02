@@ -59,4 +59,5 @@ class AdCreativeLinkSlot(Base):
     original_url: Mapped[str] = mapped_column()
     location_type: Mapped[str] = mapped_column()  # "text" или "button"
     location_meta: Mapped[dict | None] = mapped_column(JSON, default=None)
+    suggested_channel_id: Mapped[int | None] = mapped_column(BigInteger, default=None)
     created_timestamp: Mapped[int] = mapped_column(default=time.time)

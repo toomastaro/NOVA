@@ -101,6 +101,7 @@ class AddChannel(StatesGroup):
 class AdCreativeStates(StatesGroup):
     waiting_for_content = State()
     waiting_for_name = State()
+    selecting_resources = State()
 
 
 class AdPurchaseStates(StatesGroup):

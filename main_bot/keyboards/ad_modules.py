@@ -55,6 +55,22 @@ class InlineAdCreative(InlineKeyboardBuilder):
         kb.adjust(1)
         return kb.as_markup()
 
+    @classmethod
+    def resource_selection_menu(cls, channels: list, selected_ids: list):
+        """Меню выбора каналов для авто-маппинга"""
+        kb = cls()
+        for ch in channels:
+            is_selected = ch.chat_id in selected_ids
+            prefix = "✅ " if is_selected else "⬜️ "
+            kb.button(
+                text=f"{prefix}{ch.title}",
+                callback_data=f"AdCreative|toggle_res|{ch.chat_id}",
+            )
+        kb.button(text="✅ Готово", callback_data="AdCreative|confirm_resources")
+        kb.button(text="❌ Отмена", callback_data="AdCreative|cancel_creation")
+        kb.adjust(1)
+        return kb.as_markup()
+
 
 class InlineAdPurchase(InlineKeyboardBuilder):
     """Клавиатуры для рекламных закупов"""
@@ -115,11 +131,18 @@ class InlineAdPurchase(InlineKeyboardBuilder):
     @classmethod
     def mapping_menu(cls, purchase_id: int, links_data: list):
         kb = cls()
-        # links_data is list of dict: {slot_id, original_url, status_text, is_channel}
+        # links_data is list of dict: {slot_id, original_url, status_text, channel_url}
         for link in links_data:
-            # Left button: URL (inactive/noop)
-            kb.button(text=f"{link['original_url']}", callback_data="noop")
-            # Right button: Status/Channel (clickable)
+            # Left button: Channel Name or URL (clickable link if channel_url exists)
+            btn_text = link.get("display_name") or link["original_url"]
+            url = link.get("channel_url")
+            
+            if url:
+                kb.button(text=f"🔗 {btn_text}", url=url)
+            else:
+                kb.button(text=f"👉 {btn_text}", callback_data="noop")
+                
+            # Right button: Status/Channel (clickable for manual mapping)
             kb.button(
                 text=f"{link['status_text']}",
                 callback_data=f"AdPurchase|map_link|{purchase_id}|{link['slot_id']}",

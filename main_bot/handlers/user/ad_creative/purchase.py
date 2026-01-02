@@ -159,7 +159,7 @@ async def start_mapping(message: Message, purchase_id: int, creative_id: int) ->
     """
     slots = await db.ad_creative.get_slots(creative_id)
 
-    # Автоопределение
+    # Автоопределение на основе подсказок из креатива
     for slot in slots:
         # Проверка существования маппинга
         existing_mappings = await db.ad_purchase.get_link_mappings(purchase_id)
@@ -172,8 +172,11 @@ async def start_mapping(message: Message, purchase_id: int, creative_id: int) ->
         target_channel_id = None
         track_enabled = False
 
-        # 1. Проверка t.me/username - обрабатывается позже или вручную
-        # 2. Проверка invite link - обрабатывается позже или вручную
+        # Используем подсказку, если она есть
+        if slot.suggested_channel_id:
+            target_type = AdTargetType.CHANNEL
+            target_channel_id = slot.suggested_channel_id
+            track_enabled = True
 
         await db.ad_purchase.upsert_link_mapping(
             ad_purchase_id=purchase_id,
@@ -206,10 +209,23 @@ async def show_mapping_menu(message: Message, purchase_id: int) -> None:
     links_data = []
     for m in mappings:
         status_text = text("ad_purchase:mapping:status:no_tracking")
+        display_name = None
+        channel_url = None
+        
         if m.target_type == AdTargetType.CHANNEL and m.target_channel_id:
-            status_text = channels_map.get(
-                m.target_channel_id, text("ad_purchase:mapping:status:unknown_channel")
-            )
+            display_name = channels_map.get(m.target_channel_id)
+            status_text = display_name or text("ad_purchase:mapping:status:unknown_channel")
+            
+            # Получаем ссылку на канал для левой кнопки
+            try:
+                chat = await message.bot.get_chat(m.target_channel_id)
+                if chat.username:
+                    channel_url = f"https://t.me/{chat.username}"
+                else:
+                    invite = await chat.export_invite_link()
+                    channel_url = invite
+            except Exception:
+                pass
         elif m.target_type == AdTargetType.EXTERNAL:
             status_text = text("ad_purchase:mapping:status:no_tracking")
 
@@ -221,7 +237,9 @@ async def show_mapping_menu(message: Message, purchase_id: int) -> None:
                     if len(m.original_url) > 30
                     else m.original_url
                 ),
+                "display_name": display_name,
                 "status_text": status_text,
+                "channel_url": channel_url,
             }
         )
 
