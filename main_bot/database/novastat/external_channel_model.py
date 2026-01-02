@@ -40,6 +40,10 @@ class ExternalChannel(Base):
         Boolean, default=True, comment="Флаг активности (опрашиваем ли раз в 3 часа)"
     )
     
+    pinned_client_id: Mapped[Optional[int]] = mapped_column(
+        BigInteger, default=None, comment="ID клиента, который успешно вступил/проверил канал"
+    )
+    
     # Статистика
     subscribers_count: Mapped[int] = mapped_column(
         Integer, default=0, comment="Количество подписчиков"
