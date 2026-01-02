@@ -380,10 +380,17 @@ async def reload_main_menu(message: types.Message) -> None:
         message (types.Message): Сообщение, от которого вызывается ответ.
     """
     from main_bot.keyboards.common import Reply
+    import asyncio
 
-    msg = await message.answer(text("main_menu:reload"), reply_markup=Reply.menu())
+    # Используем bot.send_message напрямую к ID чата для большей стабильности
     try:
+        msg = await message.bot.send_message(
+            chat_id=message.chat.id,
+            text=text("main_menu:reload"),
+            reply_markup=Reply.menu()
+        )
+        # Небольшая пауза, чтобы клиент успел получить и отобразить новую клавиатуру
+        await asyncio.sleep(0.5)
         await msg.delete()
-    except Exception:
-        # Если не удалось удалить (например, прошло >48ч или нет прав, хотя в ЛС права всегда есть)
-        pass
+    except Exception as e:
+        logger.error(f"Ошибка при обновлении главного меню: {e}")
