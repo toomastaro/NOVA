@@ -396,27 +396,34 @@ class NovaStatService:
         
         if clean_id.lstrip("-").isdigit():
             chat_id = int(clean_id)
+            logger.debug(f"🔢 [async_refresh_stats] clean_id - это число, chat_id={chat_id}")
             our_channel = await db.channel.get_channel_by_chat_id(chat_id)
+            if our_channel:
+                logger.info(f"✅ [async_refresh_stats] ВНУТРЕННИЙ канал: {our_channel.title}")
         else:
             # Поиск в своих по названию
+            logger.debug(f"🔍 [async_refresh_stats] Поиск внутреннего канала по названию: {clean_id}")
             our_channel = await db.channel.get_channel_by_title(clean_id)
             if our_channel:
                 chat_id = our_channel.chat_id
+                logger.info(f"✅ [async_refresh_stats] ВНУТРЕННИЙ канал: chat_id={chat_id}, title={our_channel.title}")
             
             # Поиск во внешних (только если не нашли в своих)
             if not chat_id:
+                logger.debug(f"🔍 [async_refresh_stats] Поиск ВНЕШНЕГО канала в БД: {clean_id}")
                 ext_ch = await db.external_channel.get_by_username(clean_id)
                 if not ext_ch and ("t.me/+" in clean_id or "joinchat/" in clean_id):
                     ext_ch = await db.external_channel.get_by_link(clean_id)
                 
                 if ext_ch:
                     chat_id = ext_ch.chat_id
+                    logger.info(f"✅ [async_refresh_stats] ВНЕШНИЙ канал: chat_id={chat_id}")
+                else:
+                    logger.info(f"❓ [async_refresh_stats] Канал {clean_id} не найден в БД как внешний")
 
         if chat_id:
             lock_id = str(chat_id)
-
-        if chat_id:
-            lock_id = str(chat_id)
+            logger.debug(f"🔐 [async_refresh_stats] Использование chat_id для блокировки: {lock_id}")
 
         # Redis Keys
         redis_lock_key = f"novastat:lock:{lock_id}:{horizon}"
@@ -426,7 +433,8 @@ class NovaStatService:
         # Пытаемся занять ключ на 600 сек (10 мин)
         is_locked = await redis_client.set(redis_lock_key, "LOCKED", nx=True, ex=600)
         if not is_locked:
-            logger.warning("⏳ [async_refresh_stats] Lock занят, выход")
+            ttl = await redis_client.ttl(redis_lock_key)
+            logger.warning(f"⏳ [async_refresh_stats] Lock занят: {redis_lock_key}, TTL={ttl}s. Выход.")
             return
         logger.info(f"✅ [async_refresh_stats] Lock захвачен: {redis_lock_key}")
 
