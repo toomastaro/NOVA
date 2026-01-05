@@ -106,6 +106,12 @@ async def start_posting(message: types.Message) -> None:
     logger.info("Пользователь %s открыл меню постинга", message.from_user.id)
     await message.answer(text("start_post_text"), reply_markup=keyboards.posting_menu())
 
+    # Удаляем сообщение пользователя ("📝 Постинг"), чтобы оно не спамило в чате
+    try:
+        await message.delete()
+    except Exception:
+        pass
+
 
 @safe_handler(
     "Меню сторис"
