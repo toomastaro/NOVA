@@ -22,7 +22,7 @@ class Config:
     и другие параметры, загружаемые из переменных окружения.
     """
 
-    VERSION = "1.0.894"
+    VERSION = "1.0.895"
 
     # Настройки бота
     BOT_TOKEN = os.getenv("BOT_TOKEN")
