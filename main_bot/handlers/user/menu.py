@@ -87,12 +87,6 @@ async def choice(message: types.Message, state: FSMContext) -> None:
     }
 
     if message.text in menu:
-        # Удаляем сообщение пользователя для чистоты истории
-        try:
-            await message.delete()
-        except Exception:
-            pass
-
         handler_data = menu[message.text]
         await handler_data["cor"](*handler_data["args"])
     else:
