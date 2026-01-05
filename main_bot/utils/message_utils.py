@@ -7,7 +7,6 @@
 - Работы с медиафайлами в сообщениях
 """
 
-import asyncio
 import logging
 import os
 import pathlib
@@ -383,13 +382,23 @@ async def reload_main_menu(message: types.Message) -> None:
     from main_bot.keyboards.common import Reply
 
     try:
-        # Отправляем текстовое сообщение, чтобы зафиксировать клавиатуру
-        await message.answer(
-            "🏠 <b>Главное меню</b>",
-            reply_markup=Reply.menu(),
-            parse_mode="HTML"
+        # Отправляем полноценное приветствие (как в /start), чтобы зафиксировать клавиатуру
+        version_text = (
+            f"Версия: {Config.VERSION}\n\n"
+            if message.from_user.id in getattr(Config, "ADMINS", [])
+            else ""
         )
-        # Удаляем входящее сообщение, если это возможно, для чистоты чата
+
+        await message.answer(
+            text("start_text") + f"\n\n{version_text}"
+            f"📄 <a href='{text('info:terms:url')}'>{text('start:terms:text')}</a>\n"
+            f"🔒 <a href='{text('info:privacy:url')}'>{text('start:privacy:text')}</a>",
+            reply_markup=Reply.menu(),
+            parse_mode="HTML",
+            disable_web_page_preview=True,
+        )
+
+        # Удаляем входящее сообщение пользователя для чистоты чата
         try:
             await message.delete()
         except Exception:
