@@ -382,10 +382,10 @@ async def reload_main_menu(message: types.Message) -> None:
     from main_bot.keyboards.common import Reply
 
     try:
-        # Используем невидимый символ (Braille Pattern Blank), чтобы не было текста
+        # Используем невидимый символ (Hangeul Filler), чтобы Telegram не считал текст пустым
         await message.bot.send_message(
             chat_id=message.chat.id,
-            text="⠀",
+            text=chr(12644),
             reply_markup=Reply.menu(),
             disable_notification=True
         )
