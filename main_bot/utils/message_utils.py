@@ -371,6 +371,7 @@ async def answer_message(
 
     return post_message
 
+
 async def reload_main_menu(message: types.Message, delete_trigger: bool = True) -> None:
     """
     Обновляет главное меню (Reply Keyboard).
@@ -386,7 +387,7 @@ async def reload_main_menu(message: types.Message, delete_trigger: bool = True) 
         await message.answer(
             f"🏠 <b>{text('welcome:main_menu')}</b>",
             reply_markup=Reply.menu(),
-            parse_mode="HTML"
+            parse_mode="HTML",
         )
 
         # Удаляем входящее сообщение пользователя для чистоты чата
