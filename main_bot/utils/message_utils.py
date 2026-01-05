@@ -375,22 +375,41 @@ async def answer_message(
 async def reload_main_menu(message: types.Message, delete_trigger: bool = True) -> None:
     """
     Обновляет главное меню (Reply Keyboard).
+    Удаляет старое сообщение меню, если оно было сохранено в Redis.
 
     Аргументы:
         message (types.Message): Сообщение, от которого вызывается ответ.
         delete_trigger (bool): Если True, удаляет сообщение message (триггер).
     """
     from main_bot.keyboards.common import Reply
+    from main_bot.utils.redis_client import redis_client
+
+    user_id = message.from_user.id
+    redis_key = f"user:last_menu:{user_id}"
 
     try:
-        # Отправляем короткое сообщение, чтобы зафиксировать клавиатуру
-        await message.answer(
-            f"☝️-☝️",
+        # 1. Пытаемся удалить старое сообщение меню из Redis
+        last_msg_id = await redis_client.get(redis_key)
+        if last_msg_id:
+            try:
+                await message.bot.delete_message(
+                    chat_id=user_id, message_id=int(last_msg_id)
+                )
+            except Exception:
+                # Игнорируем ошибки удаления (сообщение уже удалено или устарело)
+                pass
+
+        # 2. Отправляем новое сообщение, чтобы зафиксировать клавиатуру
+        menu_msg = await message.answer(
+            f"🏠 Главное меню",
             reply_markup=Reply.menu(),
             parse_mode="HTML",
         )
 
-        # Удаляем входящее сообщение пользователя для чистоты чата
+        # 3. Сохраняем новый ID в Redis на 48 часов
+        await redis_client.set(redis_key, menu_msg.message_id, ex=172800)
+
+        # 4. Удаляем входящее сообщение пользователя для чистоты чата
         if delete_trigger:
             try:
                 await message.delete()

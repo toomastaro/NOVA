@@ -64,7 +64,19 @@ async def start(message: types.Message, state: FSMContext) -> None:
         else ""
     )
 
-    await message.answer(
+    from main_bot.utils.redis_client import redis_client
+    user_id = message.from_user.id
+    redis_key = f"user:last_menu:{user_id}"
+
+    # Пытаемся удалить старое сообщение меню
+    last_msg_id = await redis_client.get(redis_key)
+    if last_msg_id:
+        try:
+            await message.bot.delete_message(chat_id=user_id, message_id=int(last_msg_id))
+        except Exception:
+            pass
+
+    sent_message = await message.answer(
         text("start_text") + f"\n\n{version_text}"
         f"📄 <a href='{text('info:terms:url')}'>{text('start:terms:text')}</a>\n"
         f"🔒 <a href='{text('info:privacy:url')}'>{text('start:privacy:text')}</a>",
@@ -72,6 +84,9 @@ async def start(message: types.Message, state: FSMContext) -> None:
         parse_mode="HTML",
         disable_web_page_preview=True,
     )
+
+    # Сохраняем ID нового сообщения как основного меню
+    await redis_client.set(redis_key, sent_message.message_id, ex=172800)
 
 
 def get_router() -> Router:
