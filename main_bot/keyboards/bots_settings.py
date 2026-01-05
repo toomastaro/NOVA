@@ -585,11 +585,11 @@ class InlineBotSetting(InlineKeyboardBuilder):
                 text=text("add:button"), callback_data="ChoiceHelloMessage|add"
             )
         )
-        kb.row(
-            InlineKeyboardButton(
-                text=text("back:button"), callback_data="ChoiceHelloMessage|cancel"
-            )
-        )
+        # kb.row(
+        #     InlineKeyboardButton(
+        #         text=text("back:button"), callback_data="ChoiceHelloMessage|cancel"
+        #     )
+        # )
 
         return kb.as_markup()
 
