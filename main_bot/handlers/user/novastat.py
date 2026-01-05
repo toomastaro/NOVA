@@ -882,7 +882,8 @@ async def calculate_and_show_price(
         )
 
     # Подгружаем главное меню после расчета CPM
-    await reload_main_menu(message)
+    # Если это редактирование сообщения с отчетом, то триггер (само сообщение) удалять не нужно
+    await reload_main_menu(message, delete_trigger=not is_edit)
 
 
 @router.callback_query(F.data.startswith("NovaStat|calc_cpm|"))

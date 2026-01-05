@@ -371,13 +371,13 @@ async def answer_message(
 
     return post_message
 
-async def reload_main_menu(message: types.Message) -> None:
+async def reload_main_menu(message: types.Message, delete_trigger: bool = True) -> None:
     """
     Обновляет главное меню (Reply Keyboard).
-    Использует невидимый символ для бесшовного обновления без текста в чате.
 
     Аргументы:
         message (types.Message): Сообщение, от которого вызывается ответ.
+        delete_trigger (bool): Если True, удаляет сообщение message (триггер).
     """
     from main_bot.keyboards.common import Reply
 
@@ -390,9 +390,10 @@ async def reload_main_menu(message: types.Message) -> None:
         )
 
         # Удаляем входящее сообщение пользователя для чистоты чата
-        try:
-            await message.delete()
-        except Exception:
-            pass
+        if delete_trigger:
+            try:
+                await message.delete()
+            except Exception:
+                pass
     except Exception as e:
         logger.error(f"Ошибка при обновлении главного меню: {e}")
