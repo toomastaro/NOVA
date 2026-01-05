@@ -104,7 +104,7 @@ async def start_posting(message: types.Message) -> None:
         message (types.Message): Сообщение пользователя.
     """
     logger.info("Пользователь %s открыл меню постинга", message.from_user.id)
-    await message.answer("⠀", reply_markup=keyboards.posting_menu(), disable_notification=True)
+    await message.answer(chr(10240), reply_markup=keyboards.posting_menu(), disable_notification=True)
 
 
 @safe_handler(
@@ -119,7 +119,7 @@ async def start_stories(message: types.Message) -> None:
     """
     logger.info("Пользователь %s открыл меню сторис", message.from_user.id)
     await message.answer(
-        "⠀", reply_markup=keyboards.stories_menu(), disable_notification=True
+        chr(10240), reply_markup=keyboards.stories_menu(), disable_notification=True
     )
 
 
@@ -133,7 +133,7 @@ async def start_bots(message: types.Message) -> None:
     Аргументы:
         message (types.Message): Сообщение пользователя.
     """
-    await message.answer("⠀", reply_markup=keyboards.bots_menu(), disable_notification=True)
+    await message.answer(chr(10240), reply_markup=keyboards.bots_menu(), disable_notification=True)
 
 
 @safe_handler(
@@ -148,7 +148,7 @@ async def support(message: types.Message, state: FSMContext) -> None:
         state (FSMContext): Контекст состояния.
     """
     await message.answer(
-        "⠀", reply_markup=keyboards.cancel(data="CancelSupport"), disable_notification=True
+        chr(10240), reply_markup=keyboards.cancel(data="CancelSupport"), disable_notification=True
     )
     await state.set_state(Support.message)
 
@@ -164,7 +164,7 @@ async def profile(message: types.Message) -> None:
         message (types.Message): Сообщение пользователя.
     """
     await message.answer(
-        "⠀", reply_markup=keyboards.profile_menu(), disable_notification=True
+        chr(10240), reply_markup=keyboards.profile_menu(), disable_notification=True
     )
 
 
@@ -190,7 +190,7 @@ async def subscription(message: types.Message) -> None:
     # Если баланс критичен, его можно вывести вторым сообщением или оставить как есть.
     # Но согласно запросу "вместо него туда ставился невидимый символ" - применяем везде.
     await message.answer(
-        "⠀",
+        chr(10240),
         reply_markup=keyboards.subscription_menu(),
         disable_notification=True
     )
@@ -210,7 +210,7 @@ async def show_channels(message: types.Message) -> None:
         user_id=message.chat.id, sort_by="posting"
     )
     await message.answer(
-        "⠀", reply_markup=keyboards.channels(channels=channels), disable_notification=True
+        chr(10240), reply_markup=keyboards.channels(channels=channels), disable_notification=True
     )
 
 
@@ -251,7 +251,7 @@ async def start_privetka(message: types.Message, state: FSMContext) -> None:
         return
 
     await message.answer(
-        "⠀",
+        chr(10240),
         reply_markup=keyboards.choice_channel_for_setting(
             channels=channels, data="PrivetkaChannel"
         ),
