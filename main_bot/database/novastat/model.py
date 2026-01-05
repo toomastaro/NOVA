@@ -21,6 +21,8 @@ class NovaStatSettings(Base):
 
     user_id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     depth_days: Mapped[int] = mapped_column(Integer, default=7)
+    daily_check_count: Mapped[int] = mapped_column(Integer, default=0)
+    last_check_reset: Mapped[int] = mapped_column(BigInteger, default=0)
 
 
 class Collection(Base):

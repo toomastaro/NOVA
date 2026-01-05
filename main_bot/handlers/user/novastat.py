@@ -456,6 +456,37 @@ async def process_analysis(
         channels (List[str]): Список идентификаторов каналов.
         state (FSMContext): Контекст состояния.
     """
+    # Проверка суточного лимита
+    from config import config
+
+    can_analyze, current_count, time_to_reset = await db.novastat.check_and_update_limit(
+        message.from_user.id, config.NOVA_LIM
+    )
+
+    # Информация о лимите
+    limit_info_text = (
+        f"📊 <b>NOVASTAT: Быстрая аналитика</b>\n"
+        f"Ваш суточный лимит: <code>{config.NOVA_LIM}</code> проверок.\n"
+        f"Использовано сегодня: <code>{current_count if can_analyze else config.NOVA_LIM}</code>"
+    )
+
+    if not can_analyze:
+        # Расчет времени до сброса в читаемом формате HH:MM:SS
+        hours = time_to_reset // 3600
+        minutes = (time_to_reset % 3600) // 60
+        seconds = time_to_reset % 60
+        time_str = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+
+        await message.answer(
+            f"{limit_info_text}\n\n"
+            f"❌ <b>Лимит исчерпан!</b>\n"
+            f"Следующая проверка будет доступна через: <code>{time_str}</code> (в полночь по UTC).",
+            parse_mode="HTML",
+        )
+        return
+
+    await message.answer(limit_info_text, parse_mode="HTML")
+
     settings = await db.novastat.get_novastat_settings(message.from_user.id)
     depth = settings.depth_days
 

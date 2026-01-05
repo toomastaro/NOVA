@@ -71,6 +71,9 @@ class Config:
     TRIAL = os.getenv("TRIAL", "false").lower() == "true"
     TRIAL_DAYS = int(os.getenv("TRIAL_DAYS", 3))
 
+    # Лимиты
+    NOVA_LIM = int(os.getenv("NOVA_LIM", 25))
+
     # Константы системы
     SOFT_DELETE_TIMESTAMP = 946684800  # 01.01.2000
 

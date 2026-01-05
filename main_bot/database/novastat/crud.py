@@ -3,6 +3,8 @@
 """
 
 import logging
+import time
+from datetime import datetime, timezone, timedelta
 
 from sqlalchemy import delete, insert, select, update
 
@@ -52,6 +54,48 @@ class NovaStatCrud(DatabaseMixin):
             .where(NovaStatSettings.user_id == user_id)
             .values(**kwargs)
         )
+
+    async def check_and_update_limit(self, user_id: int, max_limit: int) -> tuple[bool, int, int]:
+        """
+        Проверяет и обновляет суточный лимит пользователя.
+
+        Аргументы:
+            user_id (int): ID пользователя.
+            max_limit (int): Максимальный суточный лимит.
+
+        Возвращает:
+            tuple[bool, int, int]: (Лимит не исчерпан, текущее кол-во, время до сброса)
+        """
+        settings = await self.get_novastat_settings(user_id)
+        now_ts = int(time.time())
+
+        # Конец текущих суток (сброс)
+        now_dt = datetime.fromtimestamp(now_ts, tz=timezone.utc)
+        reset_dt = datetime(now_dt.year, now_dt.month, now_dt.day, tzinfo=timezone.utc) + timedelta(days=1)
+        reset_ts = int(reset_dt.timestamp())
+
+        # Если время последнего сброса меньше начала текущих суток - обнуляем
+        start_of_day_ts = reset_ts - 86400
+        if settings.last_check_reset < start_of_day_ts:
+            await self.update_novastat_settings(
+                user_id,
+                daily_check_count=1,
+                last_check_reset=now_ts
+            )
+            return True, 1, reset_ts - now_ts
+
+        # Проверка лимита
+        if settings.daily_check_count >= max_limit:
+            return False, settings.daily_check_count, reset_ts - now_ts
+
+        # Инкремент
+        new_count = settings.daily_check_count + 1
+        await self.update_novastat_settings(
+            user_id,
+            daily_check_count=new_count,
+            last_check_reset=now_ts
+        )
+        return True, new_count, reset_ts - now_ts
 
     async def get_collections(self, user_id: int) -> list[Collection]:
         """
