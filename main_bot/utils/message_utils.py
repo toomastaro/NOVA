@@ -382,20 +382,11 @@ async def reload_main_menu(message: types.Message) -> None:
     from main_bot.keyboards.common import Reply
 
     try:
-        # Отправляем полноценное приветствие (как в /start), чтобы зафиксировать клавиатуру
-        version_text = (
-            f"Версия: {Config.VERSION}\n\n"
-            if message.from_user.id in getattr(Config, "ADMINS", [])
-            else ""
-        )
-
+        # Отправляем короткое сообщение, чтобы зафиксировать клавиатуру
         await message.answer(
-            text("start_text") + f"\n\n{version_text}"
-            f"📄 <a href='{text('info:terms:url')}'>{text('start:terms:text')}</a>\n"
-            f"🔒 <a href='{text('info:privacy:url')}'>{text('start:privacy:text')}</a>",
+            f"🏠 <b>{text('welcome:main_menu')}</b>",
             reply_markup=Reply.menu(),
-            parse_mode="HTML",
-            disable_web_page_preview=True,
+            parse_mode="HTML"
         )
 
         # Удаляем входящее сообщение пользователя для чистоты чата
