@@ -439,11 +439,12 @@ class InlineBotSetting(InlineKeyboardBuilder):
                 ),
             )
 
-        kb.row(
-            InlineKeyboardButton(
-                text=text("back:button"), callback_data=f"{data}|cancel"
+        if data != "PrivetkaChannel":
+            kb.row(
+                InlineKeyboardButton(
+                    text=text("back:button"), callback_data=f"{data}|cancel"
+                )
             )
-        )
 
         return kb.as_markup()
 
@@ -585,11 +586,11 @@ class InlineBotSetting(InlineKeyboardBuilder):
                 text=text("add:button"), callback_data="ChoiceHelloMessage|add"
             )
         )
-        # kb.row(
-        #     InlineKeyboardButton(
-        #         text=text("back:button"), callback_data="ChoiceHelloMessage|cancel"
-        #     )
-        # )
+        kb.row(
+            InlineKeyboardButton(
+                text=text("back:button"), callback_data="ChoiceHelloMessage|cancel"
+            )
+        )
 
         return kb.as_markup()
 
