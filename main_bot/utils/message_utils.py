@@ -383,17 +383,15 @@ async def reload_main_menu(message: types.Message) -> None:
     from main_bot.keyboards.common import Reply
 
     try:
-        # Используем невидимый символ (Hangeul Filler), чтобы Telegram не считал текст пустым
-        msg = await message.bot.send_message(
-            chat_id=message.chat.id,
-            text=chr(12644),
+        # Отправляем текстовое сообщение, чтобы зафиксировать клавиатуру
+        await message.answer(
+            "🏠 <b>Главное меню</b>",
             reply_markup=Reply.menu(),
-            disable_notification=True
+            parse_mode="HTML"
         )
-        # Удаляем сообщение через секунду, чтобы оно не висело в чате
-        await asyncio.sleep(1)
+        # Удаляем входящее сообщение, если это возможно, для чистоты чата
         try:
-            await msg.delete()
+            await message.delete()
         except Exception:
             pass
     except Exception as e:
