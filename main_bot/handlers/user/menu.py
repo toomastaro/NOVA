@@ -87,6 +87,12 @@ async def choice(message: types.Message, state: FSMContext) -> None:
     }
 
     if message.text in menu:
+        # Удаляем сообщение пользователя для чистоты истории
+        try:
+            await message.delete()
+        except Exception:
+            pass
+
         handler_data = menu[message.text]
         await handler_data["cor"](*handler_data["args"])
     else:
@@ -104,7 +110,7 @@ async def start_posting(message: types.Message) -> None:
         message (types.Message): Сообщение пользователя.
     """
     logger.info("Пользователь %s открыл меню постинга", message.from_user.id)
-    await message.answer(text("start_post_text"), reply_markup=keyboards.posting_menu())
+    await message.answer("⠀", reply_markup=keyboards.posting_menu(), disable_notification=True)
 
 
 @safe_handler(
@@ -119,7 +125,7 @@ async def start_stories(message: types.Message) -> None:
     """
     logger.info("Пользователь %s открыл меню сторис", message.from_user.id)
     await message.answer(
-        text("start_stories_text"), reply_markup=keyboards.stories_menu()
+        "⠀", reply_markup=keyboards.stories_menu(), disable_notification=True
     )
 
 
@@ -133,7 +139,7 @@ async def start_bots(message: types.Message) -> None:
     Аргументы:
         message (types.Message): Сообщение пользователя.
     """
-    await message.answer(text("start_bots_text"), reply_markup=keyboards.bots_menu())
+    await message.answer("⠀", reply_markup=keyboards.bots_menu(), disable_notification=True)
 
 
 @safe_handler(
@@ -148,7 +154,7 @@ async def support(message: types.Message, state: FSMContext) -> None:
         state (FSMContext): Контекст состояния.
     """
     await message.answer(
-        text("start_support_text"), reply_markup=keyboards.cancel(data="CancelSupport")
+        "⠀", reply_markup=keyboards.cancel(data="CancelSupport"), disable_notification=True
     )
     await state.set_state(Support.message)
 
@@ -164,7 +170,7 @@ async def profile(message: types.Message) -> None:
         message (types.Message): Сообщение пользователя.
     """
     await message.answer(
-        text("start_profile_text"), reply_markup=keyboards.profile_menu()
+        "⠀", reply_markup=keyboards.profile_menu(), disable_notification=True
     )
 
 
@@ -186,10 +192,13 @@ async def subscription(message: types.Message) -> None:
             username=message.from_user.username,
             full_name=message.from_user.full_name,
         )
+    # По желанию пользователя используем невидимый символ даже там, где была важная инфа (баланс)
+    # Если баланс критичен, его можно вывести вторым сообщением или оставить как есть.
+    # Но согласно запросу "вместо него туда ставился невидимый символ" - применяем везде.
     await message.answer(
-        text("balance_text").format(user.balance),
+        "⠀",
         reply_markup=keyboards.subscription_menu(),
-        parse_mode="HTML",
+        disable_notification=True
     )
 
 
@@ -207,7 +216,7 @@ async def show_channels(message: types.Message) -> None:
         user_id=message.chat.id, sort_by="posting"
     )
     await message.answer(
-        text("channels_text"), reply_markup=keyboards.channels(channels=channels)
+        "⠀", reply_markup=keyboards.channels(channels=channels), disable_notification=True
     )
 
 
@@ -248,10 +257,11 @@ async def start_privetka(message: types.Message, state: FSMContext) -> None:
         return
 
     await message.answer(
-        text("privetka_text"),
+        "⠀",
         reply_markup=keyboards.choice_channel_for_setting(
             channels=channels, data="PrivetkaChannel"
         ),
+        disable_notification=True
     )
 
 
