@@ -64,6 +64,7 @@ async def choose_donor(call: types.CallbackQuery, state: FSMContext, user: User)
         )
         # Перезагрузка главного меню
         await call.message.answer("Главное меню", reply_markup=Reply.menu())
+        return
 
     # Навигация
     if temp[1] in ["next", "back"]:
