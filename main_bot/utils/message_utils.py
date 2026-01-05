@@ -385,7 +385,7 @@ async def reload_main_menu(message: types.Message, delete_trigger: bool = True) 
     try:
         # Отправляем короткое сообщение, чтобы зафиксировать клавиатуру
         await message.answer(
-            f"🏠 <b>{text('welcome:main_menu')}</b>",
+            f"☝️",
             reply_markup=Reply.menu(),
             parse_mode="HTML",
         )
