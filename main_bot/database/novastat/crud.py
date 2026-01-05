@@ -55,13 +55,16 @@ class NovaStatCrud(DatabaseMixin):
             .values(**kwargs)
         )
 
-    async def check_and_update_limit(self, user_id: int, max_limit: int) -> tuple[bool, int, int]:
+    async def check_and_update_limit(
+        self, user_id: int, max_limit: int, increment: bool = True
+    ) -> tuple[bool, int, int]:
         """
         Проверяет и обновляет суточный лимит пользователя.
 
         Аргументы:
             user_id (int): ID пользователя.
             max_limit (int): Максимальный суточный лимит.
+            increment (bool): Увеличивать ли счетчик (False для проверки или внутренних каналов).
 
         Возвращает:
             tuple[bool, int, int]: (Лимит не исчерпан, текущее кол-во, время до сброса)
@@ -71,29 +74,39 @@ class NovaStatCrud(DatabaseMixin):
 
         # Конец текущих суток (сброс)
         now_dt = datetime.fromtimestamp(now_ts, tz=timezone.utc)
-        reset_dt = datetime(now_dt.year, now_dt.month, now_dt.day, tzinfo=timezone.utc) + timedelta(days=1)
+        reset_dt = datetime(
+            now_dt.year, now_dt.month, now_dt.day, tzinfo=timezone.utc
+        ) + timedelta(days=1)
         reset_ts = int(reset_dt.timestamp())
 
         # Если время последнего сброса меньше начала текущих суток - обнуляем
         start_of_day_ts = reset_ts - 86400
         if settings.last_check_reset < start_of_day_ts:
+            # Сброс счетчика
+            current_count = 0
             await self.update_novastat_settings(
-                user_id,
-                daily_check_count=1,
-                last_check_reset=now_ts
+                user_id, daily_check_count=current_count, last_check_reset=now_ts
             )
-            return True, 1, reset_ts - now_ts
+        else:
+            current_count = settings.daily_check_count
 
-        # Проверка лимита
-        if settings.daily_check_count >= max_limit:
-            return False, settings.daily_check_count, reset_ts - now_ts
+        # Если не нужно увеличивать счетчик, просто возвращаем статус
+        if not increment:
+            # Если лимит уже исчерпан, но мы проверяем "свои" каналы - разрешаем?
+            # ЛОГИКА: "свои" каналы безлимитны. Значит всегда True?
+            # Или мы хотим запретить даже свои, если лимит на внешние исчерпан?
+            # User request: "счетчик актуален только для внешних, если проверка пошал через свои, там ограничений нет"
+            # Значит, если increment=False (свои каналы), мы должны вернуть True, даже если счетчик полон.
+            return True, current_count, reset_ts - now_ts
+
+        # Проверка лимита (для внешних)
+        if current_count >= max_limit:
+            return False, current_count, reset_ts - now_ts
 
         # Инкремент
-        new_count = settings.daily_check_count + 1
+        new_count = current_count + 1
         await self.update_novastat_settings(
-            user_id,
-            daily_check_count=new_count,
-            last_check_reset=now_ts
+            user_id, daily_check_count=new_count, last_check_reset=now_ts
         )
         return True, new_count, reset_ts - now_ts
 

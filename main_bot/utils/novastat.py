@@ -210,6 +210,30 @@ class NovaStatService:
         
         return s
 
+    async def is_internal_channel(self, identifier: str) -> bool:
+        """
+        Проверяет, является ли канал внутренним (есть в базе channels).
+
+        Аргументы:
+            identifier (str): Идентификатор канала (username, link, id).
+
+        Возвращает:
+            bool: True, если канал внутренний, иначе False.
+        """
+        clean_id = self.normalize_identifier(identifier)
+        if not clean_id:
+            return False
+
+        if clean_id.lstrip("-").isdigit():
+            # Если это ID, ищем по chat_id
+            ch = await db.channel.get_channel_by_chat_id(int(clean_id))
+            return ch is not None
+        else:
+            # Если это юзернейм/ссылка, ищем по title (у нас так устроено)
+            # Примечание: get_channel_by_title ищет именно по @username или ссылке во многих местах
+            ch = await db.channel.get_channel_by_title(clean_id)
+            return ch is not None
+
     def normalize_cache_keys(self, data: Optional[Dict]) -> Optional[Dict]:
         """Преобразовать строковые ключи из JSON обратно в числовые"""
         if not data:

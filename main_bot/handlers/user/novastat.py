@@ -485,11 +485,23 @@ async def process_analysis(
     # Проверка суточного лимита
     from config import config
 
+    # Проверка каналов на принадлежность к внутренним
+    # Если ВСЕ каналы внутренние -> лимит НЕ тратится.
+    # Если хотя бы один внешний -> лимит тратится (1 проверка).
+    has_external = False
+    for ch in channels:
+        is_internal = await novastat_service.is_internal_channel(ch)
+        if not is_internal:
+            has_external = True
+            break
+            
     (
         can_analyze,
         current_count,
         time_to_reset,
-    ) = await db.novastat.check_and_update_limit(message.from_user.id, config.NOVA_LIM)
+    ) = await db.novastat.check_and_update_limit(
+        message.from_user.id, config.NOVA_LIM, increment=has_external
+    )
 
     # Информация о лимите
     limit_info_text = (
