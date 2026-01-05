@@ -128,6 +128,12 @@ async def start_stories(message: types.Message) -> None:
         text("start_stories_text"), reply_markup=keyboards.stories_menu()
     )
 
+    # Удаляем сообщение пользователя ("🎬 Истории"), чтобы оно не спамило в чате
+    try:
+        await message.delete()
+    except Exception:
+        pass
+
 
 @safe_handler(
     "Меню ботов"
@@ -140,6 +146,12 @@ async def start_bots(message: types.Message) -> None:
         message (types.Message): Сообщение пользователя.
     """
     await message.answer(text("start_bots_text"), reply_markup=keyboards.bots_menu())
+
+    # Удаляем сообщение пользователя ("🤖 Боты"), чтобы оно не спамило в чате
+    try:
+        await message.delete()
+    except Exception:
+        pass
 
 
 @safe_handler(
@@ -158,6 +170,12 @@ async def support(message: types.Message, state: FSMContext) -> None:
     )
     await state.set_state(Support.message)
 
+    # Удаляем сообщение пользователя ("👨‍💻 Поддержка"), чтобы оно не спамило в чате
+    try:
+        await message.delete()
+    except Exception:
+        pass
+
 
 @safe_handler(
     "Профиль"
@@ -172,6 +190,12 @@ async def profile(message: types.Message) -> None:
     await message.answer(
         text("start_profile_text"), reply_markup=keyboards.profile_menu()
     )
+
+    # Удаляем сообщение пользователя ("👤 Профиль"), чтобы оно не спамило в чате
+    try:
+        await message.delete()
+    except Exception:
+        pass
 
 
 @safe_handler(
@@ -198,6 +222,12 @@ async def subscription(message: types.Message) -> None:
         parse_mode="HTML",
     )
 
+    # Удаляем сообщение пользователя ("💎 Подписка"), чтобы оно не спамило в чате
+    try:
+        await message.delete()
+    except Exception:
+        pass
+
 
 @safe_handler(
     "Показать каналы"
@@ -215,6 +245,12 @@ async def show_channels(message: types.Message) -> None:
     await message.answer(
         text("channels_text"), reply_markup=keyboards.channels(channels=channels)
     )
+
+    # Удаляем сообщение пользователя ("📺 Мои каналы"), чтобы оно не спамило в чате
+    try:
+        await message.delete()
+    except Exception:
+        pass
 
 
 @safe_handler(
@@ -259,6 +295,12 @@ async def start_privetka(message: types.Message, state: FSMContext) -> None:
             channels=channels, data="PrivetkaChannel"
         ),
     )
+
+    # Удаляем сообщение пользователя ("👋 Приветка"), чтобы оно не спамило в чате
+    try:
+        await message.delete()
+    except Exception:
+        pass
 
 
 @safe_handler(
