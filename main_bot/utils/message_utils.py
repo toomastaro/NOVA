@@ -7,6 +7,7 @@
 - Работы с медиафайлами в сообщениях
 """
 
+import asyncio
 import logging
 import os
 import pathlib
@@ -383,11 +384,17 @@ async def reload_main_menu(message: types.Message) -> None:
 
     try:
         # Используем невидимый символ (Hangeul Filler), чтобы Telegram не считал текст пустым
-        await message.bot.send_message(
+        msg = await message.bot.send_message(
             chat_id=message.chat.id,
             text=chr(12644),
             reply_markup=Reply.menu(),
             disable_notification=True
         )
+        # Удаляем сообщение через секунду, чтобы оно не висело в чате
+        await asyncio.sleep(1)
+        try:
+            await msg.delete()
+        except Exception:
+            pass
     except Exception as e:
         logger.error(f"Ошибка при обновлении главного меню: {e}")
