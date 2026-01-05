@@ -52,6 +52,11 @@ async def show_ad_buy_menu(event: Union[types.Message, types.CallbackQuery]) -> 
             menu_text,
             reply_markup=InlineAdPurchase.ad_buy_main_menu(),
         )
+        # Удаляем сообщение пользователя ("🛒 Закуп"), чтобы оно не спамило в чате
+        try:
+            await event.delete()
+        except Exception:
+            pass
     else:
         await event.message.edit_text(
             menu_text,

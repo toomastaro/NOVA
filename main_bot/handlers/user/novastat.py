@@ -65,6 +65,11 @@ async def novastat_main(message: types.Message, state: FSMContext) -> None:
         reply_markup=InlineNovaStat.main_menu(),
         parse_mode="HTML",
     )
+    # Удаляем сообщение пользователя ("📊 НоваСтат"), чтобы оно не спамило в чате
+    try:
+        await message.delete()
+    except Exception:
+        pass
     await state.set_state(NovaStatStates.waiting_for_channels)
 
 

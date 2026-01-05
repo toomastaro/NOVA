@@ -9,7 +9,6 @@
 """
 
 import logging
-import time
 from datetime import datetime
 from typing import Dict, Any, Tuple, Optional
 
@@ -17,7 +16,7 @@ from aiogram import types, F, Router
 from aiogram.fsm.context import FSMContext
 
 from main_bot.database.db import db
-from main_bot.keyboards import keyboards, InlineExchangeRate
+from main_bot.keyboards import InlineExchangeRate
 from main_bot.keyboards.common import Reply
 from main_bot.states.user import ExchangeRate
 from main_bot.utils.lang.language import text
@@ -120,6 +119,12 @@ async def start_exchange_rate(message: types.Message, state: FSMContext) -> None
         parse_mode="HTML",
         reply_markup=InlineExchangeRate.set_exchange_rate(),
     )
+
+    # Удаляем сообщение пользователя ("📈 Курс USDT"), чтобы оно не спамило в чате
+    try:
+        await message.delete()
+    except Exception:
+        pass
 
     default_rate, formatted = await _get_and_format_exchange_rate(
         int(message.from_user.id), state
