@@ -46,7 +46,8 @@ async def create_creative_start(call: CallbackQuery, state: FSMContext) -> None:
     )
     await state.set_state(AdCreativeStates.waiting_for_content)
     # Перезагрузка главного меню
-    await reload_main_menu(call.message)
+    # При создании креатива сообщение с инструкцией не является триггером
+    await reload_main_menu(call.message, delete_trigger=False)
     await call.answer()
 
 
@@ -243,7 +244,8 @@ async def delete_creative(call: CallbackQuery) -> None:
     await db.ad_creative.update_creative_status(creative_id, "deleted")
     await call.answer(text("ad_creative:deleted"))
     # Перезагрузка главного меню
-    await reload_main_menu(call.message)
+    # После удаления креатива сообщение со списком не является триггером
+    await reload_main_menu(call.message, delete_trigger=False)
 
     # Проверка оставшихся
     creatives = await db.ad_creative.get_user_creatives(call.from_user.id)
@@ -499,6 +501,7 @@ async def handle_finish_mapping(call: CallbackQuery, state: FSMContext) -> None:
         reply_markup=InlineAdCreative.menu(),
     )
     # Перезагрузка главного меню
-    await reload_main_menu(call.message)
+    # Завершение создания креатива - сообщение с успешным результатом не является триггером
+    await reload_main_menu(call.message, delete_trigger=False)
     await state.clear()
     await call.answer()

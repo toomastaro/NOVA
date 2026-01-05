@@ -398,7 +398,8 @@ async def finish_mapping(call: CallbackQuery) -> None:
     purchase_id = int(call.data.split("|")[2])
     await call.answer(text("ad_purchase:mapping:success"))
     # Перезагрузка главного меню
-    await reload_main_menu(call.message)
+    # При финише маппинга сообщение с отчетом не является триггером
+    await reload_main_menu(call.message, delete_trigger=False)
     await call.answer()
     # Возврат к просмотру закупа
     await view_purchase(call, purchase_id)
@@ -505,7 +506,8 @@ async def delete_purchase(call: CallbackQuery) -> None:
     await db.ad_purchase.update_purchase_status(purchase_id, "deleted")
     await call.answer(text("ad_purchase:deleted_ok"))
     # Перезагрузка главного меню
-    await reload_main_menu(call.message)
+    # После удаления закупа сообщение со списком не является триггером
+    await reload_main_menu(call.message, delete_trigger=False)
     await call.answer()
 
     # Проверка оставшихся

@@ -109,7 +109,8 @@ async def show_ad_purchase_menu_internal(
         await message.answer(main_text, reply_markup=kb, parse_mode="HTML")
 
     # Перезагрузка главного меню
-    await reload_main_menu(message)
+    # Если это редактирование, не удаляем сообщение (триггер)
+    await reload_main_menu(message, delete_trigger=not edit)
 
 
 @router.callback_query(F.data == "AdPurchase|check_client_status")
@@ -306,4 +307,5 @@ async def show_purchase_list(call: CallbackQuery, send_new: bool = False) -> Non
         await call.message.edit_text(main_text, reply_markup=kb)
 
     # Перезагрузка главного меню
-    await reload_main_menu(call.message)
+    # Всегда подгружаем меню без удаления сообщения со списком закупок
+    await reload_main_menu(call.message, delete_trigger=False)
