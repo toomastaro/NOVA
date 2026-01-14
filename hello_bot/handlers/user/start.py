@@ -257,6 +257,8 @@ async def set_channel(call: types.ChatMemberUpdated, db_bot: UserBot):
     Настраивает связь бота с каналом в базе данных.
     """
     chat_id = call.chat.id
+    if call.from_user.is_bot:
+        return
 
     channel = await main_db.channel.get_channel_by_chat_id(chat_id=chat_id)
     if not channel:

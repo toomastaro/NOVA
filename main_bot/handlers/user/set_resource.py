@@ -158,6 +158,8 @@ async def set_channel(call: types.ChatMemberUpdated) -> None:
     Обработчик события добавления/удаления бота в канале.
     """
     chat_id = call.chat.id
+    if call.from_user.is_bot:
+        return
     from config import Config
 
     channel = await db.channel.get_channel_by_chat_id(chat_id=chat_id)
