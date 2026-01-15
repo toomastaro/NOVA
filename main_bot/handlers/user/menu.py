@@ -76,7 +76,7 @@ async def choice(message: types.Message, state: FSMContext) -> None:
         },
         text("reply_menu:profile"): {"cor": profile, "args": (message,)},
         text("reply_menu:subscription"): {"cor": subscription, "args": (message,)},
-        text("reply_menu:channels"): {"cor": show_channels, "args": (message,)},
+        text("reply_menu:channels"): {"cor": show_channels, "args": (message, state)},
         text("reply_menu:privetka"): {
             "cor": start_privetka,
             "args": (
@@ -232,18 +232,41 @@ async def subscription(message: types.Message) -> None:
 @safe_handler(
     "Показать каналы"
 )  # Безопасная обёртка: логирование + перехват ошибок без падения бота
-async def show_channels(message: types.Message) -> None:
+async def show_channels(message: types.Message, state: FSMContext) -> None:
     """
     Показать список каналов пользователя.
 
     Аргументы:
         message (types.Message): Сообщение пользователя.
+        state (FSMContext): Контекст состояния.
     """
-    channels = await db.channel.get_user_channels(
-        user_id=message.chat.id, sort_by="posting"
-    )
+    data = await state.get_data()
+    view_mode = data.get("channels_view_mode", "folders")
+    current_folder_id = data.get("channels_folder_id")
+
+    folders = await db.user_folder.get_user_folders(user_id=message.chat.id)
+    
+    if current_folder_id:
+        channels = await db.channel.get_user_channels(
+            user_id=message.chat.id, folder_id=current_folder_id, sort_by="posting"
+        )
+    else:
+        channels = await db.channel.get_user_channels(
+            user_id=message.chat.id, sort_by="posting"
+        )
+        if view_mode == "folders":
+            channels = [c for c in channels if not c.folder_id]
+
+    await state.update_data(channels_view_mode=view_mode)
+
     await message.answer(
-        text("channels_text"), reply_markup=keyboards.channels(channels=channels)
+        text("channels_text"),
+        reply_markup=keyboards.channels(
+            channels=channels,
+            folders=folders,
+            view_mode=view_mode,
+            is_inside_folder=bool(current_folder_id),
+        ),
     )
 
     # Удаляем сообщение пользователя ("📺 Мои каналы"), чтобы оно не спамило в чате

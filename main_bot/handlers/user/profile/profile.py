@@ -37,7 +37,7 @@ async def choice(call: types.CallbackQuery, user: User, state: FSMContext):
         },
         "folders": {"cor": show_folders, "args": (call.message,)},
         "report_settings": {"cor": show_report_settings_menu, "args": (call,)},
-        "channels": {"cor": show_channels, "args": (call.message,)},
+        "channels": {"cor": show_channels, "args": (call.message, state)},
         "bots": {"cor": show_bots, "args": (call.message,)},
         "support": {
             "cor": show_support,
