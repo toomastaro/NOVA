@@ -22,6 +22,7 @@ class Bye(StatesGroup):
     """Состояния для настройки прощания."""
 
     message = State()
+    buttons = State()
 
 
 class Application(StatesGroup):

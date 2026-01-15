@@ -62,6 +62,16 @@ async def choice(call: types.CallbackQuery, state: FSMContext, db: Database, set
         await call.message.delete()
         return await show_bye(call.message, setting)
 
+    if temp[1] == "buttons":
+        if not hello.message:
+            return await call.answer(text("error:bye:add_message"))
+            
+        await call.message.edit_text(
+            text("input_bye_buttons"),
+            reply_markup=keyboards.back(data="AddByeBack"),
+        )
+        return await state.set_state(Bye.buttons)
+
     if temp[1] == "check":
         if not hello.message:
             return await call.answer(text("error:bye:add_message"))
@@ -111,6 +121,42 @@ async def get_message(
     await show_bye(message, setting)
 
 
+@safe_handler("Прощание: получение кнопок")
+async def get_buttons(
+    message: types.Message, state: FSMContext, db: Database, settings
+):
+    """
+    Обрабатывает ввод кнопок для прощального сообщения.
+    """
+    lines = message.text.split("\n")
+    keyboard = []
+    
+    for line in lines:
+        parts = line.split("-", 1)
+        if len(parts) != 2:
+            return await message.answer(text("error:buttons_format"))
+        
+        button_text = parts[0].strip()
+        button_url = parts[1].strip()
+        
+        if not button_url.startswith("http"):
+            return await message.answer(text("error:buttons_format"))
+            
+        keyboard.append([types.InlineKeyboardButton(text=button_text, url=button_url)])
+        
+    hello = ByeAnswer(**settings.bye)
+    if not hello.message:
+        return await message.answer(text("error:bye:add_message"))
+        
+    hello.message.reply_markup = types.InlineKeyboardMarkup(inline_keyboard=keyboard)
+    
+    setting = await db.update_setting(return_obj=True, bye=hello.model_dump())
+    
+    await state.clear()
+    await message.answer(text("success_add_bye"))
+    await show_bye(message, setting)
+
+
 def hand_add():
     """Регистрация хэндлеров для прощального сообщения."""
     router = Router()
@@ -119,5 +165,6 @@ def hand_add():
     router.message.register(
         get_message, Bye.message, F.text | F.photo | F.video | F.animation
     )
+    router.message.register(get_buttons, Bye.buttons, F.text)
 
     return router
