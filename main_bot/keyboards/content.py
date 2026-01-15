@@ -29,7 +29,7 @@ class InlineContent(InlineKeyboardBuilder):
         cls, channels: List[Channel], data: str = "ChoicePostChannel", remover: int = 0
     ):
         kb = cls()
-        count_rows = 3
+        count_rows = 10
 
         for a, idx in enumerate(range(remover, len(channels))):
             if a < count_rows:
@@ -131,7 +131,7 @@ class InlineContent(InlineKeyboardBuilder):
         is_inside_folder: bool = False,
     ):
         kb = cls()
-        count_rows = 7
+        count_rows = 10
 
         folders_text = "✅ Папки" if view_mode == "folders" else "📁 Папки"
         channels_text = "✅ Все каналы" if view_mode == "channels" else "📢 Все каналы"
@@ -241,7 +241,7 @@ class InlineContent(InlineKeyboardBuilder):
         remover: int = 0,
     ):
         kb = cls()
-        count_rows = 7
+        count_rows = 10
 
         for a, idx in enumerate(range(remover, len(channels))):
             if isinstance(channels[idx], Channel):
