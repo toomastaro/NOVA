@@ -21,6 +21,7 @@ from main_bot.keyboards.common import Reply
 from main_bot.states.user import Support
 from utils.error_handler import safe_handler
 from main_bot.utils.lang.language import text
+from main_bot.utils.user_settings import get_user_view_mode
 
 logger = logging.getLogger(__name__)
 
@@ -242,7 +243,9 @@ async def show_channels(message: types.Message, state: FSMContext) -> None:
         state (FSMContext): Контекст состояния.
     """
     data = await state.get_data()
-    view_mode = data.get("channels_view_mode", "folders")
+    view_mode = data.get("channels_view_mode")
+    if not view_mode:
+        view_mode = await get_user_view_mode(message.chat.id)
     current_folder_id = data.get("channels_folder_id")
 
     folders = await db.user_folder.get_folders(

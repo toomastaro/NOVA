@@ -104,7 +104,7 @@ async def show_create_post(message: types.Message, state: FSMContext):
             )
 
         # Инициализируем состояние
-        await state.update_data(chosen=[], chosen_folders=[], current_folder_id=None)
+        await state.update_data(chosen=[], chosen_folders=[], current_folder_id=None, channels_view_mode=view_mode)
 
         if view_mode == "folders":
             display_channels = await db.channel.get_user_channels_without_folders(user_id=message.chat.id)

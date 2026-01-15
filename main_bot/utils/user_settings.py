@@ -10,10 +10,10 @@ async def get_user_view_mode(user_id: int) -> str:
     Returns: 'folders' (по умолчанию) или 'channels'
     """
     if not redis_client:
-        return "channels"
+        return "folders"
 
     mode = await redis_client.get(VIEW_MODE_KEY.format(user_id))
-    return mode.decode() if mode else "channels"
+    return mode.decode() if mode else "folders"
 
 
 async def set_user_view_mode(user_id: int, mode: str):

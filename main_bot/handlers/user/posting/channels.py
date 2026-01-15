@@ -23,6 +23,7 @@ from main_bot.utils.schedulers import (
     update_channel_stats,
 )
 from utils.error_handler import safe_handler
+from main_bot.utils.user_settings import get_user_view_mode, set_user_view_mode
 
 logger = logging.getLogger(__name__)
 
@@ -236,12 +237,18 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
     """Выбор канала для управления или добавления."""
     temp = call.data.split("|")
     data = await state.get_data()
-    view_mode = data.get("channels_view_mode", "folders")
+    view_mode = data.get("channels_view_mode")
+    if not view_mode:
+        view_mode = await get_user_view_mode(call.from_user.id)
+        # Синхронизируем состояние FSM при первом входе, если оно пустое
+        await state.update_data(channels_view_mode=view_mode)
+    
     current_folder_id = data.get("channels_folder_id")
 
     if temp[1] == "switch_view":
         new_mode = temp[2]
         await state.update_data(channels_view_mode=new_mode)
+        await set_user_view_mode(call.from_user.id, new_mode)
         # Сбрасываем папку при переключении режима? Обычно да.
         await state.update_data(channels_folder_id=None)
         
@@ -323,7 +330,9 @@ async def cancel(call: types.CallbackQuery, state: FSMContext = None):
         state = dp.fsm.get_context(call.bot, call.message.chat.id, call.from_user.id)
 
     data = await state.get_data()
-    view_mode = data.get("channels_view_mode", "folders")
+    view_mode = data.get("channels_view_mode")
+    if not view_mode:
+        view_mode = await get_user_view_mode(call.from_user.id)
     current_folder_id = data.get("channels_folder_id")
 
     folders = await db.user_folder.get_folders(user_id=call.from_user.id, folder_type=FolderType.CHANNEL)
