@@ -932,24 +932,17 @@ async def calculate_and_show_price(
     # Добавляем подписи
     report += await get_report_signatures(user, "cpm", message.bot)
 
-    if is_edit:
-        await message.edit_text(
-            report,
-            reply_markup=InlineNovaStat.cpm_result(),
-            parse_mode="HTML",
-            link_preview_options=types.LinkPreviewOptions(is_disabled=True),
-        )
-    else:
-        await message.answer(
-            report,
-            reply_markup=InlineNovaStat.cpm_result(),
-            parse_mode="HTML",
-            link_preview_options=types.LinkPreviewOptions(is_disabled=True),
-        )
+    # ВСЕГДА отправляем новым сообщением, чтобы отчет со статистикой выше не пропадал
+    await message.answer(
+        report,
+        reply_markup=InlineNovaStat.cpm_result(),
+        parse_mode="HTML",
+        link_preview_options=types.LinkPreviewOptions(is_disabled=True),
+    )
 
-    # Подгружаем главное меню после расчета CPM
-    # Если это редактирование сообщения с отчетом, то триггер (само сообщение) удалять не нужно
-    await reload_main_menu(message, delete_trigger=not is_edit)
+    # После расчета CPM возвращаем главное меню, но не удаляем триггер (сообщение аналитики), 
+    # так как пользователь хочет видеть оба отчета.
+    await reload_main_menu(message, delete_trigger=False)
 
 
 @router.callback_query(F.data.startswith("NovaStat|calc_cpm|"))

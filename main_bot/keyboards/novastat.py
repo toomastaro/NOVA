@@ -106,6 +106,5 @@ class InlineNovaStat(InlineKeyboardBuilder):
 
     @classmethod
     def cpm_result(cls):
-        kb = cls()
-        kb.button(text="⬅️ Назад", callback_data="NovaStat|main")
-        return kb.as_markup()
+        # Кнопка «Назад» удалена по запросу пользователя, чтобы зафиксировать отчет
+        return None
