@@ -119,8 +119,7 @@ class Inline(InlineKeyboardBuilder):
             text=text("{}:button".format("add" if not obj.message else "delete")),
             callback_data=f"{data}|message",
         )
-        if obj.message:
-            kb.button(text=text("bye:buttons:button"), callback_data=f"{data}|buttons")
+        kb.button(text=text("bye:buttons:button"), callback_data=f"{data}|buttons")
         kb.button(text=text("check:button"), callback_data=f"{data}|check")
         kb.button(text=text("back:button"), callback_data=f"{data}|cancel")
 
