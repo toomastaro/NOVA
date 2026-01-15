@@ -16,7 +16,7 @@ from main_bot.states.user import AddChannel
 from main_bot.utils.functions import get_editors
 from main_bot.utils.lang.language import text
 from main_bot.utils.session_manager import SessionManager
-from main_bot.utils import schedulers
+from main_bot.utils import schedulers, background
 from main_bot.utils.schedulers import (
     schedule_channel_job,
     update_channel_stats,
@@ -491,7 +491,10 @@ async def manage_channel(call: types.CallbackQuery, state: FSMContext):
                     logger.error(f"Не удалось создать задачу статистики вручную: {e}")
 
             # В любом случае запускаем немедленный сбор
-            asyncio.create_task(update_channel_stats(channel.chat_id))
+            background.run_background_task(
+                update_channel_stats(channel.chat_id),
+                name=f"manual_stats_posting_{channel.chat_id}",
+            )
 
         # 5. Обновление отображения
         await render_channel_info(call, state, channel.chat_id)

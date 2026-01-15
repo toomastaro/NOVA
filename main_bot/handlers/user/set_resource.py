@@ -21,7 +21,7 @@ from main_bot.states.user import AddChannel
 from main_bot.handlers.user.menu import start_posting
 
 from main_bot.database.db import db
-from main_bot.utils import schedulers, tg_utils
+from main_bot.utils import schedulers, tg_utils, background
 from main_bot.utils.schedulers import (
     schedule_channel_job,
     update_channel_stats,
@@ -128,9 +128,11 @@ async def setup_channel_task(
     # 3. Планирование статистики
     channel_obj = await db.channel.get_channel_by_chat_id(chat_id)
     if channel_obj and schedulers.scheduler_instance:
-        schedule_channel_job(schedulers.scheduler_instance, channel_obj)
-        # Запускаем немедленный сбор один раз
-        asyncio.create_task(update_channel_stats(chat_id))
+        schedulers.schedule_channel_job(schedulers.scheduler_instance, channel_obj)
+        # Используем менеджер фоновых задач для удержания ссылки (предотвращает уничтожение задачи)
+        background.run_background_task(
+            update_channel_stats(chat_id), name=f"initial_stats_{chat_id}"
+        )
 
     # 4. Отправка инструкции
     if res.get("success"):
@@ -186,8 +188,9 @@ async def set_channel(call: types.ChatMemberUpdated) -> None:
         )
 
         # Фоновая настройка
-        asyncio.create_task(
-            setup_channel_task(call.bot, chat_id, chat_title, call.from_user.id)
+        background.run_background_task(
+            setup_channel_task(call.bot, chat_id, chat_title, call.from_user.id),
+            name=f"setup_channel_{chat_id}",
         )
     else:
         # Если бота удалили или понизили в правах
@@ -364,8 +367,9 @@ async def manual_add_channel(message: types.Message, state: FSMContext) -> None:
     )
 
     # Запускаем фоновую инициализацию
-    asyncio.create_task(
-        setup_channel_task(message.bot, chat_id, chat_title, message.from_user.id)
+    background.run_background_task(
+        setup_channel_task(message.bot, chat_id, chat_title, message.from_user.id),
+        name=f"manual_setup_channel_{chat_id}",
     )
 
     await state.clear()

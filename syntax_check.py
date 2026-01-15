@@ -3,8 +3,12 @@ import sys
 import os
 
 files = [
+    "C:/NOVA/main_bot/utils/background.py",
     "C:/NOVA/main_bot/database/user/crud.py",
     "C:/NOVA/main_bot/utils/schedulers/cleanup.py",
+    "C:/NOVA/main_bot/handlers/user/set_resource.py",
+    "C:/NOVA/main_bot/handlers/user/posting/channels.py",
+    "C:/NOVA/main_bot/handlers/user/stories/channels.py",
 ]
 
 print("Running syntax check...")
