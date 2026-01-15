@@ -21,12 +21,11 @@ from main_bot.states.user import AddChannel
 from main_bot.handlers.user.menu import start_posting
 
 from main_bot.database.db import db
+from main_bot.utils import schedulers, tg_utils
 from main_bot.utils.schedulers import (
     schedule_channel_job,
     update_channel_stats,
-    scheduler_instance,
 )
-from main_bot.utils.functions import set_channel_session
 from main_bot.utils.lang.language import text
 from utils.error_handler import safe_handler
 
@@ -124,12 +123,13 @@ async def setup_channel_task(
     await set_admins(bot, chat_id, chat_title, "5393222813345663485", user_id=user_id)
 
     # 2. Назначаем клиента (самое долгое)
-    res = await set_channel_session(chat_id)
+    res = await tg_utils.set_channel_session(chat_id)
 
     # 3. Планирование статистики
     channel_obj = await db.channel.get_channel_by_chat_id(chat_id)
-    if channel_obj and scheduler_instance:
-        schedule_channel_job(scheduler_instance, channel_obj)
+    if channel_obj and schedulers.scheduler_instance:
+        schedule_channel_job(schedulers.scheduler_instance, channel_obj)
+        # Запускаем немедленный сбор один раз
         asyncio.create_task(update_channel_stats(chat_id))
 
     # 4. Отправка инструкции

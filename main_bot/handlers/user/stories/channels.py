@@ -14,6 +14,12 @@ from main_bot.utils.session_manager import SessionManager
 from main_bot.states.user import AddChannel
 from config import Config
 from datetime import datetime
+import asyncio
+from main_bot.utils import schedulers
+from main_bot.utils.schedulers import (
+    schedule_channel_job,
+    update_channel_stats,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -381,7 +387,20 @@ async def manage_channel(call: types.CallbackQuery, state: FSMContext):
             preferred_for_stats=client_row[0].preferred_for_stats,
         )
 
-        # 4. Обновляем вид
+        # 4. Проверка и регистрация в планировщике + немедленный сбор данных
+        if is_admin and schedulers.scheduler_instance:
+            job_id = f"channel_stats_{channel.chat_id}"
+            if not schedulers.scheduler_instance.get_job(job_id):
+                try:
+                    schedule_channel_job(schedulers.scheduler_instance, channel)
+                    logger.info(f"Задача статистики {job_id} успешно создана вручную (Stories).")
+                except Exception as e:
+                    logger.error(f"Не удалось создать задачу статистики вручную (Stories): {e}")
+
+            # В любом случае запускаем немедленный сбор
+            asyncio.create_task(update_channel_stats(channel.chat_id))
+
+        # 5. Обновляем вид
         await render_channel_info(call, state, channel_id)
 
         if is_admin and (can_stories or not perms.get("can_post_stories")):

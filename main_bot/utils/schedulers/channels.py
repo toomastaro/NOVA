@@ -239,7 +239,8 @@ def schedule_channel_job(scheduler: AsyncIOScheduler, channel: object) -> None:
         channel (object): Объект канала (DB model).
     """
     # Вычисляем минуту запуска
-    created_dt = datetime.fromtimestamp(channel.created_timestamp)
+    timestamp = channel.created_timestamp or int(time.time())
+    created_dt = datetime.fromtimestamp(timestamp)
     minute = created_dt.minute
     second = created_dt.second
 
@@ -264,4 +265,9 @@ async def register_channel_jobs(scheduler: AsyncIOScheduler) -> None:
     """
     channels = await db.channel.get_channels()
     for channel in channels:
-        schedule_channel_job(scheduler, channel)
+        try:
+            schedule_channel_job(scheduler, channel)
+        except Exception as e:
+            logger.error(
+                f"Ошибка при регистрации задачи для канала {channel.chat_id} ({channel.title}): {e}"
+            )
