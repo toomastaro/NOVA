@@ -22,7 +22,7 @@ class InlineAdmin(InlineKeyboardBuilder):
 
         kb.button(text="💰 Финансы", callback_data="AdminFinance|menu")
         kb.button(text="📈 Аналитика", callback_data="AdminAnalytics|menu")
-        kb.button(text="👥 Пользователи", callback_data="AdminUsers|list|0")
+        kb.button(text="👥 Пользователи", callback_data="AdminUsers|menu")
         kb.button(text="📺 Каналы", callback_data="AdminChannels|list|0")
         kb.button(text="🤖 Боты", callback_data="AdminBots|list|0")
         kb.button(text="📩 Рассылка", callback_data="Admin|mail")

@@ -219,10 +219,12 @@ async def users_callback_handler(call: types.CallbackQuery, state: FSMContext) -
     elif action == "view":
         await view_user_details(call)
     elif action == "menu":
-        # Показать меню импорта/экспорта
-        # Примечание: Кнопка "👥 Пользователи" из главного меню теперь ведёт на users_callback_handler с action="list" 
-        # Если мы хотим иметь промежуточное меню, нужно изменить кнопку в главном меню
-        pass
+        await call.message.edit_text(
+            "👥 <b>Управление пользователями</b>\n\nВыберите действие:",
+            reply_markup=keyboards.admin_users_management(),
+            parse_mode="HTML"
+        )
+        await call.answer()
     elif action == "export":
         await export_users(call)
     elif action == "import":
