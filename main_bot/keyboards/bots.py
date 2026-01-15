@@ -63,7 +63,7 @@ class InlineBots(InlineKeyboardBuilder):
         cls, bots: List[UserBot], data: str = "ChoiceBots", remover: int = 0
     ):
         kb = cls()
-        count_rows = 3
+        count_rows = 10
 
         for a, idx in enumerate(range(remover, len(bots))):
             if a < count_rows:
