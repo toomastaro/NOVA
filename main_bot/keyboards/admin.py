@@ -20,14 +20,49 @@ class InlineAdmin(InlineKeyboardBuilder):
         """
         kb = cls()
 
-        kb.button(text="👥 Админы", callback_data="AdminUsers|list|0")
+        kb.button(text="💰 Финансы", callback_data="AdminFinance|menu")
+        kb.button(text="📈 Аналитика", callback_data="AdminAnalytics|menu")
+        kb.button(text="👥 Пользователи", callback_data="AdminUsers|list|0")
         kb.button(text="📺 Каналы", callback_data="AdminChannels|list|0")
         kb.button(text="🤖 Боты", callback_data="AdminBots|list|0")
         kb.button(text="📩 Рассылка", callback_data="Admin|mail")
         kb.button(text="🎁 Создать промокод", callback_data="Admin|promo")
         kb.button(text="🦋 Рекламные ссылки", callback_data="Admin|ads")
-        kb.button(text="👤 Сессии", callback_data="Admin|session")		
+        kb.button(text="👤 Сессии", callback_data="Admin|session")
 
+        kb.adjust(2, 1)  # Финансы и Аналитика в ряд, остальные по одному
+        return kb.as_markup()
+
+    @classmethod
+    def admin_finance_menu(cls):
+        """Меню финансового отчёта"""
+        kb = cls()
+        kb.button(text="📅 Сегодня", callback_data="AdminFinance|report|today")
+        kb.button(text="📅 Неделя", callback_data="AdminFinance|report|week")
+        kb.button(text="📅 Месяц", callback_data="AdminFinance|report|month")
+        kb.button(text="◀️ В меню", callback_data="Admin|back")
+        kb.adjust(1)
+        return kb.as_markup()
+    
+    @classmethod
+    def admin_analytics_menu(cls):
+        """Меню бизнес-аналитики"""
+        kb = cls()
+        kb.button(text="👥 Топ пользователей", callback_data="AdminAnalytics|top")
+        kb.button(text="📊 Сводка", callback_data="AdminAnalytics|summary")
+        kb.button(text="📉 Churn & Retention", callback_data="AdminAnalytics|churn")
+        kb.button(text="◀️ В меню", callback_data="Admin|back")
+        kb.adjust(1)
+        return kb.as_markup()
+    
+    @classmethod
+    def admin_users_management(cls):
+        """Меню управления пользователями (Импорт/Экспорт)"""
+        kb = cls()
+        kb.button(text="📤 Экспортировать всех", callback_data="AdminUsers|export")
+        kb.button(text="📥 Импортировать из файла", callback_data="AdminUsers|import")
+        kb.button(text="📋 Список пользователей", callback_data="AdminUsers|list|0")
+        kb.button(text="◀️ В меню", callback_data="Admin|back")
         kb.adjust(1)
         return kb.as_markup()
 

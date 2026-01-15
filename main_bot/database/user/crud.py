@@ -3,7 +3,7 @@
 """
 
 import logging
-from typing import List
+from typing import Dict, List
 
 from sqlalchemy import func, insert, select, update
 
@@ -141,3 +141,96 @@ class UserCrud(DatabaseMixin):
         )
 
         return await self.fetchrow(stmt, commit=True)
+
+    # === МЕТОДЫ АНАЛИТИКИ ===
+
+    async def get_total_users_count(self) -> int:
+        """
+        Получить общее количество пользователей.
+
+        Возвращает:
+            int: Количество пользователей.
+        """
+        result = await self.fetchrow(select(func.count(User.id)))
+        return result if result else 0
+
+    async def get_users_with_channels_count(self) -> int:
+        """
+        Получить количество пользователей, у которых есть хотя бы 1 канал.
+
+        Возвращает:
+            int: Количество пользователей с каналами.
+        """
+        from main_bot.database.channel.model import Channel
+        from config import Config
+
+        stmt = select(func.count(func.distinct(Channel.admin_id))).where(
+            Channel.subscribe != Config.SOFT_DELETE_TIMESTAMP
+        )
+        result = await self.fetchrow(stmt)
+        return result if result else 0
+
+    async def get_users_with_active_subscription_count(self) -> int:
+        """
+        Получить количество пользователей с активной подпиской.
+
+        Возвращает:
+            int: Количество пользователей с активной подпиской.
+        """
+        from main_bot.database.channel.model import Channel
+        from config import Config
+        import time
+
+        now = int(time.time())
+        stmt = select(func.count(func.distinct(Channel.admin_id))).where(
+            Channel.subscribe.is_not(None),
+            Channel.subscribe > now,
+            Channel.subscribe != Config.SOFT_DELETE_TIMESTAMP,
+        )
+        result = await self.fetchrow(stmt)
+        return result if result else 0
+
+    async def get_top_users_by_channels(self, limit: int = 10) -> List[Dict]:
+        """
+        Получить топ пользователей по количеству каналов.
+
+        Аргументы:
+            limit (int): Количество пользователей в топе.
+
+        Возвращает:
+            List[Dict]: Список вида [{'user_id': 123, 'channels_count': 5}, ...]
+        """
+        from main_bot.database.channel.model import Channel
+        from config import Config
+
+        stmt = (
+            select(
+                Channel.admin_id.label("user_id"),
+                func.count(func.distinct(Channel.chat_id)).label("channels_count"),
+            )
+            .where(
+                Channel.subscribe != Config.SOFT_DELETE_TIMESTAMP
+            )
+            .group_by(Channel.admin_id)
+            .order_by(func.count(func.distinct(Channel.chat_id)).desc())
+            .limit(limit)
+        )
+
+        result = await self.fetch(stmt)
+        return [
+            {"user_id": row.user_id, "channels_count": row.channels_count}
+            for row in result
+        ]
+
+    async def get_top_users_by_balance(self, limit: int = 10) -> List[User]:
+        """
+        Получить топ пользователей по балансу.
+
+        Аргументы:
+            limit (int): Количество пользователей в топе.
+
+        Возвращает:
+            List[User]: Список пользователей.
+        """
+        stmt = select(User).order_by(User.balance.desc()).limit(limit)
+        return await self.fetch(stmt)

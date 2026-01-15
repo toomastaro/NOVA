@@ -18,3 +18,7 @@ class AdminChannels(StatesGroup):
 class AdminMailing(StatesGroup):
     post = State()
     confirm = State()
+
+
+class AdminStates(StatesGroup):
+    waiting_for_user_import_file = State()

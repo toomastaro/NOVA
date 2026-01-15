@@ -3,11 +3,13 @@
 """
 
 import logging
+from typing import Dict, List, Optional
 
-from sqlalchemy import insert
+from sqlalchemy import func, insert, select
 
 from main_bot.database import DatabaseMixin
 from main_bot.database.payment.model import Payment
+from main_bot.database.db_types import PaymentMethod
 
 logger = logging.getLogger(__name__)
 
@@ -25,3 +27,109 @@ class PaymentCrud(DatabaseMixin):
             **kwargs: Поля модели Payment.
         """
         await self.execute(insert(Payment).values(**kwargs))
+
+    async def get_payments_by_period(
+        self,
+        start_ts: int,
+        end_ts: int,
+        method: Optional[PaymentMethod] = None,
+    ) -> List[Payment]:
+        """
+        Получить платежи за период с опциональным фильтром по методу.
+
+        Аргументы:
+            start_ts (int): Начало периода (timestamp).
+            end_ts (int): Конец периода (timestamp).
+            method (PaymentMethod | None): Метод оплаты для фильтрации.
+
+        Возвращает:
+            List[Payment]: Список платежей.
+        """
+        stmt = select(Payment).where(
+            Payment.created_timestamp >= start_ts, Payment.created_timestamp <= end_ts
+        )
+        if method:
+            stmt = stmt.where(Payment.method == method)
+        return await self.fetch(stmt)
+
+    async def get_payments_summary(
+        self, start_ts: int, end_ts: int
+    ) -> Dict[str, Dict[str, int]]:
+        """
+        Получить сводку платежей по методам оплаты за период.
+
+        Аргументы:
+            start_ts (int): Начало периода (timestamp).
+            end_ts (int): Конец периода (timestamp).
+
+        Возвращает:
+            Dict[str, Dict[str, int]]: Сводка вида:
+                {
+                    'STARS': {'count': 15, 'total': 1485},
+                    'CRYPTO_BOT': {'count': 8, 'total': 792},
+                    ...
+                }
+        """
+        stmt = (
+            select(
+                Payment.method,
+                func.count(Payment.id).label("count"),
+                func.sum(Payment.amount).label("total"),
+            )
+            .where(
+                Payment.created_timestamp >= start_ts,
+                Payment.created_timestamp <= end_ts,
+            )
+            .group_by(Payment.method)
+        )
+
+        result = await self.fetch(stmt)
+        return {
+            str(row.method): {"count": row.count, "total": int(row.total or 0)}
+            for row in result
+        }
+
+    async def get_total_payments_count(self) -> int:
+        """
+        Получить общее количество платежей за всё время.
+
+        Возвращает:
+            int: Количество платежей.
+        """
+        result = await self.fetchrow(select(func.count(Payment.id)))
+        return result if result else 0
+
+    async def get_total_revenue(self) -> int:
+        """
+        Получить общую сумму всех платежей за всё время.
+
+        Возвращает:
+            int: Общая сумма в рублях.
+        """
+        result = await self.fetchrow(select(func.sum(Payment.amount)))
+        return int(result) if result else 0
+
+    async def get_top_users_by_payments(self, limit: int = 10) -> List[Dict]:
+        """
+        Получить топ пользователей по сумме платежей.
+
+        Аргументы:
+            limit (int): Количество пользователей в топе.
+
+        Возвращает:
+            List[Dict]: Список вида [{'user_id': 123, 'total_paid': 990}, ...]
+        """
+        stmt = (
+            select(
+                Payment.user_id, func.sum(Payment.amount).label("total_paid")
+            )
+            .group_by(Payment.user_id)
+            .order_by(func.sum(Payment.amount).desc())
+            .limit(limit)
+        )
+
+        result = await self.fetch(stmt)
+        return [
+            {"user_id": row.user_id, "total_paid": int(row.total_paid)}
+            for row in result
+        ]

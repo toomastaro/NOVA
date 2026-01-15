@@ -335,3 +335,109 @@ class ChannelCrud(DatabaseMixin):
     async def get_channel_by_id(self, channel_id: int) -> Channel | None:
         """Получить канал по ID (row_id)"""
         return await self.get_channel_by_row_id(channel_id)
+
+    # === МЕТОДЫ АНАЛИТИКИ ===
+
+    async def get_active_subscriptions_count(self) -> int:
+        """
+        Получить количество каналов с активной подпиской.
+
+        Возвращает:
+            int: Количество активных подписок.
+        """
+        now = int(time.time())
+        stmt = select(func.count(func.distinct(Channel.chat_id))).where(
+            Channel.subscribe.is_not(None),
+            Channel.subscribe > now,
+            Channel.subscribe != Config.SOFT_DELETE_TIMESTAMP,
+        )
+        result = await self.fetchrow(stmt)
+        return result if result else 0
+
+    async def get_monthly_revenue_forecast(self) -> int:
+        """
+        Получить прогноз месячного оборота (активные подписки × тариф).
+
+        Возвращает:
+            int: Прогноз оборота в рублях.
+        """
+        count = await self.get_active_subscriptions_count()
+        # Берём тариф из Config.TARIFFS
+        tariff_amount = Config.TARIFFS.get("subscribe", {}).get(0, {}).get("amount", 99)
+        return count * tariff_amount
+
+    async def get_expired_subscriptions_count(self, days: int = 30) -> int:
+        """
+        Получить количество подписок, истёкших за последние N дней.
+
+        Аргументы:
+            days (int): Количество дней для анализа.
+
+        Возвращает:
+            int: Количество истёкших подписок.
+        """
+        now = int(time.time())
+        start = now - (days * 86400)
+
+        stmt = select(func.count(func.distinct(Channel.chat_id))).where(
+            Channel.subscribe.is_not(None),
+            Channel.subscribe >= start,
+            Channel.subscribe < now,
+            Channel.subscribe != Config.SOFT_DELETE_TIMESTAMP,
+        )
+        result = await self.fetchrow(stmt)
+        return result if result else 0
+
+    async def get_average_subscription_duration(self) -> float:
+        """
+        Получить среднюю продолжительность подписки в днях.
+
+        Возвращает:
+            float: Средняя длительность в днях.
+        """
+        stmt = select(
+            func.avg((Channel.subscribe - Channel.created_timestamp) / 86400)
+        ).where(
+            Channel.subscribe.is_not(None),
+            Channel.subscribe != Config.SOFT_DELETE_TIMESTAMP,
+        )
+
+        result = await self.fetchrow(stmt)
+        return round(float(result), 1) if result else 0.0
+
+    async def get_churn_rate(self, period_days: int = 30) -> float:
+        """
+        Получить churn rate (процент оттока) за период.
+
+        Формула: истёкшие / (активные + истёкшие) × 100
+
+        Аргументы:
+            period_days (int): Период в днях.
+
+        Возвращает:
+            float: Churn rate в процентах.
+        """
+        expired = await self.get_expired_subscriptions_count(period_days)
+        active = await self.get_active_subscriptions_count()
+
+        total = active + expired
+        if total == 0:
+            return 0.0
+
+        return round((expired / total) * 100, 2)
+
+    async def get_total_channels_count(self) -> int:
+        """
+        Получить общее количество каналов (уникальных по chat_id).
+
+        Возвращает:
+            int: Количество каналов.
+        """
+        stmt = select(func.count(func.distinct(Channel.chat_id))).where(
+            or_(
+                Channel.subscribe != Config.SOFT_DELETE_TIMESTAMP,
+                Channel.subscribe.is_(None),
+            )
+        )
+        result = await self.fetchrow(stmt)
+        return result if result else 0
