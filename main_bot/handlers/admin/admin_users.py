@@ -233,7 +233,7 @@ async def users_callback_handler(call: types.CallbackQuery, state: FSMContext) -
         await state.clear()
         # Возвращаем меню, но нужно отправить новое сообщение, так как мы удалили прошлое
         await call.message.delete() 
-        await call.message.answer_text("👥 Меню управления пользователями", reply_markup=keyboards.admin_users_management())
+        await call.message.answer("👥 Меню управления пользователями", reply_markup=keyboards.admin_users_management())
 
 
 def get_router() -> Router:
