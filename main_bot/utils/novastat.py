@@ -850,7 +850,12 @@ class NovaStatService:
             "er": er_res,
             "chat_id": utils.get_peer_id(entity)
         }
-        logger.info(f"✅ [NovaStat] Сбор завершен: title='{title}', subs={members}, views_24h={views_res.get(24)}, er_24h={er_res.get(24)}%")
+        logger.info(
+            f"✅ [NovaStat] Сбор завершен: title='{title}', subs={members}, "
+            f"views_24h={views_res.get(24)}, er_24h={er_res.get(24)}%, "
+            f"views_48h={views_res.get(48)}, er_48h={er_res.get(48)}%, "
+            f"views_72h={views_res.get(72)}, er_72h={er_res.get(72)}%"
+        )
         return result
 
 

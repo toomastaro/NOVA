@@ -78,17 +78,19 @@ async def show_channels(message: types.Message, state: FSMContext):
     )
     
     if current_folder_id:
+        folder = await db.user_folder.get_folder_by_id(current_folder_id)
         channels = await db.channel.get_user_channels(
-            user_id=message.chat.id, folder_id=current_folder_id, sort_by="posting"
+            user_id=message.chat.id, 
+            from_array=[int(c) for c in folder.content] if folder and folder.content else [],
+            sort_by="posting"
         )
     else:
-        channels = await db.channel.get_user_channels(
-            user_id=message.chat.id, sort_by="posting"
-        )
         if view_mode == "folders":
-            # Фильтруем каналы, которые уже в папках, чтобы не дублировать
-            # (Обычно в Nova в режиме папок на верхнем уровне только каналы без папок)
-            channels = [c for c in channels if not c.folder_id]
+            channels = await db.channel.get_user_channels_without_folders(user_id=message.chat.id)
+        else:
+            channels = await db.channel.get_user_channels(
+                user_id=message.chat.id, sort_by="posting"
+            )
 
     await state.update_data(channels_view_mode=view_mode)
 
