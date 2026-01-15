@@ -888,29 +888,24 @@ async def calculate_and_show_price(
 
     date_str = datetime.now(timezone.utc).strftime("%d.%m.%Y %H:%M")
 
-    # Формирование заголовка по запросу пользователя
+    # Формирование отчета
+    report = text("novastat_cpm_report_title")
+
     if single_info:
         title = single_info.get("title") or "Без названия"
-        header = f"📢 Канал: '{html.escape(title)}'\n"
-        header += f"👥 Подписчиков: {single_info.get('subscribers', 0)}\n"
+        report += text("novastat_cpm_channel_info").format(
+            html.escape(title), single_info.get("subscribers", 0)
+        )
     else:
         # Для нескольких каналов
-        header = f"📢 Канал: '{valid_count} каналов'\n"
-        header += f"👥 Подписчиков: {total_subs}\n"
-
-    report = header + text("novastat_cpm_report_header").format(cpm)
-
-    if single_info:
-        link = single_info.get("link")
-        title_link = (
-            f"<a href='{link}'>{html.escape(single_info['title'])}</a>"
-            if link
-            else html.escape(single_info["title"])
-        )
         report += text("novastat_cpm_channel_info").format(
-            title_link, single_info["subscribers"]
+            f"{valid_count} каналов", total_subs
         )
 
+    # Заголовок стоимости
+    report += text("novastat_cpm_report_header").format(cpm)
+
+    # Сами цены
     report += f"├ 24 часа: {price_rub[24]:,} руб. / {price_usdt[24]} usdt\n".replace(
         ",", " "
     )
@@ -921,6 +916,7 @@ async def calculate_and_show_price(
         ",", " "
     ).replace(".", ",")
 
+    # Ожидаемые просмотры (с новой строки)
     report += text("novastat_cpm_expected_views").format(
         views.get(24) or views.get("24") or 0,
         views.get(48) or views.get("48") or 0,

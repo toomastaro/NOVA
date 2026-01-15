@@ -170,9 +170,9 @@ async def show_subscribe(message: types.Message, state: FSMContext = None):
     object_type = "channels"
     cor = db.channel.get_user_channels
 
-    # Получаем список каналов пользователя
+    # Получаем список всех каналов пользователя
     user = await db.user.get_user(user_id=message.chat.id)
-    objects = await cor(user_id=user.id, limit=10, sort_by=service)
+    objects = await cor(user_id=user.id, sort_by=service)
 
     # Сохраняем данные в state для следующих шагов
     if state:
