@@ -288,7 +288,7 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
                 )
                 # Показываем список каналов без подписки
                 channels_list = "\n".join(
-                    f"• {title}" for title in channels_without_sub[:5]
+                    f"• {title}" for title in channels_without_sub
                 )
                 if len(channels_without_sub) > 5:
                     channels_list += f"\n... и ещё {len(channels_without_sub) - 5}"
@@ -367,7 +367,7 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
 
     # Пересчитываем список для отображения (показываем выбранные каналы)
     display_objects = await db.channel.get_user_channels(
-        user_id=call.from_user.id, from_array=[int(x) for x in chosen[:10]]
+        user_id=call.from_user.id, from_array=[int(x) for x in chosen]
     )
 
     # Форматируем список выбранных каналов
@@ -550,7 +550,7 @@ async def finish_params(call: types.CallbackQuery, state: FSMContext):
     # Немедленная публикация
     if temp[1] == "public":
         display_objects = await db.channel.get_user_channels(
-            user_id=call.from_user.id, from_array=chosen[:10]
+            user_id=call.from_user.id, from_array=chosen
         )
 
         channels_str = "\n".join(
@@ -652,7 +652,7 @@ async def choice_delete_time(call: types.CallbackQuery, state: FSMContext):
             "\n".join(
                 text("resource_title").format(obj.title)
                 for obj in objects
-                if obj.chat_id in chosen[:10]
+            if obj.chat_id in chosen
             ),
         ),
         reply_markup=keyboards.finish_params(obj=safe_post_from_dict(data.get("post"))),
@@ -700,7 +700,7 @@ async def cancel_send_time(call: types.CallbackQuery, state: FSMContext):
             "\n".join(
                 text("resource_title").format(obj.title)
                 for obj in objects
-                if obj.chat_id in chosen[:10]
+            if obj.chat_id in chosen
             ),
         ),
         reply_markup=keyboards.finish_params(obj=safe_post_from_dict(data.get("post"))),
@@ -804,7 +804,7 @@ async def get_send_time(message: types.Message, state: FSMContext):
     chosen: list = data.get("chosen")
 
     display_objects = await db.channel.get_user_channels(
-        user_id=message.from_user.id, from_array=chosen[:10]
+        user_id=message.from_user.id, from_array=chosen
     )
 
     channels_str = "\n".join(

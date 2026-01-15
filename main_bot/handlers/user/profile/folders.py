@@ -131,7 +131,7 @@ async def choice_object(call: types.CallbackQuery, state: FSMContext, user: User
                 + "\n".join(
                     text("resource_title").format(obj.title)
                     for obj in objects
-                    if obj.chat_id in chosen[:10]
+                    if obj.chat_id in chosen
                 )
                 + "</blockquote>"
             ),
@@ -184,7 +184,7 @@ async def choice_object(call: types.CallbackQuery, state: FSMContext, user: User
             + "\n".join(
                 text("resource_title").format(obj.title)
                 for obj in objects
-                if obj.chat_id in chosen[:10]
+                if obj.chat_id in chosen
             )
             + "</blockquote>"
         ),
@@ -341,7 +341,7 @@ async def manage_folder(call: types.CallbackQuery, state: FSMContext, user: User
                 + "\n".join(
                     text("resource_title").format(obj.title)
                     for obj in objects
-                    if obj.chat_id in chosen[:10]
+                    if obj.chat_id in chosen
                 )
                 + "</blockquote>"
             ),

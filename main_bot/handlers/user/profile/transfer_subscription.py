@@ -157,7 +157,7 @@ async def choose_recipients(call: types.CallbackQuery, state: FSMContext, user: 
             "\n".join(
                 f"📺 {ch.title}"
                 for ch in recipient_channels
-                if ch.chat_id in chosen[:10]
+                if ch.chat_id in chosen
             )
             if chosen
             else ""
@@ -213,7 +213,7 @@ async def choose_recipients(call: types.CallbackQuery, state: FSMContext, user: 
 
     chosen_text = (
         "\n".join(
-            f"📺 {ch.title}" for ch in recipient_channels if ch.chat_id in chosen[:10]
+            f"📺 {ch.title}" for ch in recipient_channels if ch.chat_id in chosen
         )
         if chosen
         else ""

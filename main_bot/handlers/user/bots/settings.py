@@ -111,6 +111,7 @@ async def show_bot_manage(
     await message.answer(
         text("mailing:bot:info").format(
             user_bot.title,
+            user_bot.username,
             (
                 "\n".join(
                     text("resource_title").format(channel.title) for channel in channels

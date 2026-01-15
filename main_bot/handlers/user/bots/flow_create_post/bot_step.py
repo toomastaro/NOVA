@@ -223,9 +223,7 @@ async def choice_bots(call: types.CallbackQuery, state: FSMContext) -> None:
 
             if bots_without_sub:
                 # Показываем список ботов без подписки
-                bots_list = "\n".join(f"• {title}" for title in bots_without_sub[:5])
-                if len(bots_without_sub) > 5:
-                    bots_list += f"\n... и ещё {len(bots_without_sub) - 5}"
+                bots_list = "\n".join(f"• {title}" for title in bots_without_sub)
 
                 await call.answer(
                     text("error_choice_all_no_sub_detailed").format(bots_list),
@@ -352,7 +350,7 @@ async def choice_bots(call: types.CallbackQuery, state: FSMContext) -> None:
         "\n".join(
             text("resource_title").format(obj.title)
             for obj in objects
-            if obj.chat_id in chosen[:10]
+            if obj.chat_id in chosen
         )
         if chosen
         else ""

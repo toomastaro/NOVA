@@ -75,7 +75,7 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
                 "\n".join(
                     text("resource_title").format(obj.title)
                     for obj in objects
-                    if obj.chat_id in chosen[:10]
+                    if obj.chat_id in chosen
                 ),
             )
             reply_markup = keyboards.finish_params(obj=post, data="FinishStoriesParams")
@@ -155,7 +155,7 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
             "\n".join(
                 text("resource_title").format(obj.title)
                 for obj in objects
-                if obj.chat_id in chosen[:10]
+                if obj.chat_id in chosen
             )
         )
 

@@ -124,7 +124,7 @@ async def finish_params(call: types.CallbackQuery, state: FSMContext) -> None:
                 "\n".join(
                     text("resource_title").format(obj.title)
                     for obj in objects
-                    if obj.chat_id in chosen[:10]
+                    if obj.chat_id in chosen
                 ),
             ),
             reply_markup=keyboards.accept_bot_public(data="AcceptBotPost"),
@@ -202,7 +202,7 @@ async def choice_delete_time(call: types.CallbackQuery, state: FSMContext) -> No
             "\n".join(
                 text("resource_title").format(obj.title)
                 for obj in objects
-                if obj.chat_id in chosen[:10]
+                if obj.chat_id in chosen
             ),
             available,
         ),
@@ -254,7 +254,7 @@ async def send_time_inline(call: types.CallbackQuery, state: FSMContext) -> None
                 "\n".join(
                     text("resource_title").format(obj.title)
                     for obj in objects
-                    if obj.chat_id in chosen[:10]
+                    if obj.chat_id in chosen
                 ),
                 data.get("available"),
             ),
@@ -433,7 +433,7 @@ async def get_send_time(message: types.Message, state: FSMContext) -> None:
                 "\n".join(
                     text("resource_title").format(obj.title)
                     for obj in objects
-                    if obj.chat_id in chosen[:10]
+                    if obj.chat_id in chosen
                 ),
                 data.get("available"),
             ),
@@ -452,7 +452,7 @@ async def get_send_time(message: types.Message, state: FSMContext) -> None:
             "\n".join(
                 text("resource_title").format(obj.title)
                 for obj in objects
-                if obj.chat_id in chosen[:10]
+                if obj.chat_id in chosen
             ),
         ),
         reply_markup=keyboards.accept_bot_date(data="AcceptBotPost"),
@@ -490,7 +490,7 @@ async def back_send_time(call: types.CallbackQuery, state: FSMContext) -> None:
             "\n".join(
                 text("resource_title").format(obj.title)
                 for obj in objects
-                if obj.chat_id in chosen[:10]
+                if obj.chat_id in chosen
             ),
             data.get("available") or 0,
         ),

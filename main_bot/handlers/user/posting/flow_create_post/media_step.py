@@ -112,7 +112,7 @@ async def manage_post(call: types.CallbackQuery, state: FSMContext):
         # Для нового поста - переход к настройкам
         chosen = data.get("chosen", [])
         display_objects = await db.channel.get_user_channels(
-            user_id=call.from_user.id, from_array=chosen[:10]
+            user_id=call.from_user.id, from_array=chosen
         )
 
         # Форматируем список выбранных каналов
@@ -312,7 +312,7 @@ async def cancel_value(call: types.CallbackQuery, state: FSMContext):
         post = ensure_obj(data.get("post"))
         chosen = data.get("chosen", post.chat_ids)
         display_objects = await db.channel.get_user_channels(
-            user_id=call.from_user.id, from_array=chosen[:10]
+            user_id=call.from_user.id, from_array=chosen
         )
         return await call.message.answer(
             text("choice_channels:post").format(
@@ -469,7 +469,7 @@ async def get_value(message: types.Message, state: FSMContext):
     if param == "cpm_price":
         chosen = data.get("chosen", post.chat_ids)
         display_objects = await db.channel.get_user_channels(
-            user_id=message.from_user.id, from_array=chosen[:10]
+            user_id=message.from_user.id, from_array=chosen
         )
         return await message.answer(
             text("choice_channels:post").format(

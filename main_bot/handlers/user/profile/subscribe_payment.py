@@ -205,7 +205,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext, user: User):
                 "\n".join(
                     text("resource_title").format(obj.title)
                     for obj in objects
-                    if obj.id in chosen[:10]
+                    if obj.id in chosen
                 )
             ),
             reply_markup=keyboards.choice_object_subscribe(

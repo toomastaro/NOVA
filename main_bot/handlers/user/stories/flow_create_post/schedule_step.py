@@ -39,7 +39,7 @@ async def get_story_report_text(chosen, objects):
         str: Форматированный текст
     """
     lines = []
-    target_ids = chosen[:10]
+    target_ids = chosen
     target_objects = [obj for obj in objects if obj.chat_id in target_ids]
 
     for obj in target_objects:
@@ -252,7 +252,7 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
             if channels_without_sub:
                 # Показываем список каналов без подписки
                 channels_list = "\n".join(
-                    f"• {title}" for title in channels_without_sub[:5]
+                    f"• {title}" for title in channels_without_sub
                 )
                 if len(channels_without_sub) > 5:
                     channels_list += f"\n... и ещё {len(channels_without_sub) - 5}"
@@ -270,7 +270,7 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
 
             if channels_without_session:
                 channels_list = "\n".join(
-                    f"• {title}" for title in channels_without_session[:5]
+                    f"• {title}" for title in channels_without_session
                 )
                 return await call.answer(
                     text("error_choice_all_no_session_detailed").format(channels_list),

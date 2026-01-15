@@ -69,7 +69,7 @@ class InlineBots(InlineKeyboardBuilder):
             if a < count_rows:
                 kb.add(
                     InlineKeyboardButton(
-                        text=bots[idx].title,
+                        text=f"{bots[idx].title} (@{bots[idx].username})",
                         callback_data=f"{data}|{bots[idx].id}|{remover}",
                     )
                 )

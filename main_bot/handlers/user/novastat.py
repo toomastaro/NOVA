@@ -783,6 +783,7 @@ async def novastat_analyze_text(message: types.Message, state: FSMContext) -> No
         await message.answer(text("novastat_col_add_ch_invalid"))
         return
 
+    # Лимит на количество каналов в одном сообщении (можно оставить или увеличить)
     if len(channels) > 12:
         await message.answer(text("novastat_analysis_text_limit_exceeded"))
         return
@@ -1176,7 +1177,7 @@ async def novastat_choice_channels(
 
     # Display logic for formatted list of chosen channels
     display_objects = await db.channel.get_user_channels(
-        user_id=call.from_user.id, from_array=chosen[:10]
+        user_id=call.from_user.id, from_array=chosen
     )
 
     if chosen:

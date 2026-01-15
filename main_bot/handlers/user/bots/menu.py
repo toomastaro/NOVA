@@ -125,7 +125,7 @@ async def show_choice_channel(message: types.Message, state: FSMContext) -> None
                 "\n".join(
                     text("resource_title").format(obj.title)
                     for obj in objects
-                    if obj.chat_id in chosen[:10]
+                    if obj.chat_id in chosen
                 )
                 if chosen
                 else ""

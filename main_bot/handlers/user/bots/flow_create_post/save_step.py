@@ -99,7 +99,7 @@ async def accept(call: types.CallbackQuery, state: FSMContext) -> None:
                 "\n".join(
                     text("resource_title").format(obj.title)
                     for obj in objects
-                    if obj.chat_id in chosen[:10]
+                    if obj.chat_id in chosen
                 ),
                 data.get("available"),
             )
@@ -176,10 +176,8 @@ async def accept(call: types.CallbackQuery, state: FSMContext) -> None:
     channels_text = "\n".join(
         text("resource_title").format(obj.title)
         for obj in objects
-        if obj.chat_id in chosen[:10]
+        if obj.chat_id in chosen
     )
-    if len(chosen) > 10:
-        channels_text += f"\n... и еще {len(chosen) - 10}"
 
     subscribers_count = data.get("available", 0)
 

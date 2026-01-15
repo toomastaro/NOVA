@@ -677,15 +677,13 @@ async def scan_orphaned_sessions_task(user_id: int):
     report = "🏁 Фоновое сканирование завершено!\n\n"
     if added_sessions:
         report += f"✅ Добавлено: {len(added_sessions)}\n"
-        for s in added_sessions[:15]: # Лимит на длину сообщения
+        for s in added_sessions:
             pool_emoji = "🏠" if s["pool"] == "internal" else ("🌐" if s["pool"] == "external" else "❓")
             report += f"{s['status']} {pool_emoji} {s['alias']} (@{s['username']})\n"
-        if len(added_sessions) > 15:
-            report += f"... и еще {len(added_sessions)-15}\n"
 
     if errors:
         report += f"\n❌ Ошибки: {len(errors)}\n"
-        for err in errors[:10]:
+        for err in errors:
             report += f"{err}\n"
 
     await main_bot_obj.send_message(user_id, report)
