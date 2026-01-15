@@ -161,7 +161,7 @@ async def generate_post_info_text(post_obj, is_published: bool = False) -> str:
             status_line = text("status_published")
             link_line = text("post_info_link").format(post_link)
 
-            return f"{status_line}\n{link_line}{text('post_info_date').format(date_str)}\n\n{channels_text}"
+            return f"{status_line}\n{link_line}\n{text('post_info_date').format(date_str)}\n\n{channels_text}"
 
     else:
         # Пост (Запланирован или Удален)
@@ -911,17 +911,18 @@ async def accept_delete_published_post(call: types.CallbackQuery, state: FSMCont
         )
 
     if temp[1] == "accept":
-        await db.post.delete_post(post["id"])
         logger.info(
             f"Пользователь {call.from_user.id} удаляет опубликованный пост {post['id']} (message_id: {post.get('message_id')}) и все связанные публикации"
         )
 
-        # Fetch all related published posts
+        # 1. Сначала находим все связанные публикации ДО удаления родителя
+        # Используем post_id (ID родителя), а не id (PK записи), чтобы найти все публикации этой группы
+        parent_id = post.get("post_id") or post.get("id")
         related_posts = await db.published_post.get_published_posts_by_post_id(
-            post["id"]
+            parent_id
         )
 
-        # Delete from Telegram for all channels
+        # 2. Удаляем из Telegram
         ids_to_delete = []
         for p in related_posts:
             ids_to_delete.append(p.id)
@@ -938,9 +939,15 @@ async def accept_delete_published_post(call: types.CallbackQuery, state: FSMCont
                     exc_info=True,
                 )
 
-        # Soft Delete all from DB
+        # 3. Мягкое удаление публикаций (статус 'deleted')
         if ids_to_delete:
             await db.published_post.soft_delete_published_posts(ids_to_delete)
+
+        # 4. Полное удаление родительской записи
+        try:
+            await db.post.delete_post(post["id"])
+        except Exception as e:
+            logger.error(f"Ошибка при окончательном удалении родительского поста {post['id']}: {e}")
 
         posts = await db.post.get_posts(channel_data["chat_id"], day)
 
