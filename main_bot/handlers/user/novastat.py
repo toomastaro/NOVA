@@ -709,7 +709,11 @@ async def run_analysis_logic(
     summary_er = {h: round(total_er[h] / valid_count, 2) for h in HOURS_TO_ANALYZE}
 
     # Сохранение для CPM
-    await state.update_data(last_analysis_views=summary_views)
+    await state.update_data(
+        last_analysis_views=summary_views,
+        total_subs=total_subs,
+        valid_count=valid_count,
+    )
 
     if len(channels) == 1:
         # Один канал: это и есть отчет.
@@ -854,6 +858,8 @@ async def calculate_and_show_price(
     data = await state.get_data()
     views = data.get("last_analysis_views")
     single_info = data.get("single_channel_info")
+    total_subs = data.get("total_subs", 0)
+    valid_count = data.get("valid_count", 0)
 
     if not views:
         if is_edit:
@@ -882,7 +888,17 @@ async def calculate_and_show_price(
 
     date_str = datetime.now(timezone.utc).strftime("%d.%m.%Y %H:%M")
 
-    report = text("novastat_cpm_report_header").format(cpm)
+    # Формирование заголовка по запросу пользователя
+    if single_info:
+        title = single_info.get("title") or "Без названия"
+        header = f"📢 Канал: '{html.escape(title)}'\n"
+        header += f"👥 Подписчиков: {single_info.get('subscribers', 0)}\n"
+    else:
+        # Для нескольких каналов
+        header = f"📢 Канал: '{valid_count} каналов'\n"
+        header += f"👥 Подписчиков: {total_subs}\n"
+
+    report = header + text("novastat_cpm_report_header").format(cpm)
 
     if single_info:
         link = single_info.get("link")
