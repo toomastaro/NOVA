@@ -632,6 +632,34 @@ async def success(message: types.Message, state: FSMContext, user: User):
 
     await give_subscribes(state, user)
 
+    # Записываем покупку (Stars Direct Purchase)
+    # Это важно для финансовой отчетности, так как grant_subscription не пишет в БД
+    try:
+        total_price = data.get("total_price")
+        service_data = data.get("service", "POSTING")
+        object_type = data.get("object_type", "channels")
+
+        # Определяем сервис (аналогично логике в choice)
+        if service_data == "subscribe":
+            if object_type == "bots":
+                service_enum = Service.BOTS
+            else:
+                service_enum = Service.POSTING
+        else:
+            service_enum = service_data
+
+        # Проверяем, не была ли уже записана покупка (на всякий случай)
+        # В данном контексте message.from_user.id и user.id идентичны
+        await db.purchase.add_purchase(
+            user_id=user.id,
+            amount=total_price,
+            method=PaymentMethod.STARS,
+            service=service_enum,
+        )
+        logger.info(f"Записана покупка Stars для пользователя {user.id}: {total_price}₽")
+    except Exception as e:
+        logger.error(f"Ошибка записи покупки Stars для {user.id}: {e}")
+
     await message.delete()
     await show_subscription_success(message, state, user)
     await state.clear()

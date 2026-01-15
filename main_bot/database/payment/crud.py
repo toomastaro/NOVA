@@ -57,6 +57,8 @@ class PaymentCrud(DatabaseMixin):
     ) -> Dict[str, Dict[str, int]]:
         """
         Получить сводку платежей по методам оплаты за период.
+        Агрегирует данные из таблиц payments (пополнения) и purchases (прямые покупки).
+        Исключает покупки с методом BALANCE из таблицы purchases, так как они уже учтены в пополнениях.
 
         Аргументы:
             start_ts (int): Начало периода (timestamp).
@@ -70,7 +72,10 @@ class PaymentCrud(DatabaseMixin):
                     ...
                 }
         """
-        stmt = (
+        from main_bot.database.purchase.model import Purchase
+
+        # 1. Получаем пополнения (Top-ups)
+        stmt_payments = (
             select(
                 Payment.method.label("payment_method"),
                 func.count(Payment.id).label("payments_count"),
@@ -83,14 +88,44 @@ class PaymentCrud(DatabaseMixin):
             .group_by(Payment.method)
         )
 
-        result = await self.fetchall(stmt)
-        return {
-            str(row.payment_method): {
+        payments_result = await self.fetchall(stmt_payments)
+        
+        # 2. Получаем прямые покупки (Direct Purchases), исключая оплату с баланса
+        stmt_purchases = (
+            select(
+                Purchase.method.label("payment_method"),
+                func.count(Purchase.id).label("payments_count"),
+                func.sum(Purchase.amount).label("total_amount"),
+            )
+            .where(
+                Purchase.created_timestamp >= start_ts,
+                Purchase.created_timestamp <= end_ts,
+                Purchase.method != PaymentMethod.BALANCE
+            )
+            .group_by(Purchase.method)
+        )
+
+        purchases_result = await self.fetchall(stmt_purchases)
+
+        # 3. Объединяем результаты
+        summary = {}
+
+        for row in payments_result:
+            method = str(row.payment_method)
+            summary[method] = {
                 "count": row.payments_count,
-                "total": int(row.total_amount or 0),
+                "total": int(row.total_amount or 0)
             }
-            for row in result
-        }
+
+        for row in purchases_result:
+            method = str(row.payment_method)
+            if method not in summary:
+                summary[method] = {"count": 0, "total": 0}
+            
+            summary[method]["count"] += row.payments_count
+            summary[method]["total"] += int(row.total_amount or 0)
+
+        return summary
 
     async def get_total_payments_count(self) -> int:
         """
