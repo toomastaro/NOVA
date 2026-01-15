@@ -427,9 +427,7 @@ async def choice_object_subscribe(
     if current_folder_id:
         folder_obj = await db.user_folder.get_folder_by_id(current_folder_id)
         if folder_obj:
-            folder_text = (
-                text("choice_channels:folder").format(folder_obj.title) + "\n\n"
-            )
+            folder_text = f"📁 Папка: <b>{folder_obj.title}</b>\n\n"
 
     try:
         await call.message.edit_text(

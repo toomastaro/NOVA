@@ -464,48 +464,6 @@ class NovaStatService:
 
         try:
             logger.info("🛠 [async_refresh_stats] Начало сбора данных")
-            # 3. Если канал "свой" - Fast Path (Redundant here but consistent)
-            if our_channel:
-                # Logic already handled in collect_stats fast path, 
-                # BUT async_refresh_stats is also called by Scheduler!
-                # So we MUST keep this logic here for scheduler.
-                # Код тот же, что и был.
-                
-                if our_channel.novastat_24h > 0:
-                    # ... (existing DB fetch logic) ...
-                    # ... (skipped for brevity, assuming we keep logic but use Redis set) ...
-                    # We need to retain the logic body but change set_cache call.
-                    # Since I'm replacing the whole block, I need to rewrite it.
-                    
-                    logger.info(f"Канал {clean_id} (внутренний), берем из БД.")
-                    subs = our_channel.subscribers_count
-                    views_res = {
-                        24: our_channel.novastat_24h,
-                        48: our_channel.novastat_48h,
-                        72: our_channel.novastat_72h,
-                    }
-                    er_res = {}
-                    for h in [24, 48, 72]:
-                        if subs > 0:
-                            er_res[h] = round((views_res[h] / subs) * 100, 2)
-                        else:
-                            er_res[h] = 0.0
-
-                    stats = {
-                        "title": our_channel.title or str(chat_id) or clean_id,
-                        "username": clean_id if not clean_id.lstrip("-").isdigit() else None,
-                        "link": f"https://t.me/{clean_id}" if not clean_id.lstrip("-").isdigit() else None,
-                        "subscribers": subs,
-                        "views": views_res,
-                        "er": er_res,
-                        "chat_id": chat_id
-                    }
-                    
-                    # Сохраняем в Redis
-                    await redis_client.set(f"novastat:data:{lock_id}:{horizon}", json.dumps(stats), ex=CACHE_TTL_SECONDS)
-                    return
-                
-                # Если 0, продолжаем... (though Fast Path excludes this, but Scheduler might start fresh)
 
             # 4. Получаем данные через MTProto
             stats = None
@@ -772,42 +730,6 @@ class NovaStatService:
             logger.error(error_msg)
             raise Exception("Не удалось найти канал.")
 
-        # --- INTERNAL CHANNEL CHECK ---
-        # Проверяем, не является ли найденный канал нашим "внутренним"
-        # Это актуально, если пользователь дал инвайт-ссылку на свой же канал.
-        # Мы только что узнали ID (entity.id) и можем проверить его в БД.
-        try:
-            resolved_chat_id = utils.get_peer_id(entity)
-            fresh_internal = await db.channel.get_channel_by_chat_id(resolved_chat_id)
-            
-            if fresh_internal and fresh_internal.novastat_24h > 0:
-                logger.info(f"⚡ Fast Path (Resolved): Канал {resolved_chat_id} оказался внутренним. Прерываем MTProto сбор и отдаем данные из БД.")
-                
-                subs = fresh_internal.subscribers_count
-                views_res = {
-                    24: fresh_internal.novastat_24h,
-                    48: fresh_internal.novastat_48h,
-                    72: fresh_internal.novastat_72h,
-                }
-                er_res = {}
-                for h in [24, 48, 72]:
-                    if subs > 0:
-                        er_res[h] = round((views_res[h] / subs) * 100, 2)
-                    else:
-                        er_res[h] = 0.0
-
-                return {
-                    "title": fresh_internal.title or str(resolved_chat_id),
-                    "username": getattr(entity, 'username', None),
-                    "link": f"https://t.me/{getattr(entity, 'username', '')}" if getattr(entity, 'username', None) else None,
-                    "subscribers": subs,
-                    "views": views_res,
-                    "er": er_res,
-                    "chat_id": resolved_chat_id
-                }
-        except Exception as check_internal_err:
-            logger.warning(f"Ошибка при проверке внутреннего канала после резолва: {check_internal_err}")
-        # ------------------------------
 
         # Определяем заголовок
         title = getattr(entity, "title", None) or getattr(entity, "username", None) or str(getattr(entity, "id", "Unknown"))

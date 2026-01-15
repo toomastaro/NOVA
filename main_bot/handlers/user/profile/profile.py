@@ -66,13 +66,37 @@ async def show_balance(message: types.Message, user: User):
 @safe_handler(
     "Профиль: каналы"
 )  # Безопасная обёртка: логирование + перехват ошибок без падения бота
-async def show_channels(message: types.Message):
+async def show_channels(message: types.Message, state: FSMContext):
     """Показать список каналов пользователя (перенесено из Posting)"""
-    channels = await db.channel.get_user_channels(
-        user_id=message.chat.id, sort_by="posting"
-    )
+    data = await state.get_data()
+    view_mode = data.get("channels_view_mode", "folders")
+    current_folder_id = data.get("channels_folder_id")
+
+    folders = await db.user_folder.get_user_folders(user_id=message.chat.id)
+    
+    if current_folder_id:
+        channels = await db.channel.get_user_channels(
+            user_id=message.chat.id, folder_id=current_folder_id, sort_by="posting"
+        )
+    else:
+        channels = await db.channel.get_user_channels(
+            user_id=message.chat.id, sort_by="posting"
+        )
+        if view_mode == "folders":
+            # Фильтруем каналы, которые уже в папках, чтобы не дублировать
+            # (Обычно в Nova в режиме папок на верхнем уровне только каналы без папок)
+            channels = [c for c in channels if not c.folder_id]
+
+    await state.update_data(channels_view_mode=view_mode)
+
     await message.answer(
-        text("channels_text"), reply_markup=keyboards.channels(channels=channels)
+        text("channels_text"),
+        reply_markup=keyboards.channels(
+            channels=channels,
+            folders=folders,
+            view_mode=view_mode,
+            is_inside_folder=bool(current_folder_id),
+        ),
     )
 
 

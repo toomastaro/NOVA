@@ -234,17 +234,50 @@ async def render_channel_info(
 async def choice(call: types.CallbackQuery, state: FSMContext):
     """Выбор канала для управления или добавления."""
     temp = call.data.split("|")
+    data = await state.get_data()
+    view_mode = data.get("channels_view_mode", "folders")
+    current_folder_id = data.get("channels_folder_id")
+
+    if temp[1] == "switch_view":
+        new_mode = temp[2]
+        await state.update_data(channels_view_mode=new_mode)
+        # Сбрасываем папку при переключении режима? Обычно да.
+        await state.update_data(channels_folder_id=None)
+        
+        # Перерисовываем меню
+        return await cancel(call, state)
+
+    if temp[1] == "close_folder":
+        await state.update_data(channels_folder_id=None)
+        return await cancel(call, state)
 
     if temp[1] in ["next", "back"]:
-        channels = await db.channel.get_user_channels(
-            user_id=call.from_user.id, sort_by="posting"
-        )
+        folders = await db.user_folder.get_user_folders(user_id=call.from_user.id)
+        if current_folder_id:
+            channels = await db.channel.get_user_channels(
+                user_id=call.from_user.id, folder_id=current_folder_id, sort_by="posting"
+            )
+        else:
+            channels = await db.channel.get_user_channels(
+                user_id=call.from_user.id, sort_by="posting"
+            )
+            if view_mode == "folders":
+                channels = [c for c in channels if not c.folder_id]
+
         return await call.message.edit_reply_markup(
-            reply_markup=keyboards.channels(channels=channels, remover=int(temp[2]))
+            reply_markup=keyboards.channels(
+                channels=channels,
+                remover=int(temp[2]),
+                folders=folders,
+                view_mode=view_mode,
+                is_inside_folder=bool(current_folder_id),
+            )
         )
 
     if temp[1] == "cancel":
         await call.message.delete()
+        # Сбрасываем состояние папок при выходе
+        await state.update_data(channels_folder_id=None)
         # Возврат в меню настроек (профиль)
         return await call.message.answer(
             text("start_profile_text"),
@@ -254,17 +287,18 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
 
     if temp[1] == "add":
         await state.set_state(AddChannel.waiting_for_channel)
-
-        # Удаляем старое сообщение
         await call.message.delete()
-
         from config import Config
-
-        # Отправляем текстовую инструкцию
         return await call.message.answer(
             text=text("channels:add:text").format(Config.BOT_USERNAME),
             reply_markup=keyboards.add_channel(),
         )
+
+    # Обработка выбора папки или канала
+    if len(temp) > 3 and temp[3] == "folder":
+        folder_id = int(temp[1])
+        await state.update_data(channels_folder_id=folder_id)
+        return await cancel(call, state)
 
     # Сохранение ID канала в состояние или передача через callback
     channel_id = int(temp[1])
@@ -277,15 +311,32 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
 @safe_handler(
     "Постинг: отмена канала"
 )  # Безопасная обёртка: логирование + перехват ошибок без падения бота
-async def cancel(call: types.CallbackQuery):
+async def cancel(call: types.CallbackQuery, state: FSMContext):
     """Отмена действий и возврат к списку каналов."""
-    channels = await db.channel.get_user_channels(
-        user_id=call.from_user.id, sort_by="posting"
-    )
+    data = await state.get_data()
+    view_mode = data.get("channels_view_mode", "folders")
+    current_folder_id = data.get("channels_folder_id")
+
+    folders = await db.user_folder.get_user_folders(user_id=call.from_user.id)
+    
+    if current_folder_id:
+        channels = await db.channel.get_user_channels(
+            user_id=call.from_user.id, folder_id=current_folder_id, sort_by="posting"
+        )
+    else:
+        channels = await db.channel.get_user_channels(
+            user_id=call.from_user.id, sort_by="posting"
+        )
+        if view_mode == "folders":
+            channels = [c for c in channels if not c.folder_id]
+
     return await call.message.edit_text(
         text=text("channels_text"),
         reply_markup=keyboards.channels(
             channels=channels,
+            folders=folders,
+            view_mode=view_mode,
+            is_inside_folder=bool(current_folder_id),
         ),
     )
 

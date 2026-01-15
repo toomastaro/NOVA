@@ -16,6 +16,7 @@ from main_bot.database.published_post.model import PublishedPost
 from main_bot.database.story.model import Story
 from main_bot.database.user_bot.model import UserBot
 from main_bot.database.user_folder.model import UserFolder
+from main_bot.database.user_bot.model import UserBot
 from main_bot.database.db_types import Status
 from main_bot.utils.lang.language import text
 from main_bot.utils.text_utils import clean_html_text
@@ -26,57 +27,95 @@ class InlineContent(InlineKeyboardBuilder):
 
     @classmethod
     def channels(
-        cls, channels: List[Channel], data: str = "ChoicePostChannel", remover: int = 0
+        cls,
+        channels: List[Channel],
+        data: str = "ChoicePostChannel",
+        remover: int = 0,
+        folders: List[UserFolder] = [],
+        view_mode: str = "channels",
+        is_inside_folder: bool = False,
     ):
         kb = cls()
         count_rows = 10
 
-        for a, idx in enumerate(range(remover, len(channels))):
+        # Переключатели вида
+        if not is_inside_folder and folders:
+            folders_text = "✅ Папки" if view_mode == "folders" else "📁 Папки"
+            channels_text = (
+                "✅ Все каналы" if view_mode == "channels" else "📢 Все каналы"
+            )
+            kb.row(
+                InlineKeyboardButton(
+                    text=folders_text, callback_data=f"{data}|switch_view|folders"
+                ),
+                InlineKeyboardButton(
+                    text=channels_text, callback_data=f"{data}|switch_view|channels"
+                ),
+            )
+
+        objects = []
+        if view_mode == "folders" and not is_inside_folder:
+            objects.extend(folders)
+            # В режиме папок показываем только каналы БЕЗ папок? 
+            # Или все каналы? Обычно в Nova в режиме папок показываются папки + каналы без папок.
+            # Но для простоты сейчас покажем папки, а потом каналы.
+            objects.extend(channels)
+        else:
+            objects.extend(sorted(channels, key=lambda x: x.title))
+
+        for a, idx in enumerate(range(remover, len(objects))):
             if a < count_rows:
-                kb.add(
+                obj = objects[idx]
+                if isinstance(obj, Channel):
+                    kb.row(
+                        InlineKeyboardButton(
+                            text=obj.title,
+                            callback_data=f"{data}|{obj.chat_id}|{remover}|channel",
+                        )
+                    )
+                elif isinstance(obj, UserFolder):
+                    kb.row(
+                        InlineKeyboardButton(
+                            text=f"📁 {obj.title}",
+                            callback_data=f"{data}|{obj.id}|{remover}|folder",
+                        )
+                    )
+
+        if len(objects) > count_rows:
+            nav_buttons = []
+            if remover > 0:
+                nav_buttons.append(
                     InlineKeyboardButton(
-                        text=channels[idx].title,
-                        callback_data=f"{data}|{channels[idx].chat_id}|{remover}",
+                        text="⬅️", callback_data=f"{data}|back|{remover - count_rows}"
                     )
                 )
-
-        kb.adjust(1)
-
-        if len(channels) <= count_rows:
-            pass
-
-        elif len(channels) > count_rows > remover:
-            kb.row(
-                InlineKeyboardButton(
-                    text="➡️", callback_data=f"{data}|next|{remover + count_rows}"
+            if remover + count_rows < len(objects):
+                nav_buttons.append(
+                    InlineKeyboardButton(
+                        text="➡️", callback_data=f"{data}|next|{remover + count_rows}"
+                    )
                 )
-            )
-        elif remover + count_rows >= len(channels):
-            kb.row(
-                InlineKeyboardButton(
-                    text="⬅️", callback_data=f"{data}|back|{remover - count_rows}"
-                )
-            )
-        else:
-            kb.row(
-                InlineKeyboardButton(
-                    text="⬅️", callback_data=f"{data}|back|{remover - count_rows}"
-                ),
-                InlineKeyboardButton(
-                    text="➡️", callback_data=f"{data}|next|{remover + count_rows}"
-                ),
-            )
+            if nav_buttons:
+                kb.row(*nav_buttons)
 
         kb.row(
             InlineKeyboardButton(
                 text=text("channels:add:button"), callback_data=f"{data}|add"
             )
         )
-        kb.row(
-            InlineKeyboardButton(
-                text=text("back:button"), callback_data=f"{data}|cancel"
+        
+        if is_inside_folder:
+            kb.row(
+                InlineKeyboardButton(
+                    text=text("close_folder:button"), callback_data=f"{data}|close_folder"
+                )
             )
-        )
+        else:
+            kb.row(
+                InlineKeyboardButton(
+                    text=text("back:button"), callback_data=f"{data}|cancel"
+                )
+            )
 
         return kb.as_markup()
 
