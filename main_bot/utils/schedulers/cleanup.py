@@ -10,8 +10,9 @@ import asyncio
 import logging
 import time
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Set
 
+from aiogram.exceptions import TelegramForbiddenError
 from sqlalchemy import select, or_
 
 from config import Config
@@ -112,10 +113,21 @@ async def check_subscriptions() -> None:
             formatted_date = time.strftime("%d.%m.%Y", time.localtime(expire_time))
             msg = text("expire_sub").format(data["title"], formatted_date)
 
-        # Отправляем уведомление ВСЕМ админам этого канала
+        # 0. Получаем всех зарегистрированных пользователей для фильтрации
+        # Делаем это один раз за цикл проверки, чтобы не спамить в БД
+        registered_user_ids = set(await db.user.get_all_user_ids())
+
+        # Отправляем уведомление ВСЕМ админам этого канала, которые есть в базе
         for admin_id in data["admins"]:
+            if admin_id not in registered_user_ids:
+                # Пропускаем тех, кто не в боте
+                continue
+
             try:
                 await bot.send_message(admin_id, msg, parse_mode="HTML")
+            except TelegramForbiddenError:
+                # Пользователь заблокировал бота - логируем без алертов
+                logger.debug(f"Пользователь {admin_id} заблокировал бота. Уведомление пропущено.")
             except Exception as e:
                 logger.error(
                     f"Ошибка уведомления для админа {admin_id} канала {data['title']}: {e}"

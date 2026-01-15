@@ -21,6 +21,13 @@ class UserCrud(DatabaseMixin):
     async def get_users(self) -> List[User]:
         return await self.fetch(select(User).order_by(User.created_timestamp.desc()))
 
+    async def get_all_user_ids(self) -> List[int]:
+        """
+        Получает список всех Telegram ID зарегистрированных пользователей.
+        """
+        res = await self.fetchall(select(User.id))
+        return [row[0] for row in res]
+
     async def get_user(self, user_id: int) -> User | None:
         """
         Получает пользователя по ID.
