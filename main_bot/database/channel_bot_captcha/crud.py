@@ -17,14 +17,25 @@ class ChannelCaptchaMessageCrud(DatabaseMixin):
     Класс для управления сообщениями капчи.
     """
 
-    async def add_channel_captcha(self, **kwargs) -> None:
+    async def add_channel_captcha(
+        self, return_obj: bool = False, **kwargs
+    ) -> ChannelCaptcha | None:
         """
         Создает новое сообщение капчи.
 
         Аргументы:
+            return_obj (bool): Вернуть ли созданный объект.
             **kwargs: Поля модели ChannelCaptcha.
         """
-        await self.execute(insert(ChannelCaptcha).values(**kwargs))
+        stmt = insert(ChannelCaptcha).values(**kwargs)
+
+        if return_obj:
+            operation = self.fetchrow
+            stmt = stmt.returning(ChannelCaptcha)
+        else:
+            operation = self.execute
+
+        return await operation(stmt, **{"commit": return_obj} if return_obj else {})
 
     async def get_all_captcha(self, chat_id: int) -> list:
         """

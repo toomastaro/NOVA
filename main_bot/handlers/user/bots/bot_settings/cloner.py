@@ -132,6 +132,7 @@ async def start_clone(
             )
 
     # captcha
+    # captcha
     if 1 in settings:
         for chat_id in chat_ids:
             captcha_list_remove = await db.channel_bot_captcha.get_all_captcha(
@@ -140,10 +141,21 @@ async def start_clone(
             for captcha_remove in captcha_list_remove:
                 await db.channel_bot_captcha.delete_captcha(captcha_remove.id)
 
+            new_active_captcha_id = None
+
             for captcha in captcha_list:
-                await db.channel_bot_captcha.add_channel_captcha(
-                    channel_id=chat_id, message=captcha.message, delay=captcha.delay
+                new_captcha = await db.channel_bot_captcha.add_channel_captcha(
+                    return_obj=True,
+                    channel_id=chat_id,
+                    message=captcha.message,
+                    delay=captcha.delay,
                 )
+                if channel.active_captcha_id == captcha.id:
+                    new_active_captcha_id = new_captcha.id
+
+            await db.channel_bot_settings.update_channel_bot_setting(
+                chat_id=chat_id, active_captcha_id=new_active_captcha_id
+            )
 
     # hello
     if 2 in settings:
