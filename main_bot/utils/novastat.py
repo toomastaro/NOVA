@@ -303,7 +303,7 @@ class NovaStatService:
         if chat_id:
             logger.debug(f"🔍 [NovaStat] Проверка внутреннего канала для chat_id={chat_id}")
             our_channel_fresh = await db.channel.get_channel_by_chat_id(chat_id)
-            if our_channel_fresh:
+            if our_channel_fresh and our_channel_fresh.novastat_24h > 0:
                 logger.info(f"⚡ [Fast Path] Канал {clean_id} (chat_id={chat_id}) - ВНУТРЕННИЙ. Возврат данных из БД channels.")
                 subs = our_channel_fresh.subscribers_count
                 views_res = {
@@ -780,7 +780,7 @@ class NovaStatService:
             resolved_chat_id = utils.get_peer_id(entity)
             fresh_internal = await db.channel.get_channel_by_chat_id(resolved_chat_id)
             
-            if fresh_internal:
+            if fresh_internal and fresh_internal.novastat_24h > 0:
                 logger.info(f"⚡ Fast Path (Resolved): Канал {resolved_chat_id} оказался внутренним. Прерываем MTProto сбор и отдаем данные из БД.")
                 
                 subs = fresh_internal.subscribers_count

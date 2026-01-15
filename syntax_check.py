@@ -3,6 +3,7 @@ import sys
 import os
 
 files = [
+    "C:/NOVA/main_bot/utils/novastat.py",
     "C:/NOVA/main_bot/utils/background.py",
     "C:/NOVA/main_bot/database/user/crud.py",
     "C:/NOVA/main_bot/utils/schedulers/cleanup.py",
