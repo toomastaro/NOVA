@@ -32,11 +32,17 @@ async def show_finance_menu(call: types.CallbackQuery) -> None:
         "Выберите период для отчёта:"
     )
 
-    await call.message.edit_text(
-        text_msg,
-        reply_markup=keyboards.admin_finance_menu(),
-        parse_mode="HTML"
-    )
+    from aiogram.exceptions import TelegramBadRequest
+
+    try:
+        await call.message.edit_text(
+            text_msg,
+            reply_markup=keyboards.admin_finance_menu(),
+            parse_mode="HTML"
+        )
+    except TelegramBadRequest:
+        pass
+
     await call.answer()
 
 
@@ -103,11 +109,17 @@ async def show_finance_report(call: types.CallbackQuery) -> None:
             f"💰 <b>ИТОГО:</b> {total_count} платежей на <b>{total_sum:,}₽</b>"
         )
 
-    await call.message.edit_text(
-        text_msg,
-        reply_markup=keyboards.admin_finance_menu(), # Оставляем меню для выбора другого периода
-        parse_mode="HTML"
-    )
+    from aiogram.exceptions import TelegramBadRequest
+
+    try:
+        await call.message.edit_text(
+            text_msg,
+            reply_markup=keyboards.admin_finance_menu(), # Оставляем меню для выбора другого периода
+            parse_mode="HTML"
+        )
+    except TelegramBadRequest:
+        pass
+
     await call.answer()
 
 

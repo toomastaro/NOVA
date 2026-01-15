@@ -18,12 +18,18 @@ router = Router()
 @safe_handler("Админ: Аналитика — меню")
 async def show_analytics_menu(call: types.CallbackQuery) -> None:
     """Главное меню аналитики"""
-    await call.message.edit_text(
-        "📈 <b>Бизнес-аналитика</b>\n\n"
-        "Выберите раздел для просмотра детальной статистики.",
-        reply_markup=keyboards.admin_analytics_menu(),
-        parse_mode="HTML"
-    )
+    from aiogram.exceptions import TelegramBadRequest
+
+    try:
+        await call.message.edit_text(
+            "📈 <b>Бизнес-аналитика</b>\n\n"
+            "Выберите раздел для просмотра детальной статистики.",
+            reply_markup=keyboards.admin_analytics_menu(),
+            parse_mode="HTML"
+        )
+    except TelegramBadRequest:
+        pass
+    
     await call.answer()
 
 
@@ -60,11 +66,17 @@ async def show_analytics_summary(call: types.CallbackQuery) -> None:
         f"└ Всего заработано: <b>{total_revenue:,}₽</b>"
     )
     
-    await call.message.edit_text(
-        text_msg,
-        reply_markup=keyboards.admin_analytics_menu(),
-        parse_mode="HTML"
-    )
+    from aiogram.exceptions import TelegramBadRequest
+
+    try:
+        await call.message.edit_text(
+            text_msg,
+            reply_markup=keyboards.admin_analytics_menu(),
+            parse_mode="HTML"
+        )
+    except TelegramBadRequest:
+        pass
+
     await call.answer()
 
 
@@ -85,11 +97,17 @@ async def show_analytics_churn(call: types.CallbackQuery) -> None:
         f"└ Средняя жизнь подписки: <b>{avg_duration} дн.</b>"
     )
 
-    await call.message.edit_text(
-        text_msg,
-        reply_markup=keyboards.admin_analytics_menu(),
-        parse_mode="HTML"
-    )
+    from aiogram.exceptions import TelegramBadRequest
+
+    try:
+        await call.message.edit_text(
+            text_msg,
+            reply_markup=keyboards.admin_analytics_menu(),
+            parse_mode="HTML"
+        )
+    except TelegramBadRequest:
+        pass
+
     await call.answer()
 
 
@@ -112,11 +130,17 @@ async def show_analytics_top(call: types.CallbackQuery) -> None:
         user_link = f"<a href='tg://user?id={data['user_id']}'>{data['user_id']}</a>"
         text_msg += f"{i}. {user_link} — <b>{data['total_paid']:,}₽</b>\n"
 
-    await call.message.edit_text(
-        text_msg,
-        reply_markup=keyboards.admin_analytics_menu(),
-        parse_mode="HTML"
-    )
+    from aiogram.exceptions import TelegramBadRequest
+    
+    try:
+        await call.message.edit_text(
+            text_msg,
+            reply_markup=keyboards.admin_analytics_menu(),
+            parse_mode="HTML"
+        )
+    except TelegramBadRequest:
+        pass  # Message is not modified
+    
     await call.answer()
 
 
