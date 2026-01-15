@@ -316,8 +316,12 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
 @safe_handler(
     "Постинг: отмена канала"
 )  # Безопасная обёртка: логирование + перехват ошибок без падения бота
-async def cancel(call: types.CallbackQuery, state: FSMContext):
+async def cancel(call: types.CallbackQuery, state: FSMContext = None):
     """Отмена действий и возврат к списку каналов."""
+    if state is None:
+        from main_bot.handlers import dp
+        state = dp.fsm.get_context(call.bot, call.message.chat.id, call.from_user.id)
+
     data = await state.get_data()
     view_mode = data.get("channels_view_mode", "folders")
     current_folder_id = data.get("channels_folder_id")
@@ -361,7 +365,7 @@ async def manage_channel(call: types.CallbackQuery, state: FSMContext):
         return await call.answer(text("delete_channel"), show_alert=True)
 
     if temp[1] == "cancel":
-        return await cancel(call)
+        return await cancel(call, state)
 
     if temp[1] == "invite_assistant":
         data = await state.get_data()
@@ -369,7 +373,7 @@ async def manage_channel(call: types.CallbackQuery, state: FSMContext):
 
         if not channel_id:
             await call.answer(text("error_choose_channel_again"), show_alert=True)
-            return await cancel(call)
+            return await cancel(call, state)
 
         channel = await db.channel.get_channel_by_chat_id(channel_id)
         if not channel:
@@ -451,7 +455,7 @@ async def manage_channel(call: types.CallbackQuery, state: FSMContext):
         if not channel_id:
             # Попытка восстановления состояния
             await call.answer(text("error_choose_channel_again"), show_alert=True)
-            return await cancel(call)
+            return await cancel(call, state)
 
         channel = await db.channel.get_channel_by_chat_id(channel_id)
         if not channel:

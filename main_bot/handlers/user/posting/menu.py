@@ -107,8 +107,7 @@ async def show_create_post(message: types.Message, state: FSMContext):
         await state.update_data(chosen=[], chosen_folders=[], current_folder_id=None)
 
         if view_mode == "folders":
-            display_channels = []
-            # Скрываем пустые папки
+            display_channels = await db.channel.get_user_channels_without_folders(user_id=message.chat.id)
             display_folders = [f for f in folders if f.content]
         else:
             display_channels = channels
@@ -148,7 +147,10 @@ async def show_settings(message: types.Message):
         user_id=message.chat.id, sort_by="posting"
     )
     await message.answer(
-        text("channels_text"), reply_markup=keyboards.channels(channels=channels)
+        text("channels_text"),
+        reply_markup=keyboards.channels(
+            channels=channels,
+        ),
     )
 
 
@@ -157,7 +159,9 @@ async def show_settings(message: types.Message):
 )  # Безопасная обёртка: логирование + перехват ошибок без падения бота
 async def show_content(message: types.Message):
     """Показывает меню выбора канала для контент-плана."""
-    channels = await db.channel.get_user_channels(user_id=message.chat.id)
+    # Для контент-плана пока оставляем плоский список, 
+    # так как keyboards.choice_object_content не поддерживает папки
+    channels = await db.channel.get_user_channels(user_id=message.chat.id, sort_by="posting")
     await message.answer(
         text("choice_channel:content"),
         reply_markup=keyboards.choice_object_content(channels=channels),
