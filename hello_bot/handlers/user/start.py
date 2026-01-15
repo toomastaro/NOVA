@@ -291,7 +291,9 @@ async def set_channel(call: types.ChatMemberUpdated, db_bot: UserBot):
             chat_id=chat_id, bot_id=None
         )
 
-        message_text = text("success_delete_channel").format(channel.title)
+        message_text = text("success_delete_channel").format(
+            db_bot.emoji_id, db_bot.username, db_bot.emoji_id, channel.title
+        )
 
     try:
         await main_bot_obj.send_message(chat_id=call.from_user.id, text=message_text)
