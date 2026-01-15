@@ -213,7 +213,12 @@ class UserCrud(DatabaseMixin):
 
         return await operation(stmt, **{"commit": return_obj} if return_obj else {})
 
-    async def many_insert_user(self, users: list[dict]):
-        """Массовая вставка пользователей (игнорирует дубликаты)."""
-        stmt = p_insert(User).values(users)
-        await self.execute(stmt.on_conflict_do_nothing(index_elements=["id"]))
+    async def many_insert_user(self, users: list[dict], batch_size: int = 1000):
+        """Массовая вставка пользователей (игнорирует дубликаты) с разбивкой на пакеты."""
+        if not users:
+            return
+
+        for i in range(0, len(users), batch_size):
+            chunk = users[i : i + batch_size]
+            stmt = p_insert(User).values(chunk)
+            await self.execute(stmt.on_conflict_do_nothing(index_elements=["id"]))
