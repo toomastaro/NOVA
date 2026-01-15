@@ -532,6 +532,19 @@ async def get_import_file(message: types.Message, state: FSMContext) -> None:
         other_db = Database()
         other_db.schema = ensure_bot_obj(user_bot_data).schema
 
+        # Устанавливаем флаги активности и одобрения для импортированных пользователей
+        current_time = int(time.time())
+        for user in users:
+            user.update(
+                {
+                    "is_active": True,
+                    "is_approved": True,
+                    "walk_captcha": True,
+                    "time_approved": current_time,
+                    "time_walk_captcha": current_time,
+                }
+            )
+
         await other_db.many_insert_user(users)
 
     except Exception as e:
