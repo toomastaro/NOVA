@@ -17,6 +17,7 @@ from main_bot.utils.functions import get_editors
 from main_bot.utils.lang.language import text
 from main_bot.utils.session_manager import SessionManager
 from main_bot.utils import schedulers, background
+from main_bot.database.db_types import FolderType
 from main_bot.utils.schedulers import (
     schedule_channel_job,
     update_channel_stats,
@@ -252,17 +253,21 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
         return await cancel(call, state)
 
     if temp[1] in ["next", "back"]:
-        folders = await db.user_folder.get_user_folders(user_id=call.from_user.id)
+        folders = await db.user_folder.get_folders(user_id=call.from_user.id, folder_type=FolderType.CHANNEL)
         if current_folder_id:
+            folder = await db.user_folder.get_folder_by_id(current_folder_id)
             channels = await db.channel.get_user_channels(
-                user_id=call.from_user.id, folder_id=current_folder_id, sort_by="posting"
+                user_id=call.from_user.id, 
+                from_array=[int(c) for c in folder.content] if folder and folder.content else [],
+                sort_by="posting"
             )
         else:
-            channels = await db.channel.get_user_channels(
-                user_id=call.from_user.id, sort_by="posting"
-            )
             if view_mode == "folders":
-                channels = [c for c in channels if not c.folder_id]
+                channels = await db.channel.get_user_channels_without_folders(user_id=call.from_user.id)
+            else:
+                channels = await db.channel.get_user_channels(
+                    user_id=call.from_user.id, sort_by="posting"
+                )
 
         return await call.message.edit_reply_markup(
             reply_markup=keyboards.channels(
@@ -317,18 +322,22 @@ async def cancel(call: types.CallbackQuery, state: FSMContext):
     view_mode = data.get("channels_view_mode", "folders")
     current_folder_id = data.get("channels_folder_id")
 
-    folders = await db.user_folder.get_user_folders(user_id=call.from_user.id)
+    folders = await db.user_folder.get_folders(user_id=call.from_user.id, folder_type=FolderType.CHANNEL)
     
     if current_folder_id:
+        folder = await db.user_folder.get_folder_by_id(current_folder_id)
         channels = await db.channel.get_user_channels(
-            user_id=call.from_user.id, folder_id=current_folder_id, sort_by="posting"
+            user_id=call.from_user.id, 
+            from_array=[int(c) for c in folder.content] if folder and folder.content else [],
+            sort_by="posting"
         )
     else:
-        channels = await db.channel.get_user_channels(
-            user_id=call.from_user.id, sort_by="posting"
-        )
         if view_mode == "folders":
-            channels = [c for c in channels if not c.folder_id]
+            channels = await db.channel.get_user_channels_without_folders(user_id=call.from_user.id)
+        else:
+            channels = await db.channel.get_user_channels(
+                user_id=call.from_user.id, sort_by="posting"
+            )
 
     return await call.message.edit_text(
         text=text("channels_text"),
