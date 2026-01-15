@@ -15,6 +15,7 @@ from aiogram.fsm.context import FSMContext
 
 from hello_bot.database.db import Database
 from main_bot.database.db import db
+from main_bot.database.db_types import FolderType
 from main_bot.keyboards import keyboards
 from main_bot.keyboards.common import Reply
 from main_bot.states.user import Support
@@ -244,7 +245,9 @@ async def show_channels(message: types.Message, state: FSMContext) -> None:
     view_mode = data.get("channels_view_mode", "folders")
     current_folder_id = data.get("channels_folder_id")
 
-    folders = await db.user_folder.get_user_folders(user_id=message.chat.id)
+    folders = await db.user_folder.get_folders(
+        user_id=message.chat.id, folder_type=FolderType.CHANNEL
+    )
     
     if current_folder_id:
         channels = await db.channel.get_user_channels(
