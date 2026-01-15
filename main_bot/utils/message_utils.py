@@ -325,6 +325,8 @@ async def answer_message_bot(
     # Отправляем сообщение
     post_message = None
     try:
+        # Добавляем reply_markup, если он есть в message_options
+        dump["reply_markup"] = message_options.reply_markup
         post_message = await cor(**dump)
     except Exception as e:
         logger.error(f"Ошибка при отправке сообщения: {e}")
@@ -367,7 +369,29 @@ async def answer_message(
         cor = message.answer_animation
         message_options.animation = message_options.animation.file_id
 
-    post_message = await cor(**message_options.model_dump(), parse_mode="HTML")
+    dump = message_options.model_dump()
+    dump["parse_mode"] = "HTML"
+    
+    # Удаляем поля, которые могут вызвать конфликт или ошибку
+    if message_options.text:
+        dump.pop("photo", None)
+        dump.pop("video", None)
+        dump.pop("animation", None)
+        dump.pop("caption", None)
+    elif message_options.photo:
+        dump.pop("video", None)
+        dump.pop("animation", None)
+        dump.pop("text", None)
+    elif message_options.video:
+        dump.pop("photo", None)
+        dump.pop("animation", None)
+        dump.pop("text", None)
+    else:
+        dump.pop("photo", None)
+        dump.pop("video", None)
+        dump.pop("text", None)
+
+    post_message = await cor(**dump)
 
     return post_message
 

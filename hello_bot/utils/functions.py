@@ -83,7 +83,7 @@ async def answer_message_bot(
         dump.pop("disable_web_page_preview")
 
     try:
-        post_message = await cor(**dump, reply_markup=reply)
+        post_message = await cor(**dump, reply_markup=reply or message_options.reply_markup)
     except Exception as e:
         logger.error(f"Ошибка при отправке сообщения ботом: {e}")
         return None
@@ -114,8 +114,35 @@ async def answer_message(message: types.Message, message_options: MessageOptions
         cor = message.answer_animation
         message_options.animation = message_options.animation.file_id
 
+    dump = message_options.model_dump()
+
+    # Удаляем лишние поля, чтобы не вызвать ошибку
+    dump.pop("reply_markup", None)
+
+    if message_options.text:
+        dump.pop("photo", None)
+        dump.pop("video", None)
+        dump.pop("animation", None)
+        dump.pop("caption", None)
+    elif message_options.photo:
+        dump.pop("video", None)
+        dump.pop("animation", None)
+        dump.pop("text", None)
+        dump.pop("disable_web_page_preview", None)
+    elif message_options.video:
+        dump.pop("photo", None)
+        dump.pop("animation", None)
+        dump.pop("text", None)
+        dump.pop("disable_web_page_preview", None)
+    else:
+        dump.pop("photo", None)
+        dump.pop("video", None)
+        dump.pop("text", None)
+        dump.pop("disable_web_page_preview", None)
+
     post_message = await cor(
-        **message_options.model_dump(),
+        **dump,
+        reply_markup=message_options.reply_markup,
     )
 
     return post_message
