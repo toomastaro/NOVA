@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 
 from aiogram import types, F, Router
 from aiogram.fsm.context import FSMContext
+from aiogram.exceptions import TelegramBadRequest
 
 from main_bot.database.published_post.model import PublishedPost
 from main_bot.database.db import db
@@ -515,17 +516,20 @@ async def manage_remain_post(call: types.CallbackQuery, state: FSMContext):
         posts = await db.post.get_posts(channel_data["chat_id"], day)
 
         post_message = data.get("post_message")
-        if isinstance(post_message, types.Message):
-            await post_message.delete()
-        elif post_message:  # Проверка существования перед использованием
-            await call.bot.delete_message(
-                call.message.chat.id,
-                (
-                    post_message.get("message_id")
-                    if isinstance(post_message, dict)
-                    else post_message.message_id
-                ),
-            )
+        try:
+            if isinstance(post_message, types.Message):
+                await post_message.delete()
+            elif post_message:  # Проверка существования перед использованием
+                await call.bot.delete_message(
+                    call.message.chat.id,
+                    (
+                        post_message.get("message_id")
+                        if isinstance(post_message, dict)
+                        else post_message.message_id
+                    ),
+                )
+        except TelegramBadRequest:
+            pass
 
         days_with_posts = await get_days_with_posts(
             channel_data["chat_id"], day.year, day.month
@@ -627,17 +631,20 @@ async def accept_delete_row_content(call: types.CallbackQuery, state: FSMContext
         posts = await db.post.get_posts(channel_data["chat_id"], day)
 
         post_message = data.get("post_message")
-        if isinstance(post_message, types.Message):
-            await post_message.delete()
-        elif post_message:
-            await call.bot.delete_message(
-                call.message.chat.id,
-                (
-                    post_message.get("message_id")
-                    if isinstance(post_message, dict)
-                    else post_message.message_id
-                ),
-            )
+        try:
+            if isinstance(post_message, types.Message):
+                await post_message.delete()
+            elif post_message:
+                await call.bot.delete_message(
+                    call.message.chat.id,
+                    (
+                        post_message.get("message_id")
+                        if isinstance(post_message, dict)
+                        else post_message.message_id
+                    ),
+                )
+        except TelegramBadRequest:
+            pass
 
         days_with_posts = await get_days_with_posts(
             channel_data["chat_id"], day.year, day.month
@@ -779,17 +786,20 @@ async def manage_published_post(call: types.CallbackQuery, state: FSMContext):
         posts = await db.post.get_posts(channel_data["chat_id"], day)
 
         post_message = data.get("post_message")
-        if isinstance(post_message, types.Message):
-            await post_message.delete()
-        else:
-            await call.bot.delete_message(
-                call.message.chat.id,
-                (
-                    post_message.get("message_id")
-                    if isinstance(post_message, dict)
-                    else post_message.message_id
-                ),
-            )
+        try:
+            if isinstance(post_message, types.Message):
+                await post_message.delete()
+            else:
+                await call.bot.delete_message(
+                    call.message.chat.id,
+                    (
+                        post_message.get("message_id")
+                        if isinstance(post_message, dict)
+                        else post_message.message_id
+                    ),
+                )
+        except TelegramBadRequest:
+            pass
 
         # Возврат к списку контента
         days_with_posts = await get_days_with_posts(
@@ -917,9 +927,14 @@ async def accept_delete_published_post(call: types.CallbackQuery, state: FSMCont
             ids_to_delete.append(p.id)
             try:
                 await call.bot.delete_message(p.chat_id, p.message_id)
+            except TelegramBadRequest as e:
+                if "message to delete not found" in e.message.lower() or "message can't be deleted" in e.message.lower():
+                    logger.warning(f"Сообщение {p.message_id} в {p.chat_id} уже удалено или недоступно для удаления.")
+                else:
+                    logger.error(f"Ошибка API при удалении сообщения {p.message_id} из {p.chat_id}: {e}")
             except Exception as e:
                 logger.error(
-                    f"Ошибка при удалении сообщения {p.message_id} из {p.chat_id}: {e}",
+                    f"Непредвиденная ошибка при удалении сообщения {p.message_id} из {p.chat_id}: {e}",
                     exc_info=True,
                 )
 
@@ -930,17 +945,20 @@ async def accept_delete_published_post(call: types.CallbackQuery, state: FSMCont
         posts = await db.post.get_posts(channel_data["chat_id"], day)
 
         post_message = data.get("post_message")
-        if isinstance(post_message, types.Message):
-            await post_message.delete()
-        elif post_message:
-            await call.bot.delete_message(
-                call.message.chat.id,
-                (
-                    post_message.get("message_id")
-                    if isinstance(post_message, dict)
-                    else post_message.message_id
-                ),
-            )
+        try:
+            if isinstance(post_message, types.Message):
+                await post_message.delete()
+            elif post_message:
+                await call.bot.delete_message(
+                    call.message.chat.id,
+                    (
+                        post_message.get("message_id")
+                        if isinstance(post_message, dict)
+                        else post_message.message_id
+                    ),
+                )
+        except TelegramBadRequest:
+            pass
 
         days_with_posts = await get_days_with_posts(
             channel_data["chat_id"], day.year, day.month
