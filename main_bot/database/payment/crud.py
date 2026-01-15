@@ -72,9 +72,9 @@ class PaymentCrud(DatabaseMixin):
         """
         stmt = (
             select(
-                Payment.method,
-                func.count(Payment.id).label("count"),
-                func.sum(Payment.amount).label("total"),
+                Payment.method.label("payment_method"),
+                func.count(Payment.id).label("payments_count"),
+                func.sum(Payment.amount).label("total_amount"),
             )
             .where(
                 Payment.created_timestamp >= start_ts,
@@ -83,9 +83,12 @@ class PaymentCrud(DatabaseMixin):
             .group_by(Payment.method)
         )
 
-        result = await self.fetch(stmt)
+        result = await self.fetchall(stmt)
         return {
-            str(row.method): {"count": row.count, "total": int(row.total or 0)}
+            str(row.payment_method): {
+                "count": row.payments_count,
+                "total": int(row.total_amount or 0),
+            }
             for row in result
         }
 
@@ -128,7 +131,7 @@ class PaymentCrud(DatabaseMixin):
             .limit(limit)
         )
 
-        result = await self.fetch(stmt)
+        result = await self.fetchall(stmt)
         return [
             {"user_id": row.user_id, "total_paid": int(row.total_paid)}
             for row in result

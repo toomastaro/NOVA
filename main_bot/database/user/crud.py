@@ -216,7 +216,7 @@ class UserCrud(DatabaseMixin):
             .limit(limit)
         )
 
-        result = await self.fetch(stmt)
+        result = await self.fetchall(stmt)
         return [
             {"user_id": row.user_id, "channels_count": row.channels_count}
             for row in result
