@@ -43,7 +43,7 @@ class InlineAdmin(InlineKeyboardBuilder):
         kb.button(text="◀️ В меню", callback_data="Admin|back")
         kb.adjust(1)
         return kb.as_markup()
-    
+
     @classmethod
     def admin_analytics_menu(cls):
         """Меню бизнес-аналитики"""
@@ -54,7 +54,7 @@ class InlineAdmin(InlineKeyboardBuilder):
         kb.button(text="◀️ В меню", callback_data="Admin|back")
         kb.adjust(1)
         return kb.as_markup()
-    
+
     @classmethod
     def admin_users_management(cls):
         """Меню управления пользователями (Импорт/Экспорт)"""
@@ -136,13 +136,22 @@ class InlineAdmin(InlineKeyboardBuilder):
 
         # Кнопки переноса пола
         if current_pool != "internal":
-            kb.button(text="🏠 Перенести в Internal", callback_data=f"AdminSession|move_pool|{client_id}|internal")
-        
+            kb.button(
+                text="🏠 Перенести в Internal",
+                callback_data=f"AdminSession|move_pool|{client_id}|internal",
+            )
+
         if current_pool != "external":
-            kb.button(text="🌐 Перенести в External", callback_data=f"AdminSession|move_pool|{client_id}|external")
-            
+            kb.button(
+                text="🌐 Перенести в External",
+                callback_data=f"AdminSession|move_pool|{client_id}|external",
+            )
+
         if current_pool != "unassigned":
-            kb.button(text="🗑 Удалить из категории", callback_data=f"AdminSession|move_pool|{client_id}|unassigned")
+            kb.button(
+                text="🗑 Удалить из категории",
+                callback_data=f"AdminSession|move_pool|{client_id}|unassigned",
+            )
 
         kb.button(text=text("back:button"), callback_data="AdminSession|back_to_list")
         kb.adjust(1)
@@ -177,7 +186,8 @@ class InlineAdmin(InlineKeyboardBuilder):
             text="Внешний (NovaStat)", callback_data="AdminSession|pool_select|external"
         )
         kb.button(
-            text="Неопределенный (Отстойник)", callback_data="AdminSession|pool_select|unassigned"
+            text="Неопределенный (Отстойник)",
+            callback_data="AdminSession|pool_select|unassigned",
         )
         kb.button(text=text("back:button"), callback_data="AdminSession|cancel")
         kb.adjust(1)
@@ -267,7 +277,10 @@ class InlineAdmin(InlineKeyboardBuilder):
         """
         kb = cls()
 
-        kb.button(text="➕ Продлить подписку", callback_data=f"AdminChannels|extend|{channel_id}")
+        kb.button(
+            text="➕ Продлить подписку",
+            callback_data=f"AdminChannels|extend|{channel_id}",
+        )
         kb.button(text="◀️ К списку", callback_data="AdminChannels|list|0")
 
         kb.adjust(1)
@@ -280,9 +293,15 @@ class InlineAdmin(InlineKeyboardBuilder):
         kb.button(text="День", callback_data=f"AdminChannels|ext_proc|{channel_id}|1")
         kb.button(text="Неделя", callback_data=f"AdminChannels|ext_proc|{channel_id}|7")
         kb.button(text="Месяц", callback_data=f"AdminChannels|ext_proc|{channel_id}|30")
-        kb.button(text="3 месяца", callback_data=f"AdminChannels|ext_proc|{channel_id}|90")
+        kb.button(
+            text="3 месяца", callback_data=f"AdminChannels|ext_proc|{channel_id}|90"
+        )
         kb.adjust(2)
-        kb.row(InlineKeyboardButton(text="◀️ Отмена", callback_data=f"AdminChannels|view|{channel_id}"))
+        kb.row(
+            InlineKeyboardButton(
+                text="◀️ Отмена", callback_data=f"AdminChannels|view|{channel_id}"
+            )
+        )
         return kb.as_markup()
 
     @classmethod
@@ -295,15 +314,23 @@ class InlineAdmin(InlineKeyboardBuilder):
                 callback_data=f"AdminBots|view|{bot.id}",
             )
         kb.adjust(1)
-        
+
         nav = []
         if offset > 0:
-            nav.append(InlineKeyboardButton(text="⬅️", callback_data=f"AdminBots|list|{max(0, offset-10)}"))
+            nav.append(
+                InlineKeyboardButton(
+                    text="⬅️", callback_data=f"AdminBots|list|{max(0, offset-10)}"
+                )
+            )
         if offset + 10 < total:
-            nav.append(InlineKeyboardButton(text="➡️", callback_data=f"AdminBots|list|{offset+10}"))
+            nav.append(
+                InlineKeyboardButton(
+                    text="➡️", callback_data=f"AdminBots|list|{offset+10}"
+                )
+            )
         if nav:
             kb.row(*nav)
-        
+
         kb.row(InlineKeyboardButton(text="◀️ В меню", callback_data="Admin|back"))
         return kb.as_markup()
 
@@ -328,9 +355,17 @@ class InlineAdmin(InlineKeyboardBuilder):
 
         nav = []
         if offset > 0:
-            nav.append(InlineKeyboardButton(text="⬅️", callback_data=f"AdminUsers|list|{max(0, offset-10)}"))
+            nav.append(
+                InlineKeyboardButton(
+                    text="⬅️", callback_data=f"AdminUsers|list|{max(0, offset-10)}"
+                )
+            )
         if offset + 10 < total:
-            nav.append(InlineKeyboardButton(text="➡️", callback_data=f"AdminUsers|list|{offset+10}"))
+            nav.append(
+                InlineKeyboardButton(
+                    text="➡️", callback_data=f"AdminUsers|list|{offset+10}"
+                )
+            )
         if nav:
             kb.row(*nav)
 

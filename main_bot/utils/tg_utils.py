@@ -234,7 +234,7 @@ async def set_channel_session(chat_id: int):
         return {"error": "No Active Clients"}
 
     logger.info(
-        f"🔄 Выбран клиент {client.id} ({client.alias}) для канала {chat_id} используя round-robin"
+        f"🔄 Выбран клиент {client.id} ({client.alias}) для канала {chat_id} используя Least Used (min load)"
     )
 
     session_path = Path(client.session_path)
@@ -312,9 +312,7 @@ async def set_channel_session(chat_id: int):
 
         # Обновление сессии и last_client_id для всех админов канала (синхронизация)
         await db.channel.update_channel_by_chat_id(
-            chat_id=chat_id,
-            session_path=str(session_path),
-            last_client_id=client.id
+            chat_id=chat_id, session_path=str(session_path), last_client_id=client.id
         )
         logger.info(
             f"✅ Обновлены сессия и last_client_id для канала {chat_id} (клиент: {client.id})"

@@ -2,18 +2,15 @@
 Модуль для управления разделом "Админы" (пользователи) в админ-панели.
 """
 
-import io
 import logging
 import time
 
 from aiogram import F, Router, types
 from aiogram.fsm.context import FSMContext
-from aiogram.types import FSInputFile
 
 from main_bot.database.db import db
 from main_bot.keyboards import keyboards
 from main_bot.states.admin import AdminStates
-from main_bot.utils.lang.language import text
 from utils.error_handler import safe_handler
 
 logger = logging.getLogger(__name__)
@@ -41,35 +38,34 @@ async def show_users_list(call: types.CallbackQuery, offset: int = 0) -> None:
         parse_mode="HTML",
     )
     await call.answer()
-    
-    
+
+
 @safe_handler("Админ: Экспорт пользователей")
 async def export_users(call: types.CallbackQuery) -> None:
     """
     Генерирует .txt файл со всеми user_id и отправляет его администратору.
     """
     await call.answer("⏳ Генерация файла экспорта...")
-    
+
     users = await db.user.get_users()
-    content = '\n'.join(str(user.id) for user in users)
-    
+    content = "\n".join(str(user.id) for user in users)
+
     # Создаем виртуальный файл в памяти
-    file_bytes = content.encode('utf-8')
+    file_bytes = content.encode("utf-8")
     timestamp = int(time.time())
     file_name = f"nova_users_export_{timestamp}.txt"
-    
+
     # Используем BufferedInputFile вместо FSInputFile для байтов из памяти
     document = types.BufferedInputFile(file_bytes, filename=file_name)
-    
+
     await call.message.answer_document(
-        document,
-        caption=f"📤 Экспорт пользователей\nВсего записей: {len(users)}"
+        document, caption=f"📤 Экспорт пользователей\nВсего записей: {len(users)}"
     )
-    
+
     # Возвращаемся в меню
     await call.message.answer(
         "👥 Меню управления пользователями",
-        reply_markup=keyboards.admin_users_management()
+        reply_markup=keyboards.admin_users_management(),
     )
 
 
@@ -85,7 +81,7 @@ async def import_users_start(call: types.CallbackQuery, state: FSMContext) -> No
         "Пример:\n"
         "<code>123456789\n987654321</code>",
         parse_mode="HTML",
-        reply_markup=keyboards.back(data="AdminUsers|cancel_import")
+        reply_markup=keyboards.back(data="AdminUsers|cancel_import"),
     )
     await state.set_state(AdminStates.waiting_for_user_import_file)
     await call.answer()
@@ -96,31 +92,31 @@ async def process_import_file(message: types.Message, state: FSMContext) -> None
     """
     Обрабатывает полученный файл с ID пользователей.
     """
-    if not message.document or not message.document.file_name.endswith('.txt'):
+    if not message.document or not message.document.file_name.endswith(".txt"):
         return await message.answer("❌ Пожалуйста, отправьте файл с расширением .txt")
 
     processing_msg = await message.answer("⏳ Обработка файла...")
 
     # Скачиваем файл
     file = await message.bot.download(message.document.file_id)
-    content = file.read().decode('utf-8')
+    content = file.read().decode("utf-8")
 
     added = 0
     skipped = 0
     errors = 0
 
     # Парсим и добавляем
-    for line in content.strip().split('\n'):
+    for line in content.strip().split("\n"):
         line = line.strip()
         if not line:
             continue
-        
+
         try:
             user_id = int(line)
             if user_id <= 0:
                 errors += 1
                 continue
-            
+
             # Проверяем существование
             existing = await db.user.get_user(user_id)
             if existing:
@@ -128,14 +124,14 @@ async def process_import_file(message: types.Message, state: FSMContext) -> None
             else:
                 await db.user.add_user(id=user_id)
                 added += 1
-                
+
         except ValueError:
             errors += 1
             logger.debug(f"Импорт: невалидная строка '{line}'")
 
     await state.clear()
     await processing_msg.delete()
-    
+
     result_text = (
         f"✅ <b>Импорт завершён</b>\n\n"
         f"➕ Добавлено: <code>{added}</code>\n"
@@ -144,9 +140,7 @@ async def process_import_file(message: types.Message, state: FSMContext) -> None
     )
 
     await message.answer(
-        result_text,
-        reply_markup=keyboards.admin_users_management(),
-        parse_mode="HTML"
+        result_text, reply_markup=keyboards.admin_users_management(), parse_mode="HTML"
     )
 
 
@@ -170,13 +164,9 @@ async def view_user_details(call: types.CallbackQuery) -> None:
 
     msg = "👤 <b>Отчет по администратору</b>\n\n"
     msg += f"<b>Telegram ID:</b> <code>{user_id}</code>\n"
-    msg += (
-        f"<b>Регистрация:</b> {time.strftime('%d.%m.%Y %H:%M', time.localtime(user.created_timestamp))}\n"
-    )
+    msg += f"<b>Регистрация:</b> {time.strftime('%d.%m.%Y %H:%M', time.localtime(user.created_timestamp))}\n"
     msg += f"<b>Баланс:</b> {user.balance}₽\n"
-    msg += (
-        f"<b>Статус:</b> {'✅ Активен' if user.is_active else '❌ Заблокирован'}\n\n"
-    )
+    msg += f"<b>Статус:</b> {'✅ Активен' if user.is_active else '❌ Заблокирован'}\n\n"
 
     msg += "📊 <b>Статистика действий:</b>\n"
     msg += f"├ Постов (план/архив): {posts_count}\n"
@@ -222,7 +212,7 @@ async def users_callback_handler(call: types.CallbackQuery, state: FSMContext) -
         await call.message.edit_text(
             "👥 <b>Управление пользователями</b>\n\nВыберите действие:",
             reply_markup=keyboards.admin_users_management(),
-            parse_mode="HTML"
+            parse_mode="HTML",
         )
         await call.answer()
     elif action == "export":
@@ -232,8 +222,11 @@ async def users_callback_handler(call: types.CallbackQuery, state: FSMContext) -
     elif action == "cancel_import":
         await state.clear()
         # Возвращаем меню, но нужно отправить новое сообщение, так как мы удалили прошлое
-        await call.message.delete() 
-        await call.message.answer("👥 Меню управления пользователями", reply_markup=keyboards.admin_users_management())
+        await call.message.delete()
+        await call.message.answer(
+            "👥 Меню управления пользователями",
+            reply_markup=keyboards.admin_users_management(),
+        )
 
 
 def get_router() -> Router:
@@ -242,8 +235,6 @@ def get_router() -> Router:
     )
     # Регистрируем обработчик файла
     router.message.register(
-        process_import_file, 
-        AdminStates.waiting_for_user_import_file, 
-        F.document
+        process_import_file, AdminStates.waiting_for_user_import_file, F.document
     )
     return router

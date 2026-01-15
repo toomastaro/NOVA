@@ -89,7 +89,7 @@ class PaymentCrud(DatabaseMixin):
         )
 
         payments_result = await self.fetchall(stmt_payments)
-        
+
         # 2. Получаем прямые покупки (Direct Purchases), исключая оплату с баланса
         stmt_purchases = (
             select(
@@ -100,7 +100,7 @@ class PaymentCrud(DatabaseMixin):
             .where(
                 Purchase.created_timestamp >= start_ts,
                 Purchase.created_timestamp <= end_ts,
-                Purchase.method != PaymentMethod.BALANCE
+                Purchase.method != PaymentMethod.BALANCE,
             )
             .group_by(Purchase.method)
         )
@@ -114,14 +114,14 @@ class PaymentCrud(DatabaseMixin):
             method = str(row.payment_method)
             summary[method] = {
                 "count": row.payments_count,
-                "total": int(row.total_amount or 0)
+                "total": int(row.total_amount or 0),
             }
 
         for row in purchases_result:
             method = str(row.payment_method)
             if method not in summary:
                 summary[method] = {"count": 0, "total": 0}
-            
+
             summary[method]["count"] += row.payments_count
             summary[method]["total"] += int(row.total_amount or 0)
 
@@ -158,9 +158,7 @@ class PaymentCrud(DatabaseMixin):
             List[Dict]: Список вида [{'user_id': 123, 'total_paid': 990}, ...]
         """
         stmt = (
-            select(
-                Payment.user_id, func.sum(Payment.amount).label("total_paid")
-            )
+            select(Payment.user_id, func.sum(Payment.amount).label("total_paid"))
             .group_by(Payment.user_id)
             .order_by(func.sum(Payment.amount).desc())
             .limit(limit)

@@ -72,7 +72,9 @@ async def give_subscribes(state: FSMContext, user: User):
             percent = 15 if has_purchase else 60
             total_ref_earn = int(total_price / 100 * percent)
 
-            await db.user.add_referral_reward(user_id=ref_user.id, amount=total_ref_earn)
+            await db.user.add_referral_reward(
+                user_id=ref_user.id, amount=total_ref_earn
+            )
             logger.info(
                 f"Реферальное вознаграждение {total_ref_earn} начислено {ref_user.id}"
             )
@@ -656,7 +658,9 @@ async def success(message: types.Message, state: FSMContext, user: User):
             method=PaymentMethod.STARS,
             service=service_enum,
         )
-        logger.info(f"Записана покупка Stars для пользователя {user.id}: {total_price}₽")
+        logger.info(
+            f"Записана покупка Stars для пользователя {user.id}: {total_price}₽"
+        )
     except Exception as e:
         logger.error(f"Ошибка записи покупки Stars для {user.id}: {e}")
 

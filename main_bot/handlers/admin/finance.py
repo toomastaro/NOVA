@@ -36,9 +36,7 @@ async def show_finance_menu(call: types.CallbackQuery) -> None:
 
     try:
         await call.message.edit_text(
-            text_msg,
-            reply_markup=keyboards.admin_finance_menu(),
-            parse_mode="HTML"
+            text_msg, reply_markup=keyboards.admin_finance_menu(), parse_mode="HTML"
         )
     except TelegramBadRequest:
         pass
@@ -53,7 +51,7 @@ async def show_finance_report(call: types.CallbackQuery) -> None:
     """
     period = call.data.split("|")[2]
     now = datetime.now()
-    
+
     start_ts = 0
     end_ts = int(time.time())
     period_name = "За всё время"
@@ -73,18 +71,18 @@ async def show_finance_report(call: types.CallbackQuery) -> None:
 
     # Получаем сводку платежей
     summary = await db.payment.get_payments_summary(start_ts, end_ts)
-    
+
     total_count = 0
     total_sum = 0
-    
+
     # Формируем текст
     text_msg = f"📊 <b>Отчёт: {period_name}</b>\n\n"
-    
+
     payment_methods = {
         "STARS": "⭐️ Telegram Stars",
         "CRYPTO_BOT": "💎 CryptoBot",
         "PLATEGA": "💳 Platega",
-        "BALANCE": "💰 Баланс"
+        "BALANCE": "💰 Баланс",
     }
 
     if not summary:
@@ -92,18 +90,18 @@ async def show_finance_report(call: types.CallbackQuery) -> None:
     else:
         for method, data in summary.items():
             method_name = payment_methods.get(method, method)
-            count = data['count']
-            amount = data['total']
-            
+            count = data["count"]
+            amount = data["total"]
+
             total_count += count
             total_sum += amount
-            
+
             text_msg += (
                 f"<b>{method_name}</b>\n"
                 f"├ Платежей: {count}\n"
                 f"└ Сумма: {amount:,}₽\n\n"
             )
-            
+
         text_msg += (
             "━━━━━━━━━━━━━━━━━━━\n"
             f"💰 <b>ИТОГО:</b> {total_count} платежей на <b>{total_sum:,}₽</b>"
@@ -114,8 +112,8 @@ async def show_finance_report(call: types.CallbackQuery) -> None:
     try:
         await call.message.edit_text(
             text_msg,
-            reply_markup=keyboards.admin_finance_menu(), # Оставляем меню для выбора другого периода
-            parse_mode="HTML"
+            reply_markup=keyboards.admin_finance_menu(),  # Оставляем меню для выбора другого периода
+            parse_mode="HTML",
         )
     except TelegramBadRequest:
         pass
@@ -124,9 +122,7 @@ async def show_finance_report(call: types.CallbackQuery) -> None:
 
 
 def get_router() -> Router:
-    router.callback_query.register(
-        show_finance_menu, F.data == "AdminFinance|menu"
-    )
+    router.callback_query.register(show_finance_menu, F.data == "AdminFinance|menu")
     router.callback_query.register(
         show_finance_report, F.data.startswith("AdminFinance|report")
     )

@@ -65,50 +65,36 @@ class MtClientCrud(DatabaseMixin):
 
     async def get_next_internal_client(self, chat_id: int) -> Optional[MtClient]:
         """
-        Получает следующего internal клиента для канала по алгоритму round-robin.
+        Получает наименее загруженного (Least Used) internal клиента для канала.
+
+        Вместо round-robin (который вызывал перегрузку первого клиента),
+        теперь выбирается клиент с наименьшим количеством назначенных каналов.
 
         Аргументы:
-            chat_id (int): Telegram ID канала.
+            chat_id (int): Telegram ID канала (не используется в выборке, но оставлен для совместимости).
 
         Возвращает:
-            MtClient | None: Следующий internal клиент или None если нет активных.
+            MtClient | None: Internal клиент с наименьшей нагрузкой.
         """
-        # Получить всех активных internal клиентов
-        clients = await self.fetch(
+        from sqlalchemy import func
+        from main_bot.database.mt_client_channel.model import MtClientChannel
+
+        # Выбираем клиента с наименьшим количеством записей в mt_client_channels
+        stmt = (
             select(MtClient)
-            .where(MtClient.pool_type == "internal")
-            .where(MtClient.is_active)
-            .where(MtClient.status == "ACTIVE")
-            .order_by(MtClient.id)  # Стабильный порядок
-        )
-
-        if not clients:
-            return None
-
-        # Получить last_client_id канала (берём от любого админа, так как они синхронизированы)
-        from main_bot.database.channel.model import Channel
-
-        channel = await self.fetchrow(
-            select(Channel)
-            .where(Channel.chat_id == chat_id)
+            .outerjoin(MtClientChannel, MtClientChannel.client_id == MtClient.id)
+            .where(
+                MtClient.pool_type == "internal",
+                MtClient.is_active,
+                MtClient.status == "ACTIVE",
+            )
+            .group_by(MtClient.id)
+            # Сортируем по количеству каналов (возрастание) и ID (для стабильности)
+            .order_by(func.count(MtClientChannel.id).asc(), MtClient.id.asc())
             .limit(1)
         )
 
-        if not channel or not channel.last_client_id:
-            # Первый раз - вернуть первого клиента
-            return clients[0]
-
-        # Найти индекс последнего использованного клиента
-        client_ids = [c.id for c in clients]
-        try:
-            last_index = client_ids.index(channel.last_client_id)
-            # Взять следующего по кругу
-            next_index = (last_index + 1) % len(clients)
-        except ValueError:
-            # Последний клиент больше не активен - начать с первого
-            next_index = 0
-
-        return clients[next_index]
+        return await self.fetchrow(stmt)
 
     async def get_next_external_client(self) -> Optional[MtClient]:
         """
