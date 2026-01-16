@@ -87,8 +87,8 @@ async def choice_bots(call: types.CallbackQuery, state: FSMContext) -> None:
         await call.message.delete()
         return
 
-    chosen: list = data.get("chosen")
-    chosen_folders: list = data.get("chosen_folders")
+    chosen: list = data.get("chosen") or []
+    chosen_folders: list = data.get("chosen_folders") or []
     current_folder_id = data.get("current_folder_id")
 
     channels = await db.channel_bot_settings.get_bot_channels(call.from_user.id)

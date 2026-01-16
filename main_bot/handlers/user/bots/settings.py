@@ -518,7 +518,7 @@ async def get_import_file(message: types.Message, state: FSMContext) -> None:
         elif extension == "csv":
             with open(filepath, "r", encoding="utf-8-sig") as file:
                 read = csv.reader(file)
-            users = [{"id": int(i[0])} for i in read if i[0].isdigit()]
+                users = [{"id": int(i[0])} for i in read if i and i[0].isdigit()]
         else:
             file_data = pd.read_excel(filepath, header=None)
             users = [{"id": i} for i in file_data[0] if isinstance(i, int)]
