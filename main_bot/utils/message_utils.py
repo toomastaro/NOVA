@@ -293,18 +293,20 @@ async def answer_message_bot(
         if resize and message_options.reply_markup and isinstance(message_options.reply_markup, types.ReplyKeyboardMarkup):
             message_options.reply_markup.resize_keyboard = True
 
+    # Обработка превью ссылок (общая для всех, поппинг поля из дампа)
+    if hasattr(message_options, "disable_web_page_preview"):
+        if getattr(message_options, "disable_web_page_preview", False):
+            # LinkPreviewOptions поддерживается в основном для text (sendMessage)
+            if message_options.text:
+                dump["link_preview_options"] = types.LinkPreviewOptions(is_disabled=True)
+        dump.pop("disable_web_page_preview", None)
+
     # Удаляем неиспользуемые поля в зависимости от типа сообщения
     if message_options.text:
         dump.pop("photo", None)
         dump.pop("video", None)
         dump.pop("animation", None)
         dump.pop("caption", None)
-
-    # Обработка превью ссылок (если поддерживается моделью)
-    if hasattr(message_options, "disable_web_page_preview"):
-        if getattr(message_options, "disable_web_page_preview", False):
-           dump["link_preview_options"] = types.LinkPreviewOptions(is_disabled=True)
-        dump.pop("disable_web_page_preview", None)
 
     elif message_options.photo:
         if filepath:
