@@ -730,8 +730,17 @@ async def manage_published_post(call: types.CallbackQuery, state: FSMContext):
             )
 
         # Format Text
+        # Лимитируем количество отображаемых каналов, чтобы не превысить лимит сообщения (4096 символов)
+        max_channels_display = 40
+        if len(channels_info) > max_channels_display:
+            display_info = channels_info[:max_channels_display]
+            remaining_count = len(channels_info) - max_channels_display
+            display_info.append(f"... и еще {remaining_count}")
+        else:
+            display_info = channels_info
+
         channels_text_inner = "\n".join(
-            text("resource_title").format(c) for c in channels_info
+            text("resource_title").format(c) for c in display_info
         )
         channels_text = f"<blockquote expandable>{channels_text_inner}</blockquote>"
 
