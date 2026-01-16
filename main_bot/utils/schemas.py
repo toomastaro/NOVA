@@ -91,6 +91,7 @@ class MessageOptionsHello(BaseModel):
     caption: Optional[str] = None
     text: Optional[str] = None
     reply_markup: Optional[InlineKeyboardMarkup] = None
+    disable_web_page_preview: bool = True
 
 
 class HelloAnswer(BaseModel):

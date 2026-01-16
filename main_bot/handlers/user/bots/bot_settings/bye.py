@@ -142,7 +142,7 @@ async def get_message(
     if dump_message.get("photo"):
         dump_message["photo"] = Media(file_id=message.photo[-1].file_id)
 
-    message_options = MessageOptions(**dump_message)
+    message_options = MessageOptionsHello(**dump_message)
     if message_text_length:
         if message_options.text:
             message_options.text = message.html_text

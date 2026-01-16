@@ -289,7 +289,9 @@ async def answer_message_bot(
 
     # Удаляем специфичные поля для капчи
     if isinstance(message_options, MessageOptionsCaptcha):
-        dump.pop("resize_markup", None)
+        resize = dump.pop("resize_markup", None)
+        if resize and message_options.reply_markup and isinstance(message_options.reply_markup, types.ReplyKeyboardMarkup):
+            message_options.reply_markup.resize_keyboard = True
 
     # Удаляем неиспользуемые поля в зависимости от типа сообщения
     if message_options.text:
@@ -297,6 +299,12 @@ async def answer_message_bot(
         dump.pop("video", None)
         dump.pop("animation", None)
         dump.pop("caption", None)
+
+    # Обработка превью ссылок (если поддерживается моделью)
+    if hasattr(message_options, "disable_web_page_preview"):
+        if getattr(message_options, "disable_web_page_preview", False):
+           dump["link_preview_options"] = types.LinkPreviewOptions(is_disabled=True)
+        dump.pop("disable_web_page_preview", None)
 
     elif message_options.photo:
         if filepath:
