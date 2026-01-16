@@ -181,7 +181,7 @@ async def send_bot_messages(
                 exc_info=True,
             )
 
-        await asyncio.sleep(0.25)
+        await asyncio.sleep(0.06)
 
     logger.info(
         f"✅ Рассылка завершена для бота {other_bot.id}. Успешно: {success}, Всего: {len(message_ids)}"

@@ -60,214 +60,219 @@ async def get_views_for_post(post):
     return views, channel
 
 
+PROCESSING_POSTS = set()
+
+
 @safe_handler("Постинг: отправка поста (Background)")
 async def send(post: Post):
     """Отправить пост в каналы"""
-    message_options = MessageOptions(**post.message_options)
+    try:
+        message_options = MessageOptions(**post.message_options)
 
-    if message_options.text:
-        cor = bot.send_message
-    elif message_options.photo:
-        cor = bot.send_photo
-        message_options.photo = message_options.photo.file_id
-    elif message_options.video:
-        cor = bot.send_video
-        message_options.video = message_options.video.file_id
-    else:
-        cor = bot.send_animation
-        message_options.animation = message_options.animation.file_id
+        if message_options.text:
+            cor = bot.send_message
+        elif message_options.photo:
+            cor = bot.send_photo
+            message_options.photo = message_options.photo.file_id
+        elif message_options.video:
+            cor = bot.send_video
+            message_options.video = message_options.video.file_id
+        else:
+            cor = bot.send_animation
+            message_options.animation = message_options.animation.file_id
 
-    options = message_options.model_dump()
+        options = message_options.model_dump()
 
-    # Очистка опций
-    # Грубая очистка - удаляем все конфликтующие поля в зависимости от типа, заново формируем.
-    # Но лучше следовать логике оригинала, но чище.
+        # Очистка опций
+        # Грубая очистка - удаляем все конфликтующие поля в зависимости от типа, заново формируем.
+        if message_options.text:
+            for k in [
+                "photo",
+                "video",
+                "animation",
+                "show_caption_above_media",
+                "has_spoiler",
+                "caption",
+            ]:
+                options.pop(k, None)
+        elif message_options.photo:
+            for k in ["video", "animation", "text", "disable_web_page_preview"]:
+                options.pop(k, None)
+        elif message_options.video:
+            for k in ["photo", "animation", "text", "disable_web_page_preview"]:
+                options.pop(k, None)
+        else:  # animation
+            for k in ["photo", "video", "text", "disable_web_page_preview"]:
+                options.pop(k, None)
 
-    if message_options.text:
-        for k in [
-            "photo",
-            "video",
-            "animation",
-            "show_caption_above_media",
-            "has_spoiler",
-            "caption",
-        ]:
-            options.pop(k, None)
-    elif message_options.photo:
-        for k in ["video", "animation", "text", "disable_web_page_preview"]:
-            options.pop(k, None)
-    elif message_options.video:
-        for k in ["photo", "animation", "text", "disable_web_page_preview"]:
-            options.pop(k, None)
-    else:  # animation
-        for k in ["photo", "video", "text", "disable_web_page_preview"]:
-            options.pop(k, None)
+        options["parse_mode"] = "HTML"
 
-    options["parse_mode"] = "HTML"
+        error_send = []
+        success_send = []
 
-    error_send = []
-    success_send = []
+        # Логика бекапа
+        backup_message_id = post.backup_message_id
+        if Config.BACKUP_CHAT_ID:
+            if not backup_message_id:
+                try:
+                    options["chat_id"] = Config.BACKUP_CHAT_ID
+                    options["parse_mode"] = "HTML"
 
-    # Логика бекапа
-    backup_message_id = post.backup_message_id
-    if Config.BACKUP_CHAT_ID:
-        if not backup_message_id:
+                    backup_msg = await cor(
+                        **options, reply_markup=keyboards.post_kb(post=post)
+                    )
+                    backup_message_id = backup_msg.message_id
+
+                    await db.post.update_post(
+                        post_id=post.id,
+                        backup_chat_id=Config.BACKUP_CHAT_ID,
+                        backup_message_id=backup_message_id,
+                    )
+                    logger.info(
+                        f"Создан бэкап для поста {post.id}: chat={Config.BACKUP_CHAT_ID}, msg={backup_message_id}"
+                    )
+                except Exception as e:
+                    logger.error(
+                        f"Ошибка создания бэкапа для поста {post.id}: {e}", exc_info=True
+                    )
+
+        for chat_id in post.chat_ids:
+            channel = await db.channel.get_channel_by_chat_id(chat_id)
+            if not channel or not channel.subscribe:
+                continue
+
             try:
-                options["chat_id"] = Config.BACKUP_CHAT_ID
-                options["parse_mode"] = "HTML"
+                if backup_message_id and Config.BACKUP_CHAT_ID:
+                    post_message = await bot.copy_message(
+                        chat_id=chat_id,
+                        from_chat_id=Config.BACKUP_CHAT_ID,
+                        message_id=backup_message_id,
+                        reply_markup=keyboards.post_kb(post=post),
+                        parse_mode="HTML",
+                    )
+                    logger.info(
+                        f"Скопирован пост {post.id} (бэкап {backup_message_id}) в {chat_id} (msg {post_message.message_id})"
+                    )
+                else:
+                    options["chat_id"] = chat_id
+                    post_message = await cor(
+                        **options, reply_markup=keyboards.post_kb(post=post)
+                    )
+                    logger.info(
+                        f"Напрямую отправлен пост {post.id} в {chat_id} (msg {post_message.message_id})"
+                    )
 
-                backup_msg = await cor(
-                    **options, reply_markup=keyboards.post_kb(post=post)
-                )
-                backup_message_id = backup_msg.message_id
-
-                await db.post.update_post(
-                    post_id=post.id,
-                    backup_chat_id=Config.BACKUP_CHAT_ID,
-                    backup_message_id=backup_message_id,
-                )
-                logger.info(
-                    f"Создан бэкап для поста {post.id}: chat={Config.BACKUP_CHAT_ID}, msg={backup_message_id}"
-                )
+                await asyncio.sleep(0.06)
             except Exception as e:
                 logger.error(
-                    f"Ошибка создания бэкапа для поста {post.id}: {e}", exc_info=True
+                    f"Ошибка отправки поста {post.id} в {chat_id}: {e}", exc_info=True
                 )
+                error_send.append({"chat_id": chat_id, "error": str(e)})
+                continue
 
-    for chat_id in post.chat_ids:
-        channel = await db.channel.get_channel_by_chat_id(chat_id)
-        if not channel or not channel.subscribe:
-            continue
+            if post.pin_time:
+                try:
+                    await bot.pin_chat_message(
+                        chat_id=chat_id,
+                        message_id=post_message.message_id,
+                        disable_notification=message_options.disable_notification,
+                    )
+                except Exception as e:
+                    logger.error(
+                        f"Ошибка закрепления сообщения {post_message.message_id} в {chat_id}: {e}",
+                        exc_info=True,
+                    )
+
+            current_time = int(time.time())
+            success_send.append(
+                {
+                    "post_id": post.id,
+                    "chat_id": chat_id,
+                    "message_id": post_message.message_id,
+                    "admin_id": post.admin_id,
+                    "reaction": post.reaction or None,
+                    "hide": post.hide or None,
+                    "buttons": post.buttons or None,
+                    "delete_time": (
+                        post.delete_time + current_time if post.delete_time else None
+                    ),
+                    "report": post.report,
+                    "cpm_price": post.cpm_price,
+                    "backup_chat_id": Config.BACKUP_CHAT_ID if backup_message_id else None,
+                    "backup_message_id": backup_message_id,
+                    "message_options": post.message_options,
+                }
+            )
+
+        if success_send:
+            await db.published_post.add_many_published_post(posts=success_send)
+
+        await db.post.clear_posts(post_ids=[post.id])
+
+        # Если отчет выключен И нет ошибок - выходим.
+        # Если есть ошибки - отправляем отчет в любом случае (чтобы не пропустить сбои).
+        if not post.report and not error_send:
+            return
+
+        objects = await db.channel.get_user_channels(
+            user_id=post.admin_id, from_array=post.chat_ids
+        )
+
+        # Форматирование списка успешных отправок
+        success_str_inner = "\n".join(
+            text("resource_title").format(html.escape(obj.title))
+            for obj in objects
+            if obj.chat_id in [i.get("chat_id") for i in success_send[:10]]
+        )
+        success_str = (
+            f"<blockquote expandable>{success_str_inner}</blockquote>"
+            if success_str_inner
+            else ""
+        )
+
+        # Форматирование списка ошибок
+        error_str_inner = "\n".join(
+            text("resource_title").format(html.escape(obj.title))
+            + f" \n{''.join(row.get('error') for row in error_send[:10] if row.get('chat_id') == obj.chat_id)}"
+            for obj in objects
+            if obj.chat_id in [i.get("chat_id") for i in error_send[:10]]
+        )
+        error_str = (
+            f"<blockquote expandable>{error_str_inner}</blockquote>"
+            if error_str_inner
+            else ""
+        )
+
+        if success_send and error_send:
+            message_text = text("success_error:post:public").format(
+                success_str,
+                error_str,
+            )
+        elif success_send:
+            message_text = text("manage:post:success:public").format(
+                success_str,
+            )
+        elif error_send:
+            message_text = text("error:post:public").format(
+                error_str,
+            )
+        else:
+            message_text = text("error:post:unknown_notification")
 
         try:
-            if backup_message_id and Config.BACKUP_CHAT_ID:
-                post_message = await bot.copy_message(
-                    chat_id=chat_id,
-                    from_chat_id=Config.BACKUP_CHAT_ID,
-                    message_id=backup_message_id,
-                    reply_markup=keyboards.post_kb(post=post),
-                    parse_mode="HTML",
-                )
-                logger.info(
-                    f"Скопирован пост {post.id} (бэкап {backup_message_id}) в {chat_id} (msg {post_message.message_id})"
-                )
-            else:
-                options["chat_id"] = chat_id
-                post_message = await cor(
-                    **options, reply_markup=keyboards.post_kb(post=post)
-                )
-                logger.info(
-                    f"Напрямую отправлен пост {post.id} в {chat_id} (msg {post_message.message_id})"
-                )
-
-            await asyncio.sleep(0.25)
+            await bot.send_message(
+                chat_id=post.admin_id,
+                text=message_text,
+                reply_markup=keyboards.posting_menu(),
+                link_preview_options=types.LinkPreviewOptions(is_disabled=True),
+            )
         except Exception as e:
             logger.error(
-                f"Ошибка отправки поста {post.id} в {chat_id}: {e}", exc_info=True
+                f"Ошибка отправки отчета админу {post.admin_id}: {e}", exc_info=True
             )
-            error_send.append({"chat_id": chat_id, "error": str(e)})
-            continue
 
-        if post.pin_time:
-            try:
-                await bot.pin_chat_message(
-                    chat_id=chat_id,
-                    message_id=post_message.message_id,
-                    disable_notification=message_options.disable_notification,
-                )
-            except Exception as e:
-                logger.error(
-                    f"Ошибка закрепления сообщения {post_message.message_id} в {chat_id}: {e}",
-                    exc_info=True,
-                )
-
-        current_time = int(time.time())
-        success_send.append(
-            {
-                "post_id": post.id,
-                "chat_id": chat_id,
-                "message_id": post_message.message_id,
-                "admin_id": post.admin_id,
-                "reaction": post.reaction or None,
-                "hide": post.hide or None,
-                "buttons": post.buttons or None,
-                "delete_time": (
-                    post.delete_time + current_time if post.delete_time else None
-                ),
-                "report": post.report,
-                "cpm_price": post.cpm_price,
-                "backup_chat_id": Config.BACKUP_CHAT_ID if backup_message_id else None,
-                "backup_message_id": backup_message_id,
-                "message_options": post.message_options,
-            }
-        )
-
-    if success_send:
-        await db.published_post.add_many_published_post(posts=success_send)
-
-    await db.post.clear_posts(post_ids=[post.id])
-
-    # Если отчет выключен И нет ошибок - выходим.
-    # Если есть ошибки - отправляем отчет в любом случае (чтобы не пропустить сбои).
-    if not post.report and not error_send:
-        return
-
-    objects = await db.channel.get_user_channels(
-        user_id=post.admin_id, from_array=post.chat_ids
-    )
-
-    # Форматирование списка успешных отправок
-    success_str_inner = "\n".join(
-        text("resource_title").format(html.escape(obj.title))
-        for obj in objects
-        if obj.chat_id in [i.get("chat_id") for i in success_send[:10]]
-    )
-    success_str = (
-        f"<blockquote expandable>{success_str_inner}</blockquote>"
-        if success_str_inner
-        else ""
-    )
-
-    # Форматирование списка ошибок
-    error_str_inner = "\n".join(
-        text("resource_title").format(html.escape(obj.title))
-        + f" \n{''.join(row.get('error') for row in error_send[:10] if row.get('chat_id') == obj.chat_id)}"
-        for obj in objects
-        if obj.chat_id in [i.get("chat_id") for i in error_send[:10]]
-    )
-    error_str = (
-        f"<blockquote expandable>{error_str_inner}</blockquote>"
-        if error_str_inner
-        else ""
-    )
-
-    if success_send and error_send:
-        message_text = text("success_error:post:public").format(
-            success_str,
-            error_str,
-        )
-    elif success_send:
-        message_text = text("manage:post:success:public").format(
-            success_str,
-        )
-    elif error_send:
-        message_text = text("error:post:public").format(
-            error_str,
-        )
-    else:
-        message_text = text("error:post:unknown_notification")
-
-    try:
-        await bot.send_message(
-            chat_id=post.admin_id,
-            text=message_text,
-            reply_markup=keyboards.posting_menu(),
-            link_preview_options=types.LinkPreviewOptions(is_disabled=True),
-        )
-    except Exception as e:
-        logger.error(
-            f"Ошибка отправки отчета админу {post.admin_id}: {e}", exc_info=True
-        )
+    finally:
+        PROCESSING_POSTS.discard(post.id)
 
 
 @safe_handler("Постинг: отправка отложенных (Background)", log_start=False)
@@ -277,7 +282,19 @@ async def send_posts():
     posts = await db.post.get_post_for_send()
 
     if posts:
-        logger.info(f"Запущена отправка постов: найдено {len(posts)} задач")
+        # Фильтруем посты, которые уже обрабатываются
+        new_posts = []
+        for p in posts:
+            if p.id not in PROCESSING_POSTS:
+                new_posts.append(p)
+                PROCESSING_POSTS.add(p.id)
+            else:
+                logger.warning(f"Пост {p.id} уже в процессе отправки, пропускаем")
+        
+        posts = new_posts
+
+        if posts:
+            logger.info(f"Запущена отправка постов: найдено {len(posts)} новых задач")
 
     for post in posts:
         asyncio.create_task(send(post))
