@@ -220,6 +220,10 @@ class InlineBotSetting(InlineKeyboardBuilder):
             text=text("application:delay:button").format(captcha.delay),
             callback_data="ManageCaptcha|delay",
         )
+        kb.button(
+            text=f"Таймер старта: {captcha.start_delay if captcha.start_delay else 'Сразу'}",
+            callback_data="ManageCaptcha|start_delay",
+        )
         kb.button(text=text("change:button"), callback_data="ManageCaptcha|change")
         kb.button(text=text("delete:button"), callback_data="ManageCaptcha|delete")
         kb.button(text=text("back:button"), callback_data="ManageCaptcha|cancel")
@@ -257,6 +261,37 @@ class InlineBotSetting(InlineKeyboardBuilder):
         kb.row(
             InlineKeyboardButton(
                 text=text("back:button"), callback_data="ChoiceCaptchaDelay|cancel"
+            ),
+        )
+
+        return kb.as_markup()
+
+    @classmethod
+    def choice_captcha_start_delay(cls, current: int):
+        kb = cls()
+
+        variants = [
+            (1, "1 сек"),
+            (3, "3 сек"),
+            (5, "5 сек"),
+            (10, "10 сек"),
+            (15, "15 сек"),
+            (20, "20 сек"),
+            (30, "30 сек"),
+            (60, "1 мин"),
+            (0, "Сразу"),
+        ]
+
+        for seconds, label in variants:
+            if current == seconds:
+                label = "✅ " + label
+
+            kb.button(text=label, callback_data=f"ChoiceCaptchaStartDelay|{seconds}")
+
+        kb.adjust(3)
+        kb.row(
+            InlineKeyboardButton(
+                text=text("back:button"), callback_data="ChoiceCaptchaStartDelay|cancel"
             ),
         )
 

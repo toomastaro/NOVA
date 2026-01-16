@@ -26,3 +26,4 @@ class ChannelCaptcha(Base):
     channel_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
     message: Mapped[dict] = mapped_column(JSON, nullable=False)
     delay: Mapped[int] = mapped_column(default=0)
+    start_delay: Mapped[int] = mapped_column(default=0)

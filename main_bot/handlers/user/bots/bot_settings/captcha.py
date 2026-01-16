@@ -152,6 +152,16 @@ async def manage_hello_message(
         )
         return
 
+    if temp[1] == "start_delay":
+        await call.message.delete()
+        await call.message.answer(
+            text("application:delay"),
+            reply_markup=keyboards.choice_captcha_start_delay(
+                current=captcha.start_delay if captcha.start_delay else 0
+            ),
+        )
+        return
+
     if temp[1] == "change":
         await call.message.delete()
 
@@ -279,6 +289,39 @@ async def choice_hello_message_delay(
     await call.message.answer(
         text("application:delay"),
         reply_markup=keyboards.choice_captcha_delay(current=captcha.delay),
+    )
+
+
+@safe_handler("Боты: выбор задержки старта капчи")
+async def choice_captcha_start_delay_handler(
+    call: types.CallbackQuery, state: FSMContext
+) -> None:
+    """
+    Выбор задержки старта капчи.
+
+    Аргументы:
+        call (types.CallbackQuery): Callback запрос.
+        state (FSMContext): Контекст состояния.
+    """
+    temp = call.data.split("|")
+    data = await state.get_data()
+
+    if temp[1] == "cancel":
+        await call.message.delete()
+        await show_manage_captcha(call.message, state)
+        return
+
+    start_delay = int(temp[1])
+    captcha = await db.channel_bot_captcha.update_captcha(
+        captcha_id=data.get("captcha_id"), return_obj=True, start_delay=start_delay
+    )
+
+    await call.message.delete()
+    await call.message.answer(
+        text("application:delay"),
+        reply_markup=keyboards.choice_captcha_start_delay(
+            current=captcha.start_delay if captcha.start_delay else 0
+        ),
     )
 
 
@@ -453,6 +496,10 @@ def get_router() -> Router:
     )
     router.callback_query.register(
         manage_hello_message_post, F.data.split("|")[0] == "ManagePostCaptcha"
+    )
+    router.callback_query.register(
+        choice_captcha_start_delay_handler,
+        F.data.split("|")[0] == "ChoiceCaptchaStartDelay",
     )
     router.callback_query.register(back, F.data.split("|")[0] == "AddCaptchaBack")
 

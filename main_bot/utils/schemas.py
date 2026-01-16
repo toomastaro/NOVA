@@ -79,6 +79,7 @@ class CaptchaObj(BaseModel):
     channel_id: int
     message: Optional[MessageOptionsCaptcha] = None
     delay: int
+    start_delay: int = 0
 
     class Config:
         from_attributes = True

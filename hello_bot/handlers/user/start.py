@@ -55,6 +55,9 @@ async def send_captcha(
     user_bot, user_id: int, db_obj: Database, captcha: ChannelCaptcha
 ):
     """Отправляет сообщение с капчей пользователю."""
+    if captcha.start_delay:
+        await asyncio.sleep(captcha.start_delay)
+
     if captcha.delay:
         while True:
             # Ожидаем прохождения капчи в течение delay секунд
