@@ -20,4 +20,5 @@ class User(Base):
     time_approved: Mapped[int | None] = mapped_column(default=None)
     walk_captcha: Mapped[bool] = mapped_column(default=False)
     time_walk_captcha: Mapped[int | None] = mapped_column(default=None)
+    captcha_message_id: Mapped[int | None] = mapped_column(BigInteger, default=None)
     invite_url: Mapped[str | None] = mapped_column(default=None)

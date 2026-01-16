@@ -36,10 +36,22 @@ async def msg_handler(message: types.Message, db: Database):
             time_walk_captcha=int(time.time()),
         )
     else:
+        # Удаляем сообщение с капчей, если оно было сохранено
+        if user.captcha_message_id:
+            try:
+                await message.bot.delete_message(
+                    chat_id=message.from_user.id,
+                    message_id=user.captcha_message_id
+                )
+                logger.info(f"Удалено сообщение капчи {user.captcha_message_id} для пользователя {message.from_user.id}")
+            except Exception as e:
+                logger.warning(f"Не удалось удалить сообщение капчи: {e}")
+
         await db.update_user(
             user_id=message.from_user.id,
             walk_captcha=True,
             time_walk_captcha=int(time.time()),
+            captcha_message_id=None,
         )
 
     # Уведомляем систему, что капча пройдена
@@ -74,13 +86,21 @@ async def send_captcha(
                 return
 
             # Шлем напоминание, так как капча все еще не пройдена
-            await answer_message_bot(
-                user_bot, user_id, MessageOptionsCaptcha(**captcha.message), None
+            sent_msg = await answer_message_bot(
+                user_bot, user_id, MessageOptionsCaptcha(**captcha.message)
             )
+            if sent_msg:
+                await db_obj.update_user(
+                    user_id=user_id, captcha_message_id=sent_msg.message_id
+                )
 
-    await answer_message_bot(
+    sent_msg = await answer_message_bot(
         user_bot, user_id, MessageOptionsCaptcha(**captcha.message)
     )
+    if sent_msg:
+        await db_obj.update_user(
+            user_id=user_id, captcha_message_id=sent_msg.message_id
+        )
 
 
 @safe_handler("Вход: отправка приветствия (Background)")
