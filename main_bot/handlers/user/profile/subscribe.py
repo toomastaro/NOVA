@@ -68,9 +68,14 @@ async def get_pay_info_text(state: FSMContext, user: User) -> str:
     objects = await cor(user_id=user.id, sort_by=service)
 
     # Форматируем список каналов с их названиями
-    channels_list = "\n".join(
-        f"📺 {obj.title}" for obj in objects if obj.id in chosen
-    )
+    if object_type == "bots":
+        channels_list = "\n".join(
+            f"📺 {obj.title}" for obj in objects if obj.id in chosen
+        )
+    else:
+        channels_list = "\n".join(
+            f"📺 {obj.title}" for obj in objects if obj.chat_id in chosen
+        )
 
     # Форматируем способ оплаты (если выбран)
     method_text = (
