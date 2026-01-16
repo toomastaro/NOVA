@@ -323,7 +323,7 @@ async def choice_object_subscribe(
                 if i in chosen:
                     chosen.remove(i)
         else:
-            # Выбрать все видимые
+            # Выбрать все видимые, НЕ удаляя уже выбранные (Merging)
             for i in visible_ids:
                 if i not in chosen:
                     chosen.append(i)

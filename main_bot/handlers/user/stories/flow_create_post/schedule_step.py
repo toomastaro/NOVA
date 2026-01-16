@@ -160,13 +160,28 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
             user_id=call.from_user.id, sort_by="stories"
         )
         folders = await db.user_folder.get_folders(user_id=call.from_user.id)
-        # В режиме папок мы не показываем каналы на верхнем уровне
+        # В режиме папок мы показываем папки И каналы без папок
         if view_mode == "folders":
-            objects = []
-            kb_folders = [f for f in folders if f.content]
-            folders = (
-                kb_folders  # Keep consistent nomenclature if needed, or just filter
+            # Фильтруем объекты, чтобы оставить только те, которых нет в папках
+            # НО для оптимизации лучше использовать метод get_user_channels_without_folders
+            # так как выше мы уже загрузили ВСЕ каналы (sort_by="stories")
+            
+            # Более чистый подход - загрузить channels_without_folders отдельно
+            objects = await db.channel.get_user_channels_without_folders(
+                user_id=call.from_user.id
             )
+            # Фильтруем объекты, оставляя только те, что имеют session_path (для сторис)
+            # Внимание: get_user_channels_without_folders может вернуть каналы без сессий,
+            # но мы фильтруем их при попытке выбора или используем sort_by="stories" если метод поддерживает.
+            # Метод get_user_channels_without_folders не поддерживает sort_by, 
+            # но он возвращает список. Мы можем отфильтровать Python-ом.
+            
+            # Фильтр по наличию сессии (аналогично sort_by="stories" в crude)
+            # В данном контексте Stories требуют наличие сессии.
+            objects = [obj for obj in objects if obj.session_path]
+            
+            kb_folders = [f for f in folders if f.content]
+            folders = kb_folders
         else:
             pass
 
@@ -193,7 +208,12 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
 
             # Перезагружаем корневые данные
             if view_mode == "folders":
-                objects = []
+                objects = await db.channel.get_user_channels_without_folders(
+                    user_id=call.from_user.id
+                )
+                # Фильтр по наличию сессии для сторис
+                objects = [obj for obj in objects if obj.session_path]
+                
                 raw_folders = await db.user_folder.get_folders(
                     user_id=call.from_user.id
                 )
@@ -277,7 +297,7 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
                     show_alert=True,
                 )
 
-            # Выбираем все видимые
+            # Выбираем все видимые, НЕ удаляя уже выбранные (Merging)
             for cid in current_ids:
                 if cid not in chosen:
                     chosen.append(cid)

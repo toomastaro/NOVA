@@ -144,8 +144,10 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
             folders = []
 
         else:  # view_mode == "folders"
-            # Режим "Папки": показываем ТОЛЬКО папки
-            objects = []  # Каналы не показываем
+            # Режим "Папки": показываем папки И каналы без папок
+            objects = await db.channel.get_user_channels_without_folders(
+                user_id=call.from_user.id
+            )
             raw_folders = await db.user_folder.get_folders(user_id=call.from_user.id)
             folders = [f for f in raw_folders if f.content]
 
@@ -208,7 +210,9 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
             # Перезагружаем данные корневого уровня
             try:
                 if view_mode == "folders":
-                    objects = []
+                    objects = await db.channel.get_user_channels_without_folders(
+                        user_id=call.from_user.id
+                    )
                     raw_folders = await db.user_folder.get_folders(
                         user_id=call.from_user.id
                     )
@@ -302,7 +306,7 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
                     show_alert=True,
                 )
 
-            # Выбираем все видимые (все с подпиской)
+            # Выбираем все видимые, НЕ удаляя уже выбранные (Merging)
             for cid in current_ids:
                 if cid not in chosen:
                     chosen.append(cid)
