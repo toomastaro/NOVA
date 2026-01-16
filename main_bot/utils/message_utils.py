@@ -382,6 +382,14 @@ async def answer_message(
     dump = message_options.model_dump()
     dump["parse_mode"] = "HTML"
     
+    # Обработка превью ссылок (общая для всех, поппинг поля из дампа)
+    if hasattr(message_options, "disable_web_page_preview"):
+        if getattr(message_options, "disable_web_page_preview", False):
+            # LinkPreviewOptions поддерживается в основном для text (sendMessage)
+            if message_options.text:
+                dump["link_preview_options"] = types.LinkPreviewOptions(is_disabled=True)
+        dump.pop("disable_web_page_preview", None)
+
     # Удаляем поля, которые могут вызвать конфликт или ошибку
     if message_options.text:
         dump.pop("photo", None)
