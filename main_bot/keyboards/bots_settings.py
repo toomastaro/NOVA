@@ -159,7 +159,6 @@ class InlineBotSetting(InlineKeyboardBuilder):
 
                 if active_captcha == channel_captcha_list[idx].id:
                     button_text = "✅ " + button_text
-                    setting_text = setting_text + f" ⌛️ {captcha_obj.delay}"
 
                 kb.row(
                     InlineKeyboardButton(
@@ -217,7 +216,7 @@ class InlineBotSetting(InlineKeyboardBuilder):
         kb = cls()
 
         kb.button(
-            text=text("application:delay:button").format(captcha.delay),
+            text=f"Период повтора: {captcha.delay if captcha.delay else 'Без повтора'}",
             callback_data="ManageCaptcha|delay",
         )
         kb.button(

@@ -149,6 +149,7 @@ async def start_clone(
                     channel_id=chat_id,
                     message=captcha.message,
                     delay=captcha.delay,
+                    start_delay=captcha.start_delay,
                 )
                 if channel.active_captcha_id == captcha.id:
                     new_active_captcha_id = new_captcha.id
