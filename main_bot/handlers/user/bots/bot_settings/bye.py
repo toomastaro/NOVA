@@ -16,7 +16,7 @@ from aiogram.fsm.context import FSMContext
 from main_bot.states.user import Bye
 from main_bot.utils.lang.language import text
 from main_bot.keyboards import keyboards
-from main_bot.utils.schemas import Media, MessageOptions, ByeAnswer
+from main_bot.utils.schemas import Media, MessageOptions, MessageOptionsHello, ByeAnswer
 from main_bot.utils.functions import answer_message
 
 from main_bot.database.channel_bot_settings.model import ChannelBotSetting
