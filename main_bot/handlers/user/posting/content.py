@@ -676,7 +676,8 @@ async def manage_published_post(call: types.CallbackQuery, state: FSMContext):
         await call.answer(text("keys_data_error"))
         return await call.message.delete()
 
-    post = data.get("post")
+    from main_bot.keyboards.posting import ensure_obj
+    post = ensure_obj(data.get("post"))
 
     if temp[1] == "cpm_report":
         import html

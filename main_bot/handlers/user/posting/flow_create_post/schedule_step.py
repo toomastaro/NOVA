@@ -614,8 +614,12 @@ async def choice_delete_time(call: types.CallbackQuery, state: FSMContext):
     # Обновляем только если значение изменилось
     if post.delete_time != delete_time:
         if data.get("is_published"):
+            # Для опубликованных постов в БД хранится абсолютное время удаления
+            abs_delete_time = (
+                post.created_timestamp + delete_time if delete_time else None
+            )
             await db.published_post.update_published_posts_by_post_id(
-                post_id=post.post_id, delete_time=delete_time
+                post_id=post.post_id, delete_time=abs_delete_time
             )
             # Обновляем объект поста
             post = await db.published_post.get_published_post_by_id(post.id)

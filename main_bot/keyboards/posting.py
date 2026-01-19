@@ -610,16 +610,19 @@ class InlinePosting(InlineKeyboardBuilder):
             callback_data="ManagePublishedPost|change",
         )
 
-        # Логика отображения таймера
+        # Логика отображения таймера (для опубликованных постов в БД хранится абсолютный таймстамп)
         dt = post.delete_time
+        if dt and is_published and hasattr(post, "created_timestamp"):
+            dt = post.delete_time - post.created_timestamp
+
         if not dt:
             timer_text = text("manage:post:del_time:not")
         elif dt % 3600 == 0:
-            timer_text = f"{int(dt / 3600)} ч."
+            timer_text = f"{int(dt / 3600)} {text('hours_short')}"
         elif dt > 3600:
-            timer_text = f"{int(dt // 3600)} ч. {int((dt % 3600) / 60)} мин."
+            timer_text = f"{int(dt // 3600)} {text('hours_short')} {int((dt % 3600) / 60)} {text('minutes_short')}"
         else:
-            timer_text = f"{int(dt / 60)} мин."
+            timer_text = f"{int(dt / 60)} {text('minutes_short')}"
 
         kb.button(
             text=text("manage:post:del_time:button").format(timer_text),
