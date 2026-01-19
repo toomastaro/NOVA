@@ -15,18 +15,19 @@ def setup_logging() -> None:
     """
     # Конфигурация корневого логгера
     logging.basicConfig(
-        level=logging.INFO,
+        level=logging.DEBUG,
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
         handlers=[logging.StreamHandler(sys.stdout)],
     )
 
-    # Установка уровней для сторонних библиотек, чтобы уменьшить шум
-    logging.getLogger("aiogram").setLevel(logging.WARNING)
+    # Включаем логи для основных библиотек в режиме DEBUG
+    logging.getLogger("aiogram").setLevel(logging.DEBUG)
+    logging.getLogger("uvicorn").setLevel(logging.DEBUG)
+    logging.getLogger("httpx").setLevel(logging.DEBUG)
+    
+    # Оставляем тихими тяжелые библиотеки
     logging.getLogger("sqlalchemy").setLevel(logging.WARNING)
-    logging.getLogger("httpx").setLevel(logging.WARNING)
-    logging.getLogger("apscheduler").setLevel(logging.WARNING)
-    # Понижаем уровень логов для CRUD опубликованных постов
-    logging.getLogger("main_bot.database.published_post.crud").setLevel(logging.WARNING)
+    logging.getLogger("apscheduler").setLevel(logging.INFO)
 
     logger = logging.getLogger(__name__)
     logger.info("Конфигурация логирования успешно настроена.")
