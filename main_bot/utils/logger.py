@@ -25,9 +25,10 @@ def setup_logging() -> None:
     logging.getLogger("uvicorn").setLevel(logging.WARNING)
     logging.getLogger("httpx").setLevel(logging.WARNING)
     
-    # Оставляем тихими тяжелые библиотеки
+    # Оставляем тихими тяжелые и шумные библиотеки
     logging.getLogger("sqlalchemy").setLevel(logging.WARNING)
-    logging.getLogger("apscheduler").setLevel(logging.INFO)
+    logging.getLogger("apscheduler").setLevel(logging.WARNING)
+    logging.getLogger("main_bot.database").setLevel(logging.WARNING)
 
     logger = logging.getLogger(__name__)
     logger.info("Конфигурация логирования успешно настроена.")
