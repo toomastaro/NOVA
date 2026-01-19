@@ -252,7 +252,7 @@ class InlinePosting(InlineKeyboardBuilder):
             post, "is_published", False
         )
 
-        if is_published:
+        if is_published or is_edit:
             kb.row(
                 InlineKeyboardButton(
                     text=text("back:button"),
@@ -266,7 +266,7 @@ class InlinePosting(InlineKeyboardBuilder):
                     callback_data=f"ManagePost|cancel|{post.id}",
                 ),
                 InlineKeyboardButton(
-                    text=text("{}:button".format("save" if is_edit else "next")),
+                    text=text("next:button"),
                     callback_data=f"ManagePost|next|{post.id}",
                 ),
             )
