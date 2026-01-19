@@ -110,7 +110,20 @@ async def lifespan(_app: FastAPI):
 
     yield
 
+    # Удаление вебхука и закрытие сессии основного бота
+    logger.info("Закрытие сессии основного бота...")
     await bot.delete_webhook(drop_pending_updates=True)
+    await bot.session.close()
+
+    # Закрытие сессий всех пользовательских ботов
+    if bot_instances:
+        logger.info(f"Закрытие сессий {len(bot_instances)} пользовательских ботов...")
+        for token, b_inst in bot_instances.items():
+            try:
+                await b_inst.session.close()
+            except Exception as e:
+                logger.error(f"Ошибка при закрытии сессии бота {token[:10]}: {e}")
+        bot_instances.clear()
 
 
 app = FastAPI(lifespan=lifespan)
