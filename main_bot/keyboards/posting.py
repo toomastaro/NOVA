@@ -612,7 +612,7 @@ class InlinePosting(InlineKeyboardBuilder):
 
         # Логика отображения таймера (для опубликованных постов в БД хранится абсолютный таймстамп)
         dt = post.delete_time
-        if dt and is_published and hasattr(post, "created_timestamp"):
+        if dt and hasattr(post, "message_id") and hasattr(post, "created_timestamp"):
             dt = post.delete_time - post.created_timestamp
 
         if not dt:
