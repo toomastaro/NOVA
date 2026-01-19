@@ -318,16 +318,19 @@ async def cancel_value(call: types.CallbackQuery, state: FSMContext):
             pass
 
         kwargs = {param: value}
+        
+        # Получаем объект поста из состояния
+        post_obj = ensure_obj(data.get("post"))
 
         # Обновление в БД
         if data.get("is_published"):
             await db.published_post.update_published_posts_by_post_id(
-                post_id=data.get("post").post_id, **kwargs
+                post_id=post_obj.post_id, **kwargs
             )
-            post = await db.published_post.get_published_post_by_id(data.get("post").id)
+            post = await db.published_post.get_published_post_by_id(post_obj.id)
         else:
             post = await db.post.update_post(
-                post_id=data.get("post").id, return_obj=True, **kwargs
+                post_id=post_obj.id, return_obj=True, **kwargs
             )
 
         post_dict = {
