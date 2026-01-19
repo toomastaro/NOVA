@@ -878,7 +878,7 @@ async def manage_published_post(call: types.CallbackQuery, state: FSMContext):
         message_text = text("manage:post:new:cpm_price")
 
         input_msg = await call.message.answer(
-            message_text, reply_markup=keyboards.param_cancel(param="cpm_price")
+            message_text, reply_markup=keyboards.param_cpm_input(param="cpm_price")
         )
         from main_bot.states.user import Posting
 

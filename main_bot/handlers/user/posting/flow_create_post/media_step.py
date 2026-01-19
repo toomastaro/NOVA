@@ -302,15 +302,64 @@ async def cancel_value(call: types.CallbackQuery, state: FSMContext):
         await state.update_data(post=post_dict)
         data = await state.get_data()
 
-    await state.clear()
-    await state.update_data(data)
+    # Установка значения из кнопки
+    if temp[1] == "set":
+        param = data.get("param")
+        value = temp[2]
 
-    await call.message.delete()
+        # Обработка cpm_price
+        if param in ["cpm_price"]:
+            try:
+                value = int(value)
+            except ValueError:
+                return await call.answer(text("error_value"))
+        else:
+            # Для других параметров пока просто передаем значение (расширяемо)
+            pass
 
+        kwargs = {param: value}
+
+        # Обновление в БД
+        if data.get("is_published"):
+            await db.published_post.update_published_posts_by_post_id(
+                post_id=data.get("post").post_id, **kwargs
+            )
+            post = await db.published_post.get_published_post_by_id(data.get("post").id)
+        else:
+            post = await db.post.update_post(
+                post_id=data.get("post").id, return_obj=True, **kwargs
+            )
+
+        post_dict = {
+            col.name: getattr(post, col.name) for col in post.__table__.columns
+        }
+        await state.update_data(post=post_dict)
+        data = await state.get_data()
+
+    if temp[1] not in ["delete", "set"]:
+        await state.clear()
+        await state.update_data(data)
+        await call.message.delete()
+
+    if temp[1] in ["delete", "set"]:
+        await state.clear()
+        await state.update_data(data)
+        await call.message.delete()
+        
     # Для cpm_price возвращаемся к выбору каналов
     if data.get("param") == "cpm_price":
         post = ensure_obj(data.get("post"))
-        chosen = data.get("chosen", post.chat_ids)
+        
+        # Handle difference between Post (chat_ids) and PublishedPost (chat_id)
+        if hasattr(post, "chat_ids"):
+            default_chosen = post.chat_ids
+        elif hasattr(post, "chat_id"):
+            default_chosen = [post.chat_id]
+        else:
+            default_chosen = []
+
+        chosen = data.get("chosen", default_chosen)
+        
         display_objects = await db.channel.get_user_channels(
             user_id=call.from_user.id, from_array=chosen
         )
@@ -465,9 +514,16 @@ async def get_value(message: types.Message, state: FSMContext):
 
     await message.bot.delete_message(message.chat.id, data.get("input_msg_id"))
 
-    # Для cpm_price возвращаемся к выбору каналов
     if param == "cpm_price":
-        chosen = data.get("chosen", post.chat_ids)
+        # Handle difference between Post (chat_ids) and PublishedPost (chat_id)
+        if hasattr(post, "chat_ids"):
+            default_chosen = post.chat_ids
+        elif hasattr(post, "chat_id"):
+            default_chosen = [post.chat_id]
+        else:
+            default_chosen = []
+
+        chosen = data.get("chosen", default_chosen)
         display_objects = await db.channel.get_user_channels(
             user_id=message.from_user.id, from_array=chosen
         )
