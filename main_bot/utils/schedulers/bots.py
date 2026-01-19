@@ -15,6 +15,7 @@ from typing import Any, Dict, List, Optional
 
 from aiogram import Bot
 from aiogram.types import FSInputFile
+from aiogram.exceptions import TelegramForbiddenError, TelegramBadRequest
 
 from hello_bot.database.db import Database
 from instance_bot import bot
@@ -92,7 +93,11 @@ async def start_delete_bot_posts() -> None:
 
 
 async def send_bot_messages(
-    other_bot: Bot, bot_post: BotPost, users: List[int], filepath: Optional[str]
+    other_bot: Bot,
+    bot_post: BotPost,
+    users: List[int],
+    filepath: Optional[str],
+    schema: str,
 ) -> Dict[int, Any]:
     """
     Отправить сообщения через бота всем пользователям.
@@ -175,6 +180,16 @@ async def send_bot_messages(
             message = await cor(**options)
             message_ids.append({"message_id": message.message_id, "chat_id": user})
             success += 1
+        except (TelegramForbiddenError, TelegramBadRequest) as e:
+            logger.warning(
+                f"Пользователь {user} деактивирован (Бот: {other_bot.id}): {e.message}"
+            )
+            try:
+                other_db = Database()
+                other_db.schema = schema
+                await other_db.update_user(user_id=user, is_active=False)
+            except Exception as db_err:
+                logger.error(f"Ошибка БД при деактивации юзера {user}: {db_err}")
         except Exception as e:
             logger.error(
                 f"Ошибка при отправке сообщения бота пользователю {user}: {e}",
@@ -216,7 +231,11 @@ async def process_bot(
             raise Exception("STATUS_INVALID")
 
         return await send_bot_messages(
-            other_bot=bot_manager.bot, bot_post=bot_post, users=users, filepath=filepath
+            other_bot=bot_manager.bot,
+            bot_post=bot_post,
+            users=users,
+            filepath=filepath,
+            schema=user_bot.schema,
         )
 
 
@@ -236,6 +255,10 @@ async def send_bot_post(bot_post: BotPost) -> None:
         bot_post (BotPost): Пост для отправки.
     """
     logger.info(f"🚀 Начинаем обработку рассылки BotPost ID: {bot_post.id}")
+    
+    # Сразу «застолбим» пост, чтобы планировщик не взял его повторно (защита от дубликатов)
+    await db.bot_post.update_bot_post(post_id=bot_post.id, status=Status.FINISH)
+    
     users_count = 0
     semaphore = asyncio.Semaphore(5)
 
