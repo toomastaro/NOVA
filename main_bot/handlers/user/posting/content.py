@@ -23,10 +23,10 @@ logger = logging.getLogger(__name__)
 def serialize_post(post):
     """
     Сериализует объект поста в словарь для хранения в состоянии FSM.
-    
+
     Аргументы:
         post: Объект Post или PublishedPost.
-        
+
     Возвращает:
         Словарь с данными поста или None, если пост не передан.
     """
@@ -127,7 +127,7 @@ async def generate_post_info_text(post_obj, is_published: bool = False) -> str:
             if channel:
                 title_link = channel.title
                 channels_inner += f"📺 {title_link}\n"
-        
+
         channels_text = text("post_report_target_channels").format(channels_inner)
 
         chat_id_str = str(post_obj.chat_id).replace("-100", "")
@@ -175,8 +175,10 @@ async def generate_post_info_text(post_obj, is_published: bool = False) -> str:
                 channel = await db.channel.get_channel_by_chat_id(chat_id)
                 if channel:
                     channels_inner += f"📺 {channel.title}\n"
-            
-            channels_text = text("post_report_target_channels_deleted").format(channels_inner)
+
+            channels_text = text("post_report_target_channels_deleted").format(
+                channels_inner
+            )
 
             return (
                 f"{text('post_report_deleted_title')}\n"
@@ -200,8 +202,10 @@ async def generate_post_info_text(post_obj, is_published: bool = False) -> str:
                         f"<a href='{url}'>{channel.title}</a>" if url else channel.title
                     )
                     channels_inner += f"📺 {title_link}\n"
-            
-            channels_text = text("post_report_target_channels_pending").format(channels_inner)
+
+            channels_text = text("post_report_target_channels_pending").format(
+                channels_inner
+            )
 
             return (
                 f"{text('status_pending')}\n"
@@ -214,7 +218,7 @@ async def generate_post_info_text(post_obj, is_published: bool = False) -> str:
 async def choice_channel(call: types.CallbackQuery, state: FSMContext):
     """
     Обработчик выбора канала для просмотра контент-плана.
-    
+
     Аргументы:
         call: Callback-запрос от пользователя.
         state: Контекст состояния FSM.
@@ -276,7 +280,7 @@ async def choice_channel(call: types.CallbackQuery, state: FSMContext):
 async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
     """
     Обработчик навигации по контент-плану (выбор дня, поста).
-    
+
     Аргументы:
         call: Callback-запрос от пользователя.
         state: Контекст состояния FSM.
@@ -436,7 +440,7 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
 async def choice_time_objects(call: types.CallbackQuery, state: FSMContext):
     """
     Обработчик просмотра списка запланированных постов.
-    
+
     Аргументы:
         call: Callback-запрос от пользователя.
         state: Контекст состояния FSM.
@@ -493,7 +497,7 @@ async def choice_time_objects(call: types.CallbackQuery, state: FSMContext):
 async def manage_remain_post(call: types.CallbackQuery, state: FSMContext):
     """
     Обработчик управления запланированным (или черновиком) постом.
-    
+
     Аргументы:
         call: Callback-запрос от пользователя.
         state: Контекст состояния FSM.
@@ -513,6 +517,39 @@ async def manage_remain_post(call: types.CallbackQuery, state: FSMContext):
     )
 
     if temp[1] == "cancel":
+        # Проверяем, есть ли channel_data (редактирование из контент-плана)
+        # или это создание нового поста
+        if not channel_data:
+            # Создание нового поста - возвращаемся к финальным параметрам
+            logger.info(
+                f"Пользователь {call.from_user.id} вернулся назад при создании поста (CPM не выбран)"
+            )
+
+            post = data.get("post")
+            chosen = data.get("chosen", [])
+
+            display_objects = await db.channel.get_user_channels(
+                user_id=call.from_user.id, from_array=chosen
+            )
+
+            channels_list = (
+                "<blockquote expandable>"
+                + "\n".join(
+                    text("resource_title").format(obj.title) for obj in display_objects
+                )
+                + "</blockquote>"
+                if chosen
+                else ""
+            )
+
+            await call.message.delete()
+            return await call.message.answer(
+                text("manage:post:finish_params").format(len(chosen), channels_list),
+                reply_markup=keyboards.finish_params(obj=post),
+                parse_mode="HTML",
+            )
+
+        # Редактирование из контент-плана - возвращаемся к списку постов
         posts = await db.post.get_posts(channel_data["chat_id"], day)
 
         post_message = data.get("post_message")
@@ -588,7 +625,7 @@ async def manage_remain_post(call: types.CallbackQuery, state: FSMContext):
 async def accept_delete_row_content(call: types.CallbackQuery, state: FSMContext):
     """
     Обработчик подтверждения удаления поста.
-    
+
     Аргументы:
         call: Callback-запрос от пользователя.
         state: Контекст состояния FSM.
@@ -665,7 +702,7 @@ async def accept_delete_row_content(call: types.CallbackQuery, state: FSMContext
 async def manage_published_post(call: types.CallbackQuery, state: FSMContext):
     """
     Обработчик управления уже опубликованным постом (отчеты, удаление).
-    
+
     Аргументы:
         call: Callback-запрос от пользователя.
         state: Контекст состояния FSM.
@@ -677,6 +714,7 @@ async def manage_published_post(call: types.CallbackQuery, state: FSMContext):
         return await call.message.delete()
 
     from main_bot.keyboards.posting import ensure_obj
+
     post = ensure_obj(data.get("post"))
 
     if temp[1] == "cpm_report":
@@ -876,7 +914,7 @@ async def manage_published_post(call: types.CallbackQuery, state: FSMContext):
 async def accept_delete_published_post(call: types.CallbackQuery, state: FSMContext):
     """
     Обработчик подтверждения удаления опубликованного поста (удаление из каналов и БД).
-    
+
     Аргументы:
         call: Callback-запрос от пользователя.
         state: Контекст состояния FSM.
@@ -924,10 +962,17 @@ async def accept_delete_published_post(call: types.CallbackQuery, state: FSMCont
             try:
                 await call.bot.delete_message(p.chat_id, p.message_id)
             except TelegramBadRequest as e:
-                if "message to delete not found" in e.message.lower() or "message can't be deleted" in e.message.lower():
-                    logger.warning(f"Сообщение {p.message_id} в {p.chat_id} уже удалено или недоступно для удаления.")
+                if (
+                    "message to delete not found" in e.message.lower()
+                    or "message can't be deleted" in e.message.lower()
+                ):
+                    logger.warning(
+                        f"Сообщение {p.message_id} в {p.chat_id} уже удалено или недоступно для удаления."
+                    )
                 else:
-                    logger.error(f"Ошибка API при удалении сообщения {p.message_id} из {p.chat_id}: {e}")
+                    logger.error(
+                        f"Ошибка API при удалении сообщения {p.message_id} из {p.chat_id}: {e}"
+                    )
             except Exception as e:
                 logger.error(
                     f"Непредвиденная ошибка при удалении сообщения {p.message_id} из {p.chat_id}: {e}",
@@ -940,7 +985,9 @@ async def accept_delete_published_post(call: types.CallbackQuery, state: FSMCont
         try:
             await db.post.delete_post(post["id"])
         except Exception as e:
-            logger.error(f"Ошибка при окончательном удалении родительского поста {post['id']}: {e}")
+            logger.error(
+                f"Ошибка при окончательном удалении родительского поста {post['id']}: {e}"
+            )
 
         posts = await db.post.get_posts(channel_data["chat_id"], day)
 
@@ -982,7 +1029,7 @@ async def accept_delete_published_post(call: types.CallbackQuery, state: FSMCont
 def get_router():
     """
     Создает и настраивает роутер для обработчиков контента.
-    
+
     Возвращает:
         Router: Настроенный роутер с зарегистрированными обработчиками.
     """
