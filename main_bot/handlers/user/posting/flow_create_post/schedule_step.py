@@ -158,9 +158,7 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
             str(e),
             exc_info=True,
         )
-        await call.answer(
-            text("error_load_channels"), show_alert=True
-        )
+        await call.answer(text("error_load_channels"), show_alert=True)
         return
     except Exception as e:
         logger.error(
@@ -169,9 +167,7 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
             str(e),
             exc_info=True,
         )
-        await call.answer(
-            text("error_load_channels"), show_alert=True
-        )
+        await call.answer(text("error_load_channels"), show_alert=True)
         return
 
     # Переход к следующему шагу
@@ -229,9 +225,7 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
                 logger.error(
                     "Ошибка при возврате к корневому уровню: %s", str(e), exc_info=True
                 )
-                await call.answer(
-                    text("error_load_generic"), show_alert=True
-                )
+                await call.answer(text("error_load_generic"), show_alert=True)
                 return
             # Сбрасываем remover при выходе из папки
             remover_value = 0
@@ -528,7 +522,7 @@ async def finish_params(call: types.CallbackQuery, state: FSMContext):
         message_text = text("manage:post:new:{}".format(temp[1]))
 
         input_msg = await call.message.answer(
-            message_text, reply_markup=keyboards.param_cancel(param=temp[1])
+            message_text, reply_markup=keyboards.param_cpm_input(param=temp[1])
         )
         await state.set_state(Posting.input_value)
         await state.update_data(input_msg_id=input_msg.message_id)
@@ -660,7 +654,7 @@ async def choice_delete_time(call: types.CallbackQuery, state: FSMContext):
             "\n".join(
                 text("resource_title").format(obj.title)
                 for obj in objects
-            if obj.chat_id in chosen
+                if obj.chat_id in chosen
             ),
         ),
         reply_markup=keyboards.finish_params(obj=safe_post_from_dict(data.get("post"))),
@@ -708,7 +702,7 @@ async def cancel_send_time(call: types.CallbackQuery, state: FSMContext):
             "\n".join(
                 text("resource_title").format(obj.title)
                 for obj in objects
-            if obj.chat_id in chosen
+                if obj.chat_id in chosen
             ),
         ),
         reply_markup=keyboards.finish_params(obj=safe_post_from_dict(data.get("post"))),

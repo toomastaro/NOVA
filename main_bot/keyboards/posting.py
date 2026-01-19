@@ -378,8 +378,11 @@ class InlinePosting(InlineKeyboardBuilder):
         )
 
         # Кнопка "Назад"
-        kb.button(text=text("back:button"), callback_data="ManageRemainPost|cancel")
-        kb.adjust(1)
+        kb.row(
+            InlineKeyboardButton(
+                text=text("back:button"), callback_data="ManageRemainPost|cancel"
+            )
+        )
         return kb.as_markup()
 
     @classmethod
