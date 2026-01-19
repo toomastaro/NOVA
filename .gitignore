@@ -25,6 +25,7 @@ logs/
 # 🐳 Docker / build
 certs/
 data/
+nginx/ssl/
 
 # 🤖 Bot sessions
 main_bot/utils/sessions/
