@@ -60,7 +60,7 @@ echo "✅ Database is ready"
 
 # --- Запуск приложения ---
 echo "🚀 Starting application..."
-exec uvicorn main_api:app --host 0.0.0.0 --port 8099 --log-level debug --no-access-log
+exec uvicorn main_api:app --host 0.0.0.0 --port 8099 --log-level warning --no-access-log
 SCRIPT
 
 # Права на исполнение entrypoint

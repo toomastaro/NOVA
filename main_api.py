@@ -142,7 +142,7 @@ async def health_check():
 
 
 @app.post("/webhook/main")
-@safe_handler("API: webhook main — приём update", log_start=True)
+@safe_handler("API: webhook main — приём update")
 async def main_update(request: Request):
     """
     Обработчик вебхуков для основного бота.
@@ -151,7 +151,6 @@ async def main_update(request: Request):
         request (Request): HTTP запрос от Telegram.
     """
     data = await request.json()
-    logger.debug(f"Входящий JSON основного бота: {data}")
     update = types.Update.model_validate(data)
 
     await dp.feed_update(bot=bot, update=update)
@@ -411,7 +410,7 @@ def get_bot_instance(token: str) -> Bot:
 
 
 @app.post("/webhook/{token}")
-@safe_handler("API: webhook UserBot — приём update", log_start=True)
+@safe_handler("API: webhook UserBot — приём update")
 async def other_update(request: Request, token: str):
     """
     Обработчик вебхуков для пользовательских ботов.
@@ -421,7 +420,6 @@ async def other_update(request: Request, token: str):
         token (str): Токен бота в URL.
     """
     data = await request.json()
-    logger.debug(f"Входящий JSON пользовательского бота ({token[:10]}): {data}")
     update = types.Update.model_validate(data)
 
     exist = await db.user_bot.get_bot_by_token(token)

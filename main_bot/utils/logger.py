@@ -15,15 +15,15 @@ def setup_logging() -> None:
     """
     # Конфигурация корневого логгера
     logging.basicConfig(
-        level=logging.DEBUG,
+        level=logging.INFO,
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
         handlers=[logging.StreamHandler(sys.stdout)],
     )
 
-    # Включаем логи для основных библиотек в режиме DEBUG
-    logging.getLogger("aiogram").setLevel(logging.DEBUG)
-    logging.getLogger("uvicorn").setLevel(logging.DEBUG)
-    logging.getLogger("httpx").setLevel(logging.DEBUG)
+    # Тихие логи для основных библиотек
+    logging.getLogger("aiogram").setLevel(logging.WARNING)
+    logging.getLogger("uvicorn").setLevel(logging.WARNING)
+    logging.getLogger("httpx").setLevel(logging.WARNING)
     
     # Оставляем тихими тяжелые библиотеки
     logging.getLogger("sqlalchemy").setLevel(logging.WARNING)
