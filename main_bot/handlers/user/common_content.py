@@ -18,6 +18,7 @@ def serialize_channel(channel: Any) -> Optional[Dict[str, Any]]:
         "chat_id": channel.chat_id,
         "title": channel.title,
         "username": getattr(channel, "username", None),
+        "emoji_id": getattr(channel, "emoji_id", "📺"),
         "subscribers_count": getattr(channel, "subscribers_count", 0),
         "posting": getattr(channel, "posting", False),
     }

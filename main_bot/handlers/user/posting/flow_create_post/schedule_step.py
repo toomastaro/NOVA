@@ -636,8 +636,8 @@ async def choice_delete_time(call: types.CallbackQuery, state: FSMContext):
         return await call.message.edit_text(
             text("post:content").format(
                 *data.get("send_date_values"),
-                data.get("channel").emoji_id,
-                data.get("channel").title,
+                ensure_obj(data.get("channel")).emoji_id,
+                ensure_obj(data.get("channel")).title,
             ),
             reply_markup=keyboards.manage_remain_post(
                 post=post, is_published=data.get("is_published")
@@ -777,11 +777,12 @@ async def get_send_time(message: types.Message, state: FSMContext):
         data["send_date_values"] = send_date_values
         await state.update_data(data)
 
+        channel = ensure_obj(data.get("channel"))
         return await message.answer(
             text("post:content").format(
                 *send_date_values,
-                data.get("channel").emoji_id,
-                data.get("channel").title,
+                channel.emoji_id,
+                channel.title,
             ),
             reply_markup=keyboards.manage_remain_post(post=post),
         )
