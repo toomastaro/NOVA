@@ -163,6 +163,9 @@ class ChannelCrud(DatabaseMixin):
         """
         chat_id = kwargs.get("chat_id")
         admin_id = kwargs.get("admin_id")
+        
+        if "emoji_id" not in kwargs:
+            kwargs["emoji_id"] = "5393222813345663485"
 
         # 1. Проверяем наличие канала у любого админа (берём запись с лучшей подпиской)
         existing_any_admin = await self.get_channel_by_chat_id(chat_id)
@@ -218,7 +221,14 @@ class ChannelCrud(DatabaseMixin):
                 update_values["subscribe"] = None
 
         stmt = stmt.on_conflict_do_update(
-            index_elements=["chat_id", "admin_id"], set_=update_values
+            index_elements=["chat_id", "admin_id"],
+            set_={
+                "chat_id": stmt.excluded.chat_id,
+                "title": stmt.excluded.title,
+                "admin_id": stmt.excluded.admin_id,
+                "subscribe": stmt.excluded.subscribe,
+                "emoji_id": stmt.excluded.emoji_id,
+            },
         )
         await self.execute(stmt)
 

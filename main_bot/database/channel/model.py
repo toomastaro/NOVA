@@ -58,7 +58,9 @@ class Channel(Base):
         comment="Путь к сессии (для юзерботов)"
     )
     emoji_id: Mapped[str] = mapped_column(
-        nullable=False, comment="ID эмодзи для капчи/оформления"
+        nullable=False,
+        default="5393222813345663485",
+        comment="ID эмодзи для капчи/оформления",
     )
     created_timestamp: Mapped[int] = mapped_column(
         default=lambda: int(time.time()), comment="Дата добавления"
