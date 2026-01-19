@@ -631,16 +631,27 @@ async def choice_delete_time(call: types.CallbackQuery, state: FSMContext):
     # Если редактируем опубликованный пост
     is_edit: bool = data.get("is_edit")
     if is_edit:
-        return await call.message.edit_text(
-            text("post:content").format(
-                *data.get("send_date_values"),
-                ensure_obj(data.get("channel")).emoji_id,
-                ensure_obj(data.get("channel")).title,
-            ),
-            reply_markup=keyboards.manage_remain_post(
-                post=post, is_published=data.get("is_published")
-            ),
-        )
+        # Для опубликованных постов используем правильный формат текста
+        if data.get("is_published"):
+            from main_bot.handlers.user.posting.content import generate_post_info_text
+
+            info_text = await generate_post_info_text(post, is_published=True)
+            return await call.message.edit_text(
+                info_text,
+                reply_markup=keyboards.manage_remain_post(post=post, is_published=True),
+            )
+        else:
+            # Для запланированных постов используем стандартный формат
+            return await call.message.edit_text(
+                text("post:content").format(
+                    *data.get("send_date_values"),
+                    ensure_obj(data.get("channel")).emoji_id,
+                    ensure_obj(data.get("channel")).title,
+                ),
+                reply_markup=keyboards.manage_remain_post(
+                    post=post, is_published=False
+                ),
+            )
 
     # Возврат к финальным параметрам
     chosen: list = data.get("chosen")

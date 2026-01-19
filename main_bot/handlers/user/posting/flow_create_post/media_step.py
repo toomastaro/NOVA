@@ -132,7 +132,9 @@ async def manage_post(call: types.CallbackQuery, state: FSMContext):
         # Force refresh main menu
         from main_bot.keyboards.common import Reply
 
-        await call.message.answer(text("manage_post_settings"), reply_markup=Reply.menu())
+        await call.message.answer(
+            text("manage_post_settings"), reply_markup=Reply.menu()
+        )
 
         return await call.message.answer(
             text("manage:post:finish_params").format(len(chosen), channels_list),
@@ -318,7 +320,7 @@ async def cancel_value(call: types.CallbackQuery, state: FSMContext):
             pass
 
         kwargs = {param: value}
-        
+
         # Получаем объект поста из состояния
         post_obj = ensure_obj(data.get("post"))
 
@@ -348,11 +350,11 @@ async def cancel_value(call: types.CallbackQuery, state: FSMContext):
         await state.clear()
         await state.update_data(data)
         await call.message.delete()
-        
+
     # Для cpm_price возвращаемся к выбору каналов
     if data.get("param") == "cpm_price":
         post = ensure_obj(data.get("post"))
-        
+
         # Handle difference between Post (chat_ids) and PublishedPost (chat_id)
         if hasattr(post, "chat_ids"):
             default_chosen = post.chat_ids
@@ -362,7 +364,7 @@ async def cancel_value(call: types.CallbackQuery, state: FSMContext):
             default_chosen = []
 
         chosen = data.get("chosen", default_chosen)
-        
+
         display_objects = await db.channel.get_user_channels(
             user_id=call.from_user.id, from_array=chosen
         )
