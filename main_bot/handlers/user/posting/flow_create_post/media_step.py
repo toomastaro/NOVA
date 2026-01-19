@@ -355,9 +355,17 @@ async def cancel_value(call: types.CallbackQuery, state: FSMContext):
         await state.update_data(data)
         await call.message.delete()
 
-    # Для cpm_price возвращаемся к выбору каналов
+    # Для cpm_price возвращаемся к выбору каналов (или к посту, если опубликован)
     if data.get("param") == "cpm_price":
         post = ensure_obj(data.get("post"))
+
+        if data.get("is_published"):
+            from main_bot.handlers.user.posting.content import generate_post_info_text
+
+            info_text = await generate_post_info_text(post, is_published=True)
+            return await call.message.answer(
+                info_text, reply_markup=keyboards.manage_published_post(post=post)
+            )
 
         # Handle difference between Post (chat_ids) and PublishedPost (chat_id)
         if hasattr(post, "chat_ids"):
@@ -367,7 +375,7 @@ async def cancel_value(call: types.CallbackQuery, state: FSMContext):
         else:
             default_chosen = []
 
-        chosen = data.get("chosen", default_chosen)
+        chosen = data.get("chosen", default_chosen) or []
 
         display_objects = await db.channel.get_user_channels(
             user_id=call.from_user.id, from_array=chosen

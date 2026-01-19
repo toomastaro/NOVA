@@ -56,7 +56,7 @@ async def get_views_for_post(post):
             if session:
                 views_obj = await session.get_views(post.chat_id, [post.message_id])
                 if views_obj:
-                    views = sum([i.views for i in views_obj.views])
+                    views = sum([i.views or 0 for i in views_obj.views])
     return views, channel
 
 
@@ -503,7 +503,7 @@ async def delete_posts():
                 usd_rate = exchange_rate.rate
                 # exchange_rate_update_time = exchange_rate.last_update
 
-        total_views = sum(obj["views"] for obj in message_objects)
+        total_views = sum(obj["views"] or 0 for obj in message_objects)
 
         channels_text_inner = "\n".join(
             text("resource_title").format(html.escape(obj["channel"].title))
