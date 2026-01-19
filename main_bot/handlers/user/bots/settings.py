@@ -99,7 +99,7 @@ async def show_bot_manage(
     )
     channels_raw = [
         await db.channel.get_channel_admin_row(
-            chat_id=chat.id, user_id=user_bot.admin_id
+            chat_id=chat.id, user_id=message.chat.id
         )
         for chat in channel_ids_in_bot
     ]

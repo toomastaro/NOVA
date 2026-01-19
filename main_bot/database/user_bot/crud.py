@@ -5,10 +5,12 @@
 import logging
 from typing import List
 
-from sqlalchemy import delete, desc, insert, select, update
+from sqlalchemy import delete, desc, insert, select, update, or_
 
 from main_bot.database import DatabaseMixin
 from main_bot.database.user_bot.model import UserBot
+from main_bot.database.channel.model import Channel
+from main_bot.database.channel_bot_settings.model import ChannelBotSetting
 
 logger = logging.getLogger(__name__)
 
@@ -55,7 +57,24 @@ class UserBotCrud(DatabaseMixin):
         Возвращает:
             List[UserBot]: Список ботов.
         """
-        stmt = select(UserBot).where(UserBot.admin_id == user_id)
+        # 1. Боты, где пользователь является владельцем
+        # 2. Боты, привязанные к каналам, где пользователь является администратором
+        
+        # Подзапрос для поиска chat_ids каналов пользователя
+        user_channels_sub = select(Channel.chat_id).where(Channel.admin_id == user_id).scalar_subquery()
+        
+        # Подзапрос для поиска bot_ids, привязанных к этим каналам
+        linked_bots_sub = select(ChannelBotSetting.bot_id).where(
+            ChannelBotSetting.id.in_(user_channels_sub),
+            ChannelBotSetting.bot_id.is_not(None)
+        ).scalar_subquery()
+
+        stmt = select(UserBot).where(
+            or_(
+                UserBot.admin_id == user_id,
+                UserBot.id.in_(linked_bots_sub)
+            )
+        )
 
         if sort_by:
             stmt = stmt.order_by(desc(UserBot.subscribe))

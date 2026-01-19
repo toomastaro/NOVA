@@ -332,7 +332,7 @@ async def set_channel(call: types.ChatMemberUpdated, db_bot: UserBot):
         )
         channels_raw = [
             await main_db.channel.get_channel_admin_row(
-                chat_id=chat.id, user_id=db_bot.admin_id
+                chat_id=chat.id, user_id=call.from_user.id
             )
             for chat in channel_ids_in_bot
         ]

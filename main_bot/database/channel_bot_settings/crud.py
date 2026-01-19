@@ -8,6 +8,7 @@ from sqlalchemy import insert, select, update
 
 from main_bot.database import DatabaseMixin
 from main_bot.database.channel_bot_settings.model import ChannelBotSetting
+from main_bot.database.channel.model import Channel
 
 logger = logging.getLogger(__name__)
 
@@ -72,7 +73,11 @@ class ChannelBotSettingCrud(DatabaseMixin):
             admin_id (int): ID администратора.
             only_with_bot (bool): Если True, возвращает только каналы с привязанным ботом.
         """
-        stmt = select(ChannelBotSetting).where(ChannelBotSetting.admin_id == admin_id)
+        # Получаем настройки для всех каналов, где пользователь является администратором
+        user_channels_sub = select(Channel.chat_id).where(Channel.admin_id == admin_id).scalar_subquery()
+        
+        stmt = select(ChannelBotSetting).where(ChannelBotSetting.id.in_(user_channels_sub))
+        
         if only_with_bot:
             stmt = stmt.where(
                 ChannelBotSetting.bot_id.is_not(None), ChannelBotSetting.bot_id != 0
