@@ -36,42 +36,43 @@ async def delete_bot_posts(
     user_bot: UserBot, message_ids: List[Dict[str, Any]]
 ) -> None:
     """
-    Удалить сообщения бота.
+    Удаляет отправленные сообщения через пользовательского бота.
 
-    Аргументы:
-        user_bot (UserBot): Объект пользовательского бота.
-        message_ids (List[Dict[str, Any]]): Список словарей с chat_id и message_id для удаления.
+    Параметры:
+        user_bot (UserBot): Данные пользовательского бота.
+        message_ids (List[Dict[str, Any]]): Список идентификаторов сообщений (chat_id, message_id).
     """
     async with BotManager(user_bot.token) as bot_manager:
-        validate = await bot_manager.validate_token()
-        if not validate:
+        if not await bot_manager.validate_token():
             return
-        status = await bot_manager.status()
-        if not status:
+        if not await bot_manager.status():
             return
 
         for message in message_ids:
             try:
                 await bot_manager.bot.delete_message(**message)
+            except (TelegramForbiddenError, TelegramBadRequest) as e:
+                # Ошибки прав или деактивации пользователя/бота — логируем предупреждение
+                logger.warning(
+                    f"Не удалось удалить сообщение бота в чате {message.get('chat_id')}: {e.message}"
+                )
             except Exception as e:
-                # Игнорируем ошибку "сообщение не найдено" - это нормально (пользователь мог удалить вручную)
+                # Прочие ошибки: если сообщение не найдено — это нормально (удалено вручную)
                 if "message to delete not found" not in str(e).lower():
                     logger.error(
-                        f"Ошибка при удалении сообщения бота: {e}", exc_info=True
+                        f"Критическая ошибка при удалении сообщения бота: {e}", exc_info=True
                     )
 
 
 @safe_handler("Боты: удаление сообщений (Background)", log_start=False)
 async def start_delete_bot_posts() -> None:
     """
-    Периодическая задача: удаление сообщений ботов по расписанию.
-
-    Проверяет все посты ботов с установленным временем удаления
-    и удаляет сообщения, если время истекло.
+    Периодическая задача по очистке сообщений ботов с истекшим временем жизни.
     """
     bot_posts = await db.bot_post.get_bot_posts_for_clear_messages()
 
     for bot_post in bot_posts:
+        # Проверка времени удаления (время старта + задержка удаления)
         if (bot_post.delete_time + bot_post.start_timestamp) > time.time():
             continue
 
@@ -79,6 +80,7 @@ async def start_delete_bot_posts() -> None:
         if not messages:
             continue
 
+        # Запуск задач удаления для каждого задействованного бота
         for bot_id in list(messages.keys()):
             user_bot = await db.user_bot.get_bot_by_id(int(bot_id))
             if user_bot:
@@ -86,13 +88,12 @@ async def start_delete_bot_posts() -> None:
                     delete_bot_posts(user_bot, messages[bot_id]["message_ids"])
                 )
 
-        # Обновляем запись: помечаем что сообщения зачищены (убираем message_ids или помечаем статус)
-        # Если статус был FINISH, переводим в DELETED. Если уже был DELETED, оставляем.
+        # Помечаем пост как удаленный и очищаем список ID сообщений
         await db.bot_post.update_bot_post(
             post_id=bot_post.id, 
             deleted_at=int(time.time()), 
             status=Status.DELETED,
-            message_ids=None # Очищаем список ID сообщений после удаления
+            message_ids=None
         )
 
 

@@ -414,15 +414,15 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
                     if any(str(cid) in chosen_db_ids for cid in folder.content):
                         chosen_folders.append(folder.id)
 
-        try:
-            msg_text = (
-                text("choice_channels:folder").format(
-                    folder_title, len(chosen), channels_list
-                )
-                if current_folder_id and folder_title
-                else text("choice_channels:post").format(len(chosen), channels_list)
+        msg_text = (
+            text("choice_channels:folder").format(
+                folder_title, len(chosen), channels_list
             )
+            if current_folder_id and folder_title
+            else text("choice_channels:post").format(len(chosen), channels_list)
+        )
 
+        try:
             await call.message.edit_text(
                 msg_text,
                 reply_markup=keyboards.choice_objects(
