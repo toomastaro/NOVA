@@ -8,8 +8,10 @@
 - Формирование отчетов по дням
 """
 
-from datetime import datetime, timedelta, timezone
 import logging
+import html
+import re
+from datetime import datetime, timedelta, timezone
 
 from aiogram import types, F, Router
 from aiogram.fsm.context import FSMContext
@@ -33,18 +35,16 @@ from utils.error_handler import safe_handler
 logger = logging.getLogger(__name__)
 
 
-@safe_handler(
-    "Боты: контент — выбор канала"
-)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler("Боты: выбор канала")
 async def choice_channel(call: types.CallbackQuery, state: FSMContext) -> None:
     """
-    Выбор канала для просмотра контент-плана бота.
-    Отображает календарь постов для выбранного канала.
+    Обработчик выбора канала для просмотра контент-плана.
 
-    Аргументы:
-        call (types.CallbackQuery): Callback запрос.
-        state (FSMContext): Контекст состояния.
+    Входы:
+        call (types.CallbackQuery): Данные колбэка.
+        state (FSMContext): Машина состояний.
     """
+    logger.info("Вызов выбора канала для ботов")
     temp = call.data.split("|")
 
     if temp[1] in ["next", "back"]:
@@ -99,18 +99,16 @@ async def choice_channel(call: types.CallbackQuery, state: FSMContext) -> None:
     )
 
 
-@safe_handler(
-    "Боты: контент — выбор дня/поста"
-)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler("Боты: выбор дня или поста")
 async def choice_row_content(call: types.CallbackQuery, state: FSMContext) -> None:
     """
-    Выбор дня или навигация по календарю контента.
-    Обрабатывает переключение дней, месяцев и показ списка постов.
+    Обработчик навигации по календарю и выбора рассылки.
 
-    Аргументы:
-        call (types.CallbackQuery): Callback запрос.
-        state (FSMContext): Контекст состояния.
+    Входы:
+        call (types.CallbackQuery): Данные колбэка.
+        state (FSMContext): Машина состояний.
     """
+    logger.info("Выбор строки контента в ботах: %s", call.data)
     temp = call.data.split("|")
     data = await state.get_data()
     if not data:
@@ -258,28 +256,44 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext) -> No
         deleted_date = datetime.fromtimestamp(post.deleted_at) if post.deleted_at else send_date
         
         try:
-            author = (await call.bot.get_chat(post.admin_id)).username or "Неизвестно"
-        except Exception:
+            author_obj = await call.bot.get_chat(post.admin_id)
+            author = author_obj.username or "Неизвестно"
+        except Exception as e:
+            logger.warning("Не удалось получить автора: %s", e)
             author = "Неизвестно"
             
         options = post.message
         message_text = options.get("text") or options.get("caption") or text("media_label")
+        
+        # Очистка от HTML-тегов перед обрезкой для предотвращения битых тегов
+        message_text = re.sub(r"<[^>]+>", "", message_text)
+        
         if len(message_text) > 30:
             message_text = message_text[:27] + "..."
 
+        logger.info("Отправка отчета об удаленной рассылке %s", post.id)
         await call.message.answer(
             text("bot_post:deleted:report").format(
                 send_date.strftime("%d.%m.%Y %H:%M"),
                 deleted_date.strftime("%d.%m.%Y %H:%M"),
-                author,
-                message_text
+                html.escape(author),
+                html.escape(message_text)
             ),
             reply_markup=keyboards.back(data="ManageRemainBotPost|cancel"),
         )
         return
 
     if post.status in [Status.FINISH, Status.ERROR]:
+        logger.info("Отображение завершенной рассылки %s", post.id)
         await call.message.delete()
+        
+        try:
+            admin_chat = await call.bot.get_chat(post.admin_id)
+            admin_name = admin_chat.username or text("unknown")
+        except Exception as e:
+            logger.warning("Ошибка получения админа: %s", e)
+            admin_name = text("unknown")
+
         await call.message.answer(
             text("report_finished_bot").format(
                 post.success_send,
@@ -287,7 +301,7 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext) -> No
                 text("no_label") if not post.delete_time else f"{int(post.delete_time / 3600)} {text('hours_short')}",
                 datetime.fromtimestamp(post.start_timestamp).strftime("%d.%m.%Y %H:%M"),
                 datetime.fromtimestamp(post.end_timestamp).strftime("%d.%m.%Y %H:%M"),
-                (await call.bot.get_chat(post.admin_id)).username or text("unknown"),
+                html.escape(admin_name),
             ),
             reply_markup=keyboards.back(data="ManageRemainBotPost|cancel"),
         )
@@ -297,33 +311,35 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext) -> No
 
     # Получаем username автора
     try:
-        author = (await call.bot.get_chat(post.admin_id)).username or text("unknown")
-    except Exception:
+        author_chat = await call.bot.get_chat(post.admin_id)
+        author = author_chat.username or text("unknown")
+    except Exception as e:
+        logger.warning("Не удалось получить автора: %s", e)
         author = text("unknown")
 
+    logger.info("Отображение управления постом %s", post.id)
     await call.message.answer(
         text("bot_post:content").format(
             text("no_label") if not post.delete_time else f"{int(post.delete_time / 3600)} {text('hours_short')}",
             send_date.day,
             text("month").get(str(send_date.month)),
             send_date.year,
-            author,
+            html.escape(author),
         ),
         reply_markup=keyboards.manage_remain_bot_post(post=post),
     )
 
 
-@safe_handler(
-    "Боты: контент — список постов"
-)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler("Боты: список постов")
 async def choice_time_objects(call: types.CallbackQuery, state: FSMContext) -> None:
     """
-    Выбор конкретного поста из списка time objects.
+    Обработчик выбора конкретного поста из списка.
 
-    Аргументы:
-        call (types.CallbackQuery): Callback запрос.
-        state (FSMContext): Контекст состояния.
+    Входы:
+        call (types.CallbackQuery): Данные колбэка.
+        state (FSMContext): Машина состояний.
     """
+    logger.info("Список постов в ботах: %s", call.data)
     temp = call.data.split("|")
     data = await state.get_data()
     if not data:
@@ -374,18 +390,16 @@ async def choice_time_objects(call: types.CallbackQuery, state: FSMContext) -> N
         )
 
 
-@safe_handler(
-    "Боты: контент — управление постом"
-)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler("Боты: управление постом")
 async def manage_remain_post(call: types.CallbackQuery, state: FSMContext) -> None:
     """
-    Управление запланированным постом.
-    Поддерживает изменение клавиатуры или удаление поста.
+    Обработчик управления запланированной рассылкой.
 
-    Аргументы:
-        call (types.CallbackQuery): Callback запрос.
-        state (FSMContext): Контекст состояния.
+    Входы:
+        call (types.CallbackQuery): Данные колбэка.
+        state (FSMContext): Машина состояний.
     """
+    logger.info("Управление постом в ботах: %s", call.data)
     temp = call.data.split("|")
     data = await state.get_data()
     if not data:
@@ -481,20 +495,18 @@ async def manage_remain_post(call: types.CallbackQuery, state: FSMContext) -> No
                 logger.error(f"Ошибка редактирования клавиатуры: {e}")
 
 
-@safe_handler(
-    "Боты: контент — подтверждение удаления"
-)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler("Боты: удаление поста")
 async def accept_delete_row_content(
     call: types.CallbackQuery, state: FSMContext
 ) -> None:
     """
-    Подтверждение удаления поста.
-    Удаляет пост из базы данных и возвращает пользователя в календарь.
+    Обработчик подтверждения и выполнения удаления поста.
 
-    Аргументы:
-        call (types.CallbackQuery): Callback запрос.
-        state (FSMContext): Контекст состояния.
+    Входы:
+        call (types.CallbackQuery): Данные колбэка.
+        state (FSMContext): Машина состояний.
     """
+    logger.info("Удаление поста в ботах: %s", call.data)
     temp = call.data.split("|")
     data = await state.get_data()
     if not data:
@@ -511,8 +523,10 @@ async def accept_delete_row_content(
     if temp[1] == "cancel":
         # Получаем username автора
         try:
-            author = (await call.bot.get_chat(post.admin_id)).username or "Неизвестно"
-        except Exception:
+            author_chat = await call.bot.get_chat(post.admin_id)
+            author = author_chat.username or "Неизвестно"
+        except Exception as e:
+            logger.warning("Не удалось получить автора: %s", e)
             author = "Неизвестно"
 
         send_date = datetime.fromtimestamp(post.send_time or post.start_timestamp)
@@ -525,7 +539,7 @@ async def accept_delete_row_content(
                 send_date.day,
                 text("month").get(str(send_date.month)),
                 send_date.year,
-                author,
+                html.escape(author),
             ),
             reply_markup=keyboards.manage_remain_bot_post(post=post),
         )
@@ -578,10 +592,10 @@ async def accept_delete_row_content(
 
 def get_router() -> Router:
     """
-    Регистрация роутеров управления контентом ботов.
+    Регистрация обработчиков для управления контентом ботов.
 
-    Возвращает:
-        Router: Роутер с зарегистрированными хендлерами.
+    Выходы:
+        Router: Объект роутера с правилами.
     """
     router = Router()
     router.callback_query.register(
