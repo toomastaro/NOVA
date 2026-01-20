@@ -384,77 +384,69 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
     folder_title = ""
     if current_folder_id:
         try:
-            # Попытка найти папку в списке загруженных folders (если есть) или загружаем
-            # Но folders здесь может быть пустым списком если мы внутри папки.
-            # Лучше загрузить отдельно или найти эффективный способ.
-            # Выше мы уже делали get_folder_by_id(current_folder_id), но переменную folder не сохранили в scope.
-            # Повторный вызов get_folder_by_id - это cheap (db call).
-            # Однако, в блоке "if current_folder_id:" переменная folder локальна.
-
-            # Загружаем для отображения названия
             folder_obj = await db.user_folder.get_folder_by_id(current_folder_id)
             if folder_obj:
                 folder_title = folder_obj.title
         except Exception:
             pass
 
-        # Вычисляем выбранные папки для индикации
-        chosen_folders = []
-        if folders and chosen:
-            # Получаем все каналы пользователя для маппинга chat_id -> id
-            user_channels = await db.channel.get_user_channels(user_id=call.from_user.id)
-            chat_id_to_db_id = {c.chat_id: str(c.id) for c in user_channels}
-            
-            # Строковые ID выбранных каналов в базе
-            chosen_db_ids = {chat_id_to_db_id.get(cid) for cid in chosen if chat_id_to_db_id.get(cid)}
-            
-            for folder in folders:
-                if folder.content:
-                    # Если хотя бы один канал из папки есть в списке выбранных
-                    if any(str(cid) in chosen_db_ids for cid in folder.content):
-                        chosen_folders.append(folder.id)
+    # Вычисляем выбранные папки для индикации
+    chosen_folders = []
+    if folders and chosen:
+        # Получаем все каналы пользователя для маппинга chat_id -> id
+        user_channels = await db.channel.get_user_channels(user_id=call.from_user.id)
+        chat_id_to_db_id = {c.chat_id: str(c.id) for c in user_channels}
+        
+        # Строковые ID выбранных каналов в базе
+        chosen_db_ids = {chat_id_to_db_id.get(cid) for cid in chosen if chat_id_to_db_id.get(cid)}
+        
+        for folder in folders:
+            if folder.content:
+                # Если хотя бы один канал из папки есть в списке выбранных
+                if any(str(cid) in chosen_db_ids for cid in folder.content):
+                    chosen_folders.append(folder.id)
 
-        msg_text = (
-            text("choice_channels:folder").format(
-                folder_title, len(chosen), channels_list
-            )
-            if current_folder_id and folder_title
-            else text("choice_channels:post").format(len(chosen), channels_list)
+    msg_text = (
+        text("choice_channels:folder").format(
+            folder_title, len(chosen), channels_list
         )
+        if current_folder_id and folder_title
+        else text("choice_channels:post").format(len(chosen), channels_list)
+    )
 
-        try:
-            await call.message.edit_text(
-                msg_text,
-                reply_markup=keyboards.choice_objects(
-                    resources=objects,
-                    chosen=chosen,
-                    folders=folders,
-                    chosen_folders=chosen_folders,
-                    remover=(
-                        remover_value
-                        if "remover_value" in locals()
-                        else (
-                            int(temp[2])
-                            if (
-                                len(temp) > 2
-                                and temp[1] in ["choice_all", "next", "back"]
-                                and temp[2].isdigit()
-                            )
-                            or (
-                                len(temp) > 2
-                                and temp[1].replace("-", "").isdigit()
-                                and temp[2].isdigit()
-                            )  # temp[1] это id, temp[2] это remover
-                            else 0
+    try:
+        await call.message.edit_text(
+            msg_text,
+            reply_markup=keyboards.choice_objects(
+                resources=objects,
+                chosen=chosen,
+                folders=folders,
+                chosen_folders=chosen_folders,
+                remover=(
+                    remover_value
+                    if "remover_value" in locals()
+                    else (
+                        int(temp[2])
+                        if (
+                            len(temp) > 2
+                            and temp[1] in ["choice_all", "next", "back"]
+                            and temp[2].isdigit()
                         )
-                    ),
-                    view_mode=view_mode,
-                    is_inside_folder=bool(current_folder_id),
+                        or (
+                            len(temp) > 2
+                            and temp[1].replace("-", "").isdigit()
+                            and temp[2].isdigit()
+                        )  # temp[1] это id, temp[2] это remover
+                        else 0
+                    )
                 ),
-            )
-        except TelegramBadRequest:
-            logger.debug("Сообщение не изменено, пропускаем обновление")
-            await call.answer()
+                view_mode=view_mode,
+                is_inside_folder=bool(current_folder_id),
+            ),
+        )
+    except TelegramBadRequest:
+        logger.debug("Сообщение не изменено, пропускаем обновление")
+        await call.answer()
 
 
 @safe_handler(
