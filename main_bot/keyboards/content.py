@@ -207,7 +207,8 @@ class InlineContent(InlineKeyboardBuilder):
                     # Folder
                     resource_id = objects[idx].id
                     resource_type = "folder"
-                    button_text = f"{'✅' if resource_id in chosen_folders else '📁'} {objects[idx].title}"
+                    is_chosen = resource_id in chosen_folders
+                    button_text = f"{'✅' if is_chosen else '📁'} {objects[idx].title}"
 
                 kb.row(
                     InlineKeyboardButton(

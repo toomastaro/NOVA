@@ -86,9 +86,13 @@ async def start_delete_bot_posts() -> None:
                     delete_bot_posts(user_bot, messages[bot_id]["message_ids"])
                 )
 
-        # Обновляем статус на DELETED и записываем время удаления
+        # Обновляем запись: помечаем что сообщения зачищены (убираем message_ids или помечаем статус)
+        # Если статус был FINISH, переводим в DELETED. Если уже был DELETED, оставляем.
         await db.bot_post.update_bot_post(
-            post_id=bot_post.id, deleted_at=int(time.time()), status=Status.DELETED
+            post_id=bot_post.id, 
+            deleted_at=int(time.time()), 
+            status=Status.DELETED,
+            message_ids=None # Очищаем список ID сообщений после удаления
         )
 
 

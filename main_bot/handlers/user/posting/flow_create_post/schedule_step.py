@@ -398,46 +398,63 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
         except Exception:
             pass
 
-    try:
-        msg_text = (
-            text("choice_channels:folder").format(
-                folder_title, len(chosen), channels_list
-            )
-            if current_folder_id and folder_title
-            else text("choice_channels:post").format(len(chosen), channels_list)
-        )
+        # Вычисляем выбранные папки для индикации
+        chosen_folders = []
+        if folders and chosen:
+            # Получаем все каналы пользователя для маппинга chat_id -> id
+            user_channels = await db.channel.get_user_channels(user_id=call.from_user.id)
+            chat_id_to_db_id = {c.chat_id: str(c.id) for c in user_channels}
+            
+            # Строковые ID выбранных каналов в базе
+            chosen_db_ids = {chat_id_to_db_id.get(cid) for cid in chosen if chat_id_to_db_id.get(cid)}
+            
+            for folder in folders:
+                if folder.content:
+                    # Если хотя бы один канал из папки есть в списке выбранных
+                    if any(str(cid) in chosen_db_ids for cid in folder.content):
+                        chosen_folders.append(folder.id)
 
-        await call.message.edit_text(
-            msg_text,
-            reply_markup=keyboards.choice_objects(
-                resources=objects,
-                chosen=chosen,
-                folders=folders,
-                remover=(
-                    remover_value
-                    if "remover_value" in locals()
-                    else (
-                        int(temp[2])
-                        if (
-                            len(temp) > 2
-                            and temp[1] in ["choice_all", "next", "back"]
-                            and temp[2].isdigit()
+        try:
+            msg_text = (
+                text("choice_channels:folder").format(
+                    folder_title, len(chosen), channels_list
+                )
+                if current_folder_id and folder_title
+                else text("choice_channels:post").format(len(chosen), channels_list)
+            )
+
+            await call.message.edit_text(
+                msg_text,
+                reply_markup=keyboards.choice_objects(
+                    resources=objects,
+                    chosen=chosen,
+                    folders=folders,
+                    chosen_folders=chosen_folders,
+                    remover=(
+                        remover_value
+                        if "remover_value" in locals()
+                        else (
+                            int(temp[2])
+                            if (
+                                len(temp) > 2
+                                and temp[1] in ["choice_all", "next", "back"]
+                                and temp[2].isdigit()
+                            )
+                            or (
+                                len(temp) > 2
+                                and temp[1].replace("-", "").isdigit()
+                                and temp[2].isdigit()
+                            )  # temp[1] это id, temp[2] это remover
+                            else 0
                         )
-                        or (
-                            len(temp) > 2
-                            and temp[1].replace("-", "").isdigit()
-                            and temp[2].isdigit()
-                        )  # temp[1] это id, temp[2] это remover
-                        else 0
-                    )
+                    ),
+                    view_mode=view_mode,
+                    is_inside_folder=bool(current_folder_id),
                 ),
-                view_mode=view_mode,
-                is_inside_folder=bool(current_folder_id),
-            ),
-        )
-    except TelegramBadRequest:
-        logger.debug("Сообщение не изменено, пропускаем обновление")
-        await call.answer()
+            )
+        except TelegramBadRequest:
+            logger.debug("Сообщение не изменено, пропускаем обновление")
+            await call.answer()
 
 
 @safe_handler(

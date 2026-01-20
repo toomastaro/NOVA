@@ -117,10 +117,11 @@ class BotPostCrud(DatabaseMixin):
     async def get_bot_posts_for_clear_messages(self):
         """
         Получает посты, сообщения которых нужно удалить (истек delete_time).
+        Включает завершенные (FINISH) и мягко удаленные (DELETED) посты.
         """
         return await self.fetch(
             select(BotPost).where(
-                BotPost.status == Status.FINISH,
+                BotPost.status.in_([Status.FINISH, Status.DELETED]),
                 BotPost.message_ids.isnot(None),
                 BotPost.delete_time.isnot(None),
             )

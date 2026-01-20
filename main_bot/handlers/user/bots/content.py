@@ -546,7 +546,11 @@ async def accept_delete_row_content(
         return
 
     if temp[1] == "accept":
-        await db.bot_post.delete_bot_post(post.id)
+        logger.info("Выполнение мягкого удаления рассылки %s", post.id)
+        # Софт-удаление вместо полного удаления из БД, чтобы планировщик мог зачистить сообщения в TG
+        await db.bot_post.update_bot_post(
+            post_id=post.id, status=Status.DELETED, deleted_at=int(time.time())
+        )
         posts = await db.bot_post.get_bot_posts(channel_data["chat_id"], day)
 
         # Удаляем превью поста
