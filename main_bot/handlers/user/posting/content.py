@@ -336,23 +336,29 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
             channel_data["chat_id"], day.year, day.month
         )
 
-        return await call.message.edit_text(
-            text("channel:content").format(
-                channel_data["title"],
-                *day_values,
-                (
-                    text("no_content")
-                    if not posts
-                    else text("has_content").format(len(posts))
+        try:
+            return await call.message.edit_text(
+                text("channel:content").format(
+                    *day_values,
+                    channel_data["title"],
+                    (
+                        text("no_content")
+                        if not posts
+                        else text("has_content").format(len(posts))
+                    ),
                 ),
-            ),
-            reply_markup=keyboards.choice_row_content(
-                posts=posts,
-                day=day,
-                show_more=show_more,
-                days_with_posts=days_with_posts,
-            ),
-        )
+                reply_markup=keyboards.choice_row_content(
+                    posts=posts,
+                    day=day,
+                    show_more=show_more,
+                    days_with_posts=days_with_posts,
+                ),
+            )
+        except TelegramBadRequest as e:
+            if "message is not modified" in str(e):
+                logger.debug("Игнорирование ошибки: сообщение не изменено")
+                return await call.answer()
+            raise e
 
     if temp[1] == "show_all":
         posts = await db.post.get_posts(channel_data["chat_id"], only_scheduled=True)
@@ -476,8 +482,8 @@ async def choice_time_objects(call: types.CallbackQuery, state: FSMContext):
         )
         return await call.message.edit_text(
             text("channel:content").format(
-                channel_data["title"],
                 *data.get("day_values"),
+                channel_data["title"],
                 (
                     text("no_content")
                     if not posts
@@ -573,8 +579,8 @@ async def manage_remain_post(call: types.CallbackQuery, state: FSMContext):
         )
         return await call.message.edit_text(
             text("channel:content").format(
-                channel_data["title"],
                 *data.get("day_values"),
+                channel_data["title"],
                 (
                     text("no_content")
                     if not posts
@@ -684,8 +690,8 @@ async def accept_delete_row_content(call: types.CallbackQuery, state: FSMContext
         )
         return await call.message.edit_text(
             text("channel:content").format(
-                channel_data["title"],
                 *day_values,
+                channel_data["title"],
                 (
                     text("no_content")
                     if not posts
