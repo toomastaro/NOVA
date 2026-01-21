@@ -134,7 +134,7 @@ async def get_message(
         channel_settings (ChannelBotSetting): Настройки канала.
     """
     is_media = bool(message.photo or message.video or message.animation or message.document)
-    limit = 2048 if is_media else 4096
+    limit = 1024 if is_media else 4096
 
     message_text_length = len(message.caption or message.text or "")
     if message_text_length > limit:

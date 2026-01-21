@@ -48,7 +48,7 @@ async def get_message(message: types.Message, state: FSMContext):
     logger.info(f"Получено сообщение для сторис от {message.from_user.id}")
 
     message_text_length = len(message.caption or "")
-    limit = 2048 # Для сторис (медиа) лимит 2048
+    limit = 1024 # Возврат к 1024 из-за ограничений API
 
     if message_text_length > limit:
         return await message.answer(text("error_length_text").format(limit))

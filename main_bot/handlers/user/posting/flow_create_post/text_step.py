@@ -72,14 +72,11 @@ async def get_message(message: types.Message, state: FSMContext):
 
     # Проверка длины текста
     # Лимит зависит от типа контента:
-    # - Только текст: 4096 символов (без Premium) / 2048 (в текущей реализации бота для безопасности)
-    # - Медиа (фото/видео): 2048 символов (стандарт Telegram для подписей 1024, но Premium до 2048/4096)
-    # Здесь устанавливаем расширенные лимиты согласно запросу:
-    # Текст = 4096
-    # Медиа = 2048
+    # - Только текст: 4096 символов
+    # - Медиа (фото/видео): 1024 символа (API Telegram вернул ошибку при 2048, лимит для этого бота 1024)
     
     is_media = bool(message.photo or message.video or message.animation or message.document)
-    limit = 2048 if is_media else 4096
+    limit = 1024 if is_media else 4096
 
     message_text_length = len(message.caption or message.text or "")
     logger.debug("Длина текста сообщения: %d символов (лимит: %d)", message_text_length, limit)
