@@ -517,13 +517,15 @@ async def finish_params(call: types.CallbackQuery, state: FSMContext):
                 invalid_channels.append(channel.title)
 
         if invalid_channels:
-            channels_text = "\n".join(f"• {title}" for title in invalid_channels[:5])
-            if len(invalid_channels) > 5:
-                channels_text += f"\n... и ещё {len(invalid_channels) - 5}"
+            # Лимит для сообщения (4096) позволяет показать больше каналов, чем alert (200)
+            limit_show = 50
+            channels_text = "\n".join(f"• {title}" for title in invalid_channels[:limit_show])
+            if len(invalid_channels) > limit_show:
+                channels_text += f"\n... и ещё {len(invalid_channels) - limit_show}"
 
-            return await call.answer(
-                text("error_cpm_perms").format(channels_text),
-                show_alert=True,
+            await call.answer()
+            return await call.message.answer(
+                text("error_cpm_perms").format(channels_text)
             )
 
         await state.update_data(param=temp[1])

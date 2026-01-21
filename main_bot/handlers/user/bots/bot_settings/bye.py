@@ -133,9 +133,12 @@ async def get_message(
         state (FSMContext): Контекст состояния.
         channel_settings (ChannelBotSetting): Настройки канала.
     """
+    is_media = bool(message.photo or message.video or message.animation or message.document)
+    limit = 2048 if is_media else 4096
+
     message_text_length = len(message.caption or message.text or "")
-    if message_text_length > 1024:
-        await message.answer(text("error_length_text"))
+    if message_text_length > limit:
+        await message.answer(text("error_length_text").format(limit))
         return
 
     dump_message = message.model_dump()
