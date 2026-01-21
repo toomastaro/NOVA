@@ -21,8 +21,9 @@ from .links_step import (
     click_hide,
     click_react,
 )
+
+from .choose_folder import choice_channels
 from .schedule_step import (
-    choice_channels,
     finish_params,
     choice_delete_time,
     cancel_send_time,
