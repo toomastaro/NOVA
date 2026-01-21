@@ -236,12 +236,20 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext) -> No
     post_message = None
     if post.backup_chat_id and post.backup_message_id:
         try:
-            post_message = await call.bot.copy_message(
-                chat_id=call.from_user.id,
-                from_chat_id=post.backup_chat_id,
-                message_id=post.backup_message_id,
-                # Без reply_markup - показываем только контент поста
-            )
+            options = post.message
+            caption = options.get("caption")
+            is_media = any([options.get("photo"), options.get("video"), options.get("animation")])
+            
+            if is_media and caption and len(caption) > 1024:
+                # Отключаем превью для длинных описаний
+                post_message = await answer_bot_post(call.message, state, from_edit=True)
+            else:
+                post_message = await call.bot.copy_message(
+                    chat_id=call.from_user.id,
+                    from_chat_id=post.backup_chat_id,
+                    message_id=post.backup_message_id,
+                    # Без reply_markup - показываем только контент поста
+                )
         except Exception:
             # Fallback если копирование не удалось
             post_message = await answer_bot_post(call.message, state, from_edit=True)
