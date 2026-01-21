@@ -122,6 +122,10 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext) -> No
         return
 
     channel_data = data.get("channel")
+    if not channel_data:
+        await call.answer(text("keys_data_error"))
+        await call.message.delete()
+        return
     show_more: bool = data.get("show_more")
 
     day_str = data.get("day")
@@ -299,8 +303,8 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext) -> No
                 post.success_send,
                 post.error_send,
                 text("no_label") if not post.delete_time else f"{int(post.delete_time / 3600)} {text('hours_short')}",
-                datetime.fromtimestamp(post.start_timestamp).strftime("%d.%m.%Y %H:%M"),
-                datetime.fromtimestamp(post.end_timestamp).strftime("%d.%m.%Y %H:%M"),
+                datetime.fromtimestamp(post.start_timestamp).strftime("%d.%m.%Y %H:%M") if post.start_timestamp else text("unknown"),
+                datetime.fromtimestamp(post.end_timestamp).strftime("%d.%m.%Y %H:%M") if post.end_timestamp else text("unknown"),
                 html.escape(admin_name),
             ),
             reply_markup=keyboards.back(data="ManageRemainBotPost|cancel"),
@@ -348,6 +352,10 @@ async def choice_time_objects(call: types.CallbackQuery, state: FSMContext) -> N
         return
 
     channel_data = data.get("channel")
+    if not channel_data:
+        await call.answer(text("keys_data_error"))
+        await call.message.delete()
+        return
 
     if temp[1] in ["next", "back"]:
         posts = await db.bot_post.get_bot_posts(channel_data["chat_id"])
