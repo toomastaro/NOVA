@@ -248,14 +248,21 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
 
     # Выбрать/отменить все видимые каналы
     if temp[1] == "choice_all":
-        current_ids = [i.chat_id for i in objects]
-        logger.debug(
-            "Попытка выбрать все каналы: видимых=%d, выбрано=%d",
-            len(objects),
-            len(chosen),
-        )
+        # Если мы в режиме папок и на верхнем уровне - работаем со всеми каналами пользователя
+        if view_mode == "folders" and not current_folder_id:
+            all_user_channels = await db.channel.get_user_channels(user_id=call.from_user.id)
+            current_ids = [c.chat_id for c in all_user_channels]
+            logger.debug(
+                "Выбор всех каналов (режим папок): всего=%d", len(current_ids)
+            )
+        else:
+            # Иначе работаем только с текущими отображаемыми объектами (например, внутри папки или в плоском списке)
+            current_ids = [i.chat_id for i in objects if isinstance(i, (Channel,))]
+            logger.debug(
+                "Выбор видимых каналов: видимых=%d", len(current_ids)
+            )
 
-        # Проверяем, все ли выбраны
+        # Проверяем, все ли выбраны из целевого набора
         all_selected = all(cid in chosen for cid in current_ids)
 
         if all_selected:
@@ -382,21 +389,62 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
         except Exception:
             pass
 
-    # Вычисляем выбранные папки для индикации
-    chosen_folders = []
-    if folders and chosen:
+    # Вычисляем статистику для папок (X из Y)
+    folder_stats = {}
+    chosen_folders = [] # Оставляем для совместимости, но логика теперь расширена
+    
+    if folders:
         # Получаем все каналы пользователя для маппинга chat_id -> id
-        user_channels = await db.channel.get_user_channels(user_id=call.from_user.id)
-        chat_id_to_db_id = {c.chat_id: str(c.id) for c in user_channels}
+        # Оптимизация: если уже получали выше (all_user_channels), можно использовать, но здесь безопаснее получить заново или использовать objects если это полная загрузка
+        # Но objects в режиме folders содержит только каналы без папок.
+        # Поэтому нам нужны ID всех каналов пользователя.
         
-        # Строковые ID выбранных каналов в базе
-        chosen_db_ids = {chat_id_to_db_id.get(cid) for cid in chosen if chat_id_to_db_id.get(cid)}
+        # TODO: Это может быть тяжело для базы если каналов тысячи. 
+        # Но пока считаем что их сотни.
+        all_channels_map = await db.channel.get_user_channels(user_id=call.from_user.id)
+        chat_id_to_db_id = {c.chat_id: str(c.id) for c in all_channels_map}
+        
+        # Множество выбранных Channel ID (странный формат в базе, folder.content хранит ID или chat_id? 
+        # Обычно content это список channel.id. chosen - это список chat_id.
+        # Нам нужно сопоставить.
+        
+        chosen_chat_ids = set(chosen)
         
         for folder in folders:
             if folder.content:
-                # Если хотя бы один канал из папки есть в списке выбранных
-                if any(str(cid) in chosen_db_ids for cid in folder.content):
+                # folder.content - список ID каналов (не chat_id)
+                # Нам нужно найти сколько из этих ID соответствуют выбранным chat_id
+                
+                # count channels in this folder that are currently chosen
+                # 1. Get channel objects for this folder? Or match IDs.
+                # We have mapping chat_id -> db_id.
+                
+                # Fast checking:
+                # Which of chosen chat_ids corresponds to db_ids in folder.content?
+                
+                # Invert map for speed: db_id -> chat_id (not needed if we iterate chosen)
+                
+                folder_content_ids = set(map(str, folder.content))
+                
+                count_chosen = 0
+                count_total = len(folder.content)
+                
+                for chosen_chat_id in chosen_chat_ids:
+                    db_id = chat_id_to_db_id.get(chosen_chat_id)
+                    if db_id and db_id in folder_content_ids:
+                        count_chosen += 1
+                        
+                folder_stats[folder.id] = f"{count_chosen} из {count_total}"
+                
+                # Mark folder as chosen if all channels are selected (or any? User asked for counts, maybe checkmark behavior stays same?)
+                # Logic for chosen_folders (green check) - usually if ALL selected or ANY?
+                # "на кнопках где идет название конкретной папки, писать в скобках (0 из 12)... если зашел и выбрал все, то 12 из 12"
+                # Let's keep checkmark if ALL are selected, or maybe ANY? 
+                # Originally code put checkmark if ANY. Let's keep it consistent or rely on stats.
+                # Let's keep `chosen_folders` for partial/full checkmark if needed, but the text "X из Y" is key.
+                if count_chosen > 0:
                     chosen_folders.append(folder.id)
+
 
     msg_text = (
         text("choice_channels:folder").format(
@@ -414,6 +462,7 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
                 chosen=chosen,
                 folders=folders,
                 chosen_folders=chosen_folders,
+                folder_stats=folder_stats,
                 remover=(
                     remover_value
                     if "remover_value" in locals()

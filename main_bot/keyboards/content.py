@@ -164,6 +164,7 @@ class InlineContent(InlineKeyboardBuilder):
         chosen: List[int],
         folders: List[UserFolder],
         chosen_folders: List[int] = [],
+        folder_stats: dict = None,
         data: str = "ChoicePostChannels",
         remover: int = 0,
         view_mode: str = "folders",
@@ -208,7 +209,9 @@ class InlineContent(InlineKeyboardBuilder):
                     resource_id = objects[idx].id
                     resource_type = "folder"
                     is_chosen = resource_id in chosen_folders
-                    button_text = f"{'✅' if is_chosen else '📁'} {objects[idx].title}"
+                    stats = folder_stats.get(resource_id) if folder_stats else None
+                    stats_text = f" ({stats})" if stats else ""
+                    button_text = f"{'✅' if is_chosen else '📁'} {objects[idx].title}{stats_text}"
 
                 kb.row(
                     InlineKeyboardButton(
