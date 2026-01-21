@@ -32,6 +32,9 @@ class Config:
     BACKUP_CHAT_ID = int(os.getenv("NOVA_BKP")) if os.getenv("NOVA_BKP") else 0
     ADMIN_SUPPORT = int(os.getenv("ADMIN_SUPPORT"))
 
+    # Путь к Premium сессии для загрузки длинных постов
+    PREMIUM_SESSION_PATH = os.path.join("main_bot", "utils", "sessions", "+37253850093.session")
+
     # Настройки базы данных (PostgreSQL)
     PG_USER = os.getenv("PG_USER")
     PG_PASS = os.getenv("PG_PASS")

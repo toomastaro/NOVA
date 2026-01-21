@@ -133,6 +133,43 @@ async def send_to_backup(post: Post | Story | BotPost) -> tuple[int | None, int 
     elif hasattr(post, "message_options") and post.message_options:
         message_options = MessageOptions(**post.message_options)
         reply_markup = keyboards.post_kb(post=post)
+        
+        # ЛОГИКА PREMIUM ЗАГРУЗКИ (Только для постинга)
+        caption = message_options.caption or message_options.text
+        if caption and len(caption) > 1024:
+            logger.info(f"Обнаружена длинная подпись ({len(caption)}). Используем PremiumUploader.")
+            from main_bot.utils.premium_uploader import PremiumUploader
+            
+            # Определяем file_id
+            media_file_id = None
+            is_video = False
+            is_animation = False
+            
+            if message_options.photo:
+                media_file_id = message_options.photo.file_id
+            elif message_options.video:
+                media_file_id = message_options.video.file_id
+                is_video = True
+            elif message_options.animation:
+                media_file_id = message_options.animation.file_id
+                is_animation = True
+            
+            # Если это текст без медиа - бот может отправить до 4096 сам
+            if not media_file_id:
+                pass 
+            else:
+                backup_msg_id = await PremiumUploader.upload_media(
+                    chat_id=Config.BACKUP_CHAT_ID,
+                    caption=caption,
+                    media_file_id=media_file_id,
+                    is_video=is_video,
+                    is_animation=is_animation
+                )
+                if backup_msg_id:
+                    return Config.BACKUP_CHAT_ID, backup_msg_id
+                # Если premium-загрузка не удалась, пробуем обычную (хотя она вероятно обрежет/упадет)
+                logger.warning("PremiumUploader не удался, пробуем обычную отправку")
+
     else:
         logger.error(f"Не удалось определить тип поста для бэкапа: {type(post)}")
         return None, None
