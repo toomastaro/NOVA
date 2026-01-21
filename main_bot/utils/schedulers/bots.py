@@ -172,15 +172,37 @@ async def send_bot_messages(
     for user in users:
         try:
             options["chat_id"] = user
-            if bot_post.text_with_name:
-                get_user = await other_bot.get_chat(user)
-                name_part = get_user.first_name or get_user.username or "Пользователь"
-                added_text = f"{name_part}!\n\n"
+            name_placeholder = "{{name}}"
+            has_placeholder = (message_options.text and name_placeholder in message_options.text) or (
+                message_options.caption and name_placeholder in message_options.caption
+            )
+
+            if bot_post.text_with_name or has_placeholder:
+                try:
+                    get_user = await other_bot.get_chat(user)
+                    name_part = (
+                        get_user.first_name or get_user.username or "Пользователь"
+                    )
+                except Exception:
+                    name_part = "Пользователь"
 
                 if message_options.text:
-                    options["text"] = added_text + message_options.text
+                    text_content = message_options.text
+                    if name_placeholder in text_content:
+                        options["text"] = text_content.replace(
+                            name_placeholder, name_part
+                        )
+                    elif bot_post.text_with_name:
+                        options["text"] = f"{name_part}!\n\n{text_content}"
+
                 if message_options.caption:
-                    options["caption"] = added_text + message_options.caption
+                    caption_content = message_options.caption
+                    if name_placeholder in caption_content:
+                        options["caption"] = caption_content.replace(
+                            name_placeholder, name_part
+                        )
+                    elif bot_post.text_with_name:
+                        options["caption"] = f"{name_part}!\n\n{caption_content}"
 
             message = await cor(**options)
             message_ids.append({"message_id": message.message_id, "chat_id": user})
