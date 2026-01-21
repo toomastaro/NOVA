@@ -13,7 +13,7 @@ import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from aiogram import Bot
+from aiogram import Bot, types
 from aiogram.types import FSInputFile
 from aiogram.exceptions import TelegramForbiddenError, TelegramBadRequest
 
@@ -140,6 +140,11 @@ async def send_bot_messages(
         elif message_options.animation:
             options["animation"] = file_input
 
+    # Обработка предпросмотра ссылок (disable_web_page_preview)
+    if message_options.disable_web_page_preview:
+        if message_options.text:
+            options["link_preview_options"] = types.LinkPreviewOptions(is_disabled=True)
+            
     # Удаляем неиспользуемые поля (Telegram API строг к лишним полям)
     keys_to_remove = [
         "show_caption_above_media",
