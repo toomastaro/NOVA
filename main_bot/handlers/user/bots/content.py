@@ -408,6 +408,11 @@ async def manage_remain_post(call: types.CallbackQuery, state: FSMContext) -> No
         return
 
     channel_data = data.get("channel")
+    if not channel_data:
+        await call.answer(text("keys_data_error"))
+        await call.message.delete()
+        return
+
     day_str = data.get("day")
     day = (
         datetime.fromisoformat(day_str)

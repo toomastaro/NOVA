@@ -67,6 +67,11 @@ async def finish_params(call: types.CallbackQuery, state: FSMContext) -> None:
         return
 
     post: BotPost = ensure_bot_post_obj(data.get("post"))
+    if not post:
+        await call.answer(text("keys_data_error"))
+        await call.message.delete()
+        return
+
     chosen: list = data.get("chosen", post.chat_ids)
 
     channels = await db.channel_bot_settings.get_bot_channels(call.from_user.id)
