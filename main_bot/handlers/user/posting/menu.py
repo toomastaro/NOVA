@@ -38,7 +38,7 @@ async def choice(call: types.CallbackQuery, state: FSMContext):
             ),
         },
         "channels": {"cor": show_settings, "args": (call.message,)},
-        "content_plan": {"cor": show_content, "args": (call.message,)},
+        "content_plan": {"cor": show_content, "args": (call.message, state)},
         "back": {"cor": back_to_main, "args": (call.message,)},
     }
 
