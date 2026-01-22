@@ -738,19 +738,27 @@ async def manage_published_post(call: types.CallbackQuery, state: FSMContext):
             related_posts = [post]
 
         total_views = 0
+        sum_24 = 0
+        sum_48 = 0
+        sum_72 = 0
         channels_info = []
 
         for p in related_posts:
-            v_hist = max(p.views_24h or 0, p.views_48h or 0, p.views_72h or 0)
-            views = v_hist
-
+            v24 = p.views_24h or 0
+            v48 = p.views_48h or 0
+            v72 = p.views_72h or 0
+            
+            sum_24 += v24
+            sum_48 += v48
+            sum_72 += v72
+            
+            views = max(v24, v48, v72)
             total_views += views
+            
             channel = await db.channel.get_channel_by_chat_id(p.chat_id)
             channels_info.append(f"{html.escape(channel.title)} - 👀 {views}")
 
         cpm_price = post.cpm_price or 0
-        rub_price = round(float(cpm_price * float(total_views / 1000)), 2)
-
         user = await db.user.get_user(post.admin_id)
         usd_rate = 1.0
         exch_update = "N/A"
@@ -769,7 +777,6 @@ async def manage_published_post(call: types.CallbackQuery, state: FSMContext):
             )
 
         # Format Text
-        # Лимитируем количество отображаемых каналов, чтобы не превысить лимит сообщения (4096 символов)
         max_channels_display = 40
         if len(channels_info) > max_channels_display:
             display_info = channels_info[:max_channels_display]
@@ -791,16 +798,32 @@ async def manage_published_post(call: types.CallbackQuery, state: FSMContext):
         )
         preview_text = f"«{html.escape(preview_text_raw)}»"
 
-        # Объединяем формат с автоматическим отчетом шедулера
+        # Формируем строки отчета (как в шедулере)
         header_text = text("cpm:report:header").format(preview_text, text("cpm:report:final"))
-        row_text = text("cpm:report:history_row").format(
+        rows = []
+        
+        if sum_24 > 0:
+            r24 = round(float(cpm_price * float(sum_24 / 1000)), 2)
+            rows.append(text("cpm:report:history_row").format("24ч", sum_24, r24, round(r24 / usd_rate, 2)))
+        
+        if sum_48 > 0:
+            r48 = round(float(cpm_price * float(sum_48 / 1000)), 2)
+            rows.append(text("cpm:report:history_row").format("48ч", sum_48, r48, round(r48 / usd_rate, 2)))
+            
+        if sum_72 > 0:
+            r72 = round(float(cpm_price * float(sum_72 / 1000)), 2)
+            rows.append(text("cpm:report:history_row").format("72ч", sum_72, r72, round(r72 / usd_rate, 2)))
+
+        # Итоговая строка (текущий максимум)
+        rub_price = round(float(cpm_price * float(total_views / 1000)), 2)
+        rows.append(text("cpm:report:history_row").format(
             text("cpm:report:final"),
             total_views,
             rub_price,
             round(rub_price / usd_rate, 2),
-        )
+        ))
 
-        report_text = f"{header_text}\n{row_text}"
+        report_text = f"{header_text}\n" + "".join(rows)
         report_text += (
             f"\n\nℹ️ <i>Курс: 1 USDT = {round(usd_rate, 2)}₽ (обн. {exch_update})</i>"
         )
