@@ -220,49 +220,61 @@ class InlineContent(InlineKeyboardBuilder):
                     )
                 )
 
-        if len(objects) <= count_rows:
-            pass
+        # Circular Pagination
+        if len(objects) > count_rows:
+            # Calculate indices cyclically
+            # Next index wraps around to 0 if it goes beyond length
+            next_idx = (remover + count_rows) % len(objects)
+            # Prev index wraps around to end if it goes below 0
+            # Python's modulo operator handles negative numbers correctly: -10 % 100 = 90
+            prev_idx = (remover - count_rows) % len(objects)
 
-        elif len(objects) > count_rows > remover:
             kb.row(
                 InlineKeyboardButton(
-                    text="➡️", callback_data=f"{data}|next|{remover + count_rows}"
-                )
-            )
-        elif remover + count_rows >= len(objects):
-            kb.row(
-                InlineKeyboardButton(
-                    text="⬅️", callback_data=f"{data}|back|{remover - count_rows}"
-                )
-            )
-        else:
-            kb.row(
-                InlineKeyboardButton(
-                    text="⬅️", callback_data=f"{data}|back|{remover - count_rows}"
+                    text="⬅️", callback_data=f"{data}|back|{prev_idx}"
                 ),
                 InlineKeyboardButton(
-                    text="➡️", callback_data=f"{data}|next|{remover + count_rows}"
+                    text="➡️", callback_data=f"{data}|next|{next_idx}"
                 ),
             )
 
-        # Show "Select All" only if there are channels (resources)
+        # Select All button
+        select_all_btn = None
         if resources:
-            kb.row(
-                InlineKeyboardButton(
-                    text=(
-                        text("chosen:cancel_all")
-                        if all(r.chat_id in chosen for r in resources)
-                        else text("chosen:choice_all")
-                    ),
-                    callback_data=f"{data}|choice_all|{remover}",
-                )
+            select_all_btn = InlineKeyboardButton(
+                text=(
+                    text("chosen:cancel_all")
+                    if all(r.chat_id in chosen for r in resources)
+                    else text("chosen:choice_all")
+                ),
+                callback_data=f"{data}|choice_all|{remover}",
             )
 
         if is_inside_folder:
+            # In folder view: "Select All" and "Next" (Далее) on same row
+            next_btn = InlineKeyboardButton(
+                text="Далее", callback_data=f"{data}|cancel"
+            )
+            
+            row_btns = []
+            if select_all_btn:
+                row_btns.append(select_all_btn)
+            row_btns.append(next_btn)
+            
+            kb.row(*row_btns)
+        else:
+            # Normal view
+            if select_all_btn:
+                kb.row(select_all_btn)
+            
+            # Navigation buttons for main menu
             kb.row(
                 InlineKeyboardButton(
-                    text=text("close_folder:button"), callback_data=f"{data}|cancel"
-                )
+                    text=text("back:button"), callback_data=f"{data}|cancel"
+                ),
+                InlineKeyboardButton(
+                    text=text("next:button"), callback_data=f"{data}|next_step"
+                ),
             )
         else:
             kb.row(
