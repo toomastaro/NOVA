@@ -116,7 +116,37 @@ async def update_channel_stats(channel_id: int) -> None:
                 logger.error(f"Не удалось получить entity для {channel.chat_id}: {e}")
                 return
 
-            # 3. Обновляем подписчиков
+            # 3. Проверка прав и статуса помощника (Автоматизация проверки)
+            try:
+                perms = await manager.check_permissions(channel.chat_id)
+                if not perms.get("error"):
+                    is_admin = perms.get("is_admin", False)
+                    can_stories = perms.get("can_post_stories", False)
+                    is_member = perms.get("is_member", False)
+
+                    # Синхронизируем права в БД
+                    await db.mt_client_channel.set_membership(
+                        client_id=client_obj.id,
+                        channel_id=channel.chat_id,
+                        is_member=is_member,
+                        is_admin=is_admin,
+                        can_post_stories=can_stories,
+                        last_seen_at=int(time.time()),
+                    )
+                    logger.debug(f"Статус помощника {client_obj.alias} в канале {channel.title} обновлен автоматически")
+                else:
+                    error_code = perms.get("error")
+                    await db.mt_client_channel.set_membership(
+                        client_id=client_obj.id,
+                        channel_id=channel.chat_id,
+                        last_error_code=error_code,
+                        last_error_at=int(time.time()),
+                    )
+                    logger.warning(f"Ошибка проверки прав помощника в канале {channel.title}: {error_code}")
+            except Exception as e:
+                logger.error(f"Не удалось проверить права помощника: {e}")
+
+            # 4. Обновляем подписчиков
             try:
                 full = await client(
                     functions.channels.GetFullChannelRequest(channel=entity)
