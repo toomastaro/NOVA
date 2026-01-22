@@ -276,15 +276,7 @@ class InlineContent(InlineKeyboardBuilder):
                     text=text("next:button"), callback_data=f"{data}|next_step"
                 ),
             )
-        else:
-            kb.row(
-                InlineKeyboardButton(
-                    text=text("back:button"), callback_data=f"{data}|cancel"
-                ),
-                InlineKeyboardButton(
-                    text=text("next:button"), callback_data=f"{data}|next_step"
-                ),
-            )
+
 
         return kb.as_markup()
 
