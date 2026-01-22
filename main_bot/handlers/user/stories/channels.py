@@ -335,7 +335,7 @@ async def manage_channel(call: types.CallbackQuery, state: FSMContext):
 
         if not client_row:
             # Пытаемся назначить
-            from main_bot.handlers.user.set_resource import set_channel_session
+            from main_bot.utils.tg_utils import set_channel_session
 
             await set_channel_session(channel.chat_id)
             client_row = await db.mt_client_channel.get_my_membership(channel.chat_id)
