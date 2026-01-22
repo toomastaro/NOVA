@@ -755,7 +755,7 @@ async def manage_published_post(call: types.CallbackQuery, state: FSMContext):
             total_views += v72
             
             channel = await db.channel.get_channel_by_chat_id(p.chat_id)
-            channels_info.append(f"{html.escape(channel.title)} - 👀 {views}")
+            channels_info.append(f"{html.escape(channel.title)} - 👀 {v72}")
 
         cpm_price = post.cpm_price or 0
         user = await db.user.get_user(post.admin_id)
