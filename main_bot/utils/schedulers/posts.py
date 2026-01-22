@@ -583,22 +583,7 @@ async def delete_posts():
 
             report_text = format_report()
 
-            show_v24 = hours > 24 and views_24 is not None
-            show_v48 = hours > 48 and views_48 is not None
-            show_v72 = hours > 72 and views_72 is not None
 
-            # Формируем аргументы для format_report
-            args_v24 = views_24 if show_v24 else None
-            args_v48 = views_48 if show_v48 else None
-            args_v72 = views_72 if show_v72 else None
-
-            # Если меньше суточной толерантности, просто Финальный без часов (или с часами)
-            # Но по ТЗ: "до 24 часов включительно одна цифра".
-            # Если мы передаем None в v24/v48, format_report сам построит одну цифру.
-
-            report_text = format_report(
-                title, total_views, args_v24, args_v48, args_v72
-            )
 
             # Добавляем подпись
             report_text += await get_report_signatures(user, "cpm", bot)
