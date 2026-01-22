@@ -745,14 +745,14 @@ async def manage_published_post(call: types.CallbackQuery, state: FSMContext):
 
         for p in related_posts:
             v24 = p.views_24h or 0
-            v48 = max(p.views_48h or 0, v24)
-            v72 = max(p.views_72h or 0, v48)
+            v48 = p.views_48h or 0
+            v72 = p.views_72h or 0
             
             sum_24 += v24
             sum_48 += v48
             sum_72 += v72
             
-            total_views += v72
+            total_views += max(v24, v48, v72)
             
             channel = await db.channel.get_channel_by_chat_id(p.chat_id)
             channels_info.append(f"{html.escape(channel.title)} - 👀 {v72}")

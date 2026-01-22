@@ -554,17 +554,17 @@ async def delete_posts():
                 lines.append(text("cpm:report:header:simple").format(preview_text))
 
                 # 24ч
-                v24 = v24_val
+                v24 = views_24 if views_24 is not None else 0
                 r24 = round(float(cpm_price * float(v24 / 1000)), 2)
                 lines.append(text("cpm:report:history_row").format("24ч", v24, r24, round(r24 / usd_rate, 2)))
 
                 # 48ч
-                v48 = v48_val
+                v48 = views_48 if views_48 is not None else 0
                 r48 = round(float(cpm_price * float(v48 / 1000)), 2)
                 lines.append(text("cpm:report:history_row").format("48ч", v48, r48, round(r48 / usd_rate, 2)))
 
                 # 72ч
-                v72 = v72_val
+                v72 = views_72 if views_72 is not None else 0
                 r72 = round(float(cpm_price * float(v72 / 1000)), 2)
                 lines.append(text("cpm:report:history_row").format("72ч", v72, r72, round(r72 / usd_rate, 2)))
 
