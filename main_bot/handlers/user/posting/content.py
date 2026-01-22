@@ -295,7 +295,7 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
         return await call.message.delete()
 
     if temp[1] == "cancel":
-        return await show_content(call.message)
+        return await show_content(call.message, state)
 
     channel_data = data.get("channel")
     show_more: bool = data.get("show_more")
