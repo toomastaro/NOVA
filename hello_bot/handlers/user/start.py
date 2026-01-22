@@ -5,6 +5,7 @@ from loguru import logger
 
 from aiogram import types, Router, F, Bot
 from aiogram.enums import ChatMemberStatus
+from aiogram.exceptions import TelegramBadRequest
 
 from instance_bot import bot as main_bot_obj
 from hello_bot.database.db import Database
@@ -57,9 +58,17 @@ async def msg_handler(message: types.Message, db: Database):
     # Уведомляем систему, что капча пройдена
     event_manager.notify(db.schema, message.from_user.id)
 
-    await message.delete()
+    # Пытаемся удалить сообщение пользователя (в личке это невозможно, но в группах может сработать)
+    try:
+        await message.delete()
+    except TelegramBadRequest:
+        pass  # Игнорируем ошибку, если у бота нет прав или это личка
+
     r = await message.answer(".", reply_markup=types.ReplyKeyboardRemove())
-    await r.delete()
+    try:
+        await r.delete()
+    except TelegramBadRequest:
+        pass
 
 
 @safe_handler("Вход: отправка капчи (Background)")
