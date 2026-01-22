@@ -791,16 +791,20 @@ async def manage_published_post(call: types.CallbackQuery, state: FSMContext):
         )
         preview_text = f"«{html.escape(preview_text_raw)}»"
 
-        report_text = text("cpm:report").format(
-            preview_text,
-            channels_text,
-            cpm_price,
+        # Объединяем формат с автоматическим отчетом шедулера
+        header_text = text("cpm:report:header").format(preview_text, text("cpm:report:final"))
+        row_text = text("cpm:report:history_row").format(
+            text("cpm:report:final"),
             total_views,
             rub_price,
             round(rub_price / usd_rate, 2),
-            round(usd_rate, 2),
-            exch_update,
         )
+
+        report_text = f"{header_text}\n{row_text}"
+        report_text += (
+            f"\n\nℹ️ <i>Курс: 1 USDT = {round(usd_rate, 2)}₽ (обн. {exch_update})</i>"
+        )
+        report_text += "\n\n" + channels_text
 
         report_text += await get_report_signatures(user, "cpm", call.bot)
         from aiogram.utils.keyboard import InlineKeyboardBuilder

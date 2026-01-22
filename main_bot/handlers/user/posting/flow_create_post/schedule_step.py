@@ -428,10 +428,10 @@ async def get_send_time(message: types.Message, state: FSMContext):
 
     await message.answer(text("time_accepted"), reply_markup=Reply.menu())
 
+    full_date_str = f"{_time}, {date.strftime('%d.%m.%Y')}"
+
     await message.answer(
-        text("manage:post:accept:date").format(
-            _time, weekday, day, month, year, channels_block, delete_str
-        ),
+        text("manage:post:accept:date").format(full_date_str, channels_block, delete_str),
         reply_markup=keyboards.accept_date(),
         parse_mode="HTML",
         link_preview_options=types.LinkPreviewOptions(is_disabled=True),
