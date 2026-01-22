@@ -72,7 +72,7 @@ def init_scheduler(scheduler: AsyncIOScheduler) -> None:
     # Отправка отложенных постов (каждые 10 секунд)
     scheduler.add_job(
         func=send_posts,
-        trigger=CronTrigger(second="*/10"),
+        trigger=CronTrigger(second="*/30"),
         id="send_posts_periodic",
         replace_existing=True,
         name="Отправка отложенных постов",
@@ -81,7 +81,7 @@ def init_scheduler(scheduler: AsyncIOScheduler) -> None:
     # Открепление постов (каждые 10 секунд)
     scheduler.add_job(
         func=unpin_posts,
-        trigger=CronTrigger(second="*/10"),
+        trigger=CronTrigger(second="*/30"),
         id="unpin_posts_periodic",
         replace_existing=True,
         name="Открепление постов",
@@ -90,7 +90,7 @@ def init_scheduler(scheduler: AsyncIOScheduler) -> None:
     # Удаление постов (каждые 10 секунд)
     scheduler.add_job(
         func=delete_posts,
-        trigger=CronTrigger(second="*/10"),
+        trigger=CronTrigger(second="*/30"),
         id="delete_posts_periodic",
         replace_existing=True,
         name="Удаление постов по расписанию",
@@ -99,7 +99,7 @@ def init_scheduler(scheduler: AsyncIOScheduler) -> None:
     # Проверка CPM отчетов (каждые 10 секунд)
     scheduler.add_job(
         func=check_cpm_reports,
-        trigger=CronTrigger(second="*/10"),
+        trigger=CronTrigger(second="*/30"),
         id="check_cpm_reports_periodic",
         replace_existing=True,
         name="Проверка CPM отчетов 24/48/72ч",
@@ -109,7 +109,7 @@ def init_scheduler(scheduler: AsyncIOScheduler) -> None:
     # Отправка отложенных сторис (каждые 10 секунд)
     scheduler.add_job(
         func=send_stories,
-        trigger=CronTrigger(second="*/10"),
+        trigger=CronTrigger(second="*/30"),
         id="send_stories_periodic",
         replace_existing=True,
         name="Отправка отложенных сторис",
@@ -119,7 +119,7 @@ def init_scheduler(scheduler: AsyncIOScheduler) -> None:
     # Отправка постов через ботов (каждые 10 секунд)
     scheduler.add_job(
         func=send_bot_posts,
-        trigger=CronTrigger(second="*/10"),
+        trigger=CronTrigger(second="*/30"),
         id="send_bot_posts_periodic",
         replace_existing=True,
         name="Отправка постов через ботов",
@@ -128,7 +128,7 @@ def init_scheduler(scheduler: AsyncIOScheduler) -> None:
     # Удаление сообщений ботов (каждые 10 секунд)
     scheduler.add_job(
         func=start_delete_bot_posts,
-        trigger=CronTrigger(second="*/10"),
+        trigger=CronTrigger(second="*/30"),
         id="delete_bot_posts_periodic",
         replace_existing=True,
         name="Удаление сообщений ботов",
@@ -138,7 +138,7 @@ def init_scheduler(scheduler: AsyncIOScheduler) -> None:
     # Проверка подписок (каждые 10 секунд)
     scheduler.add_job(
         func=check_subscriptions,
-        trigger=CronTrigger(second="*/10"),
+        trigger=CronTrigger(second="*/30"),
         id="check_subscriptions_periodic",
         replace_existing=True,
         name="Проверка подписок",

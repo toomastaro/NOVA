@@ -14,6 +14,7 @@ import re
 import html
 import time
 from pathlib import Path
+from typing import Dict, List, Optional
 
 from aiogram import types
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -37,27 +38,33 @@ from utils.error_handler import safe_handler
 logger = logging.getLogger(__name__)
 
 
-async def get_views_for_post(post):
-    """Получить количество просмотров для поста"""
-    channel = await db.channel.get_channel_by_chat_id(post.chat_id)
+async def get_views_for_batch(chat_id: int, message_ids: List[int]) -> Dict[int, int]:
+    """Получить количество просмотров для списка сообщений в одном канале пачкой"""
+    channel = await db.channel.get_channel_by_chat_id(chat_id)
+    if not channel:
+        return {}
+
     session_path = None
     if channel.session_path:
         session_path = Path(channel.session_path)
     else:
-        res = await set_channel_session(post.chat_id)
+        res = await set_channel_session(chat_id)
         if isinstance(res, dict) and res.get("success"):
             session_path = Path(res.get("session_path"))
         elif isinstance(res, Path):
             session_path = res
 
-    views = 0
+    views_map = {mid: 0 for mid in message_ids}
     if session_path:
         async with SessionManager(session_path) as session:
             if session:
-                views_obj = await session.get_views(post.chat_id, [post.message_id])
-                if views_obj:
-                    views = sum([i.views or 0 for i in views_obj.views])
-    return views, channel
+                views_obj = await session.get_views(chat_id, message_ids)
+                if views_obj and views_obj.views:
+                    for i, v_obj in enumerate(views_obj.views):
+                        # views_obj.views соответствует порядку message_ids
+                        mid = message_ids[i]
+                        views_map[mid] = v_obj.views or 0
+    return views_map, channel
 
 
 PROCESSING_POSTS = set()
@@ -319,7 +326,7 @@ async def unpin_posts():
 
 @safe_handler("CPM: проверка отчетов (Background)", log_start=False)
 async def check_cpm_reports():
-    """Периодическая задача: проверка и отправка CPM отчетов за 24/48/72 часа"""
+    """Периодическая задача: проверка и отправка CPM отчетов за 24/48/72 часа (Пакетная обработка)"""
     current_time = int(time.time())
 
     # Получаем посты с CPM ценой, которые еще не удалены
@@ -330,159 +337,172 @@ async def check_cpm_reports():
     if not posts:
         return
 
+    # Группируем посты по chat_id для минимизации сессий
+    groups = {}
     for post in posts:
+        elapsed = current_time - post.created_timestamp
+        report_needed = False
+        period = ""
+
+        if elapsed >= 72 * 3600 and not post.report_72h_sent:
+            period = "72ч"
+            report_needed = True
+        elif elapsed >= 48 * 3600 and not post.report_48h_sent:
+            period = "48ч"
+            report_needed = True
+        elif elapsed >= 24 * 3600 and not post.report_24h_sent:
+            period = "24ч"
+            report_needed = True
+
+        if report_needed:
+            if post.chat_id not in groups:
+                groups[post.chat_id] = []
+            groups[post.chat_id].append((post, period))
+
+    for chat_id, items in groups.items():
         try:
-            elapsed = current_time - post.created_timestamp
+            message_ids = [p.message_id for p, _ in items]
+            views_map, channel = await get_views_for_batch(chat_id, message_ids)
 
-            report_needed = False
-            period = ""
+            for post, period in items:
+                try:
+                    views = views_map.get(post.message_id, 0)
+                    
+                    # Обновление БД
+                    updates = {}
+                    if period == "24ч": # Исправлено: в коде было "24h"
+                        updates = {"views_24h": views, "report_24h_sent": True}
+                    elif period == "48ч":
+                        updates = {"views_48h": views, "report_48h_sent": True}
+                    elif period == "72ч":
+                        updates = {"views_72h": views, "report_72h_sent": True}
 
-            if elapsed >= 24 * 3600 and not post.report_24h_sent:
-                period = "24ч"
-                report_needed = True
-            elif elapsed >= 48 * 3600 and not post.report_48h_sent:
-                period = "48ч"
-                report_needed = True
-            elif elapsed >= 72 * 3600 and not post.report_72h_sent:
-                period = "72ч"
-                report_needed = True
+                    stmt = (
+                        update(PublishedPost)
+                        .where(PublishedPost.id == post.id)
+                        .values(**updates)
+                    )
+                    await db.execute(stmt)
 
-            if not report_needed:
-                continue
+                    # Отправка отчета
+                    cpm_price = post.cpm_price
+                    user = await db.user.get_user(post.admin_id)
+                    usd_rate = 1.0
+                    if user and user.default_exchange_rate_id:
+                        exchange_rate = await db.exchange_rate.get_exchange_rate(
+                            user.default_exchange_rate_id
+                        )
+                        if exchange_rate and exchange_rate.rate > 0:
+                            usd_rate = exchange_rate.rate
 
-            views, channel = await get_views_for_post(post)
+                    channels_text = (
+                        text("resource_title").format(html.escape(channel.title))
+                        + f" - 👀 {views}"
+                    )
+                    channels_text = f"<blockquote expandable>{channels_text}</blockquote>"
 
-            # Обновление БД
-            updates = {}
-            if period == "24h":
-                updates = {"views_24h": views, "report_24h_sent": True}
-            elif period == "48h":
-                updates = {"views_48h": views, "report_48h_sent": True}
-            elif period == "72h":
-                updates = {"views_72h": views, "report_72h_sent": True}
+                    opts = post.message_options or {}
+                    raw_text = opts.get("text") or opts.get("caption") or text("post:no_text")
+                    clean_text = re.sub(r"<[^>]+>", "", raw_text)
+                    preview_text_raw = (
+                        clean_text[:50] + "..." if len(clean_text) > 50 else clean_text
+                    )
+                    preview_text = f"«{html.escape(preview_text_raw)}»"
 
-            stmt = (
-                update(PublishedPost)
-                .where(PublishedPost.id == post.id)
-                .values(**updates)
-            )
-            await db.execute(stmt)
+                    full_report = text("cpm:report:header").format(preview_text, period) + "\n"
+                    rub_price = round(float(cpm_price * float(views / 1000)), 2)
+                    usd_curr = round(rub_price / usd_rate, 2)
+                    full_report += text("cpm:report:history_row").format(
+                        period, views, rub_price, usd_curr
+                    )
+                    full_report += f"\n\nℹ️ <i>Курс: 1 USDT = {round(usd_rate, 2)}₽</i>"
+                    full_report += "\n\n" + channels_text
 
-            # Отправка отчета
-            cpm_price = post.cpm_price
-            rub_price = round(float(cpm_price * float(views / 1000)), 2)
+                    # Добавляем подпись
+                    full_report += await get_report_signatures(user, "cpm", bot)
 
-            user = await db.user.get_user(post.admin_id)
-            usd_rate = 1.0
-            if user and user.default_exchange_rate_id:
-                exchange_rate = await db.exchange_rate.get_exchange_rate(
-                    user.default_exchange_rate_id
-                )
-                if exchange_rate and exchange_rate.rate > 0:
-                    usd_rate = exchange_rate.rate
-
-            channels_text = (
-                text("resource_title").format(html.escape(channel.title))
-                + f" - 👀 {views}"
-            )
-            channels_text = f"<blockquote expandable>{channels_text}</blockquote>"
-
-            opts = post.message_options or {}
-            raw_text = opts.get("text") or opts.get("caption") or text("post:no_text")
-            clean_text = re.sub(r"<[^>]+>", "", raw_text)
-            preview_text_raw = (
-                clean_text[:50] + "..." if len(clean_text) > 50 else clean_text
-            )
-            preview_text = f"«{html.escape(preview_text_raw)}»"
-
-            full_report = text("cpm:report:header").format(preview_text, period) + "\n"
-            rub_price = round(float(cpm_price * float(views / 1000)), 2)
-            usd_curr = round(rub_price / usd_rate, 2)
-            full_report += text("cpm:report:history_row").format(
-                period, views, rub_price, usd_curr
-            )
-            full_report += f"\n\nℹ️ <i>Курс: 1 USDT = {round(usd_rate, 2)}₽</i>"
-            full_report += "\n\n" + channels_text
-
-            # Добавляем подпись
-            full_report += await get_report_signatures(user, "cpm", bot)
-
-            await bot.send_message(
-                chat_id=post.admin_id,
-                text=full_report,
-                link_preview_options=types.LinkPreviewOptions(is_disabled=True),
-            )
-
+                    await bot.send_message(
+                        chat_id=post.admin_id,
+                        text=full_report,
+                        link_preview_options=types.LinkPreviewOptions(is_disabled=True),
+                    )
+                except Exception as e:
+                    logger.error(f"Ошибка при обработке CPM отчета для поста {post.id} в канале {chat_id}: {e}")
         except Exception as e:
-            logger.error(
-                f"Ошибка при обработке CPM отчета для поста {post.id}: {e}",
-                exc_info=True,
-            )
+            logger.error(f"Ошибка при обработке пакета постов для канала {chat_id}: {e}")
 
 
 @safe_handler("Постинг: удаление (Background)", log_start=False)
 async def delete_posts():
-    """Периодическая задача: удаление постов по расписанию"""
+    """Периодическая задача: удаление постов по расписанию (Пакетная обработка)"""
     db_posts = await db.published_post.get_posts_for_delete()
+    if not db_posts:
+        return
+
+    # Группируем по chat_id для получения просмотров
+    chat_groups = {}
+    for post in db_posts:
+        if post.chat_id not in chat_groups:
+            chat_groups[post.chat_id] = []
+        chat_groups[post.chat_id].append(post)
 
     row_ids = []
-    posts = {}
-    for post in db_posts:
-        views, channel = await get_views_for_post(post)
+    # post_id -> [message_stats] для формирования отчетов админам
+    post_reports = {} 
 
-        # Fallback: Если не удалось получить просмотры (0) или ошибка, берем из БД
-        if views == 0:
-            # Берем максимальное из сохраненных значений
-            saved_views = [
-                post.views_24h or 0,
-                post.views_48h or 0,
-                post.views_72h or 0,
-            ]
-            views = max(saved_views)
-            if views > 0:
-                logger.warning(
-                    f"Использованы сохраненные просмотры ({views}) для поста {post.id} (Live=0)"
-                )
-
-        if post.post_id not in posts:
-            posts[post.post_id] = []
-
-        messages = posts[post.post_id]
-        messages.append(
-            {
-                "channel": channel,
-                "views": views,
-                "admin_id": post.admin_id,
-                "cpm_price": post.cpm_price,
-                "post_obj": post,
-            }
-        )
-        posts[post.post_id] = messages
-
+    for chat_id, group_posts in chat_groups.items():
         try:
-            await bot.delete_message(post.chat_id, post.message_id)
+            message_ids = [p.message_id for p in group_posts]
+            views_map, channel = await get_views_for_batch(chat_id, message_ids)
+
+            for post in group_posts:
+                views = views_map.get(post.message_id, 0)
+
+                # Fallback: Если не удалось получить просмотры (0) или ошибка, берем из БД
+                if views == 0:
+                    saved_views = [
+                        post.views_24h or 0,
+                        post.views_48h or 0,
+                        post.views_72h or 0,
+                    ]
+                    views = max(saved_views)
+                    if views > 0:
+                        logger.warning(f"Использованы сохраненные просмотры ({views}) для поста {post.id} (Live=0)")
+
+                # Собираем данные для группового отчета админу (по post_id)
+                if post.post_id not in post_reports:
+                    post_reports[post.post_id] = []
+                
+                post_reports[post.post_id].append({
+                    "channel": channel,
+                    "views": views,
+                    "admin_id": post.admin_id,
+                    "cpm_price": post.cpm_price,
+                    "post_obj": post,
+                })
+
+                # Удаление из Telegram
+                try:
+                    await bot.delete_message(post.chat_id, post.message_id)
+                except Exception as e:
+                    logger.error(f"Ошибка удаления сообщения {post.message_id} в {post.chat_id}: {e}")
+                    try:
+                        await bot.send_message(
+                            chat_id=post.admin_id,
+                            text=text("error:post:delete").format(
+                                post.message_id, channel.emoji_id, channel.title
+                            ),
+                            link_preview_options=types.LinkPreviewOptions(is_disabled=True),
+                        )
+                    except Exception as report_err:
+                        logger.error(f"Ошибка отправки отчета об ошибке в {post.admin_id}: {report_err}")
+
+                row_ids.append(post.id)
         except Exception as e:
-            logger.error(
-                f"Ошибка удаления сообщения {post.message_id} в {post.chat_id}: {e}",
-                exc_info=True,
-            )
-            try:
-                await bot.send_message(
-                    chat_id=post.admin_id,
-                    text=text("error:post:delete").format(
-                        post.message_id, channel.emoji_id, channel.title
-                    ),
-                    link_preview_options=types.LinkPreviewOptions(is_disabled=True),
-                )
-            except Exception as e:
-                logger.error(
-                    f"Ошибка отправки отчета об ошибке удаления админу {post.admin_id}: {e}",
-                    exc_info=True,
-                )
+            logger.error(f"Ошибка при пакетном удалении в канале {chat_id}: {e}")
 
-        row_ids.append(post.id)
-
-    for post_id, message_objects in posts.items():
+    # Отправка сводных отчетов по каждому post_id (если есть CPM)
+    for post_id, message_objects in post_reports.items():
         if not message_objects:
             continue
 
