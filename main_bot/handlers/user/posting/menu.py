@@ -157,15 +157,10 @@ async def show_settings(message: types.Message):
 @safe_handler(
     "Постинг: контент-план"
 )  # Безопасная обёртка: логирование + перехват ошибок без падения бота
-async def show_content(message: types.Message):
+async def show_content(message: types.Message, state: FSMContext):
     """Показывает меню выбора канала для контент-плана."""
-    # Для контент-плана пока оставляем плоский список, 
-    # так как keyboards.choice_object_content не поддерживает папки
-    channels = await db.channel.get_user_channels(user_id=message.chat.id, sort_by="posting")
-    await message.answer(
-        text("choice_channel:content"),
-        reply_markup=keyboards.choice_object_content(channels=channels),
-    )
+    from .flow_content_plan import show_selection
+    await show_selection(message, state)
 
 
 @safe_handler(

@@ -277,6 +277,87 @@ class InlineContent(InlineKeyboardBuilder):
         return kb.as_markup()
 
     @classmethod
+    def choice_channel_single(
+        cls,
+        channels: List[Channel],
+        folders: List[UserFolder] = [],
+        data: str = "ChoiceContentPlanChannel",
+        remover: int = 0,
+        view_mode: str = "folders",
+        is_inside_folder: bool = False,
+    ):
+        """
+        Клавиатура выбора одного канала (с поддержкой папок).
+        Используется для контент-плана и других сценариев выбора одной цели.
+        """
+        kb = cls()
+        count_rows = 10
+
+        # Переключатели вида (только если есть папки и мы не внутри папки)
+        if not is_inside_folder and folders:
+            folders_status = "✅" if view_mode == "folders" else "📁"
+            channels_status = "✅" if view_mode == "channels" else "📢"
+            kb.row(
+                InlineKeyboardButton(
+                    text=f"{folders_status} Папки", callback_data=f"{data}|switch_view|folders"
+                ),
+                InlineKeyboardButton(
+                    text=f"{channels_status} Все каналы", callback_data=f"{data}|switch_view|channels"
+                ),
+            )
+
+        objects = []
+        if view_mode == "folders" and not is_inside_folder:
+            objects.extend(folders)
+            objects.extend(channels)
+        else:
+            objects.extend(sorted(channels, key=lambda x: x.title))
+
+        for a, idx in enumerate(range(remover, len(objects))):
+            if a < count_rows:
+                obj = objects[idx]
+                if isinstance(obj, Channel):
+                    kb.row(
+                        InlineKeyboardButton(
+                            text=obj.title,
+                            callback_data=f"{data}|{obj.chat_id}",
+                        )
+                    )
+                elif isinstance(obj, UserFolder):
+                    kb.row(
+                        InlineKeyboardButton(
+                            text=f"📁 {obj.title}",
+                            callback_data=f"{data}|{obj.id}|{remover}|folder",
+                        )
+                    )
+
+        # Пагинация
+        if len(objects) > count_rows:
+            nav_buttons = []
+            if remover > 0:
+                nav_buttons.append(
+                    InlineKeyboardButton(
+                        text="⬅️", callback_data=f"{data}|back|{remover - count_rows}"
+                    )
+                )
+            if remover + count_rows < len(objects):
+                nav_buttons.append(
+                    InlineKeyboardButton(
+                        text="➡️", callback_data=f"{data}|next|{remover + count_rows}"
+                    )
+                )
+            if nav_buttons:
+                kb.row(*nav_buttons)
+
+        kb.row(
+            InlineKeyboardButton(
+                text=text("back:button"), callback_data=f"{data}|cancel"
+            )
+        )
+
+        return kb.as_markup()
+
+    @classmethod
     def choice_object_content(
         cls,
         channels: List[Channel | UserBot],
