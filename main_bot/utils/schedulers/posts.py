@@ -370,12 +370,12 @@ async def check_cpm_reports():
                     
                     # Обновление БД
                     updates = {}
-                    if period == "24ч": # Исправлено: в коде было "24h"
+                    if period == "24ч": 
                         updates = {"views_24h": views, "report_24h_sent": True}
                     elif period == "48ч":
-                        updates = {"views_48h": views, "report_48h_sent": True}
+                        updates = {"views_48h": max(views, post.views_24h or 0), "report_48h_sent": True}
                     elif period == "72ч":
-                        updates = {"views_72h": views, "report_72h_sent": True}
+                        updates = {"views_72h": max(views, post.views_48h or 0, post.views_24h or 0), "report_72h_sent": True}
 
                     stmt = (
                         update(PublishedPost)
@@ -549,69 +549,39 @@ async def delete_posts():
             )
             preview_text = f"«{html.escape(preview_text_raw)}»"
 
-            def format_report(
-                title_suffix, current_views, v24=None, v48=None, v72=None
-            ):
+            def format_report():
                 lines = []
-                # Если пост удалён до 24ч, используем упрощённый заголовок без скобок
-                if hours < 24:
-                    lines.append(text("cpm:report:header:simple").format(preview_text))
-                else:
-                    lines.append(
-                        text("cpm:report:header").format(preview_text, title_suffix)
-                    )
+                lines.append(text("cpm:report:header:simple").format(preview_text))
 
-                if v24 is not None:
-                    rub_24 = round(float(cpm_price * float(v24 / 1000)), 2)
-                    usd_24 = round(rub_24 / usd_rate, 2)
-                    lines.append(
-                        text("cpm:report:history_row").format(
-                            "24ч", v24, rub_24, usd_24
-                        )
-                    )
-                if v48 is not None:
-                    rub_48 = round(float(cpm_price * float(v48 / 1000)), 2)
-                    usd_48 = round(rub_48 / usd_rate, 2)
-                    lines.append(
-                        text("cpm:report:history_row").format(
-                            "48ч", v48, rub_48, usd_48
-                        )
-                    )
-                if v72 is not None:
-                    rub_72 = round(float(cpm_price * float(v72 / 1000)), 2)
-                    usd_72 = round(rub_72 / usd_rate, 2)
-                    lines.append(
-                        text("cpm:report:history_row").format(
-                            "72ч", v72, rub_72, usd_72
-                        )
-                    )
+                # 24ч
+                v24 = v24_val
+                r24 = round(float(cpm_price * float(v24 / 1000)), 2)
+                lines.append(text("cpm:report:history_row").format("24ч", v24, r24, round(r24 / usd_rate, 2)))
 
-                # Добавляем ТЕКУЩИЕ данные как последнюю строку
-                curr_rub = round(float(cpm_price * float(current_views / 1000)), 2)
-                curr_usd = round(curr_rub / usd_rate, 2)
+                # 48ч
+                v48 = v48_val
+                r48 = round(float(cpm_price * float(v48 / 1000)), 2)
+                lines.append(text("cpm:report:history_row").format("48ч", v48, r48, round(r48 / usd_rate, 2)))
 
-                # Определяем метку времени для текущей строки
-                if hours < 24:
-                    time_label = "До 24ч"
-                elif hours in [24, 48, 72]:
-                    time_label = f"{hours}ч"
-                else:
-                    time_label = f"{hours}ч"
-
-                lines.append(
-                    text("cpm:report:history_row").format(
-                        time_label, current_views, curr_rub, curr_usd
-                    )
-                )
+                # 72ч
+                v72 = v72_val
+                r72 = round(float(cpm_price * float(v72 / 1000)), 2)
+                lines.append(text("cpm:report:history_row").format("72ч", v72, r72, round(r72 / usd_rate, 2)))
 
                 lines.append(f"\nℹ️ <i>Курс: 1 USDT = {round(usd_rate, 2)}₽</i>")
                 lines.append("\n" + channels_text)
                 return "\n".join(lines)
 
-            # Определяем, какие исторические данные показывать
-            # Если текущие часы равны 24, 48 или 72, то история за этот период не нужна (она в заголовке)
+            # Приводим к нерасходящемуся виду: каждый следующий период не может быть меньше предыдущего
+            v24_val = views_24 if views_24 is not None else 0
+            v48_val = max(views_48 if views_48 is not None else 0, v24_val)
+            v72_val = max(views_72 if views_72 is not None else 0, v48_val)
+            
+            # Определяем, какие исторические данные показывать (только если они были зафиксированы)
             hours = int(delete_duration / 3600)
             title = f"{text('cpm:report:final')}: {hours}ч"
+
+            report_text = format_report()
 
             show_v24 = hours > 24 and views_24 is not None
             show_v48 = hours > 48 and views_48 is not None
