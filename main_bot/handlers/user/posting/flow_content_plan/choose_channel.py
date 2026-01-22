@@ -145,5 +145,5 @@ async def update_menu(call: types.CallbackQuery, state: FSMContext, view_mode: s
 
 def get_router():
     router = Router()
-    router.callback_query.register(choice_channels, F.data.split("|")[0] == "ChoiceObjectContentPost")
+    router.callback_query.register(choice_channels, F.data.split("|")[0] == "ChoiceContentPlanChannel")
     return router
