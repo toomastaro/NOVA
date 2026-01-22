@@ -32,18 +32,19 @@ async def show_selection(message: types.Message, state: FSMContext):
 
     # Загружаем данные для показа
     try:
-            # Загружаем папки всегда, чтобы в клавиатуре был доступен переключатель вида,
-            # даже если текущий режим - "все каналы".
-            all_folders = await db.user_folder.get_folders(user_id=message.chat.id)
-            folders_with_content = [f for f in all_folders if f.content]
-        
-            if view_mode == "folders":
-                channels = await db.channel.get_user_channels_without_folders(user_id=message.chat.id)
-                folders = folders_with_content
-            else:
-                channels = await db.channel.get_user_channels(user_id=message.chat.id, sort_by="posting")
-                # Папки передаются в клавиатуру для отображения переключателя.
-                folders = folders_with_content
+        # Загружаем папки всегда, чтобы в клавиатуре был доступен переключатель вида,
+        # даже если текущий режим - "все каналы".
+        all_folders = await db.user_folder.get_folders(user_id=message.chat.id)
+        folders_with_content = [f for f in all_folders if f.content]
+
+        if view_mode == "folders":
+            channels = await db.channel.get_user_channels_without_folders(user_id=message.chat.id)
+            folders = folders_with_content
+        else:
+            channels = await db.channel.get_user_channels(user_id=message.chat.id, sort_by="posting")
+            # Папки передаются в клавиатуру для отображения переключателя.
+            folders = folders_with_content
+
         await message.answer(
             text("choice_channel:content"),
             reply_markup=keyboards.choice_channel_single(
