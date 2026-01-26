@@ -57,7 +57,7 @@ async def manage_post(call: types.CallbackQuery, state: FSMContext):
         if is_edit:
             post_message = await answer_post(call.message, state, from_edit=True)
             await state.update_data(
-                post_message=post_message.model_dump(), show_more=False
+                post_message={"message_id": post_message.message_id}, show_more=False
             )
             await call.message.delete()
             # Логика возврата
@@ -99,7 +99,7 @@ async def manage_post(call: types.CallbackQuery, state: FSMContext):
         if is_edit:
             post_message = await answer_post(call.message, state, from_edit=True)
             await state.update_data(
-                post_message=post_message.model_dump(), show_more=False
+                post_message={"message_id": post_message.message_id}, show_more=False
             )
             await call.message.delete()
             return await call.message.answer(

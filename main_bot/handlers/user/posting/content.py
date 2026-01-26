@@ -401,7 +401,7 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
         post_message = await answer_post(call.message, state, from_edit=True)
         if post_message:
             await state.update_data(
-                post_message=post_message.model_dump(mode="json"),
+                post_message={"message_id": post_message.message_id},
             )
 
             await call.message.delete()
@@ -430,7 +430,7 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
 
     post_message = await answer_post(call.message, state, from_edit=True)
     await state.update_data(
-        post_message=post_message.model_dump(mode="json"),
+        post_message={"message_id": post_message.message_id},
     )
 
     await call.message.delete()

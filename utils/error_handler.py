@@ -3,6 +3,7 @@
 """
 
 import logging
+import html
 from functools import wraps
 from typing import Any, Callable
 
@@ -47,7 +48,7 @@ def safe_handler(stage_info: str, log_start: bool = False) -> Callable:
                             f"🚨 <b>Ошибка в NOVA</b>\n\n"
                             f"<b>📍 Этап:</b> {stage_info}\n"
                             f"<b>⚠️ Тип:</b> {error_type}\n"
-                            f"<b>💬 Сообщение:</b> <code>{str(e)}</code>\n\n"
+                            f"<b>💬 Сообщение:</b> <code>{html.escape(str(e))}</code>\n\n"
                             f"<i>Проверьте логи сервера для деталей.</i>"
                         )
                         await bot.send_message(

@@ -126,7 +126,7 @@ async def manage_post(call: types.CallbackQuery, state: FSMContext):
         if is_edit:
             post_message = await answer_story(call.message, state, from_edit=True)
             await state.update_data(
-                post_message=post_message.model_dump(), show_more=False
+                post_message={"message_id": post_message.message_id, "chat": {"id": post_message.chat.id}}, show_more=False
             )
             await call.message.delete()
             return await call.message.answer(
@@ -146,7 +146,7 @@ async def manage_post(call: types.CallbackQuery, state: FSMContext):
         if is_edit:
             post_message = await answer_story(call.message, state, from_edit=True)
             await state.update_data(
-                post_message=post_message.model_dump(), show_more=False
+                post_message={"message_id": post_message.message_id, "chat": {"id": post_message.chat.id}}, show_more=False
             )
             await call.message.delete()
             return await call.message.answer(

@@ -258,7 +258,7 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext) -> No
 
     if post_message:
         await state.update_data(
-            post_message=post_message.model_dump(mode="json"),
+            post_message={"message_id": post_message.message_id},
             post=serialize_bot_post(post),  # Обновляем объект
         )
 
