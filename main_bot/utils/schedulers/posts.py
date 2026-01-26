@@ -467,13 +467,9 @@ async def check_cpm_reports():
             )
             preview_text = f"«{html.escape(preview_text_raw)}»"
 
-            full_report = text("cpm:report:header").format(preview_text, period) + "\n"
-            full_report += f"💸 <b>CPM:</b> {cpm_price}₽\n"
-
             # Сборка строк истории (как в контент плане)
             history_lines = []
 
-            # Показываем строки до текущего периода включительно
             # 24ч
             r24 = round(float(cpm_price * float(sum_24 / 1000)), 2)
             history_lines.append(
@@ -482,23 +478,21 @@ async def check_cpm_reports():
                 )
             )
 
-            # 48ч (если период 48ч или 72ч)
-            if period in ["48ч", "72ч"]:
-                r48 = round(float(cpm_price * float(sum_48 / 1000)), 2)
-                history_lines.append(
-                    text("cpm:report:history_row").format(
-                        "48ч", sum_48, r48, round(r48 / usd_rate, 2)
-                    )
+            # 48ч
+            r48 = round(float(cpm_price * float(sum_48 / 1000)), 2)
+            history_lines.append(
+                text("cpm:report:history_row").format(
+                    "48ч", sum_48, r48, round(r48 / usd_rate, 2)
                 )
+            )
 
-            # 72ч (только если 72ч)
-            if period == "72ч":
-                r72 = round(float(cpm_price * float(sum_72 / 1000)), 2)
-                history_lines.append(
-                    text("cpm:report:history_row").format(
-                        "72ч", sum_72, r72, round(r72 / usd_rate, 2)
-                    )
+            # 72ч
+            r72 = round(float(cpm_price * float(sum_72 / 1000)), 2)
+            history_lines.append(
+                text("cpm:report:history_row").format(
+                    "72ч", sum_72, r72, round(r72 / usd_rate, 2)
                 )
+            )
 
             full_report = text("cpm:report:header").format(preview_text, period) + "\n"
             full_report += f"💸 <b>CPM:</b> {cpm_price}₽\n"
@@ -598,6 +592,32 @@ async def delete_posts():
                             f"Ошибка отправки отчета об ошибке в {post.admin_id}: {report_err}"
                         )
 
+                # Обновление БД перед удалением (записываем финальные просмотры для статистики)
+                # Если пост удаляется рано, записываем текущие просмотры во все пустые периоды
+                db_updates = {}
+                if not post.views_24h:
+                    db_updates["views_24h"] = views
+                if not post.views_48h:
+                    db_updates["views_48h"] = max(views, post.views_24h or 0)
+                if not post.views_72h:
+                    db_updates["views_72h"] = max(
+                        views, post.views_48h or 0, post.views_24h or 0
+                    )
+
+                if db_updates:
+                    from sqlalchemy import update as sqlalchemy_update
+
+                    upd_stmt = (
+                        sqlalchemy_update(PublishedPost)
+                        .where(PublishedPost.id == post.id)
+                        .values(**db_updates)
+                    )
+                    await db.execute(upd_stmt)
+
+                    # Обновляем объект в памяти для отчета
+                    for k, v in db_updates.items():
+                        setattr(post, k, v)
+
                 row_ids.append(post.id)
         except Exception as e:
             logger.error(f"Ошибка при пакетном удалении в канале {chat_id}: {e}")
@@ -624,8 +644,6 @@ async def delete_posts():
                 usd_rate = exchange_rate.rate
                 # exchange_rate_update_time = exchange_rate.last_update
 
-        total_views = sum(obj["views"] or 0 for obj in message_objects)
-
         channels_text_inner = "\n".join(
             text("resource_title").format(html.escape(obj["channel"].title))
             + f" - 👀 {obj['views']}"
@@ -635,9 +653,6 @@ async def delete_posts():
 
         try:
             representative_post = message_objects[0]["post_obj"]
-            delete_duration = (
-                representative_post.delete_time - representative_post.created_timestamp
-            )
 
             # Агрегируем исторические данные по всем каналам этого поста
             views_24 = sum(obj["post_obj"].views_24h or 0 for obj in message_objects)
@@ -658,41 +673,26 @@ async def delete_posts():
                 lines.append(f"💸 <b>CPM:</b> {cpm_price}₽")
 
                 # 24ч
-                v24 = views_24
-                r24 = round(float(cpm_price * float(v24 / 1000)), 2)
+                r24 = round(float(cpm_price * float(views_24 / 1000)), 2)
                 lines.append(
                     text("cpm:report:history_row").format(
-                        "24ч", v24, r24, round(r24 / usd_rate, 2)
+                        "24ч", views_24, r24, round(r24 / usd_rate, 2)
                     )
                 )
 
                 # 48ч
-                v48 = views_48
-                r48 = round(float(cpm_price * float(v48 / 1000)), 2)
+                r48 = round(float(cpm_price * float(views_48 / 1000)), 2)
                 lines.append(
                     text("cpm:report:history_row").format(
-                        "48ч", v48, r48, round(r48 / usd_rate, 2)
+                        "48ч", views_48, r48, round(r48 / usd_rate, 2)
                     )
                 )
 
                 # 72ч
-                v72 = views_72
-                r72 = round(float(cpm_price * float(v72 / 1000)), 2)
+                r72 = round(float(cpm_price * float(views_72 / 1000)), 2)
                 lines.append(
                     text("cpm:report:history_row").format(
-                        "72ч", v72, r72, round(r72 / usd_rate, 2)
-                    )
-                )
-
-                # Итоговая строка (текущие просмотры на момент удаления)
-                r_total = round(float(cpm_price * float(total_views / 1000)), 2)
-                hours = int(delete_duration / 3600)
-                lines.append(
-                    text("cpm:report:history_row").format(
-                        f"Итог ({hours}ч)",
-                        total_views,
-                        r_total,
-                        round(r_total / usd_rate, 2),
+                        "72ч", views_72, r72, round(r72 / usd_rate, 2)
                     )
                 )
 

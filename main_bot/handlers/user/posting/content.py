@@ -799,6 +799,7 @@ async def manage_published_post(call: types.CallbackQuery, state: FSMContext):
         preview_text = f"«{html.escape(preview_text_raw)}»"
 
         # Формируем строки отчета (3 фиксированные строки: 24, 48, 72)
+        # Формируем строки истории только при наличии данных
         header_text = text("cpm:report:header:simple").format(preview_text)
         rows = []
 
@@ -907,6 +908,7 @@ async def manage_published_post(call: types.CallbackQuery, state: FSMContext):
                 "24ч", sum_24, r24, round(r24 / usd_rate, 2)
             )
         )
+
         # 48ч
         r48 = round(float(cpm_price * float(sum_48 / 1000)), 2)
         rows.append(
@@ -914,6 +916,7 @@ async def manage_published_post(call: types.CallbackQuery, state: FSMContext):
                 "48ч", sum_48, r48, round(r48 / usd_rate, 2)
             )
         )
+
         # 72ч
         r72 = round(float(cpm_price * float(sum_72 / 1000)), 2)
         rows.append(
