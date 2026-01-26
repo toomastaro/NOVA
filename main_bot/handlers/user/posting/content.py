@@ -899,7 +899,8 @@ async def manage_published_post(call: types.CallbackQuery, state: FSMContext):
             v_curr = max(p.views_24h or 0, p.views_48h or 0, p.views_72h or 0)
             channels_info.append(f"{html.escape(channel.title)} - 👀 {v_curr}")
             
-        report_text += f"\n\n<blockquote expandable>{'\n'.join(channels_info)}</blockquote>"
+        channels_joined = "\n".join(channels_info)
+        report_text += f"\n\n<blockquote expandable>{channels_joined}</blockquote>"
         report_text += await get_report_signatures(user, "cpm", call.bot)
 
         from aiogram.utils.keyboard import InlineKeyboardBuilder
