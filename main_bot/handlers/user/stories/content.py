@@ -298,7 +298,10 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
         post_message = await answer_story(call.message, state, from_edit=True)
 
     await state.update_data(
-        post_message={"message_id": post_message.message_id, "chat": {"id": post_message.chat.id}},
+        post_message={
+            "message_id": post_message.message_id,
+            "chat": {"id": post_message.chat.id},
+        },
         post=serialize_story(post),  # Обновляем объект в стейте с новыми ID
     )
 

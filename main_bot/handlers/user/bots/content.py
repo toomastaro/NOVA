@@ -11,6 +11,7 @@
 import logging
 import html
 import re
+import time
 from datetime import datetime, timedelta, timezone
 
 from aiogram import types, F, Router
@@ -238,11 +239,15 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext) -> No
         try:
             options = post.message
             caption = options.get("caption")
-            is_media = any([options.get("photo"), options.get("video"), options.get("animation")])
-            
+            is_media = any(
+                [options.get("photo"), options.get("video"), options.get("animation")]
+            )
+
             if is_media and caption and len(caption) > 1024:
                 # Отключаем превью для длинных описаний
-                post_message = await answer_bot_post(call.message, state, from_edit=True)
+                post_message = await answer_bot_post(
+                    call.message, state, from_edit=True
+                )
             else:
                 post_message = await call.bot.copy_message(
                     chat_id=call.from_user.id,
@@ -265,21 +270,25 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext) -> No
     if post.status == Status.DELETED:
         await call.message.delete()
         send_date = datetime.fromtimestamp(post.send_time or post.start_timestamp)
-        deleted_date = datetime.fromtimestamp(post.deleted_at) if post.deleted_at else send_date
-        
+        deleted_date = (
+            datetime.fromtimestamp(post.deleted_at) if post.deleted_at else send_date
+        )
+
         try:
             author_obj = await call.bot.get_chat(post.admin_id)
             author = author_obj.username or "Неизвестно"
         except Exception as e:
             logger.warning("Не удалось получить автора: %s", e)
             author = "Неизвестно"
-            
+
         options = post.message
-        message_text = options.get("text") or options.get("caption") or text("media_label")
-        
+        message_text = (
+            options.get("text") or options.get("caption") or text("media_label")
+        )
+
         # Очистка от HTML-тегов перед обрезкой для предотвращения битых тегов
         message_text = re.sub(r"<[^>]+>", "", message_text)
-        
+
         if len(message_text) > 30:
             message_text = message_text[:27] + "..."
 
@@ -289,7 +298,7 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext) -> No
                 send_date.strftime("%d.%m.%Y %H:%M"),
                 deleted_date.strftime("%d.%m.%Y %H:%M"),
                 html.escape(author),
-                html.escape(message_text)
+                html.escape(message_text),
             ),
             reply_markup=keyboards.back(data="ManageRemainBotPost|cancel"),
         )
@@ -298,7 +307,7 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext) -> No
     if post.status in [Status.FINISH, Status.ERROR]:
         logger.info("Отображение завершенной рассылки %s", post.id)
         await call.message.delete()
-        
+
         try:
             admin_chat = await call.bot.get_chat(post.admin_id)
             admin_name = admin_chat.username or text("unknown")
@@ -310,9 +319,25 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext) -> No
             text("report_finished_bot").format(
                 post.success_send,
                 post.error_send,
-                text("no_label") if not post.delete_time else f"{int(post.delete_time / 3600)} {text('hours_short')}",
-                datetime.fromtimestamp(post.start_timestamp).strftime("%d.%m.%Y %H:%M") if post.start_timestamp else text("unknown"),
-                datetime.fromtimestamp(post.end_timestamp).strftime("%d.%m.%Y %H:%M") if post.end_timestamp else text("unknown"),
+                (
+                    text("no_label")
+                    if not post.delete_time
+                    else f"{int(post.delete_time / 3600)} {text('hours_short')}"
+                ),
+                (
+                    datetime.fromtimestamp(post.start_timestamp).strftime(
+                        "%d.%m.%Y %H:%M"
+                    )
+                    if post.start_timestamp
+                    else text("unknown")
+                ),
+                (
+                    datetime.fromtimestamp(post.end_timestamp).strftime(
+                        "%d.%m.%Y %H:%M"
+                    )
+                    if post.end_timestamp
+                    else text("unknown")
+                ),
                 html.escape(admin_name),
             ),
             reply_markup=keyboards.back(data="ManageRemainBotPost|cancel"),
@@ -332,7 +357,11 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext) -> No
     logger.info("Отображение управления постом %s", post.id)
     await call.message.answer(
         text("bot_post:content").format(
-            text("no_label") if not post.delete_time else f"{int(post.delete_time / 3600)} {text('hours_short')}",
+            (
+                text("no_label")
+                if not post.delete_time
+                else f"{int(post.delete_time / 3600)} {text('hours_short')}"
+            ),
             send_date.day,
             text("month").get(str(send_date.month)),
             send_date.year,
@@ -554,9 +583,11 @@ async def accept_delete_row_content(
 
         await call.message.edit_text(
             text("bot_post:content").format(
-                text("no_label")
-                if not post.delete_time
-                else f"{int(post.delete_time / 3600)} {text('hours_short')}",
+                (
+                    text("no_label")
+                    if not post.delete_time
+                    else f"{int(post.delete_time / 3600)} {text('hours_short')}"
+                ),
                 send_date.day,
                 text("month").get(str(send_date.month)),
                 send_date.year,

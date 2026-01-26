@@ -48,7 +48,7 @@ async def get_message(message: types.Message, state: FSMContext):
     logger.info(f"Получено сообщение для сторис от {message.from_user.id}")
 
     message_text_length = len(message.caption or "")
-    limit = 1024 # Возврат к 1024 из-за ограничений API
+    limit = 1024  # Возврат к 1024 из-за ограничений API
 
     if message_text_length > limit:
         return await message.answer(text("error_length_text").format(limit))
@@ -126,7 +126,11 @@ async def manage_post(call: types.CallbackQuery, state: FSMContext):
         if is_edit:
             post_message = await answer_story(call.message, state, from_edit=True)
             await state.update_data(
-                post_message={"message_id": post_message.message_id, "chat": {"id": post_message.chat.id}}, show_more=False
+                post_message={
+                    "message_id": post_message.message_id,
+                    "chat": {"id": post_message.chat.id},
+                },
+                show_more=False,
             )
             await call.message.delete()
             return await call.message.answer(
@@ -146,7 +150,11 @@ async def manage_post(call: types.CallbackQuery, state: FSMContext):
         if is_edit:
             post_message = await answer_story(call.message, state, from_edit=True)
             await state.update_data(
-                post_message={"message_id": post_message.message_id, "chat": {"id": post_message.chat.id}}, show_more=False
+                post_message={
+                    "message_id": post_message.message_id,
+                    "chat": {"id": post_message.chat.id},
+                },
+                show_more=False,
             )
             await call.message.delete()
             return await call.message.answer(

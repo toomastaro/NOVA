@@ -430,15 +430,24 @@ async def get_value(message: types.Message, state: FSMContext):
     # Обработка текста и медиа
     if param in ["text", "media"]:
         # Проверка длины текста
-        is_media = bool(message.photo or message.video or message.animation or message.document) or param == "media"
-        # Если меняем медиа, то это точно будет пост с медиа. 
+        is_media = (
+            bool(
+                message.photo or message.video or message.animation or message.document
+            )
+            or param == "media"
+        )
+        # Если меняем медиа, то это точно будет пост с медиа.
         # Если меняем текст, проверяем есть ли уже медиа в посту.
         if param == "text":
-            is_media = bool(post.message_options.get("photo") or post.message_options.get("video") or post.message_options.get("animation"))
-        
+            is_media = bool(
+                post.message_options.get("photo")
+                or post.message_options.get("video")
+                or post.message_options.get("animation")
+            )
+
         limit = 2048 if is_media else 4096
         message_text_length = len(message.caption or message.text or "")
-        
+
         if message_text_length > limit:
             logger.warning(
                 "Пользователь %s: превышена длина текста при редактировании (%d > %d)",

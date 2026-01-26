@@ -748,13 +748,13 @@ async def manage_published_post(call: types.CallbackQuery, state: FSMContext):
             v24 = p.views_24h or 0
             v48 = p.views_48h or 0
             v72 = p.views_72h or 0
-            
+
             sum_24 += v24
             sum_48 += v48
             sum_72 += v72
-            
+
             total_views += max(v24, v48, v72)
-            
+
             channel = await db.channel.get_channel_by_chat_id(p.chat_id)
             channels_info.append(f"{html.escape(channel.title)} - 👀 {v72}")
 
@@ -801,20 +801,34 @@ async def manage_published_post(call: types.CallbackQuery, state: FSMContext):
         # Формируем строки отчета (3 фиксированные строки: 24, 48, 72)
         header_text = text("cpm:report:header:simple").format(preview_text)
         rows = []
-        
+
         # 24ч
         r24 = round(float(cpm_price * float(sum_24 / 1000)), 2)
-        rows.append(text("cpm:report:history_row").format("24ч", sum_24, r24, round(r24 / usd_rate, 2)))
-        
+        rows.append(
+            text("cpm:report:history_row").format(
+                "24ч", sum_24, r24, round(r24 / usd_rate, 2)
+            )
+        )
+
         # 48ч
         r48 = round(float(cpm_price * float(sum_48 / 1000)), 2)
-        rows.append(text("cpm:report:history_row").format("48ч", sum_48, r48, round(r48 / usd_rate, 2)))
-        
+        rows.append(
+            text("cpm:report:history_row").format(
+                "48ч", sum_48, r48, round(r48 / usd_rate, 2)
+            )
+        )
+
         # 72ч
         r72 = round(float(cpm_price * float(sum_72 / 1000)), 2)
-        rows.append(text("cpm:report:history_row").format("72ч", sum_72, r72, round(r72 / usd_rate, 2)))
+        rows.append(
+            text("cpm:report:history_row").format(
+                "72ч", sum_72, r72, round(r72 / usd_rate, 2)
+            )
+        )
 
-        report_text = f"{header_text}\n" + "".join(rows)
+        report_text = f"{header_text}\n"
+        report_text += f"💸 <b>CPM:</b> {cpm_price}₽\n"
+        report_text += "".join(rows)
         report_text += (
             f"\n\nℹ️ <i>Курс: 1 USDT = {round(usd_rate, 2)}₽ (обн. {exch_update})</i>"
         )
@@ -844,27 +858,34 @@ async def manage_published_post(call: types.CallbackQuery, state: FSMContext):
             post = SimpleNamespace(**post)
 
         parent_id = post.post_id
-        related_posts = await db.published_post.get_published_posts_by_post_id(parent_id)
+        related_posts = await db.published_post.get_published_posts_by_post_id(
+            parent_id
+        )
         if not related_posts:
             related_posts = [post]
 
         sum_24 = sum(p.views_24h or 0 for p in related_posts)
         sum_48 = sum(p.views_48h or 0 for p in related_posts)
         sum_72 = sum(p.views_72h or 0 for p in related_posts)
-        
+
         # Определяем текущий гипотетический период для теста (только для заголовка)
         current_time = int(time.time())
         elapsed = current_time - post.created_timestamp
         period = "Тест"
-        if elapsed >= 72 * 3600: period = "72ч"
-        elif elapsed >= 48 * 3600: period = "48ч"
-        elif elapsed >= 24 * 3600: period = "24ч"
+        if elapsed >= 72 * 3600:
+            period = "72ч"
+        elif elapsed >= 48 * 3600:
+            period = "48ч"
+        elif elapsed >= 24 * 3600:
+            period = "24ч"
 
         cpm_price = post.cpm_price or 0
         user = await db.user.get_user(post.admin_id)
         usd_rate = 1.0
         if user and user.default_exchange_rate_id:
-            exchange_rate = await db.exchange_rate.get_exchange_rate(user.default_exchange_rate_id)
+            exchange_rate = await db.exchange_rate.get_exchange_rate(
+                user.default_exchange_rate_id
+            )
             if exchange_rate and exchange_rate.rate > 0:
                 usd_rate = exchange_rate.rate
 
@@ -872,40 +893,58 @@ async def manage_published_post(call: types.CallbackQuery, state: FSMContext):
         opts = post.message_options or {}
         raw_text = opts.get("text") or opts.get("caption") or text("post:no_text")
         clean_text = re.sub(r"<[^>]+>", "", raw_text)
-        preview_text_raw = clean_text[:50] + "..." if len(clean_text) > 50 else clean_text
+        preview_text_raw = (
+            clean_text[:50] + "..." if len(clean_text) > 50 else clean_text
+        )
         preview_text = f"«{html.escape(preview_text_raw)}»"
 
         # Сборка строк истории (как в планировщике)
         rows = []
         # 24ч
         r24 = round(float(cpm_price * float(sum_24 / 1000)), 2)
-        rows.append(text("cpm:report:history_row").format("24ч", sum_24, r24, round(r24 / usd_rate, 2)))
+        rows.append(
+            text("cpm:report:history_row").format(
+                "24ч", sum_24, r24, round(r24 / usd_rate, 2)
+            )
+        )
         # 48ч
         r48 = round(float(cpm_price * float(sum_48 / 1000)), 2)
-        rows.append(text("cpm:report:history_row").format("48ч", sum_48, r48, round(r48 / usd_rate, 2)))
+        rows.append(
+            text("cpm:report:history_row").format(
+                "48ч", sum_48, r48, round(r48 / usd_rate, 2)
+            )
+        )
         # 72ч
         r72 = round(float(cpm_price * float(sum_72 / 1000)), 2)
-        rows.append(text("cpm:report:history_row").format("72ч", sum_72, r72, round(r72 / usd_rate, 2)))
+        rows.append(
+            text("cpm:report:history_row").format(
+                "72ч", sum_72, r72, round(r72 / usd_rate, 2)
+            )
+        )
 
         report_text = "🧪 <b>ТЕСТОВЫЙ ОТЧЕТ (ИМИТАЦИЯ ШЕДУЛЕРА)</b>\n\n"
         report_text += text("cpm:report:header").format(preview_text, period) + "\n"
+        report_text += f"💸 <b>CPM:</b> {cpm_price}₽\n"
         report_text += "".join(rows)
         report_text += f"\n\nℹ️ <i>Курс: 1 USDT = {round(usd_rate, 2)}₽</i>"
-        
+
         # Список каналов
         channels_info = []
         for p in related_posts:
             channel = await db.channel.get_channel_by_chat_id(p.chat_id)
             v_curr = max(p.views_24h or 0, p.views_48h or 0, p.views_72h or 0)
             channels_info.append(f"{html.escape(channel.title)} - 👀 {v_curr}")
-            
+
         channels_joined = "\n".join(channels_info)
         report_text += f"\n\n<blockquote expandable>{channels_joined}</blockquote>"
         report_text += await get_report_signatures(user, "cpm", call.bot)
 
         from aiogram.utils.keyboard import InlineKeyboardBuilder
+
         kb = InlineKeyboardBuilder()
-        kb.button(text=text("back:button"), callback_data=f"ContentPublishedPost|{post.id}")
+        kb.button(
+            text=text("back:button"), callback_data=f"ContentPublishedPost|{post.id}"
+        )
 
         await call.message.edit_text(
             report_text,
