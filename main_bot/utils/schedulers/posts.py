@@ -326,110 +326,163 @@ async def unpin_posts():
 
 @safe_handler("CPM: проверка отчетов (Background)", log_start=False)
 async def check_cpm_reports():
-    """Периодическая задача: проверка и отправка CPM отчетов за 24/48/72 часа (Пакетная обработка)"""
+    """Периодическая задача: проверка и отправка CPM отчетов за 24/48/72 часа (Агрегированная по post_id)"""
     current_time = int(time.time())
 
-    # Получаем посты с CPM ценой, которые еще не удалены
+    # 1. Получаем все опубликованные посты с ценой CPM, которые еще не удалены
     stmt = select(PublishedPost).where(
         PublishedPost.cpm_price.is_not(None), PublishedPost.deleted_at.is_(None)
     )
-    posts = await db.fetch(stmt)
-    if not posts:
+    all_posts = await db.fetch(stmt)
+    if not all_posts:
         return
 
-    # Группируем посты по chat_id для минимизации сессий
-    groups = {}
-    for post in posts:
+    # 2. Группируем по post_id и определяем, кому нужен отчет
+    # post_id -> {period: str, admin_id: int, records: [PublishedPost], cpm_price: int}
+    reports_to_send = {}
+    
+    # Сначала найдем все post_id, которым нужен отчет сейчас
+    for post in all_posts:
         elapsed = current_time - post.created_timestamp
-        report_needed = False
-        period = ""
-
+        period = None
         if elapsed >= 72 * 3600 and not post.report_72h_sent:
             period = "72ч"
-            report_needed = True
         elif elapsed >= 48 * 3600 and not post.report_48h_sent:
             period = "48ч"
-            report_needed = True
         elif elapsed >= 24 * 3600 and not post.report_24h_sent:
             period = "24ч"
-            report_needed = True
+            
+        if period:
+            if post.post_id not in reports_to_send:
+                # Берем ВСЕ записи для этого post_id для корректной агрегации
+                related = [p for p in all_posts if p.post_id == post.post_id]
+                reports_to_send[post.post_id] = {
+                    "period": period,
+                    "admin_id": post.admin_id,
+                    "records": related,
+                    "cpm_price": post.cpm_price
+                }
 
-        if report_needed:
-            if post.chat_id not in groups:
-                groups[post.chat_id] = []
-            groups[post.chat_id].append((post, period))
+    if not reports_to_send:
+        return
 
-    for chat_id, items in groups.items():
+    # 3. Собираем данные по каналам для пакетного получения просмотров
+    # chat_id -> [message_id, ...]
+    chat_batches = {}
+    for p_id, data in reports_to_send.items():
+        for p in data["records"]:
+            if p.chat_id not in chat_batches:
+                chat_batches[p.chat_id] = []
+            chat_batches[p.chat_id].append(p.message_id)
+
+    # 4. Получаем просмотры пачками по каналам
+    # cache[(chat_id, message_id)] = views
+    views_cache = {}
+    channel_titles = {} # chat_id -> title
+    
+    for chat_id, message_ids in chat_batches.items():
         try:
-            message_ids = [p.message_id for p, _ in items]
-            views_map, channel = await get_views_for_batch(chat_id, message_ids)
-
-            for post, period in items:
-                try:
-                    views = views_map.get(post.message_id, 0)
-                    
-                    # Обновление БД
-                    updates = {}
-                    if period == "24ч": 
-                        updates = {"views_24h": views, "report_24h_sent": True}
-                    elif period == "48ч":
-                        updates = {"views_48h": max(views, post.views_24h or 0), "report_48h_sent": True}
-                    elif period == "72ч":
-                        updates = {"views_72h": max(views, post.views_48h or 0, post.views_24h or 0), "report_72h_sent": True}
-
-                    stmt = (
-                        update(PublishedPost)
-                        .where(PublishedPost.id == post.id)
-                        .values(**updates)
-                    )
-                    await db.execute(stmt)
-
-                    # Отправка отчета
-                    cpm_price = post.cpm_price
-                    user = await db.user.get_user(post.admin_id)
-                    usd_rate = 1.0
-                    if user and user.default_exchange_rate_id:
-                        exchange_rate = await db.exchange_rate.get_exchange_rate(
-                            user.default_exchange_rate_id
-                        )
-                        if exchange_rate and exchange_rate.rate > 0:
-                            usd_rate = exchange_rate.rate
-
-                    channels_text = (
-                        text("resource_title").format(html.escape(channel.title))
-                        + f" - 👀 {views}"
-                    )
-                    channels_text = f"<blockquote expandable>{channels_text}</blockquote>"
-
-                    opts = post.message_options or {}
-                    raw_text = opts.get("text") or opts.get("caption") or text("post:no_text")
-                    clean_text = re.sub(r"<[^>]+>", "", raw_text)
-                    preview_text_raw = (
-                        clean_text[:50] + "..." if len(clean_text) > 50 else clean_text
-                    )
-                    preview_text = f"«{html.escape(preview_text_raw)}»"
-
-                    full_report = text("cpm:report:header").format(preview_text, period) + "\n"
-                    rub_price = round(float(cpm_price * float(views / 1000)), 2)
-                    usd_curr = round(rub_price / usd_rate, 2)
-                    full_report += text("cpm:report:history_row").format(
-                        period, views, rub_price, usd_curr
-                    )
-                    full_report += f"\n\nℹ️ <i>Курс: 1 USDT = {round(usd_rate, 2)}₽</i>"
-                    full_report += "\n\n" + channels_text
-
-                    # Добавляем подпись
-                    full_report += await get_report_signatures(user, "cpm", bot)
-
-                    await bot.send_message(
-                        chat_id=post.admin_id,
-                        text=full_report,
-                        link_preview_options=types.LinkPreviewOptions(is_disabled=True),
-                    )
-                except Exception as e:
-                    logger.error(f"Ошибка при обработке CPM отчета для поста {post.id} в канале {chat_id}: {e}")
+            v_map, channel = await get_views_for_batch(chat_id, message_ids)
+            for mid, v in v_map.items():
+                views_cache[(chat_id, mid)] = v
+            channel_titles[chat_id] = channel.title
         except Exception as e:
-            logger.error(f"Ошибка при обработке пакета постов для канала {chat_id}: {e}")
+            logger.error(f"Ошибка получения просмотров для канала {chat_id}: {e}")
+
+    # 5. Формируем и отправляем агрегированные отчеты
+    for post_id, data in reports_to_send.items():
+        try:
+            period = data["period"]
+            admin_id = data["admin_id"]
+            records = data["records"]
+            cpm_price = data["cpm_price"]
+            
+            # Агрегируем текущие просмотры и исторические данные
+            total_current_views = 0
+            sum_24 = 0
+            sum_48 = 0
+            sum_72 = 0
+            channels_info = []
+
+            # Обновляем каждую запись в БД и собираем суммы
+            for p in records:
+                current_views = views_cache.get((p.chat_id, p.message_id), 0)
+                total_current_views += current_views
+                
+                # Обновление БД для конкретной записи (сохраняем индив. просмотры)
+                updates = {}
+                if period == "24ч": 
+                    updates = {"views_24h": current_views, "report_24h_sent": True}
+                    p.views_24h = current_views
+                elif period == "48ч":
+                    updates = {"views_48h": max(current_views, p.views_24h or 0), "report_48h_sent": True}
+                    p.views_48h = updates["views_48h"]
+                elif period == "72ч":
+                    updates = {"views_72h": max(current_views, p.views_48h or 0, p.views_24h or 0), "report_72h_sent": True}
+                    p.views_72h = updates["views_72h"]
+
+                stmt = update(PublishedPost).where(PublishedPost.id == p.id).values(**updates)
+                await db.execute(stmt)
+                
+                # Суммируем для общего отчета
+                sum_24 += p.views_24h or 0
+                sum_48 += p.views_48h or 0
+                sum_72 += p.views_72h or 0
+                
+                title = channel_titles.get(p.chat_id, f"Channel {p.chat_id}")
+                channels_info.append(f"{html.escape(title)} - 👀 {current_views}")
+
+            # Форматирование самого сообщения
+            user = await db.user.get_user(admin_id)
+            usd_rate = 1.0
+            if user and user.default_exchange_rate_id:
+                exchange_rate = await db.exchange_rate.get_exchange_rate(user.default_exchange_rate_id)
+                if exchange_rate and exchange_rate.rate > 0:
+                    usd_rate = exchange_rate.rate
+
+            # Превью текста
+            representative = records[0]
+            opts = representative.message_options or {}
+            raw_text = opts.get("text") or opts.get("caption") or text("post:no_text")
+            clean_text = re.sub(r"<[^>]+>", "", raw_text)
+            preview_text_raw = clean_text[:50] + "..." if len(clean_text) > 50 else clean_text
+            preview_text = f"«{html.escape(preview_text_raw)}»"
+
+            # Сборка строк истории (как в контент плане)
+            history_lines = []
+            
+            # Показываем строки до текущего периода включительно
+            # 24ч
+            r24 = round(float(cpm_price * float(sum_24 / 1000)), 2)
+            history_lines.append(text("cpm:report:history_row").format("24ч", sum_24, r24, round(r24 / usd_rate, 2)))
+            
+            # 48ч (если период 48ч или 72ч)
+            if period in ["48ч", "72ч"]:
+                r48 = round(float(cpm_price * float(sum_48 / 1000)), 2)
+                history_lines.append(text("cpm:report:history_row").format("48ч", sum_48, r48, round(r48 / usd_rate, 2)))
+            
+            # 72ч (только если 72ч)
+            if period == "72ч":
+                r72 = round(float(cpm_price * float(sum_72 / 1000)), 2)
+                history_lines.append(text("cpm:report:history_row").format("72ч", sum_72, r72, round(r72 / usd_rate, 2)))
+
+            full_report = text("cpm:report:header").format(preview_text, period) + "\n"
+            full_report += "".join(history_lines)
+            full_report += f"\n\nℹ️ <i>Курс: 1 USDT = {round(usd_rate, 2)}₽</i>"
+            
+            channels_text = "\n".join(channels_info)
+            full_report += f"\n\n<blockquote expandable>{channels_text}</blockquote>"
+
+            # Добавляем подпись
+            full_report += await get_report_signatures(user, "cpm", bot)
+
+            await bot.send_message(
+                chat_id=admin_id,
+                text=full_report,
+                link_preview_options=types.LinkPreviewOptions(is_disabled=True),
+            )
+        except Exception as e:
+            logger.error(f"Ошибка при обработке агрегированного CPM отчета для post_id {post_id}: {e}", exc_info=True)
 
 
 @safe_handler("Постинг: удаление (Background)", log_start=False)
@@ -537,9 +590,11 @@ async def delete_posts():
             delete_duration = (
                 representative_post.delete_time - representative_post.created_timestamp
             )
-            views_24 = representative_post.views_24h
-            views_48 = representative_post.views_48h
-            views_72 = representative_post.views_72h
+            
+            # Агрегируем исторические данные по всем каналам этого поста
+            views_24 = sum(obj["post_obj"].views_24h or 0 for obj in message_objects)
+            views_48 = sum(obj["post_obj"].views_48h or 0 for obj in message_objects)
+            views_72 = sum(obj["post_obj"].views_72h or 0 for obj in message_objects)
 
             opts = representative_post.message_options or {}
             raw_text = opts.get("text") or opts.get("caption") or text("post:no_text")
@@ -554,32 +609,28 @@ async def delete_posts():
                 lines.append(text("cpm:report:header:simple").format(preview_text))
 
                 # 24ч
-                v24 = views_24 if views_24 is not None else 0
+                v24 = views_24
                 r24 = round(float(cpm_price * float(v24 / 1000)), 2)
                 lines.append(text("cpm:report:history_row").format("24ч", v24, r24, round(r24 / usd_rate, 2)))
 
                 # 48ч
-                v48 = views_48 if views_48 is not None else 0
+                v48 = views_48
                 r48 = round(float(cpm_price * float(v48 / 1000)), 2)
                 lines.append(text("cpm:report:history_row").format("48ч", v48, r48, round(r48 / usd_rate, 2)))
 
                 # 72ч
-                v72 = views_72 if views_72 is not None else 0
+                v72 = views_72
                 r72 = round(float(cpm_price * float(v72 / 1000)), 2)
                 lines.append(text("cpm:report:history_row").format("72ч", v72, r72, round(r72 / usd_rate, 2)))
+
+                # Итоговая строка (текущие просмотры на момент удаления)
+                r_total = round(float(cpm_price * float(total_views / 1000)), 2)
+                hours = int(delete_duration / 3600)
+                lines.append(text("cpm:report:history_row").format(f"Итог ({hours}ч)", total_views, r_total, round(r_total / usd_rate, 2)))
 
                 lines.append(f"\nℹ️ <i>Курс: 1 USDT = {round(usd_rate, 2)}₽</i>")
                 lines.append("\n" + channels_text)
                 return "\n".join(lines)
-
-            # Приводим к нерасходящемуся виду: каждый следующий период не может быть меньше предыдущего
-            v24_val = views_24 if views_24 is not None else 0
-            v48_val = max(views_48 if views_48 is not None else 0, v24_val)
-            v72_val = max(views_72 if views_72 is not None else 0, v48_val)
-            
-            # Определяем, какие исторические данные показывать (только если они были зафиксированы)
-            hours = int(delete_duration / 3600)
-            title = f"{text('cpm:report:final')}: {hours}ч"
 
             report_text = format_report()
 
