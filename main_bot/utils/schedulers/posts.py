@@ -593,16 +593,19 @@ async def delete_posts():
                         )
 
                 # Обновление БД перед удалением (записываем финальные просмотры для статистики)
-                # Если пост удаляется рано, записываем текущие просмотры во все пустые периоды
+                # Определяем, в какой период (24/48/72ч) попадает текущее время жизни поста
+                elapsed_hours = (post.delete_time - post.created_timestamp) / 3600.0
                 db_updates = {}
-                if not post.views_24h:
-                    db_updates["views_24h"] = views
-                if not post.views_48h:
-                    db_updates["views_48h"] = max(views, post.views_24h or 0)
-                if not post.views_72h:
-                    db_updates["views_72h"] = max(
-                        views, post.views_48h or 0, post.views_24h or 0
-                    )
+
+                if elapsed_hours <= 24:
+                    if not post.views_24h:
+                        db_updates["views_24h"] = views
+                elif elapsed_hours <= 48:
+                    if not post.views_48h:
+                        db_updates["views_48h"] = views
+                else:  # > 48
+                    if not post.views_72h:
+                        db_updates["views_72h"] = views
 
                 if db_updates:
                     from sqlalchemy import update as sqlalchemy_update
