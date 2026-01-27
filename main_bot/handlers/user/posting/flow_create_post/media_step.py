@@ -463,14 +463,28 @@ async def get_value(message: types.Message, state: FSMContext):
 
         message_options = MessageOptions(**post.message_options)
 
+        # Принудительно захватываем HTML-разметку
+        # Это критически важно для сохранения спойлеров и ссылок при пересылке
         captured_html = message.html_text
+        entities = message.entities or message.caption_entities or []
+        has_spoiler_entity = any(e.type == "spoiler" for e in entities)
+
         logger.info(
-            "Пользователь %s: захвачен HTML (длина %d) для параметра %s. Спойлер: %s",
+            "Пользователь %s: захвачен HTML (длина %d) для параметра %s. Спойлер (entity): %s, спойлер (tag): %s",
             message.from_user.id,
             len(captured_html or ""),
             param,
+            has_spoiler_entity,
             "tg-spoiler" in (captured_html or "")
         )
+
+        # Если есть сущность спойлера, но нет тега в html_text - это баг aiogram/пересылки
+        if has_spoiler_entity and "tg-spoiler" not in (captured_html or ""):
+            logger.warning("Обнаружена сущность спойлера, но тег tg-spoiler отсутствует в html_text! Используем принудительное форматирование.")
+            from aiogram.utils.text_decorations import html_decoration
+            text_to_format = message.text or message.caption or ""
+            captured_html = html_decoration.unparse(text_to_format, entities)
+
         if captured_html and "<" in captured_html:
             logger.debug("Захваченный HTML: %s", captured_html[:500])
 
@@ -540,12 +554,15 @@ async def get_value(message: types.Message, state: FSMContext):
 
     # Обновление в БД
     if data.get("is_published"):
+        post_id_val = post.post_id or post.id
         await db.published_post.update_published_posts_by_post_id(
-            post_id=post.post_id, **kwargs
+            post_id=post_id_val, **kwargs
         )
-        post = await db.published_post.get_published_post_by_id(post.id)
+        post = await db.published_post.get_published_post_by_id(post["id"])
     else:
-        post = await db.post.update_post(post_id=post.id, return_obj=True, **kwargs)
+        post = await db.post.update_post(
+            post_id=data.get("post")["id"], return_obj=True, **kwargs
+        )
 
     # Update backup message if content changed
     if param in ["text", "media", "buttons", "reaction"]:
@@ -555,19 +572,20 @@ async def get_value(message: types.Message, state: FSMContext):
         # Обновление объекта поста, чтобы получить новый backup_message_id если произошел фоллбек
         if data.get("is_published"):
             post = (
-                await db.published_post.get_published_post_by_id(post.id)
+                await db.published_post.get_published_post_by_id(post["id"])
                 if post
                 else None
             )
         else:
-            post = await db.post.get_post(post.id) if post else None
+            post = await db.post.get_post(post["id"]) if post else None
 
         # Обновление live-сообщений если опубликовано
         if data.get("is_published"):
             message_options = MessageOptions(**post.message_options)
             reply_markup = keyboards.post_kb(post=post)
+            post_id_val = post.post_id or post.id
             await update_live_messages(
-                post.post_id, message_options, reply_markup=reply_markup
+                post_id_val, message_options, reply_markup=reply_markup
             )
 
     await state.clear()

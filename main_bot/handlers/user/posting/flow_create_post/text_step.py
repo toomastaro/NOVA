@@ -115,14 +115,34 @@ async def get_message(message: types.Message, state: FSMContext):
         message_options.caption = None
 
     # Детальное логирование для отладки форматирования (спойлеров)
+    # Если html_text почему-то пуст или без тегов, пробуем проверить сущности напрямую
+    final_html = message.html_text
+    entities = message.entities or message.caption_entities or []
+    has_spoiler_entity = any(e.type == "spoiler" for e in entities)
+    
     logger.info(
-        "Пользователь %s: захвачен HTML (длина %d). Текст содержит спойлер: %s",
+        "Пользователь %s: захвачен HTML (длина %d). Текст содержит спойлер (entity): %s, спойлер (tag): %s",
         message.from_user.id,
-        len(message.html_text or ""),
-        "tg-spoiler" in (message.html_text or "")
+        len(final_html or ""),
+        has_spoiler_entity,
+        "tg-spoiler" in (final_html or "")
     )
-    if message.html_text and "<" in message.html_text:
-        logger.debug("Захваченный HTML: %s", message.html_text[:500])
+    
+    # Если есть сущность спойлера, но нет тега в html_text - это баг aiogram/пересылки
+    if has_spoiler_entity and "tg-spoiler" not in (final_html or ""):
+        logger.warning("Обнаружена сущность спойлера, но тег tg-spoiler отсутствует в html_text! Используем принудительное форматирование.")
+        # В aiogram 3 можно попробовать пересобрать HTML
+        from aiogram.utils.text_decorations import html_decoration
+        text_to_format = message.text or message.caption or ""
+        final_html = html_decoration.unparse(text_to_format, entities)
+        
+        if is_media:
+            message_options.caption = final_html
+        else:
+            message_options.text = final_html
+
+    if final_html and "<" in final_html:
+        logger.debug("Захваченный HTML: %s", final_html[:500])
 
     # Парсинг inline кнопок
     buttons_str = None
@@ -173,13 +193,21 @@ async def get_message(message: types.Message, state: FSMContext):
 
         backup_chat_id, backup_message_id = await send_to_backup(post)
         if backup_chat_id and backup_message_id:
-            # Обновляем пост с backup_message_id
-            post = await db.post.update_post(
-                post_id=post.id,
-                return_obj=True,
-                backup_chat_id=backup_chat_id,
-                backup_message_id=backup_message_id,
-            )
+            # Обновляем в БД
+            kwargs = {
+                "backup_chat_id": backup_chat_id,
+                "backup_message_id": backup_message_id,
+            }
+            if data.get("is_published"):
+                post_id_val = post.post_id or post.id
+                await db.published_post.update_published_posts_by_post_id(
+                    post_id=post_id_val, **kwargs
+                )
+                post = await db.published_post.get_published_post_by_id(post["id"])
+            else:
+                post = await db.post.update_post(
+                    post_id=data.get("post")["id"], return_obj=True, **kwargs
+                )
             logger.info(
                 "Пользователь %s: создан бекап поста ID=%s (канал %s, msg %s)",
                 message.from_user.id,
