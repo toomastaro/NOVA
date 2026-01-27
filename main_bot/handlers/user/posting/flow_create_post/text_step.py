@@ -101,11 +101,18 @@ async def get_message(message: types.Message, state: FSMContext):
         logger.debug("Обнаружена анимация")
 
     message_options = MessageOptions(**dump_message)
-    if message_text_length:
-        if message_options.text:
-            message_options.text = message.html_text
-        if message_options.caption:
-            message_options.caption = message.html_text
+
+    # Гарантируем захват разметки и строгое разделение текста/подписи
+    # Принудительно очищаем оба поля перед установкой нового значения
+    message_options.text = None
+    message_options.caption = None
+    
+    if is_media:
+        message_options.caption = message.html_text
+    else:
+        message_options.text = message.html_text
+
+    logger.debug("Захвачен контент: text=%s, caption=%s", bool(message_options.text), bool(message_options.caption))
 
     # Парсинг inline кнопок
     buttons_str = None

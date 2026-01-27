@@ -294,7 +294,7 @@ async def cancel_value(call: types.CallbackQuery, state: FSMContext):
             if False not in none_list:
                 await state.clear()
                 await call.message.delete()
-                await db.post.delete_post(data.get("post").id)
+                await db.post.delete_post(data.get("post")["id"])
                 return await show_create_post(call.message, state)
 
             kwargs = {"message_options": message_options.model_dump()}
@@ -333,12 +333,14 @@ async def cancel_value(call: types.CallbackQuery, state: FSMContext):
         # Обновление в БД
         if data.get("is_published"):
             await db.published_post.update_published_posts_by_post_id(
-                post_id=post_obj.post_id, **kwargs
+                post_id=data.get("post")["id"], **kwargs
             )
-            post = await db.published_post.get_published_post_by_id(post_obj.id)
+            post = await db.published_post.get_published_post_by_id(
+                data.get("post")["id"]
+            )
         else:
             post = await db.post.update_post(
-                post_id=post_obj.id, return_obj=True, **kwargs
+                post_id=data.get("post")["id"], return_obj=True, **kwargs
             )
 
         post_dict = {
@@ -461,15 +463,27 @@ async def get_value(message: types.Message, state: FSMContext):
 
         message_options = MessageOptions(**post.message_options)
 
+        # Принудительно захватываем HTML-разметку
+        # Это критически важно для сохранения спойлеров и ссылок при пересылке
+        captured_html = message.html_text
+        logger.info(
+            "Пользователь %s: захвачен HTML (длина %d) для параметра %s",
+            message.from_user.id,
+            len(captured_html or ""),
+            param
+        )
+
         if param == "text":
             if (
                 message_options.photo
                 or message_options.video
                 or message_options.animation
             ):
-                message_options.caption = message.html_text
+                message_options.caption = captured_html
+                message_options.text = None
             else:
-                message_options.text = message.html_text
+                message_options.text = captured_html
+                message_options.caption = None
 
         if param == "media":
             if message.photo:
