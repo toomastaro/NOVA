@@ -78,16 +78,32 @@ class PremiumUploader:
                     return None
 
                 # Парсинг HTML-сущностей для Telethon
-                # Telethon's utils.html.parse might not support <tg-spoiler>, replace with <spoiler>
-                logger.info("PremiumUploader: исходный HTML содержит <tg-spoiler>: %s", "<tg-spoiler>" in caption)
-                caption_for_parse = caption.replace('<tg-spoiler>', '<spoiler>').replace('</tg-spoiler>', '</spoiler>')
-                text, entities = utils.html.parse(caption_for_parse)
+                # Попробуем разные варианты тегов, так как стандартный tg-spoiler может не поддерживаться
+                # 1. <tg-spoiler> (Bot API)
+                # 2. <spoiler> (Common)
+                # 3. <details> (Telethon fallback)
                 
+                logger.info("PremiumUploader: исходный HTML содержит <tg-spoiler>: %s", "<tg-spoiler>" in caption)
+                
+                # По умолчанию Telethon может не знать tg-spoiler, пробуем заменить на details или spoiler
+                # Но сначала проверим, что вернет чистый парсинг
+                temp_text, temp_entities = utils.html.parse(caption)
+                has_any_spoiler = any(isinstance(e, (types.MessageEntitySpoiler, types.InputMessageEntitySpoiler)) for e in temp_entities)
+                
+                if not has_any_spoiler:
+                    logger.info("PremiumUploader: стандартный парсинг не нашел спойлер. Пробуем замену на <details>")
+                    caption_for_parse = caption.replace('<tg-spoiler>', '<details>').replace('</tg-spoiler>', '</details>')
+                    text, entities = utils.html.parse(caption_for_parse)
+                else:
+                    text, entities = temp_text, temp_entities
+
+                # Вывод всех типов сущностей для отладки
+                entity_types = [type(e).__name__ for e in entities]
                 logger.info(
-                    "PremiumUploader: парсинг завершен. Текст: %d симв, сущностей: %d. Спойлер найден: %s",
+                    "PremiumUploader: парсинг завершен. Текст: %d симв, сущностей: %d. Типы: %s",
                     len(text),
                     len(entities),
-                    any(isinstance(e, types.MessageEntitySpoiler) for e in entities)
+                    ", ".join(set(entity_types)) if entity_types else "none"
                 )
                 
                 logger.info(f"Загрузка медиа ({len(caption)} симв.) в {chat_id} через Premium...")
@@ -165,11 +181,27 @@ class PremiumUploader:
                     return False
 
                 # Парсинг HTML для Telethon
-                # Telethon's utils.html.parse might not support <tg-spoiler>, replace with <spoiler>
-                caption_for_parse = caption.replace('<tg-spoiler>', '<spoiler>').replace('</tg-spoiler>', '</spoiler>')
-                text, entities = utils.html.parse(caption_for_parse)
+                # Попробуем разные варианты тегов, так как стандартный tg-spoiler может не поддерживаться
+                logger.info("PremiumUploader (Edit): исходный HTML содержит <tg-spoiler>: %s", "<tg-spoiler>" in caption)
                 
-                logger.info(f"Редактирование подписи ({len(caption)} симв.) в {chat_id} (msg {message_id}) через Premium...")
+                temp_text, temp_entities = utils.html.parse(caption)
+                has_any_spoiler = any(isinstance(e, (types.MessageEntitySpoiler, types.InputMessageEntitySpoiler)) for e in temp_entities)
+                
+                if not has_any_spoiler and "<tg-spoiler>" in caption:
+                    logger.info("PremiumUploader (Edit): стандартный парсинг не нашел спойлер. Пробуем замену на <details>")
+                    caption_for_parse = caption.replace('<tg-spoiler>', '<details>').replace('</tg-spoiler>', '</details>')
+                    text, entities = utils.html.parse(caption_for_parse)
+                else:
+                    text, entities = temp_text, temp_entities
+                
+                # Вывод всех типов сущностей для отладки
+                entity_types = [type(e).__name__ for e in entities]
+                logger.info(
+                    "PremiumUploader (Edit): парсинг завершен. Текст: %d симв, сущностей: %d. Типы: %s",
+                    len(text),
+                    len(entities),
+                    ", ".join(set(entity_types)) if entity_types else "none"
+                )
                 
                 # Редактируем сообщение
                 await manager.client.edit_message(
