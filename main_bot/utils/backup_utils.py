@@ -278,8 +278,64 @@ async def edit_backup_message(
                 reply_markup=reply_markup,
             )
         else:
+            # Проверяем, изменилось ли только описание или еще и само медиа
+            # Для этого нам нужно знать, что было до этого, но проще попробовать edit_media 
+            # если в message_options есть медиа-данные.
+            
+            # Определяем тип медиа для Aiogram InputMedia
+            from aiogram.types import InputMediaPhoto, InputMediaVideo, InputMediaAnimation
+            input_media = None
+            is_video = False
+            is_animation = False
+            
+            if message_options.photo:
+                file_id = message_options.photo.file_id if hasattr(message_options.photo, "file_id") else message_options.photo
+                input_media = InputMediaPhoto(media=file_id, caption=message_options.caption, parse_mode="HTML")
+            elif message_options.video:
+                file_id = message_options.video.file_id if hasattr(message_options.video, "file_id") else message_options.video
+                input_media = InputMediaVideo(media=file_id, caption=message_options.caption, parse_mode="HTML")
+                is_video = True
+            elif message_options.animation:
+                file_id = message_options.animation.file_id if hasattr(message_options.animation, "file_id") else message_options.animation
+                input_media = InputMediaAnimation(media=file_id, caption=message_options.caption, parse_mode="HTML")
+                is_animation = True
+
             # Медиа сообщение
             if message_options.caption is not None:
+                if len(message_options.caption) > 1024:
+                    from main_bot.utils.premium_uploader import PremiumUploader
+                    # Если медиа изменилось, используем новый edit_media
+                    # В рамках этого проекта мы считаем, что если этот метод вызван, то контент (включая медиа) мог измениться
+                    success = await PremiumUploader.edit_media(
+                        chat_id=chat_id,
+                        message_id=message_id,
+                        caption=message_options.caption,
+                        media_file_id=input_media.media if input_media else None,
+                        is_video=is_video,
+                        is_animation=is_animation
+                    )
+                    if not success:
+                        raise Exception("Failed to edit long caption and media via PremiumUploader")
+                    
+                    if reply_markup:
+                        await bot.edit_message_reply_markup(chat_id=chat_id, message_id=message_id, reply_markup=reply_markup)
+                else:
+                    # Попытка отредактировать медиа и подпись через стандартный Bot API
+                    if input_media:
+                        await bot.edit_message_media(
+                            chat_id=chat_id,
+                            message_id=message_id,
+                            media=input_media,
+                            reply_markup=reply_markup
+                        )
+                    else:
+                        await bot.edit_message_caption(
+                            chat_id=chat_id,
+                            message_id=message_id,
+                            caption=message_options.caption,
+                            parse_mode="HTML",
+                            reply_markup=reply_markup,
+                        )
                 if len(message_options.caption) > 1024:
                     from main_bot.utils.premium_uploader import PremiumUploader
                     success = await PremiumUploader.edit_caption(
@@ -386,6 +442,7 @@ async def _update_single_live_message(
     message_options: MessageOptions,
     reply_markup,
     semaphore: asyncio.Semaphore,
+    local_file_path: Optional[str] = None,
 ) -> None:
     """
     Хелпер для обновления одного живого сообщения с семафором.
@@ -397,6 +454,7 @@ async def _update_single_live_message(
         message_options (MessageOptions): Опции сообщения.
         reply_markup: Клавиатура.
         semaphore (asyncio.Semaphore): Семафор для ограничения конкурентности.
+        local_file_path (str): Путь к уже скачанному файлу (для оптимизации).
     """
     async with semaphore:
         try:
@@ -410,33 +468,43 @@ async def _update_single_live_message(
                     reply_markup=reply_markup,
                 )
             else:
+                from aiogram.types import InputMediaPhoto, InputMediaVideo, InputMediaAnimation
+                input_media = None
+                is_video = False
+                is_animation = False
+                
+                if message_options.photo:
+                    file_id = message_options.photo.file_id if hasattr(message_options.photo, "file_id") else message_options.photo
+                    input_media = InputMediaPhoto(media=file_id, caption=message_options.caption, parse_mode="HTML")
+                elif message_options.video:
+                    file_id = message_options.video.file_id if hasattr(message_options.video, "file_id") else message_options.video
+                    input_media = InputMediaVideo(media=file_id, caption=message_options.caption, parse_mode="HTML")
+                    is_video = True
+                elif message_options.animation:
+                    file_id = message_options.animation.file_id if hasattr(message_options.animation, "file_id") else message_options.animation
+                    input_media = InputMediaAnimation(media=file_id, caption=message_options.caption, parse_mode="HTML")
+                    is_animation = True
+
                 if message_options.caption is not None:
                     if len(message_options.caption) > 1024:
                         from main_bot.utils.premium_uploader import PremiumUploader
-                        # Telethon's utils.html.parse might not support <tg-spoiler>, replace with <spoiler>
-                        # This part of the instruction seems to be for a different context or requires additional imports (telethon.utils, telethon.tl.types)
-                        # caption_for_parse = message_options.caption.replace('<tg-spoiler>', '<spoiler>').replace('</tg-spoiler>', '</spoiler>')
-                        # text, entities = utils.html.parse(caption_for_parse)
                         
                         logger.info(
-                            "PremiumUploader: Редактирование длинной подписи для сообщения %s в чате %s. Длина: %d",
-                            post.message_id, post.chat_id, len(message_options.caption)
+                            "PremiumUploader: Редактирование длинной подписи и медиа для сообщения %s в чате %s.",
+                            post.message_id, post.chat_id
                         )
-                        # logger.info(
-                        #     "PremiumUploader: парсинг завершен. Текст: %d симв, сущностей: %d. Спойлер найден: %s",
-                        #     len(text),
-                        #     len(entities),
-                        #     any(isinstance(e, types.MessageEntitySpoiler) for e in entities)
-                        # )
-                        success = await PremiumUploader.edit_caption(
+                        success = await PremiumUploader.edit_media(
                             chat_id=post.chat_id,
                             message_id=post.message_id,
-                            caption=message_options.caption
+                            caption=message_options.caption,
+                            media_file_id=input_media.media if input_media and not local_file_path else None,
+                            file_path=local_file_path,
+                            is_video=is_video,
+                            is_animation=is_animation
                         )
                         if not success:
-                            raise Exception("Failed to edit long live caption via PremiumUploader")
+                            raise Exception("Failed to edit long live caption/media via PremiumUploader")
                         
-                        # Если еще нужны кнопки, обновляем их отдельно основным ботом
                         if reply_markup:
                             await bot.edit_message_reply_markup(
                                 chat_id=post.chat_id,
@@ -444,13 +512,21 @@ async def _update_single_live_message(
                                 reply_markup=reply_markup
                             )
                     else:
-                        await bot.edit_message_caption(
-                            chat_id=post.chat_id,
-                            message_id=post.message_id,
-                            caption=message_options.caption,
-                            parse_mode="HTML",
-                            reply_markup=reply_markup,
-                        )
+                        if input_media:
+                            await bot.edit_message_media(
+                                chat_id=post.chat_id,
+                                message_id=post.message_id,
+                                media=input_media,
+                                reply_markup=reply_markup
+                            )
+                        else:
+                            await bot.edit_message_caption(
+                                chat_id=post.chat_id,
+                                message_id=post.message_id,
+                                caption=message_options.caption,
+                                parse_mode="HTML",
+                                reply_markup=reply_markup,
+                            )
                 else:
                     await bot.edit_message_reply_markup(
                         chat_id=post.chat_id,
@@ -512,14 +588,40 @@ async def update_live_messages(
     if not published_posts:
         return
 
+    # ОПТИМИЗАЦИЯ: Если есть медиа и длинный текст, скачиваем файл заранее один раз
+    local_file_path = None
+    if not message_options.text and message_options.caption and len(message_options.caption) > 1024:
+        media_obj = message_options.photo or message_options.video or message_options.animation
+        if media_obj:
+            file_id = media_obj.file_id if hasattr(media_obj, "file_id") else media_obj
+            try:
+                from pathlib import Path
+                import os
+                file = await bot.get_file(file_id)
+                local_file_path = f"temp_mass_edit_{file_id}_{Path(file.file_path).name}"
+                await bot.download_file(file.file_path, local_file_path)
+                logger.info(f"Массовое обновление: медиа скачано один раз в {local_file_path}")
+            except Exception as e:
+                logger.error(f"Не удалось предварительно скачать медиа для массового обновления: {e}")
+
     # Ограничение конкурентности чтобы избежать флуда API Telegram
     semaphore = asyncio.Semaphore(10)
 
-    tasks = [
-        _update_single_live_message(post, message_options, reply_markup, semaphore)
-        for post in published_posts
-    ]
-
-    await asyncio.gather(*tasks)
+    try:
+        tasks = [
+            _update_single_live_message(
+                post, message_options, reply_markup, semaphore, local_file_path
+            )
+            for post in published_posts
+        ]
+        await asyncio.gather(*tasks)
+    finally:
+        # УДАЛЕНИЕ: Очищаем временный файл после того, как все каналы обновлены
+        if local_file_path and os.path.exists(local_file_path):
+            try:
+                os.remove(local_file_path)
+                logger.info(f"Временный файл {local_file_path} удален после обновления всех каналов")
+            except Exception as e:
+                logger.warning(f"Не удалось удалить {local_file_path}: {e}")
 
     logger.info(f"Обновлено {len(published_posts)} живых сообщений для поста {post_id}")

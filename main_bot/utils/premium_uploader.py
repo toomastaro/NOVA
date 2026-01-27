@@ -77,27 +77,26 @@ class PremiumUploader:
                     logger.error("Не удалось инициализировать Premium-клиента")
                     return None
 
-                # Парсинг HTML-сущностей для Telethon
-                # Попробуем разные варианты тегов, так как стандартный tg-spoiler может не поддерживаться
-                # 1. <tg-spoiler> (Bot API)
-                # 2. <spoiler> (Common)
-                # 3. <details> (Telethon fallback)
+                # Парсинг HTML для Telethon с поддержкой спойлеров
+                # Трюк: заменяем спойлеры на уникальные ссылки, которые Telethon понимает, 
+                # а затем конвертируем их в сущности спойлера.
+                spoiler_url = "spoiler://"
+                marked_caption = caption.replace('<tg-spoiler>', f'<a href="{spoiler_url}">').replace('</tg-spoiler>', '</a>')
                 
-                logger.info("PremiumUploader: исходный HTML содержит <tg-spoiler>: %s", "<tg-spoiler>" in caption)
+                logger.info("PremiumUploader: парсинг HTML (длина %d) с подменой спойлеров на URL", len(caption))
+                text, entities = utils.html.parse(marked_caption)
                 
-                # По умолчанию Telethon может не знать tg-spoiler, пробуем заменить на details или spoiler
-                # Но сначала проверим, что вернет чистый парсинг
-                temp_text, temp_entities = utils.html.parse(caption)
-                has_any_spoiler = any(isinstance(e, (types.MessageEntitySpoiler, types.InputMessageEntitySpoiler)) for e in temp_entities)
+                final_entities = []
+                for e in entities:
+                    # Если это наша временная ссылка - превращаем в спойлер
+                    if isinstance(e, types.MessageEntityTextUrl) and e.url == spoiler_url:
+                        final_entities.append(types.MessageEntitySpoiler(offset=e.offset, length=e.length))
+                    else:
+                        final_entities.append(e)
                 
-                if not has_any_spoiler:
-                    logger.info("PremiumUploader: стандартный парсинг не нашел спойлер. Пробуем замену на <details>")
-                    caption_for_parse = caption.replace('<tg-spoiler>', '<details>').replace('</tg-spoiler>', '</details>')
-                    text, entities = utils.html.parse(caption_for_parse)
-                else:
-                    text, entities = temp_text, temp_entities
+                entities = final_entities
 
-                # Вывод всех типов сущностей для отладки
+                # Вывод типов сущностей для контроля
                 entity_types = [type(e).__name__ for e in entities]
                 logger.info(
                     "PremiumUploader: парсинг завершен. Текст: %d симв, сущностей: %d. Типы: %s",
@@ -180,19 +179,21 @@ class PremiumUploader:
                     logger.error("Не удалось инициализировать Premium-клиента для редактирования")
                     return False
 
-                # Парсинг HTML для Telethon
-                # Попробуем разные варианты тегов, так как стандартный tg-spoiler может не поддерживаться
-                logger.info("PremiumUploader (Edit): исходный HTML содержит <tg-spoiler>: %s", "<tg-spoiler>" in caption)
+                # Парсинг HTML для Telethon с поддержкой спойлеров
+                spoiler_url = "spoiler://"
+                marked_caption = caption.replace('<tg-spoiler>', f'<a href="{spoiler_url}">').replace('</tg-spoiler>', '</a>')
                 
-                temp_text, temp_entities = utils.html.parse(caption)
-                has_any_spoiler = any(isinstance(e, (types.MessageEntitySpoiler, types.InputMessageEntitySpoiler)) for e in temp_entities)
+                logger.info("PremiumUploader (Edit): парсинг HTML (длина %d) с подменой спойлеров на URL", len(caption))
+                text, entities = utils.html.parse(marked_caption)
                 
-                if not has_any_spoiler and "<tg-spoiler>" in caption:
-                    logger.info("PremiumUploader (Edit): стандартный парсинг не нашел спойлер. Пробуем замену на <details>")
-                    caption_for_parse = caption.replace('<tg-spoiler>', '<details>').replace('</tg-spoiler>', '</details>')
-                    text, entities = utils.html.parse(caption_for_parse)
-                else:
-                    text, entities = temp_text, temp_entities
+                final_entities = []
+                for e in entities:
+                    if isinstance(e, types.MessageEntityTextUrl) and e.url == spoiler_url:
+                        final_entities.append(types.MessageEntitySpoiler(offset=e.offset, length=e.length))
+                    else:
+                        final_entities.append(e)
+                
+                entities = final_entities
                 
                 # Вывод всех типов сущностей для отладки
                 entity_types = [type(e).__name__ for e in entities]
@@ -217,4 +218,95 @@ class PremiumUploader:
         except Exception as e:
             logger.error(f"Ошибка редактирования подписи через Premium: {e}", exc_info=True)
             return False
+
+    @staticmethod
+    async def edit_media(
+        chat_id: int,
+        message_id: int,
+        caption: str,
+        media_file_id: Optional[str] = None,
+        file_path: Optional[str] = None,
+        is_video: bool = False,
+        is_animation: bool = False
+    ) -> bool:
+        """
+        Редактирует медиа и подпись сообщения через Telethon (Premium-аккаунт).
+
+        Args:
+            chat_id: ID целевого чата.
+            message_id: ID сообщения для редактирования.
+            caption: Новый текст подписи.
+            media_file_id: file_id нового файла.
+            file_path: Локальный путь к новому файлу.
+            is_video: Флаг видео.
+            is_animation: Флаг анимации.
+
+        Returns:
+            bool: True при успехе, False при ошибке.
+        """
+        session_path = Path(Config.PREMIUM_SESSION_PATH)
+        if not session_path.exists():
+            return False
+
+        temp_path = None
+        try:
+            # 1. Скачиваем новый файл если нужно
+            if media_file_id and not file_path:
+                file = await main_bot.get_file(media_file_id)
+                temp_path = f"temp_edit_{media_file_id}_{Path(file.file_path).name}"
+                await main_bot.download_file(file.file_path, temp_path)
+                file_path = temp_path
+
+            if not file_path or not os.path.exists(file_path):
+                logger.error("Нет файла для редактирования медиа через Premium")
+                return False
+
+            async with SessionManager(session_path) as manager:
+                if not manager or not manager.client:
+                    return False
+
+                # Парсинг HTML для Telethon
+                spoiler_url = "spoiler://"
+                marked_caption = caption.replace('<tg-spoiler>', f'<a href="{spoiler_url}">').replace('</tg-spoiler>', '</a>')
+                text, entities = utils.html.parse(marked_caption)
+                
+                final_entities = []
+                for e in entities:
+                    if isinstance(e, types.MessageEntityTextUrl) and e.url == spoiler_url:
+                        final_entities.append(types.MessageEntitySpoiler(offset=e.offset, length=e.length))
+                    else:
+                        final_entities.append(e)
+                
+                entities = final_entities
+
+                # Подготовка атрибутов
+                attributes = []
+                if is_video:
+                    attributes.append(types.DocumentAttributeVideo(duration=0, w=0, h=0, supports_streaming=True))
+                elif is_animation:
+                    attributes.append(types.DocumentAttributeAnimated())
+
+                # Редактируем сообщение (заменяем медиа)
+                await manager.client.edit_message(
+                    chat_id,
+                    message_id,
+                    text,
+                    file=file_path,
+                    formatting_entities=entities,
+                    attributes=attributes,
+                    force_document=False
+                )
+                
+                logger.info(f"Медиа и подпись успешно изменены через Premium в {chat_id} (msg {message_id})")
+                return True
+                
+        except Exception as e:
+            logger.error(f"Ошибка редактирования медиа через Premium: {e}", exc_info=True)
+            return False
+        finally:
+            if temp_path and os.path.exists(temp_path):
+                try:
+                    os.remove(temp_path)
+                except Exception:
+                    pass
 
