@@ -180,8 +180,20 @@ async def answer_post(
             parse_mode="HTML"
         )
 
+    # Логирование перед отправкой превью
+    dumped_options = message_options.model_dump()
+    caption_preview = dumped_options.get("caption") or dumped_options.get("text")
+    logger.info(
+        "Превью поста: чат=%s, тип=%s. Спойлер в тексте: %s",
+        message.chat.id,
+        cor.__name__,
+        "tg-spoiler" in (caption_preview or "")
+    )
+    if caption_preview and "<" in caption_preview:
+        logger.debug("HTML превью: %s", caption_preview[:500])
+
     post_message = await cor(
-        **message_options.model_dump(), reply_markup=reply_markup, parse_mode="HTML"
+        **dumped_options, reply_markup=reply_markup, parse_mode="HTML"
     )
     logger.info(f"Превью для поста {post.id} сгенерировано локально")
 

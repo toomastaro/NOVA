@@ -197,11 +197,12 @@ async def manage_post(call: types.CallbackQuery, state: FSMContext):
             else:
                 update_kwargs["message_options"] = message_options.model_dump()
 
+            post_id_val = post_obj.post_id or post_obj.id
             await db.published_post.update_published_posts_by_post_id(
-                post_id=post["post_id"], **update_kwargs
+                post_id=post_id_val, **update_kwargs
             )
             # Получаем обновленный объект (только один, чтобы сохранить в state)
-            post = await db.published_post.get_published_post_by_id(post["id"])
+            post = await db.published_post.get_published_post_by_id(post_obj.id)
         else:
             update_kwargs = {}
             if temp[1] == "pin_time":
@@ -332,15 +333,16 @@ async def cancel_value(call: types.CallbackQuery, state: FSMContext):
 
         # Обновление в БД
         if data.get("is_published"):
+            post = ensure_obj(data.get("post"))
             await db.published_post.update_published_posts_by_post_id(
-                post_id=data.get("post")["id"], **kwargs
+                post_id=post.post_id or post.id, **kwargs
             )
             post = await db.published_post.get_published_post_by_id(
-                data.get("post")["id"]
+                post.id
             )
         else:
             post = await db.post.update_post(
-                post_id=data.get("post")["id"], return_obj=True, **kwargs
+                post_id=ensure_obj(data.get("post")).id, return_obj=True, **kwargs
             )
 
         post_dict = {
@@ -464,29 +466,37 @@ async def get_value(message: types.Message, state: FSMContext):
         message_options = MessageOptions(**post.message_options)
 
         # Принудительно захватываем HTML-разметку
-        # Это критически важно для сохранения спойлеров и ссылок при пересылке
-        captured_html = message.html_text
+        # Детальное логирование для отладки форматирования (спойлеров)
+        # Если html_text почему-то пуст или без тегов, пробуем проверить сущности напрямую
+        final_html = message.html_text
         entities = message.entities or message.caption_entities or []
         has_spoiler_entity = any(e.type == "spoiler" for e in entities)
-
+        
         logger.info(
-            "Пользователь %s: захвачен HTML (длина %d) для параметра %s. Спойлер (entity): %s, спойлер (tag): %s",
+            "Пользователь %s: захвачен HTML (длина %d). Медиа: %s. Тип сущностей: %s. Текст содержит спойлер (entity): %s, спойлер (tag): %s",
             message.from_user.id,
-            len(captured_html or ""),
-            param,
+            len(final_html or ""),
+            is_media,
+            "caption" if message.caption_entities else "text" if message.entities else "none",
             has_spoiler_entity,
-            "tg-spoiler" in (captured_html or "")
+            "tg-spoiler" in (final_html or "")
         )
-
-        # Если есть сущность спойлера, но нет тега в html_text - это баг aiogram/пересылки
-        if has_spoiler_entity and "tg-spoiler" not in (captured_html or ""):
-            logger.warning("Обнаружена сущность спойлера, но тег tg-spoiler отсутствует в html_text! Используем принудительное форматирование.")
+        
+        # Если это медиа и есть сущность спойлера, но нет тега в html_text - это баг aiogram/пересылки
+        if has_spoiler_entity and "tg-spoiler" not in (final_html or ""):
+            logger.warning("ОБНАРУЖЕН БАГ: Сущность спойлера есть, а тега в HTML нет! Принудительно восстанавливаем.")
             from aiogram.utils.text_decorations import html_decoration
             text_to_format = message.text or message.caption or ""
-            captured_html = html_decoration.unparse(text_to_format, entities)
-
-        if captured_html and "<" in captured_html:
-            logger.debug("Захваченный HTML: %s", captured_html[:500])
+            final_html = html_decoration.unparse(text_to_format, entities)
+            
+            if is_media:
+                message_options.caption = final_html
+            else:
+                message_options.text = final_html
+            
+            logger.info("Восстановленный HTML: %s", final_html)
+        if final_html and "<" in final_html:
+            logger.debug("Захваченный HTML: %s", final_html[:500])
 
         if param == "text":
             if (
@@ -554,14 +564,15 @@ async def get_value(message: types.Message, state: FSMContext):
 
     # Обновление в БД
     if data.get("is_published"):
-        post_id_val = post.post_id or post.id
+        post_obj = ensure_obj(post)
+        post_id_val = post_obj.post_id or post_obj.id
         await db.published_post.update_published_posts_by_post_id(
             post_id=post_id_val, **kwargs
         )
-        post = await db.published_post.get_published_post_by_id(post["id"])
+        post = await db.published_post.get_published_post_by_id(post_obj.id)
     else:
         post = await db.post.update_post(
-            post_id=data.get("post")["id"], return_obj=True, **kwargs
+            post_id=ensure_obj(data.get("post")).id, return_obj=True, **kwargs
         )
 
     # Update backup message if content changed
@@ -571,13 +582,15 @@ async def get_value(message: types.Message, state: FSMContext):
 
         # Обновление объекта поста, чтобы получить новый backup_message_id если произошел фоллбек
         if data.get("is_published"):
+            wrapped_post = ensure_obj(post)
             post = (
-                await db.published_post.get_published_post_by_id(post["id"])
+                await db.published_post.get_published_post_by_id(wrapped_post.id)
                 if post
                 else None
             )
         else:
-            post = await db.post.get_post(post["id"]) if post else None
+            wrapped_post = ensure_obj(post)
+            post = await db.post.get_post(wrapped_post.id) if post else None
 
         # Обновление live-сообщений если опубликовано
         if data.get("is_published"):

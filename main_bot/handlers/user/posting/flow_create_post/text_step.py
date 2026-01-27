@@ -121,16 +121,18 @@ async def get_message(message: types.Message, state: FSMContext):
     has_spoiler_entity = any(e.type == "spoiler" for e in entities)
     
     logger.info(
-        "Пользователь %s: захвачен HTML (длина %d). Текст содержит спойлер (entity): %s, спойлер (tag): %s",
+        "Пользователь %s: захвачен HTML (длина %d). Медиа: %s. Тип сущностей: %s. Текст содержит спойлер (entity): %s, спойлер (tag): %s",
         message.from_user.id,
         len(final_html or ""),
+        is_media,
+        "caption" if message.caption_entities else "text" if message.entities else "none",
         has_spoiler_entity,
         "tg-spoiler" in (final_html or "")
     )
     
-    # Если есть сущность спойлера, но нет тега в html_text - это баг aiogram/пересылки
+    # Если это медиа и есть сущность спойлера, но нет тега в html_text - это баг aiogram/пересылки
     if has_spoiler_entity and "tg-spoiler" not in (final_html or ""):
-        logger.warning("Обнаружена сущность спойлера, но тег tg-spoiler отсутствует в html_text! Используем принудительное форматирование.")
+        logger.warning("ОБНАРУЖЕН БАГ: Сущность спойлера есть, а тега в HTML нет! Принудительно восстанавливаем.")
         # В aiogram 3 можно попробовать пересобрать HTML
         from aiogram.utils.text_decorations import html_decoration
         text_to_format = message.text or message.caption or ""
@@ -140,6 +142,8 @@ async def get_message(message: types.Message, state: FSMContext):
             message_options.caption = final_html
         else:
             message_options.text = final_html
+        
+        logger.info("Восстановленный HTML: %s", final_html)
 
     if final_html and "<" in final_html:
         logger.debug("Захваченный HTML: %s", final_html[:500])
