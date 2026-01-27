@@ -199,14 +199,14 @@ async def get_message(message: types.Message, state: FSMContext):
                 "backup_message_id": backup_message_id,
             }
             if data.get("is_published"):
-                post_id_val = post.post_id or post.id
+                post_id_val = getattr(post, "post_id", post.id)
                 await db.published_post.update_published_posts_by_post_id(
                     post_id=post_id_val, **kwargs
                 )
-                post = await db.published_post.get_published_post_by_id(post["id"])
+                post = await db.published_post.get_published_post_by_id(post.id)
             else:
                 post = await db.post.update_post(
-                    post_id=data.get("post")["id"], return_obj=True, **kwargs
+                    post_id=post.id, return_obj=True, **kwargs
                 )
             logger.info(
                 "Пользователь %s: создан бекап поста ID=%s (канал %s, msg %s)",
