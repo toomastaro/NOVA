@@ -14,7 +14,6 @@ from typing import Optional, Union
 
 from aiogram import Bot, types
 from aiogram.fsm.context import FSMContext
-from aiogram.exceptions import TelegramBadRequest
 
 from config import Config
 from instance_bot import bot as main_bot_obj
@@ -142,6 +141,17 @@ async def answer_post(
     backup_msg_id = getattr(post, "backup_message_id", None)
     if backup_msg_id and Config.BACKUP_CHAT_ID:
         try:
+            # Проверка на длинное описание перед копированием
+            caption = getattr(message_options, "caption", None)
+            is_media = any([getattr(message_options, "photo", None), getattr(message_options, "video", None), getattr(message_options, "animation", None)])
+            
+            if is_media and caption and len(caption) > 1024:
+                return await message.answer(
+                    text("long_caption_preview_unavailable").format(len(caption)),
+                    reply_markup=reply_markup,
+                    parse_mode="HTML"
+                )
+
             post_message = await message.bot.copy_message(
                 chat_id=message.chat.id,
                 from_chat_id=Config.BACKUP_CHAT_ID,
@@ -149,27 +159,10 @@ async def answer_post(
                 reply_markup=reply_markup,
                 parse_mode="HTML",
             )
+            logger.info(
+                f"Превью для поста {post.id} загружено из бэкапа (msg {backup_msg_id})"
+            )
             return post_message
-        except TelegramBadRequest as e:
-            if "message caption is too long" in str(e):
-                logger.warning(f"Превью поста {post.id} слишком длинное для copy_message, используем разделение.")
-                # Если описание слишком длинное, отправляем медиа с обрезанным текстом и полный текст отдельно
-                caption = message_options.caption or message_options.text or ""
-                # Обрезаем для первого сообщения
-                short_caption = caption[:1021] + "..." if len(caption) > 1024 else caption
-                
-                # Отправляем копию с новой (короткой) подписью
-                post_message = await message.bot.copy_message(
-                    chat_id=message.chat.id,
-                    from_chat_id=Config.BACKUP_CHAT_ID,
-                    message_id=backup_msg_id,
-                    caption=short_caption,
-                    parse_mode="HTML"
-                )
-                # Отправляем полный текст вторым сообщением с кнопками
-                await message.answer(caption, reply_markup=reply_markup, parse_mode="HTML")
-                return post_message
-            raise e
         except Exception as e:
             logger.error(
                 f"Не удалось загрузить превью из бэкапа для поста {post.id}: {e}",
@@ -177,33 +170,22 @@ async def answer_post(
             )
             # Возврат к локальной генерации
 
-    # Локальная генерация (fallback)
-    try:
-        post_message = await cor(
-            **message_options.model_dump(), reply_markup=reply_markup, parse_mode="HTML"
+    # Дублируем проверку для локальной генерации на всякий случай
+    caption = getattr(message_options, "caption", None)
+    is_media = any([getattr(message_options, "photo", None), getattr(message_options, "video", None), getattr(message_options, "animation", None)])
+    if is_media and caption and len(caption) > 1024:
+        return await message.answer(
+            text("long_caption_preview_unavailable").format(len(caption)),
+            reply_markup=reply_markup,
+            parse_mode="HTML"
         )
-        return post_message
-    except TelegramBadRequest as e:
-        if "message caption is too long" in str(e):
-            logger.warning(f"Локальное превью поста {post.id} слишком длинное, используем разделение.")
-            caption = message_options.caption or message_options.text or ""
-            short_caption = caption[:1021] + "..."
-            
-            # Временно меняем подпись в опциях
-            old_caption = message_options.caption
-            message_options.caption = short_caption
-            
-            # Отправляем медиа с короткой подписью
-            post_message = await cor(
-                **message_options.model_dump(), parse_mode="HTML"
-            )
-            # Возвращаем старую подпись на всякий случай
-            message_options.caption = old_caption
-            
-            # Отправляем полный текст с кнопками
-            await message.answer(caption, reply_markup=reply_markup, parse_mode="HTML")
-            return post_message
-        raise e
+
+    post_message = await cor(
+        **message_options.model_dump(), reply_markup=reply_markup, parse_mode="HTML"
+    )
+    logger.info(f"Превью для поста {post.id} сгенерировано локально")
+
+    return post_message
 
 
 async def answer_story(
