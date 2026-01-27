@@ -109,10 +109,20 @@ async def get_message(message: types.Message, state: FSMContext):
     
     if is_media:
         message_options.caption = message.html_text
+        message_options.text = None
     else:
         message_options.text = message.html_text
+        message_options.caption = None
 
-    logger.debug("Захвачен контент: text=%s, caption=%s", bool(message_options.text), bool(message_options.caption))
+    # Детальное логирование для отладки форматирования (спойлеров)
+    logger.info(
+        "Пользователь %s: захвачен HTML (длина %d). Текст содержит спойлер: %s",
+        message.from_user.id,
+        len(message.html_text or ""),
+        "tg-spoiler" in (message.html_text or "")
+    )
+    if message.html_text and "<" in message.html_text:
+        logger.debug("Захваченный HTML: %s", message.html_text[:500])
 
     # Парсинг inline кнопок
     buttons_str = None

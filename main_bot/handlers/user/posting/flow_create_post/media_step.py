@@ -198,10 +198,10 @@ async def manage_post(call: types.CallbackQuery, state: FSMContext):
                 update_kwargs["message_options"] = message_options.model_dump()
 
             await db.published_post.update_published_posts_by_post_id(
-                post_id=post.post_id, **update_kwargs
+                post_id=post["post_id"], **update_kwargs
             )
             # Получаем обновленный объект (только один, чтобы сохранить в state)
-            post = await db.published_post.get_published_post_by_id(post.id)
+            post = await db.published_post.get_published_post_by_id(post["id"])
         else:
             update_kwargs = {}
             if temp[1] == "pin_time":
@@ -210,7 +210,7 @@ async def manage_post(call: types.CallbackQuery, state: FSMContext):
                 update_kwargs["message_options"] = message_options.model_dump()
 
             post = await db.post.update_post(
-                post_id=data.get("post").id, return_obj=True, **update_kwargs
+                post_id=data.get("post")["id"], return_obj=True, **update_kwargs
             )
 
         # Обновляем бекап сообщения
@@ -302,7 +302,7 @@ async def cancel_value(call: types.CallbackQuery, state: FSMContext):
             kwargs = {param: None}
 
         post = await db.post.update_post(
-            post_id=data.get("post").id, return_obj=True, **kwargs
+            post_id=data.get("post")["id"], return_obj=True, **kwargs
         )
         post_dict = {
             col.name: getattr(post, col.name) for col in post.__table__.columns
