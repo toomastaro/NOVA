@@ -504,10 +504,10 @@ async def get_value(message: types.Message, state: FSMContext):
                 or message_options.video
                 or message_options.animation
             ):
-                message_options.caption = captured_html
+                message_options.caption = final_html
                 message_options.text = None
             else:
-                message_options.text = captured_html
+                message_options.text = final_html
                 message_options.caption = None
 
         if param == "media":

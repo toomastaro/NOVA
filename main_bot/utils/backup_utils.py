@@ -179,6 +179,17 @@ async def send_to_backup(post: Post | Story | BotPost) -> tuple[int | None, int 
     # reply_markup передается отдельно, чтобы избежать путаницы с pop/clean, если словарь изменяется на месте
 
     try:
+        # Логирование перед отправкой в бэкап
+        log_caption = options.get("caption") or options.get("text")
+        logger.info(
+            "Отправка в бэкап: метод=%s. Спойлер в HTML: %s. Разметка: %s",
+            cor.__name__,
+            "tg-spoiler" in (log_caption or ""),
+            "была" if log_caption and "<" in log_caption else "нет"
+        )
+        if log_caption and "<" in log_caption:
+            logger.debug("HTML для бэкапа: %s", log_caption[:500])
+
         backup_msg = await cor(**options, reply_markup=reply_markup)
         return Config.BACKUP_CHAT_ID, backup_msg.message_id
     except Exception as e:
@@ -402,6 +413,21 @@ async def _update_single_live_message(
                 if message_options.caption is not None:
                     if len(message_options.caption) > 1024:
                         from main_bot.utils.premium_uploader import PremiumUploader
+                        # Telethon's utils.html.parse might not support <tg-spoiler>, replace with <spoiler>
+                        # This part of the instruction seems to be for a different context or requires additional imports (telethon.utils, telethon.tl.types)
+                        # caption_for_parse = message_options.caption.replace('<tg-spoiler>', '<spoiler>').replace('</tg-spoiler>', '</spoiler>')
+                        # text, entities = utils.html.parse(caption_for_parse)
+                        
+                        logger.info(
+                            "PremiumUploader: Редактирование длинной подписи для сообщения %s в чате %s. Длина: %d",
+                            post.message_id, post.chat_id, len(message_options.caption)
+                        )
+                        # logger.info(
+                        #     "PremiumUploader: парсинг завершен. Текст: %d симв, сущностей: %d. Спойлер найден: %s",
+                        #     len(text),
+                        #     len(entities),
+                        #     any(isinstance(e, types.MessageEntitySpoiler) for e in entities)
+                        # )
                         success = await PremiumUploader.edit_caption(
                             chat_id=post.chat_id,
                             message_id=post.message_id,

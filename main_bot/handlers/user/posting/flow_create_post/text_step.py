@@ -120,8 +120,8 @@ async def get_message(message: types.Message, state: FSMContext):
     entities = message.entities or message.caption_entities or []
     has_spoiler_entity = any(e.type == "spoiler" for e in entities)
     
-    logger.info(
-        "Пользователь %s: захвачен HTML (длина %d). Медиа: %s. Тип сущностей: %s. Текст содержит спойлер (entity): %s, спойлер (tag): %s",
+    logger.warning(
+        "ПОДРОБНЫЙ ЛОГ: Пользователь %s: захвачен HTML (длина %d). Медиа: %s. Тип сущностей: %s. Текст содержит спойлер (entity): %s, спойлер (tag): %s",
         message.from_user.id,
         len(final_html or ""),
         is_media,

@@ -79,8 +79,16 @@ class PremiumUploader:
 
                 # Парсинг HTML-сущностей для Telethon
                 # Telethon's utils.html.parse might not support <tg-spoiler>, replace with <spoiler>
+                logger.info("PremiumUploader: исходный HTML содержит <tg-spoiler>: %s", "<tg-spoiler>" in caption)
                 caption_for_parse = caption.replace('<tg-spoiler>', '<spoiler>').replace('</tg-spoiler>', '</spoiler>')
                 text, entities = utils.html.parse(caption_for_parse)
+                
+                logger.info(
+                    "PremiumUploader: парсинг завершен. Текст: %d симв, сущностей: %d. Спойлер найден: %s",
+                    len(text),
+                    len(entities),
+                    any(isinstance(e, types.MessageEntitySpoiler) for e in entities)
+                )
                 
                 logger.info(f"Загрузка медиа ({len(caption)} симв.) в {chat_id} через Premium...")
                 
@@ -92,6 +100,10 @@ class PremiumUploader:
                     ))
                 elif is_animation:
                     attributes.append(types.DocumentAttributeAnimated())
+
+                # Проверка наличия спойлеров в сущностях
+                has_spoiler_telet = any(isinstance(e, types.MessageEntitySpoiler) for e in entities)
+                logger.info("PremiumUploader: финальная проверка перед отправкой. Найдено спойлеров: %s", has_spoiler_telet)
 
                 # Отправка файла
                 sent_msg = await manager.client.send_file(
