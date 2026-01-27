@@ -4,7 +4,7 @@
 
 import asyncio
 import logging
-from typing import Any
+from typing import Any, Optional
 
 from config import Config
 from instance_bot import bot
