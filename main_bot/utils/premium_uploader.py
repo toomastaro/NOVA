@@ -116,3 +116,57 @@ class PremiumUploader:
                     logger.warning(f"Не удалось удалить временный файл {temp_path}: {e}")
 
         return None
+
+    @staticmethod
+    async def edit_caption(
+        chat_id: int,
+        message_id: int,
+        caption: str
+    ) -> bool:
+        """
+        Редактирует подпись сообщения через Telethon (Premium-аккаунт).
+
+        Args:
+            chat_id: ID целевого чата.
+            message_id: ID сообщения для редактирования.
+            caption: Новый текст подписи (может быть > 1024 символов).
+
+        Returns:
+            bool: True при успехе, False при ошибке.
+        """
+        session_path = Path(Config.PREMIUM_SESSION_PATH)
+        
+        if not session_path.exists():
+            alt_path = Path(os.getcwd()) / session_path
+            if alt_path.exists():
+                session_path = alt_path
+            else:
+                logger.error(f"Файл премиум-сессии не найден для редактирования: {session_path}")
+                return False
+
+        try:
+            async with SessionManager(session_path) as manager:
+                if not manager or not manager.client:
+                    logger.error("Не удалось инициализировать Premium-клиента для редактирования")
+                    return False
+
+                # Парсинг HTML для Telethon
+                text, entities = utils.html.parse(caption)
+                
+                logger.info(f"Редактирование подписи ({len(caption)} симв.) в {chat_id} (msg {message_id}) через Premium...")
+                
+                # Редактируем сообщение
+                await manager.client.edit_message(
+                    chat_id,
+                    message_id,
+                    text,
+                    formatting_entities=entities
+                )
+                
+                logger.info(f"Подпись успешно отредактирована через Premium в {chat_id} (msg {message_id})")
+                return True
+                
+        except Exception as e:
+            logger.error(f"Ошибка редактирования подписи через Premium: {e}", exc_info=True)
+            return False
+

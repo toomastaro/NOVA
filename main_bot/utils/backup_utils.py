@@ -269,13 +269,31 @@ async def edit_backup_message(
         else:
             # Медиа сообщение
             if message_options.caption is not None:
-                await bot.edit_message_caption(
-                    chat_id=chat_id,
-                    message_id=message_id,
-                    caption=message_options.caption,
-                    parse_mode="HTML",
-                    reply_markup=reply_markup,
-                )
+                if len(message_options.caption) > 1024:
+                    from main_bot.utils.premium_uploader import PremiumUploader
+                    success = await PremiumUploader.edit_caption(
+                        chat_id=chat_id,
+                        message_id=message_id,
+                        caption=message_options.caption
+                    )
+                    if not success:
+                        raise Exception("Failed to edit long caption via PremiumUploader")
+                    
+                    # Если есть клавиатура, обновляем её отдельно основным ботом
+                    if reply_markup:
+                        await bot.edit_message_reply_markup(
+                            chat_id=chat_id,
+                            message_id=message_id,
+                            reply_markup=reply_markup
+                        )
+                else:
+                    await bot.edit_message_caption(
+                        chat_id=chat_id,
+                        message_id=message_id,
+                        caption=message_options.caption,
+                        parse_mode="HTML",
+                        reply_markup=reply_markup,
+                    )
             else:
                 # Обновляем только клавиатуру, если подпись не изменилась
                 await bot.edit_message_reply_markup(
@@ -382,13 +400,31 @@ async def _update_single_live_message(
                 )
             else:
                 if message_options.caption is not None:
-                    await bot.edit_message_caption(
-                        chat_id=post.chat_id,
-                        message_id=post.message_id,
-                        caption=message_options.caption,
-                        parse_mode="HTML",
-                        reply_markup=reply_markup,
-                    )
+                    if len(message_options.caption) > 1024:
+                        from main_bot.utils.premium_uploader import PremiumUploader
+                        success = await PremiumUploader.edit_caption(
+                            chat_id=post.chat_id,
+                            message_id=post.message_id,
+                            caption=message_options.caption
+                        )
+                        if not success:
+                            raise Exception("Failed to edit long live caption via PremiumUploader")
+                        
+                        # Если еще нужны кнопки, обновляем их отдельно основным ботом
+                        if reply_markup:
+                            await bot.edit_message_reply_markup(
+                                chat_id=post.chat_id,
+                                message_id=post.message_id,
+                                reply_markup=reply_markup
+                            )
+                    else:
+                        await bot.edit_message_caption(
+                            chat_id=post.chat_id,
+                            message_id=post.message_id,
+                            caption=message_options.caption,
+                            parse_mode="HTML",
+                            reply_markup=reply_markup,
+                        )
                 else:
                     await bot.edit_message_reply_markup(
                         chat_id=post.chat_id,
