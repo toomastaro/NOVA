@@ -141,17 +141,6 @@ async def answer_post(
     backup_msg_id = getattr(post, "backup_message_id", None)
     if backup_msg_id and Config.BACKUP_CHAT_ID:
         try:
-            # Проверка на длинное описание перед копированием
-            caption = getattr(message_options, "caption", None)
-            is_media = any([getattr(message_options, "photo", None), getattr(message_options, "video", None), getattr(message_options, "animation", None)])
-            
-            if is_media and caption and len(caption) > 1024:
-                return await message.answer(
-                    text("long_caption_preview_unavailable").format(len(caption)),
-                    reply_markup=reply_markup,
-                    parse_mode="HTML"
-                )
-
             post_message = await message.bot.copy_message(
                 chat_id=message.chat.id,
                 from_chat_id=Config.BACKUP_CHAT_ID,
@@ -169,16 +158,6 @@ async def answer_post(
                 exc_info=True,
             )
             # Возврат к локальной генерации
-
-    # Дублируем проверку для локальной генерации на всякий случай
-    caption = getattr(message_options, "caption", None)
-    is_media = any([getattr(message_options, "photo", None), getattr(message_options, "video", None), getattr(message_options, "animation", None)])
-    if is_media and caption and len(caption) > 1024:
-        return await message.answer(
-            text("long_caption_preview_unavailable").format(len(caption)),
-            reply_markup=reply_markup,
-            parse_mode="HTML"
-        )
 
     post_message = await cor(
         **message_options.model_dump(), reply_markup=reply_markup, parse_mode="HTML"
