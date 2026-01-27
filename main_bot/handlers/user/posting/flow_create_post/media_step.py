@@ -463,15 +463,16 @@ async def get_value(message: types.Message, state: FSMContext):
 
         message_options = MessageOptions(**post.message_options)
 
-        # Принудительно захватываем HTML-разметку
-        # Это критически важно для сохранения спойлеров и ссылок при пересылке
         captured_html = message.html_text
         logger.info(
-            "Пользователь %s: захвачен HTML (длина %d) для параметра %s",
+            "Пользователь %s: захвачен HTML (длина %d) для параметра %s. Спойлер: %s",
             message.from_user.id,
             len(captured_html or ""),
-            param
+            param,
+            "tg-spoiler" in (captured_html or "")
         )
+        if captured_html and "<" in captured_html:
+            logger.debug("Захваченный HTML: %s", captured_html[:500])
 
         if param == "text":
             if (
