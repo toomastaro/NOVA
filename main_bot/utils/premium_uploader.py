@@ -78,7 +78,9 @@ class PremiumUploader:
                     return None
 
                 # Парсинг HTML-сущностей для Telethon
-                text, entities = utils.html.parse(caption)
+                # Telethon's utils.html.parse might not support <tg-spoiler>, replace with <spoiler>
+                caption_for_parse = caption.replace('<tg-spoiler>', '<spoiler>').replace('</tg-spoiler>', '</spoiler>')
+                text, entities = utils.html.parse(caption_for_parse)
                 
                 logger.info(f"Загрузка медиа ({len(caption)} симв.) в {chat_id} через Premium...")
                 
@@ -151,7 +153,9 @@ class PremiumUploader:
                     return False
 
                 # Парсинг HTML для Telethon
-                text, entities = utils.html.parse(caption)
+                # Telethon's utils.html.parse might not support <tg-spoiler>, replace with <spoiler>
+                caption_for_parse = caption.replace('<tg-spoiler>', '<spoiler>').replace('</tg-spoiler>', '</spoiler>')
+                text, entities = utils.html.parse(caption_for_parse)
                 
                 logger.info(f"Редактирование подписи ({len(caption)} симв.) в {chat_id} (msg {message_id}) через Premium...")
                 

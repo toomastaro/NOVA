@@ -159,7 +159,8 @@ async def manage_post(call: types.CallbackQuery, state: FSMContext):
 
     # Переключение параметров (notification, media_above, has_spoiler, pin_time)
     if temp[1] in ["notification", "media_above", "has_spoiler", "pin_time"]:
-        message_options = MessageOptions(**data.get("post").message_options)
+        post_obj = ensure_obj(data.get("post"))
+        message_options = MessageOptions(**post_obj.message_options)
 
         if temp[1] == "notification":
             message_options.disable_notification = (
@@ -268,7 +269,8 @@ async def cancel_value(call: types.CallbackQuery, state: FSMContext):
         param = data.get("param")
 
         if param in ["text", "media"]:
-            message_options = MessageOptions(**data.get("post").message_options)
+            post_obj = ensure_obj(data.get("post"))
+            message_options = MessageOptions(**post_obj.message_options)
 
             if param == "text":
                 message_options.text = message_options.caption = None
