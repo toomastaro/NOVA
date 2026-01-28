@@ -246,7 +246,7 @@ async def manage_post(call: types.CallbackQuery, state: FSMContext):
 
     if temp[1] == "hide":
         await call.message.answer(
-            message_text, reply_markup=keyboards.param_hide(post=data.get("post"))
+            message_text, reply_markup=keyboards.param_hide(post=post)
         )
 
 

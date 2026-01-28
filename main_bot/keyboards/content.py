@@ -16,7 +16,6 @@ from main_bot.database.published_post.model import PublishedPost
 from main_bot.database.story.model import Story
 from main_bot.database.user_bot.model import UserBot
 from main_bot.database.user_folder.model import UserFolder
-from main_bot.database.user_bot.model import UserBot
 from main_bot.database.db_types import Status
 from main_bot.utils.lang.language import text
 from main_bot.utils.text_utils import clean_html_text
@@ -431,12 +430,12 @@ class InlineContent(InlineKeyboardBuilder):
 
             if isinstance(post, Post):
                 options = post.message_options
-                message_text = options.get("text") or options.get("caption")
+                message_text = options.get("html_text") or options.get("text") or options.get("caption")
                 callback = f"{data}|{post.id}"
                 emoji = "⏳"
             elif isinstance(post, PublishedPost):
                 options = post.message_options
-                message_text = options.get("text") or options.get("caption")
+                message_text = options.get("html_text") or options.get("text") or options.get("caption")
 
                 if getattr(post, "status", "active") == "deleted":
                     emoji = "🗑"
@@ -447,7 +446,7 @@ class InlineContent(InlineKeyboardBuilder):
                 callback = f"ContentPublishedPost|{post.id}"
             elif isinstance(post, BotPost):
                 options = post.message
-                message_text = options.get("text") or options.get("caption")
+                message_text = options.get("html_text") or options.get("text") or options.get("caption")
                 # Иконки в зависимости от статуса рассылки
                 if post.status == Status.PENDING:
                     emoji = "⏳"
@@ -635,7 +634,7 @@ class InlineContent(InlineKeyboardBuilder):
 
                 if isinstance(objects[idx], Post):
                     options = objects[idx].message_options
-                    message_text = options.get("text") or options.get("caption")
+                    message_text = options.get("html_text") or options.get("text") or options.get("caption")
                     obj_data = "ContentPost"
                     emoji = "⏳"  # Запланировано
                 elif isinstance(objects[idx], PublishedPost):
@@ -648,7 +647,7 @@ class InlineContent(InlineKeyboardBuilder):
                         message_text = "Опубликовано"
                 elif isinstance(objects[idx], BotPost):
                     options = objects[idx].message
-                    message_text = options.get("text") or options.get("caption")
+                    message_text = options.get("html_text") or options.get("text") or options.get("caption")
                     obj_data = "ContentBotPost"
                     # Иконки в зависимости от статуса рассылки
                     if objects[idx].status == Status.PENDING:

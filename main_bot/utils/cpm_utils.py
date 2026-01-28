@@ -50,8 +50,9 @@ async def generate_cpm_report(user, post_id, related_posts, bot) -> str:
 
     # Заголовок
     main_views = max(main_pp.views_24h or 0, main_pp.views_48h or 0, main_pp.views_72h or 0)
-    # Используем get_channel_link если есть, иначе просто title
-    main_link = f"https://t.me/{main_channel.username}" if main_channel.username else f"https://t.me/c/{str(main_channel.chat_id)[4:] if str(main_channel.chat_id).startswith('-100') else main_channel.chat_id}"
+    # Используем chat_id для генерации ссылки
+    chat_id_str = str(main_channel.chat_id)
+    main_link = f"https://t.me/c/{chat_id_str[4:] if chat_id_str.startswith('-100') else chat_id_str}"
     
     report_text = text("cpm:report:header").format(
         html.escape(preview_text),
@@ -76,7 +77,8 @@ async def generate_cpm_report(user, post_id, related_posts, bot) -> str:
             if not ch:
                 continue
             
-            ch_link = f"https://t.me/{ch.username}" if ch.username else f"https://t.me/c/{str(ch.chat_id)[4:] if str(ch.chat_id).startswith('-100') else ch.chat_id}"
+            ch_id_str = str(ch.chat_id)
+            ch_link = f"https://t.me/c/{ch_id_str[4:] if ch_id_str.startswith('-100') else ch_id_str}"
             ch_views = max(p.views_24h or 0, p.views_48h or 0, p.views_72h or 0)
             
             # Обрезка длинных названий для компактности как в примере

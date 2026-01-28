@@ -328,10 +328,11 @@ class InlinePosting(InlineKeyboardBuilder):
         return kb.as_markup()
 
     @classmethod
-    def param_cancel(cls, param: str, data: str = "ParamCancel"):
+    def param_cancel(cls, param: str, data: str = "ParamCancel", post=None):
         """
         Универсальная клавиатура для отмены ввода параметра.
         """
+        post = ensure_obj(post)
         kb = cls()
         kb.button(
             text=text(f"manage:post:delete:param:{param}:button"),
@@ -390,6 +391,7 @@ class InlinePosting(InlineKeyboardBuilder):
         """
         Клавиатура настройки скрытого контента.
         """
+        post = ensure_obj(post)
         kb = cls()
         hide = Hide(hide=post.hide) if post.hide else None
 
