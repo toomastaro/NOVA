@@ -156,7 +156,9 @@ async def answer_post(
         # ВАРИАНТ 1: Invisible Link
         if is_inv or (len(html_text) > 1024 and media_type != "text"):
             preview_options = types.LinkPreviewOptions(
-                is_disabled=False, prefer_large_media=True, show_above_text=True
+                is_disabled=False, 
+                prefer_large_media=True, 
+                show_above_text=message_options.show_caption_above_media
             )
 
             return await message.answer(
@@ -174,6 +176,8 @@ async def answer_post(
                 caption=html_text,
                 parse_mode="HTML",
                 reply_markup=reply_markup,
+                has_spoiler=message_options.has_spoiler,
+                show_caption_above_media=message_options.show_caption_above_media,
                 disable_notification=message_options.disable_notification,
             )
         elif media_type == "video":
@@ -182,6 +186,8 @@ async def answer_post(
                 caption=html_text,
                 parse_mode="HTML",
                 reply_markup=reply_markup,
+                has_spoiler=message_options.has_spoiler,
+                show_caption_above_media=message_options.show_caption_above_media,
                 disable_notification=message_options.disable_notification,
             )
         elif media_type == "animation":
@@ -190,6 +196,8 @@ async def answer_post(
                 caption=html_text,
                 parse_mode="HTML",
                 reply_markup=reply_markup,
+                has_spoiler=message_options.has_spoiler,
+                show_caption_above_media=message_options.show_caption_above_media,
                 disable_notification=message_options.disable_notification,
             )
         else:  # Pure text

@@ -15,7 +15,7 @@ from main_bot.database.db import db
 from main_bot.handlers.user.posting.menu import show_create_post
 from main_bot.utils.message_utils import answer_post
 from main_bot.utils.lang.language import text
-from main_bot.utils.schemas import MessageOptions, Media
+from main_bot.utils.schemas import MessageOptions
 from main_bot.utils.media_manager import MediaManager
 from main_bot.utils.post_assembler import PostAssembler
 from main_bot.keyboards import keyboards
@@ -399,243 +399,134 @@ async def cancel_value(call: types.CallbackQuery, state: FSMContext):
     await answer_post(call.message, state)
 
 
-@safe_handler(
-    "Постинг: получение значения"
-)  # Безопасная обёртка: логирование + перехват ошибок без падения бота
+@safe_handler("Постинг: получение значения")
 async def get_value(message: types.Message, state: FSMContext):
     """
-    Получение нового значения параметра от пользователя.
-
-    Обрабатывает:
-    - text: текст поста
-    - media: медиа (фото, видео, анимация)
-    - buttons: кнопки
-    - reaction: реакции
-    - cpm_price: цена CPM
-
-    Args:
-        message: Сообщение от пользователя с новым значением
-        state: FSM контекст
+    Получение нового значения параметра от пользователя (Унифицированный поток).
     """
     data = await state.get_data()
     param = data.get("param")
+    post_data = data.get("post")
 
-    # Валидация типа сообщения
-    if param == "media" and message.text:
-        return await message.answer(text("error_value"))
-    if param != "media" and not message.text:
-        return await message.answer(text("error_value"))
-
-    post = ensure_obj(data.get("post"))
-
-    # Проверка наличия поста
-    if not post:
+    if not post_data:
         await message.answer(text("keys_data_error"))
         return
 
-    # Обработка текста и медиа
+    # 1. Загружаем текущее состояние (Сущность)
+    try:
+        current_options = MessageOptions(**post_data.get("message_options", {}))
+    except Exception:
+        current_options = MessageOptions()
+
+    # 2. Обработка изменений в зависимости от параметра
+    new_html = current_options.html_text or ""
+    new_buttons = post_data.get("buttons")
+    new_reaction = post_data.get("reaction")
+    
+    # CPM цена вынесена из message_options, но мы ее тоже можем менять здесь
+    new_cpm = post_data.get("cpm_price")
+
     if param in ["text", "media"]:
-        # Проверка длины текста
-        is_media = (
-            bool(
-                message.photo or message.video or message.animation or message.document
-            )
-            or param == "media"
-        )
-        # Если меняем медиа, то это точно будет пост с медиа.
-        # Если меняем текст, проверяем есть ли уже медиа в посту.
-        if param == "text":
-            is_media = bool(
-                post.message_options.get("photo")
-                or post.message_options.get("video")
-                or post.message_options.get("animation")
-            )
+        # Валидация
+        if param == "media" and message.text:
+            return await message.answer(text("error_value"))
+        if param == "text" and not message.text:
+            return await message.answer(text("error_value"))
 
+        # Лимиты текста
+        is_media = bool(message.photo or message.video or message.animation or current_options.media_value)
         limit = 2048 if is_media else 4096
-        message_text_length = len(message.caption or message.text or "")
-
-        if message_text_length > limit:
-            logger.warning(
-                "Пользователь %s: превышена длина текста при редактировании (%d > %d)",
-                message.from_user.id,
-                message_text_length,
-                limit,
-            )
+        input_text = message.html_text or message.caption or ""
+        
+        if len(input_text) > limit:
             return await message.answer(text("error_length_text").format(limit))
 
-        message_options = MessageOptions(**post.message_options)
-
-        # Принудительно захватываем HTML-разметку
-        # Детальное логирование для отладки форматирования (спойлеров)
-        # Если html_text почему-то пуст или без тегов, пробуем проверить сущности напрямую
-        final_html = message.html_text
-        entities = message.entities or message.caption_entities or []
-        has_spoiler_entity = any(e.type == "spoiler" for e in entities)
-
-        logger.info(
-            "Пользователь %s: захвачен HTML (длина %d). Медиа: %s. Тип сущностей: %s. Текст содержит спойлер (entity): %s, спойлер (tag): %s",
-            message.from_user.id,
-            len(final_html or ""),
-            is_media,
-            (
-                "caption"
-                if message.caption_entities
-                else "text" if message.entities else "none"
-            ),
-            has_spoiler_entity,
-            "tg-spoiler" in (final_html or ""),
-        )
-
-        # Если это медиа и есть сущность спойлера, но нет тега в html_text - это баг aiogram/пересылки
-        if has_spoiler_entity and "tg-spoiler" not in (final_html or ""):
-            logger.warning(
-                "ОБНАРУЖЕН БАГ: Сущность спойлера есть, а тега в HTML нет! Принудительно восстанавливаем."
-            )
-            from aiogram.utils.text_decorations import html_decoration
-
-            text_to_format = message.text or message.caption or ""
-            final_html = html_decoration.unparse(text_to_format, entities)
-
-            if is_media:
-                message_options.caption = final_html
-            else:
-                message_options.text = final_html
-
-            logger.info("Восстановленный HTML: %s", final_html)
-        if final_html and "<" in final_html:
-            logger.debug("Захваченный HTML: %s", final_html[:500])
-
-        # 1. Формируем временный объект MessageOptions для анализа
-        temp_options = MessageOptions(**post.message_options)
-
         if param == "text":
-            temp_options.text = final_html
-            temp_options.caption = None  # Сброс старого
-        elif param == "media":
-            if message.photo:
-                temp_options.photo = Media(file_id=message.photo[-1].file_id)
-            if message.video:
-                temp_options.video = Media(file_id=message.video.file_id)
-            if message.animation:
-                temp_options.animation = Media(file_id=message.animation.file_id)
+            new_html = input_text
+        
+    elif param == "buttons":
+        new_buttons = message.text
+        
+    elif param == "reaction":
+        # Парсинг реакций
+        c = 0
+        dict_react = {"rows": []}
+        for a, row in enumerate(message.text.split("\\n")):
+            reactions = []
+            for react in row.split("|"):
+                reactions.append({"id": c, "react": react, "users": []})
+                c += 1
+            dict_react["rows"].append({"id": a, "reactions": reactions})
+        new_reaction = dict_react
+        
+    elif param == "cpm_price":
+        try:
+            new_cpm = int(message.text)
+        except ValueError:
+            return await message.answer(text("error_value"))
 
-            # Если есть текст, переносим его в caption если нужно (обработает ассамблер)
-            text_content = temp_options.text or temp_options.caption or ""
-            temp_options.caption = text_content
-            temp_options.text = None
+    # 3. Адаптивная трансформация медиа
+    # Передаем существующие медиа-данные для сохранения при правке только текста
+    media_value, is_invisible, media_type = await MediaManager.process_media_for_post(
+        message=message,
+        caption=new_html,
+        existing_media=current_options.media_value,
+        existing_type=current_options.media_type
+    )
 
-        # 2. Адаптивная трансформация (MediaManager + PostAssembler)
-        logger.info(f"🔄 Трансформация поста {post.id} (param: {param})")
+    # 4. Сборка финального объекта через PostAssembler
+    # Это гарантирует, что HTML всегда актуален и содержит невидимую ссылку если надо
+    final_message_options = PostAssembler.assemble_message_options(
+        html_text=new_html,
+        media_type=media_type,
+        media_value=media_value,
+        is_invisible=is_invisible,
+        buttons=new_buttons,
+        reaction=new_reaction
+    )
+    
+    # Сохраняем остальные настройки (уведомления и т.д.)
+    final_message_options["disable_notification"] = current_options.disable_notification
+    final_message_options["has_spoiler"] = current_options.has_spoiler
+    final_message_options["show_caption_above_media"] = current_options.show_caption_above_media
+    
+    # 5. Сохранение в БД
+    kwargs = {
+        "message_options": final_message_options,
+        "buttons": new_buttons,
+        "reaction": new_reaction,
+        "cpm_price": new_cpm
+    }
 
-        # Решаем, как шлем медиа
-        caption_for_check = temp_options.text or temp_options.caption or ""
-        media_value, is_invisible = await MediaManager.process_media_for_post(
-            message, caption_for_check
-        )
-
-        # Определяем текущий тип медиа (для ассамблера)
-        current_media_type = "text"
-        if temp_options.photo:
-            current_media_type = "photo"
-        elif temp_options.video:
-            current_media_type = "video"
-        elif temp_options.animation:
-            current_media_type = "animation"
-
-        # Собираем финальный MessageOptions через ассамблер
-        assembled_options = PostAssembler.assemble_message_options(
-            html_text=caption_for_check,
-            media_type=current_media_type,
-            media_value=media_value,
-            is_invisible=is_invisible,
-            buttons=post.buttons,
-            reaction=post.reaction,
-        )
-
-        # Сливаем с существующими настройками (disable_notification и т.д.)
-        final_options_dict = temp_options.model_dump()
-        final_options_dict.update(assembled_options)
-
-        kwargs = {"message_options": final_options_dict}
-
-    else:
-        value = message.text
-
-        # Обработка cpm_price
-        if param in ["cpm_price"]:
-            try:
-                value = int(value)
-            except ValueError:
-                return await message.answer(text("error_value"))
-        else:
-            # Обработка кнопок и реакций
-            if param == "buttons":
-                post.buttons = value
-            else:
-                # Парсинг реакций
-                c = 0
-                dict_react = {"rows": []}
-                for a, row in enumerate(message.text.split("\\n")):
-                    reactions = []
-                    for react in row.split("|"):
-                        reactions.append({"id": c, "react": react, "users": []})
-                        c += 1
-                    dict_react["rows"].append({"id": a, "reactions": reactions})
-
-                post.reaction = dict_react
-                value = dict_react
-
-            # Проверка валидности кнопок/реакций
-            try:
-                check = await message.answer(
-                    "...", reply_markup=keyboards.manage_post(post)
-                )
-                await check.delete()
-            except (IndexError, TypeError):
-                return await message.answer(text("error_value"))
-
-        kwargs = {param: value}
-
-    # Обновление в БД
     if data.get("is_published"):
-        post_obj = ensure_obj(post)
-        post_id_val = post_obj.post_id or post_obj.id
-        await db.published_post.update_published_posts_by_post_id(
-            post_id=post_id_val, **kwargs
-        )
-        post = await db.published_post.get_published_post_by_id(post_obj.id)
+        post_id_val = post_data.get("post_id") or post_data.get("id")
+        await db.published_post.update_published_posts_by_post_id(post_id=post_id_val, **kwargs)
+        post = await db.published_post.get_published_post_by_id(post_data.get("id"))
     else:
-        post = await db.post.update_post(
-            post_id=ensure_obj(data.get("post")).id, return_obj=True, **kwargs
-        )
+        post = await db.post.update_post(post_id=post_data.get("id"), return_obj=True, **kwargs)
 
-    # Update backup message (DEPRECATED for posts)
-    if param in ["text", "media", "buttons", "reaction"]:
-        # Обновление объекта поста
-        if data.get("is_published"):
-            post = await db.published_post.get_published_post_by_id(ensure_obj(post).id)
-        else:
-            post = await db.post.get_post(ensure_obj(post).id)
+    # 6. Синхронизация live-сообщений
+    if data.get("is_published") and post:
+        from main_bot.utils.backup_utils import update_live_messages
+        msg_opts = MessageOptions(**post.message_options)
+        reply_markup = keyboards.post_kb(post=post)
+        await update_live_messages(post.post_id or post.id, msg_opts, reply_markup=reply_markup)
 
-        # Обновление live-сообщений если опубликовано
-        if data.get("is_published") and post:
-            from main_bot.utils.backup_utils import update_live_messages
-
-            message_options = MessageOptions(**post.message_options)
-            reply_markup = keyboards.post_kb(post=post)
-            post_id_val = post.post_id or post.id
-            await update_live_messages(
-                post_id_val, message_options, reply_markup=reply_markup
-            )
-
+    # 7. Обновление состояния и ответ
     await state.clear()
     data["post"] = {col.name: getattr(post, col.name) for col in post.__table__.columns}
     await state.update_data(data)
+    
+    # Удаляем сервисное сообщение ввода
+    if data.get("input_msg_id"):
+        try:
+            await message.bot.delete_message(message.chat.id, data.get("input_msg_id"))
+        except Exception:
+            pass
 
-    await message.bot.delete_message(message.chat.id, data.get("input_msg_id"))
-
+    # Для cpm_price возвращаем меню выбора каналов
     if param == "cpm_price":
-        # Handle difference between Post (chat_ids) and PublishedPost (chat_id)
+        # ... (логика возврата к каналам оставлена без изменений)
         if hasattr(post, "chat_ids"):
             default_chosen = post.chat_ids
         elif hasattr(post, "chat_id"):

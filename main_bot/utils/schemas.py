@@ -31,6 +31,8 @@ class MessageOptions(BaseModel):
     has_spoiler: bool = False
     disable_web_page_preview: bool = True
     disable_notification: bool = False
+    buttons: Optional[dict | str | list] = None
+    reaction: Optional[dict] = None
 
 
 class StoryOptions(BaseModel):

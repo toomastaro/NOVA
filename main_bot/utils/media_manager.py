@@ -7,7 +7,7 @@
 import logging
 import os
 import uuid
-from typing import Optional, Union, Tuple
+from typing import Optional, Tuple
 
 from aiogram import types
 from config import Config
@@ -23,33 +23,58 @@ class MediaManager:
     @staticmethod
     async def process_media_for_post(
         message: types.Message, 
-        caption: str
-    ) -> Tuple[Optional[str], bool]:
+        caption: str,
+        existing_media: Optional[str] = None,
+        existing_type: Optional[str] = None
+    ) -> Tuple[Optional[str], bool, str]:
         """
         Определяет, нужно ли сохранять медиа локально, и возвращает путь/ID.
 
-        Аргументы:
-            message (types.Message): Сообщение с медиа.
-            caption (str): Текст подписи (для расчета лимитов).
-
         Возвращает:
-            Tuple[Optional[str], bool]: 
+            Tuple[Optional[str], bool, str]: 
                 - str: file_id или URL на локальный файл.
                 - bool: True, если это локальный URL (нужна скрытая ссылка), иначе False.
+                - str: тип медиа ('photo', 'video', 'animation', 'text').
         """
         caption_len = len(caption) if caption else 0
         
-        # Если текст > 1024, нам ОБЯЗАТЕЛЬНО нужна скрытая ссылка и локальное хранение
+        # 1. Определяем текущее медиа в сообщении
+        current_file_id = MediaManager.get_file_id(message)
+        
+        # Приоритет: 
+        # 1. Медиа из сообщения (новое)
+        # 2. Существующее медиа (если правим только текст)
+        
+        target_media = current_file_id or existing_media
+        
+        # Определяем тип медиа
+        media_type = "text"
+        if message.photo or (not current_file_id and existing_type == "photo"):
+            media_type = "photo"
+        elif message.video or (not current_file_id and existing_type == "video"):
+            media_type = "video"
+        elif message.animation or (not current_file_id and existing_type == "animation"):
+            media_type = "animation"
+            
+        if not target_media:
+            return None, False, "text"
+
+        # 2. Если текст > 1024, нам ОБЯЗАТЕЛЬНО нужна скрытая ссылка и локальное хранение
         if caption_len > 1024:
+            # Если это уже URL (ранее сохраненный), возвращаем его
+            if target_media.startswith("http"):
+                return target_media, True, media_type
+                
+            # Если это file_id, пытаемся сохранить
             local_url = await MediaManager.save_to_local(message)
             if local_url:
-                return local_url, True
+                return local_url, True, media_type
             
             logger.warning("Не удалось сохранить медиа локально, откатываемся на file_id (будет обрезано)")
         
-        # В остальных случаях используем file_id
-        file_id = MediaManager.get_file_id(message)
-        return file_id, False
+        # В остальных случаях используем file_id (или существующий URL, если он был)
+        is_inv = target_media.startswith("http")
+        return target_media, is_inv, media_type
 
     @staticmethod
     def get_file_id(message: types.Message) -> Optional[str]:

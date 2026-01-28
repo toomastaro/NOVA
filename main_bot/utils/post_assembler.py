@@ -4,7 +4,7 @@
 """
 
 import logging
-from typing import Optional, List, Any
+from typing import Optional, Any
 
 logger = logging.getLogger(__name__)
 
@@ -37,13 +37,18 @@ class PostAssembler:
             dict: Собранный словарь опций.
         """
         
-        final_html = html_text
+        import re
+        # Очищаем текст от старых невидимых тегов (защита от дублирования)
+        # Ищем паттерн <a href="...">\u200b</a> в начале строки
+        clean_html = re.sub(r'^<a href="[^"]+">\u200b</a>', '', html_text)
+        
+        final_html = clean_html
         
         # Если метод "Скрытая ссылка", добавляем невидимый символ со ссылкой в начало
         if is_invisible and media_value:
             # \u200b - невидимый пробел нулевой ширины
             invisible_tag = f'<a href="{media_value}">\u200b</a>'
-            # Проверяем, не добавлен ли уже такой тег (защита от дублирования при редактировании)
+            # Проверка: если вдруг регулярка выше пропустила или мы добавили его вручную ранее
             if invisible_tag not in final_html:
                 final_html = f"{invisible_tag}{final_html}"
 

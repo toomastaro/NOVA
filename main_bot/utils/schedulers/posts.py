@@ -29,6 +29,7 @@ from main_bot.keyboards import keyboards
 from main_bot.keyboards.common import Reply
 from main_bot.utils.tg_utils import set_channel_session
 from main_bot.utils.lang.language import text
+from main_bot.utils.cpm_utils import generate_cpm_report
 from main_bot.utils.report_signature import get_report_signatures
 from main_bot.utils.schemas import MessageOptions
 from main_bot.utils.session_manager import SessionManager
@@ -673,78 +674,19 @@ async def delete_posts():
             continue
 
         admin_id = message_objects[0]["admin_id"]
-
         user = await db.user.get_user(admin_id)
-        usd_rate = 1.0
-
-        if user and user.default_exchange_rate_id is not None:
-            exchange_rate = await db.exchange_rate.get_exchange_rate(
-                user.default_exchange_rate_id
-            )
-            if exchange_rate and exchange_rate.rate > 0:
-                usd_rate = exchange_rate.rate
-                # exchange_rate_update_time = exchange_rate.last_update
-
-        channels_text_inner = "\n".join(
-            text("resource_title").format(html.escape(obj["channel"].title))
-            + f" - 👀 {obj['views']}"
-            for obj in message_objects
-        )
-        channels_text = f"<blockquote expandable>{channels_text_inner}</blockquote>"
 
         try:
-            representative_post = message_objects[0]["post_obj"]
-
-            # Агрегируем исторические данные по всем каналам этого поста
-            views_24 = sum(obj["post_obj"].views_24h or 0 for obj in message_objects)
-            views_48 = sum(obj["post_obj"].views_48h or 0 for obj in message_objects)
-            views_72 = sum(obj["post_obj"].views_72h or 0 for obj in message_objects)
-
-            opts = representative_post.message_options or {}
-            raw_text = opts.get("text") or opts.get("caption") or text("post:no_text")
-            clean_text = re.sub(r"<[^>]+>", "", raw_text)
-            preview_text_raw = (
-                clean_text[:50] + "..." if len(clean_text) > 50 else clean_text
+            # Используем общую утилиту для генерации отчета
+            report_text = await generate_cpm_report(
+                user=user,
+                post_id=post_id,
+                related_posts=[obj["post_obj"] for obj in message_objects],
+                bot=bot
             )
-            preview_text = f"«{html.escape(preview_text_raw)}»"
 
-            def format_report():
-                lines = []
-                lines.append(text("cpm:report:header:simple").format(preview_text))
-                lines.append(f"💸 <b>CPM:</b> {cpm_price}₽")
-
-                # 24ч
-                r24 = round(float(cpm_price * float(views_24 / 1000)), 2)
-                lines.append(
-                    text("cpm:report:history_row").format(
-                        "24ч", views_24, r24, round(r24 / usd_rate, 2)
-                    )
-                )
-
-                # 48ч
-                r48 = round(float(cpm_price * float(views_48 / 1000)), 2)
-                lines.append(
-                    text("cpm:report:history_row").format(
-                        "48ч", views_48, r48, round(r48 / usd_rate, 2)
-                    )
-                )
-
-                # 72ч
-                r72 = round(float(cpm_price * float(views_72 / 1000)), 2)
-                lines.append(
-                    text("cpm:report:history_row").format(
-                        "72ч", views_72, r72, round(r72 / usd_rate, 2)
-                    )
-                )
-
-                lines.append(f"\nℹ️ <i>Курс: 1 USDT = {round(usd_rate, 2)}₽</i>")
-                lines.append("\n" + channels_text)
-                return "\n".join(lines)
-
-            report_text = format_report()
-
-            # Добавляем подпись
-            report_text += await get_report_signatures(user, "cpm", bot)
+            if not report_text:
+                continue
 
             await bot.send_message(
                 chat_id=admin_id,
