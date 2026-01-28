@@ -496,6 +496,7 @@ async def _update_single_live_message(
                         else message_options.disable_web_page_preview
                     ),
                     reply_markup=reply_markup,
+                    link_preview_options=link_preview_options,
                 )
             # 2. Обычное медиа (file_id)
             else:
@@ -551,6 +552,8 @@ async def _update_single_live_message(
                         message_id=post.message_id,
                         caption=message_options.html_text,
                         parse_mode="HTML",
+                        # Аналогичная логика: передаем только если пользователь хочет медиа СНИЗУ (True)
+                        show_caption_above_media=message_options.show_caption_above_media if message_options.show_caption_above_media else None,
                         reply_markup=reply_markup,
                     )
         except Exception as e:
