@@ -23,7 +23,7 @@ services:
     ports:
       - '6379:6379'
     command: redis-server --save 20 1 --loglevel warning --requirepass ${REDIS_PASSWORD}
-    volumes: 
+    volumes:
       - redis_data:/data
     networks:
       - nova-network
@@ -73,7 +73,6 @@ services:
       - ./logs:/app/logs
       - ./main_bot/utils/sessions:/app/main_bot/utils/sessions
       - ./main_bot/utils/temp:/app/main_bot/utils/temp
-      - ./public/images:/app/public/images
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:8099/health" ]
       interval: 30s
@@ -93,12 +92,11 @@ services:
       - ./nginx/conf:/etc/nginx/conf.d
       - ./nginx/ssl:/etc/nginx/ssl
       - ./nova_website:/var/www/nova_website
-      - ./public/images:/var/www/images
     depends_on:
       app:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1/health || exit 1"]
+      test: [ "CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1/health || exit 1" ]
       interval: 30s
       timeout: 10s
       retries: 3
