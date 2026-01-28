@@ -30,6 +30,7 @@ class InlineAdmin(InlineKeyboardBuilder):
         kb.button(text="🦋 Рекламные ссылки", callback_data="Admin|ads")
         kb.button(text="👤 Сессии", callback_data="Admin|session")
         kb.button(text="🧪 Тест: Скрытая ссылка", callback_data="Admin|test_invisible")
+        kb.button(text="🧪 Тест: Ссылка снизу", callback_data="Admin|test_bottom")
 
         kb.adjust(2, 1)  # Финансы и Аналитика в ряд, остальные по одному
         return kb.as_markup()

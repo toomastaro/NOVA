@@ -129,50 +129,46 @@ async def choice(call: types.CallbackQuery, state: FSMContext) -> None:
             logger.error(f"Error in stats: {e}", exc_info=True)
             await call.answer("❌ Ошибка при получении статистики", show_alert=True)
 
-    elif action == "test_invisible":
+    elif action in ["test_invisible", "test_bottom"]:
         """
         Тестирование метода «Скрытая ссылка» (Invisible Link).
-        Отправляет длинное сообщение (>2000 симв.) со скрытой картинкой и премиум-эмодзи.
+        test_invisible - картинка сверху.
+        test_bottom - картинка снизу.
         """
+        is_above = action == "test_invisible"
         target_chat_id = -1003252039305
-        # Невидимый символ \u200b со ссылкой на картинку
         image_url = "https://bot.stafflink.biz/images/ab1d3e16abe20ea3f5570ae787ffc81e.jpg"
         invisible_link = f'<a href="{image_url}">\u200b</a>'
         
-        # Генерация длинного текста с премиум эмодзи
-        # Примечание: премиум эмодзи в HTML передаются как <tg-emoji emoji-id="...">...</tg-emoji>
-        # Но для теста используем просто символы, если они поддерживаются или описание.
         premium_emojis = "⚡️💎👑🚀🔥🌟✨"
+        title = "СВЕРХУ" if is_above else "СНИЗУ"
         base_text = (
-            f"{invisible_link}<b>🧪 ТЕСТ МЕТОДА INVISIBLE LINK</b>\n\n"
-            f"Этот пост содержит около 3500 символов и скрытую ссылку на изображение. "
-            f"Мы проверяем, отобразит ли Telegram превью картинки для такого длинного сообщения. "
+            f"{invisible_link}<b>🧪 ТЕСТ: КАРТИНКА {title}</b>\n\n"
+            f"Этот пост тестирует отображение скрытой картинки в позиции: <b>{title}</b>.\n"
             f"Премиум эмодзи: {premium_emojis}\n\n"
         )
         
-        # Исправляем расчет длины: 1 наполнитель ~50 симв. 60 повторов ~3000 симв.
         filler = "Это тестовая строка для заполнения объема сообщения. " 
         long_text = base_text + (filler * 60)
         long_text += f"\n\n🔚 Конец сообщения. Итоговая длина: {len(long_text)} символов."
         
-        # Клавиатура с 4 кнопками
         from aiogram.utils.keyboard import InlineKeyboardBuilder
         kb_builder = InlineKeyboardBuilder()
         for i in range(4):
             kb_builder.button(text=f"Кнопка {i+1} ➡️ Нова", url="https://t.me/novatg")
         kb_builder.adjust(2)
         
-        logger.info(f"Запуск теста Invisible Link. Цель: {target_chat_id}, Длина: {len(long_text)}")
+        logger.info(f"Запуск теста Invisible Link ({title}). Цель: {target_chat_id}, Длина: {len(long_text)}")
         
         try:
             from instance_bot import bot
             from aiogram.types import LinkPreviewOptions
             
-            # Настройки превью
+            # Настройки превью: управляем позицией через is_above
             preview_options = LinkPreviewOptions(
                 is_disabled=False,
                 prefer_large_media=True,
-                show_above_text=True
+                show_above_text=is_above
             )
             
             # 1. Отправка в канал
@@ -184,20 +180,19 @@ async def choice(call: types.CallbackQuery, state: FSMContext) -> None:
                 link_preview_options=preview_options
             )
             
-            # 2. Показываем превью самому админу (как просили)
+            # 2. Показываем превью самому админу
             await bot.send_message(
                 chat_id=call.from_user.id,
-                text=f"📢 <b>Превью для админа:</b>\n\n{long_text}",
+                text=f"📢 <b>Превью ({title}):</b>\n\n{long_text}",
                 parse_mode="HTML",
                 reply_markup=kb_builder.as_markup(),
                 link_preview_options=preview_options
             )
             
-            logger.info(f"Тестовое сообщение успешно отправлено в канал и админу {call.from_user.id}")
-            await call.answer("✅ Отправлено в канал и вам в ЛС!", show_alert=True)
+            await call.answer(f"✅ Тест ({title}) отправлен!", show_alert=True)
         except Exception as e:
-            logger.error(f"Ошибка при отправке тестового сообщения: {e}", exc_info=True)
-            await call.answer(f"❌ Ошибка (длина {len(long_text)}): {str(e)[:50]}", show_alert=True)
+            logger.error(f"Ошибка при отправке теста {title}: {e}", exc_info=True)
+            await call.answer(f"❌ Ошибка: {str(e)[:50]}", show_alert=True)
 
     await call.answer()
 
