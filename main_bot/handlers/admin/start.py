@@ -248,12 +248,12 @@ async def process_test_post(message: types.Message, state: FSMContext) -> None:
         f"{caption}"
     )
 
-    # 4. Клавиатура
-    from aiogram.utils.keyboard import InlineKeyboardBuilder
-    kb_builder = InlineKeyboardBuilder()
-    for i in range(4):
-        kb_builder.button(text=f"Кнопка {i+1} ➡️ Нова", url="https://t.me/novatg")
-    kb_builder.adjust(2)
+    # 4. Кнопки (берем из исходного сообщения)
+    reply_markup = message.reply_markup
+    if reply_markup:
+        logger.info(f"Тест: Обнаружены кнопки в исходном сообщении ({len(reply_markup.inline_keyboard)} рядов)")
+    else:
+        logger.info("Тест: Кнопки в исходном сообщении отсутствуют.")
 
     # 5. Отправка
     target_chat_id = -1003252039305
@@ -270,7 +270,7 @@ async def process_test_post(message: types.Message, state: FSMContext) -> None:
             chat_id=target_chat_id,
             text=final_text,
             parse_mode="HTML",
-            reply_markup=kb_builder.as_markup(),
+            reply_markup=reply_markup, # Используем оригинальные кнопки
             link_preview_options=preview_options
         )
         
@@ -278,13 +278,13 @@ async def process_test_post(message: types.Message, state: FSMContext) -> None:
         await message.answer(
             f"✅ <b>Готово!</b>\n\n"
             f"Публичная ссылка: <code>{image_url}</code>\n\n"
-            f"Пост отправлен в канал. Ниже — превью для вас:",
+            f"Пост отправлен в канал. Ниже — превью для вас (кнопки сохранены):",
             parse_mode="HTML"
         )
         await message.answer(
             final_text,
             parse_mode="HTML",
-            reply_markup=kb_builder.as_markup(),
+            reply_markup=reply_markup, # Используем оригинальные кнопки
             link_preview_options=preview_options
         )
         
