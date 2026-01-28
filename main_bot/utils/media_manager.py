@@ -73,7 +73,9 @@ class MediaManager:
             logger.warning("Не удалось сохранить медиа локально, откатываемся на file_id (будет обрезано)")
         
         # В остальных случаях используем file_id (или существующий URL, если он был)
-        is_inv = target_media.startswith("http")
+        # Если текст > 1024, то даже если мы используем file_id (что странно для длинного поста, но вдруг), 
+        # система должна знать, что это Invisible Link метод по факту длинного текста.
+        is_inv = target_media.startswith("http") or caption_len > 1024
         return target_media, is_inv, media_type
 
     @staticmethod
