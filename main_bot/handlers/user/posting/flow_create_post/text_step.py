@@ -104,18 +104,9 @@ async def get_message(message: types.Message, state: FSMContext):
     logger.info(f"🔄 Первичная трансформация контента (User: {message.from_user.id})")
 
     # Решаем, как шлем медиа (file_id vs URL)
-    media_value, is_invisible = await MediaManager.process_media_for_post(
+    media_value, is_invisible, current_media_type = await MediaManager.process_media_for_post(
         message, final_html
     )
-
-    # Определяем тип медиа
-    current_media_type = "text"
-    if message.photo:
-        current_media_type = "photo"
-    elif message.video:
-        current_media_type = "video"
-    elif message.animation:
-        current_media_type = "animation"
 
     # Сборка inline кнопок (для ассамблера)
     buttons_str = None
