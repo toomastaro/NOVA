@@ -144,15 +144,16 @@ async def choice(call: types.CallbackQuery, state: FSMContext) -> None:
         # Но для теста используем просто символы, если они поддерживаются или описание.
         premium_emojis = "⚡️💎👑🚀🔥🌟✨"
         base_text = (
-            f"{invisible_link}<b>ТЕСТ МЕТОДА INVISIBLE LINK</b>\n\n"
-            f"Этот пост содержит более 2000 символов и скрытую ссылку на изображение. "
+            f"{invisible_link}<b>🧪 ТЕСТ МЕТОДА INVISIBLE LINK</b>\n\n"
+            f"Этот пост содержит около 3500 символов и скрытую ссылку на изображение. "
             f"Мы проверяем, отобразит ли Telegram превью картинки для такого длинного сообщения. "
-            f"Премиум эмодзи для теста: {premium_emojis}\n\n"
+            f"Премиум эмодзи: {premium_emojis}\n\n"
         )
         
-        filler = "Это тестовый наполнитель для достижения необходимой длины сообщения. " * 20
-        long_text = base_text + (filler + "\n\n") * 10
-        long_text += f"\n\nКонец тестового сообщения. Длина: {len(long_text)} символов."
+        # Исправляем расчет длины: 1 наполнитель ~50 симв. 60 повторов ~3000 симв.
+        filler = "Это тестовая строка для заполнения объема сообщения. " 
+        long_text = base_text + (filler * 60)
+        long_text += f"\n\n🔚 Конец сообщения. Итоговая длина: {len(long_text)} символов."
         
         # Клавиатура с 4 кнопками
         from aiogram.utils.keyboard import InlineKeyboardBuilder
@@ -167,22 +168,36 @@ async def choice(call: types.CallbackQuery, state: FSMContext) -> None:
             from instance_bot import bot
             from aiogram.types import LinkPreviewOptions
             
-            sent_msg = await bot.send_message(
+            # Настройки превью
+            preview_options = LinkPreviewOptions(
+                is_disabled=False,
+                prefer_large_media=True,
+                show_above_text=True
+            )
+            
+            # 1. Отправка в канал
+            await bot.send_message(
                 chat_id=target_chat_id,
                 text=long_text,
                 parse_mode="HTML",
                 reply_markup=kb_builder.as_markup(),
-                link_preview_options=LinkPreviewOptions(
-                    is_disabled=False,
-                    prefer_large_media=True,
-                    show_above_text=True
-                )
+                link_preview_options=preview_options
             )
-            logger.info(f"Тестовое сообщение успешно отправлено! ID: {sent_msg.message_id}")
-            await call.answer("✅ Сообщение отправлено в канал!", show_alert=True)
+            
+            # 2. Показываем превью самому админу (как просили)
+            await bot.send_message(
+                chat_id=call.from_user.id,
+                text=f"📢 <b>Превью для админа:</b>\n\n{long_text}",
+                parse_mode="HTML",
+                reply_markup=kb_builder.as_markup(),
+                link_preview_options=preview_options
+            )
+            
+            logger.info(f"Тестовое сообщение успешно отправлено в канал и админу {call.from_user.id}")
+            await call.answer("✅ Отправлено в канал и вам в ЛС!", show_alert=True)
         except Exception as e:
             logger.error(f"Ошибка при отправке тестового сообщения: {e}", exc_info=True)
-            await call.answer(f"❌ Ошибка: {str(e)[:50]}", show_alert=True)
+            await call.answer(f"❌ Ошибка (длина {len(long_text)}): {str(e)[:50]}", show_alert=True)
 
     await call.answer()
 
