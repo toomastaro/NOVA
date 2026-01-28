@@ -86,5 +86,9 @@ class Config:
         "subscribe": {0: {"name": "99₽ (2̶9̶9̶₽̶) за 30 дней", "period": 30, "amount": 99}}
     }
 
+    # Настройки хранилища изображений
+    PUBLIC_IMAGES_PATH = os.path.join(os.getcwd(), "public", "images")
+    PUBLIC_IMAGES_URL = f"{WEBHOOK_DOMAIN}/images"
+
 
 config = Config()
