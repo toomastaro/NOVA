@@ -17,9 +17,10 @@ from aiogram.fsm.context import FSMContext
 from config import Config
 from main_bot.database.db import db
 from main_bot.keyboards import keyboards
-from main_bot.states.admin import Promo, AdminMailing
+from main_bot.states.admin import Promo, AdminMailing, AdminTest
 from main_bot.utils.lang.language import text
 from utils.error_handler import safe_handler
+import uuid
 
 logger = logging.getLogger(__name__)
 
@@ -194,7 +195,104 @@ async def choice(call: types.CallbackQuery, state: FSMContext) -> None:
             logger.error(f"Ошибка при отправке теста {title}: {e}", exc_info=True)
             await call.answer(f"❌ Ошибка: {str(e)[:50]}", show_alert=True)
 
+    elif action == "test_parse":
+        """Начало теста с парсингом: запрашиваем пост"""
+        await call.message.edit_text(
+            "📝 <b>Режим теста: Парсинг и Пост</b>\n\n"
+            "Пришлите мне сообщение с картинкой и текстом (капшеном). "
+            "Я сохраню картинку в локальное хранилище и переотправлю пост методом 'Скрытая ссылка'.",
+            reply_markup=keyboards.back(data="Admin|back"),
+            parse_mode="HTML"
+        )
+        await state.set_state(AdminTest.waiting_for_post)
+
     await call.answer()
+
+
+@safe_handler("Админ: тест — обработка присланного поста")
+async def process_test_post(message: types.Message, state: FSMContext) -> None:
+    """
+    Обработка присланного админом поста для теста Invisible Link.
+    """
+    if message.from_user.id not in Config.ADMINS:
+        return
+
+    if not message.photo:
+        await message.answer("❌ Пожалуйста, пришлите сообщение именно с <b>ФОТО</b>.")
+        return
+
+    # 1. Подготовка папки
+    os.makedirs(Config.PUBLIC_IMAGES_PATH, exist_ok=True)
+
+    # 2. Сохранение фото
+    photo = message.photo[-1]
+    file_ext = ".jpg" # Telegram фото обычно jpg
+    unique_name = f"{uuid.uuid4().hex}{file_ext}"
+    file_path = os.path.join(Config.PUBLIC_IMAGES_PATH, unique_name)
+    
+    from instance_bot import bot
+    await bot.download(photo, destination=file_path)
+    logger.info(f"Тест: Фото сохранено в {file_path}")
+
+    # 3. Формирование ссылки и текста
+    image_url = f"{Config.PUBLIC_IMAGES_URL}{unique_name}"
+    invisible_link = f'<a href="{image_url}">\u200b</a>'
+    
+    # Получаем исходный текст с сохранением HTML
+    caption = message.html_text if message.caption else "Без текста"
+    
+    # Добавляем инфо-блок
+    final_text = (
+        f"{invisible_link}🚀 <b>АВТО-ТЕСТ INVISIBLE LINK</b>\n"
+        f"🖼 <i>Картинка сохранена локально:</i>\n<code>{unique_name}</code>\n\n"
+        f"{caption}"
+    )
+
+    # 4. Клавиатура
+    from aiogram.utils.keyboard import InlineKeyboardBuilder
+    kb_builder = InlineKeyboardBuilder()
+    for i in range(4):
+        kb_builder.button(text=f"Кнопка {i+1} ➡️ Нова", url="https://t.me/novatg")
+    kb_builder.adjust(2)
+
+    # 5. Отправка
+    target_chat_id = -1003252039305
+    try:
+        from aiogram.types import LinkPreviewOptions
+        preview_options = LinkPreviewOptions(
+            is_disabled=False,
+            prefer_large_media=True,
+            show_above_text=True
+        )
+
+        # В канал
+        await bot.send_message(
+            chat_id=target_chat_id,
+            text=final_text,
+            parse_mode="HTML",
+            reply_markup=kb_builder.as_markup(),
+            link_preview_options=preview_options
+        )
+        
+        # Админу
+        await message.answer(
+            f"✅ <b>Готово!</b>\n\n"
+            f"Публичная ссылка: <code>{image_url}</code>\n\n"
+            f"Пост отправлен в канал. Ниже — превью для вас:",
+            parse_mode="HTML"
+        )
+        await message.answer(
+            final_text,
+            parse_mode="HTML",
+            reply_markup=kb_builder.as_markup(),
+            link_preview_options=preview_options
+        )
+        
+        await state.clear()
+        logger.info("Авто-тест Invisible Link успешно завершен.")
+    except Exception as e:
+        logger.error(f"Ошибка в авто-тесте: {e}", exc_info=True)
+        await message.answer(f"❌ Ошибка: {str(e)[:100]}")
 
 
 def get_router() -> Router:
@@ -208,4 +306,5 @@ def get_router() -> Router:
     router.message.register(admin_menu, Command("admin"))
     router.message.register(admin_menu, Command("админ"))  # Русская команда
     router.callback_query.register(choice, F.data.split("|")[0] == "Admin")
+    router.message.register(process_test_post, AdminTest.waiting_for_post)
     return router

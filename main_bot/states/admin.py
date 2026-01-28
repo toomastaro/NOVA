@@ -22,3 +22,7 @@ class AdminMailing(StatesGroup):
 
 class AdminStates(StatesGroup):
     waiting_for_user_import_file = State()
+
+
+class AdminTest(StatesGroup):
+    waiting_for_post = State()
