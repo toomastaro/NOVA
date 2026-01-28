@@ -18,6 +18,8 @@ from main_bot.utils.lang.language import text
 from main_bot.utils.schemas import MessageOptions, Media
 from main_bot.utils.media_manager import MediaManager
 from main_bot.utils.post_assembler import PostAssembler
+from main_bot.keyboards import keyboards
+from main_bot.keyboards.posting import ensure_obj
 from main_bot.states.user import Posting
 from utils.error_handler import safe_handler
 
