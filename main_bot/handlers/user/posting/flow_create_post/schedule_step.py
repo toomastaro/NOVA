@@ -29,8 +29,6 @@ from utils.error_handler import safe_handler
 logger = logging.getLogger(__name__)
 
 
-
-
 @safe_handler(
     "Финальные параметры постинга"
 )  # Безопасная обёртка: логирование + перехват ошибок без падения бота
@@ -100,7 +98,9 @@ async def finish_params(call: types.CallbackQuery, state: FSMContext):
 
         if invalid_channels:
             limit_show = 50
-            channels_text = "\n".join(f"• {title}" for title in invalid_channels[:limit_show])
+            channels_text = "\n".join(
+                f"• {title}" for title in invalid_channels[:limit_show]
+            )
             if len(invalid_channels) > limit_show:
                 channels_text += f"\n... и ещё {len(invalid_channels) - limit_show}"
 
@@ -119,9 +119,7 @@ async def finish_params(call: types.CallbackQuery, state: FSMContext):
                         f"<i>Рекомендуется проверить права помощников для корректного сбора статистики.</i>"
                     )
                     await main_bot.send_message(
-                        chat_id=Config.ADMIN_SUPPORT,
-                        text=alert_text,
-                        parse_mode="HTML"
+                        chat_id=Config.ADMIN_SUPPORT, text=alert_text, parse_mode="HTML"
                     )
                 except Exception as alert_err:
                     logger.error(f"Не удалось отправить алерт админам: {alert_err}")
@@ -449,7 +447,9 @@ async def get_send_time(message: types.Message, state: FSMContext):
     full_date_str = f"{_time}, {date.strftime('%d.%m.%Y')}"
 
     await message.answer(
-        text("manage:post:accept:date").format(full_date_str, channels_block, delete_str),
+        text("manage:post:accept:date").format(
+            full_date_str, channels_block, delete_str
+        ),
         reply_markup=keyboards.accept_date(),
         parse_mode="HTML",
         link_preview_options=types.LinkPreviewOptions(is_disabled=True),

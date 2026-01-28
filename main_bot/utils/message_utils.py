@@ -72,12 +72,14 @@ async def answer_bot_post(
 
     # Если это медиа с длинным описанием (> 1024), бот не сможет его показать
     caption = message_options.caption
-    is_media = any([message_options.photo, message_options.video, message_options.animation])
+    is_media = any(
+        [message_options.photo, message_options.video, message_options.animation]
+    )
     if is_media and caption and len(caption) > 1024:
         return await message.answer(
             text("long_caption_preview_unavailable").format(len(caption)),
             reply_markup=message_options.reply_markup,
-            parse_mode="HTML"
+            parse_mode="HTML",
         )
 
     post_message = await cor(**message_options.model_dump(), parse_mode="HTML")
@@ -111,13 +113,23 @@ async def answer_post(
         message_options = MessageOptions()
 
     # 1. Адаптация данных (Совместимость со старым форматом)
-    html_text = message_options.html_text or message_options.text or message_options.caption or ""
-    media_value = message_options.media_value or message_options.photo or message_options.video or message_options.animation
+    html_text = (
+        message_options.html_text
+        or message_options.text
+        or message_options.caption
+        or ""
+    )
+    media_value = (
+        message_options.media_value
+        or message_options.photo
+        or message_options.video
+        or message_options.animation
+    )
     media_type = message_options.media_type
     is_inv = message_options.is_invisible
 
     # Если file_id обернут в Media схему - достаем строку
-    if hasattr(media_value, 'file_id'):
+    if hasattr(media_value, "file_id"):
         media_value = media_value.file_id
 
     # Авто-определение типа если не задан
@@ -144,19 +156,17 @@ async def answer_post(
         # ВАРИАНТ 1: Invisible Link
         if is_inv or (len(html_text) > 1024 and media_type != "text"):
             preview_options = types.LinkPreviewOptions(
-                is_disabled=False,
-                prefer_large_media=True,
-                show_above_text=True
+                is_disabled=False, prefer_large_media=True, show_above_text=True
             )
-            
+
             return await message.answer(
                 text=html_text,
                 parse_mode="HTML",
                 reply_markup=reply_markup,
                 link_preview_options=preview_options,
-                disable_notification=message_options.disable_notification
+                disable_notification=message_options.disable_notification,
             )
-        
+
         # ВАРИАНТ 2: Native Media
         if media_type == "photo":
             return await message.answer_photo(
@@ -164,7 +174,7 @@ async def answer_post(
                 caption=html_text,
                 parse_mode="HTML",
                 reply_markup=reply_markup,
-                disable_notification=message_options.disable_notification
+                disable_notification=message_options.disable_notification,
             )
         elif media_type == "video":
             return await message.answer_video(
@@ -172,7 +182,7 @@ async def answer_post(
                 caption=html_text,
                 parse_mode="HTML",
                 reply_markup=reply_markup,
-                disable_notification=message_options.disable_notification
+                disable_notification=message_options.disable_notification,
             )
         elif media_type == "animation":
             return await message.answer_animation(
@@ -180,15 +190,15 @@ async def answer_post(
                 caption=html_text,
                 parse_mode="HTML",
                 reply_markup=reply_markup,
-                disable_notification=message_options.disable_notification
+                disable_notification=message_options.disable_notification,
             )
-        else: # Pure text
+        else:  # Pure text
             return await message.answer(
                 text=html_text,
                 parse_mode="HTML",
                 reply_markup=reply_markup,
                 disable_notification=message_options.disable_notification,
-                link_preview_options=types.LinkPreviewOptions(is_disabled=True)
+                link_preview_options=types.LinkPreviewOptions(is_disabled=True),
             )
 
     except Exception as e:
@@ -329,7 +339,11 @@ async def answer_message_bot(
     # Удаляем специфичные поля для капчи
     if isinstance(message_options, MessageOptionsCaptcha):
         resize = dump.pop("resize_markup", None)
-        if resize and message_options.reply_markup and isinstance(message_options.reply_markup, types.ReplyKeyboardMarkup):
+        if (
+            resize
+            and message_options.reply_markup
+            and isinstance(message_options.reply_markup, types.ReplyKeyboardMarkup)
+        ):
             message_options.reply_markup.resize_keyboard = True
 
     # Обработка превью ссылок (общая для всех, поппинг поля из дампа)
@@ -337,7 +351,9 @@ async def answer_message_bot(
         if getattr(message_options, "disable_web_page_preview", False):
             # LinkPreviewOptions поддерживается в основном для text (sendMessage)
             if message_options.text:
-                dump["link_preview_options"] = types.LinkPreviewOptions(is_disabled=True)
+                dump["link_preview_options"] = types.LinkPreviewOptions(
+                    is_disabled=True
+                )
         dump.pop("disable_web_page_preview", None)
 
     # Удаляем неиспользуемые поля в зависимости от типа сообщения
@@ -420,13 +436,15 @@ async def answer_message(
 
     dump = message_options.model_dump()
     dump["parse_mode"] = "HTML"
-    
+
     # Обработка превью ссылок (общая для всех, поппинг поля из дампа)
     if hasattr(message_options, "disable_web_page_preview"):
         if getattr(message_options, "disable_web_page_preview", False):
             # LinkPreviewOptions поддерживается в основном для text (sendMessage)
             if message_options.text:
-                dump["link_preview_options"] = types.LinkPreviewOptions(is_disabled=True)
+                dump["link_preview_options"] = types.LinkPreviewOptions(
+                    is_disabled=True
+                )
         dump.pop("disable_web_page_preview", None)
 
     # Удаляем поля, которые могут вызвать конфликт или ошибку

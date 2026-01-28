@@ -133,7 +133,7 @@ async def send_to_backup(post: Post | Story | BotPost) -> tuple[int | None, int 
     elif hasattr(post, "message_options") and post.message_options:
         message_options = MessageOptions(**post.message_options)
         reply_markup = keyboards.post_kb(post=post)
-        
+
         # ЛОГИКА PREMIUM ЗАГРУЗКИ УДАЛЕНА И ЗАМЕНЕНА НА INVISIBLE LINK
         logger.debug(f"Бэкап для поста {post.id} (устаревший метод)")
 
@@ -152,7 +152,7 @@ async def send_to_backup(post: Post | Story | BotPost) -> tuple[int | None, int 
             "Отправка в бэкап: метод=%s. Спойлер в HTML: %s. Разметка: %s",
             cor.__name__,
             "tg-spoiler" in (log_caption or ""),
-            "была" if log_caption and "<" in log_caption else "нет"
+            "была" if log_caption and "<" in log_caption else "нет",
         )
         if log_caption and "<" in log_caption:
             logger.debug("HTML для бэкапа: %s", log_caption[:500])
@@ -246,31 +246,55 @@ async def edit_backup_message(
             )
         else:
             # Проверяем, изменилось ли только описание или еще и само медиа
-            # Для этого нам нужно знать, что было до этого, но проще попробовать edit_media 
+            # Для этого нам нужно знать, что было до этого, но проще попробовать edit_media
             # если в message_options есть медиа-данные.
-            
+
             # Определяем тип медиа для Aiogram InputMedia
-            from aiogram.types import InputMediaPhoto, InputMediaVideo, InputMediaAnimation
+            from aiogram.types import (
+                InputMediaPhoto,
+                InputMediaVideo,
+                InputMediaAnimation,
+            )
+
             input_media = None
             is_video = False
             is_animation = False
-            
+
             if message_options.photo:
-                file_id = message_options.photo.file_id if hasattr(message_options.photo, "file_id") else message_options.photo
-                input_media = InputMediaPhoto(media=file_id, caption=message_options.caption, parse_mode="HTML")
+                file_id = (
+                    message_options.photo.file_id
+                    if hasattr(message_options.photo, "file_id")
+                    else message_options.photo
+                )
+                input_media = InputMediaPhoto(
+                    media=file_id, caption=message_options.caption, parse_mode="HTML"
+                )
             elif message_options.video:
-                file_id = message_options.video.file_id if hasattr(message_options.video, "file_id") else message_options.video
-                input_media = InputMediaVideo(media=file_id, caption=message_options.caption, parse_mode="HTML")
+                file_id = (
+                    message_options.video.file_id
+                    if hasattr(message_options.video, "file_id")
+                    else message_options.video
+                )
+                input_media = InputMediaVideo(
+                    media=file_id, caption=message_options.caption, parse_mode="HTML"
+                )
                 is_video = True
             elif message_options.animation:
-                file_id = message_options.animation.file_id if hasattr(message_options.animation, "file_id") else message_options.animation
-                input_media = InputMediaAnimation(media=file_id, caption=message_options.caption, parse_mode="HTML")
+                file_id = (
+                    message_options.animation.file_id
+                    if hasattr(message_options.animation, "file_id")
+                    else message_options.animation
+                )
+                input_media = InputMediaAnimation(
+                    media=file_id, caption=message_options.caption, parse_mode="HTML"
+                )
                 is_animation = True
 
             # Медиа сообщение
             if message_options.caption is not None:
                 if len(message_options.caption) > 1024:
                     from main_bot.utils.premium_uploader import PremiumUploader
+
                     # Если медиа изменилось, используем новый edit_media
                     # В рамках этого проекта мы считаем, что если этот метод вызван, то контент (включая медиа) мог измениться
                     success = await PremiumUploader.edit_media(
@@ -280,13 +304,19 @@ async def edit_backup_message(
                         media_file_id=input_media.media if input_media else None,
                         is_video=is_video,
                         is_animation=is_animation,
-                        reply_markup=reply_markup
+                        reply_markup=reply_markup,
                     )
                     if not success:
-                        raise Exception("Failed to edit long caption and media via PremiumUploader")
-                    
+                        raise Exception(
+                            "Failed to edit long caption and media via PremiumUploader"
+                        )
+
                     if reply_markup:
-                        await bot.edit_message_reply_markup(chat_id=chat_id, message_id=message_id, reply_markup=reply_markup)
+                        await bot.edit_message_reply_markup(
+                            chat_id=chat_id,
+                            message_id=message_id,
+                            reply_markup=reply_markup,
+                        )
                 else:
                     # Попытка отредактировать медиа и подпись через стандартный Bot API
                     if input_media:
@@ -294,7 +324,7 @@ async def edit_backup_message(
                             chat_id=chat_id,
                             message_id=message_id,
                             media=input_media,
-                            reply_markup=reply_markup
+                            reply_markup=reply_markup,
                         )
                     else:
                         await bot.edit_message_caption(
@@ -306,21 +336,24 @@ async def edit_backup_message(
                         )
                 if len(message_options.caption) > 1024:
                     from main_bot.utils.premium_uploader import PremiumUploader
+
                     success = await PremiumUploader.edit_caption(
                         chat_id=chat_id,
                         message_id=message_id,
                         caption=message_options.caption,
-                        reply_markup=reply_markup
+                        reply_markup=reply_markup,
                     )
                     if not success:
-                        raise Exception("Failed to edit long caption via PremiumUploader")
-                    
+                        raise Exception(
+                            "Failed to edit long caption via PremiumUploader"
+                        )
+
                     # Если есть клавиатура, обновляем её отдельно основным ботом
                     if reply_markup:
                         await bot.edit_message_reply_markup(
                             chat_id=chat_id,
                             message_id=message_id,
-                            reply_markup=reply_markup
+                            reply_markup=reply_markup,
                         )
                 else:
                     await bot.edit_message_caption(
@@ -426,27 +459,57 @@ async def _update_single_live_message(
                     parse_mode="HTML",
                     # Для скрытой ссылки preview РАЗРЕШЕН (чтобы тянулось медиа)
                     # Для обычного текста - берем из настроек
-                    disable_web_page_preview=not message_options.is_invisible if message_options.is_invisible else message_options.disable_web_page_preview,
+                    disable_web_page_preview=(
+                        not message_options.is_invisible
+                        if message_options.is_invisible
+                        else message_options.disable_web_page_preview
+                    ),
                     reply_markup=reply_markup,
                 )
             # 2. Обычное медиа (file_id)
             else:
-                from aiogram.types import InputMediaPhoto, InputMediaVideo, InputMediaAnimation
+                from aiogram.types import (
+                    InputMediaPhoto,
+                    InputMediaVideo,
+                    InputMediaAnimation,
+                )
+
                 input_media = None
-                
-                if message_options.media_type == "photo" and message_options.media_value:
-                    input_media = InputMediaPhoto(media=message_options.media_value, caption=message_options.html_text, parse_mode="HTML")
-                elif message_options.media_type == "video" and message_options.media_value:
-                    input_media = InputMediaVideo(media=message_options.media_value, caption=message_options.html_text, parse_mode="HTML")
-                elif message_options.media_type == "animation" and message_options.media_value:
-                    input_media = InputMediaAnimation(media=message_options.media_value, caption=message_options.html_text, parse_mode="HTML")
+
+                if (
+                    message_options.media_type == "photo"
+                    and message_options.media_value
+                ):
+                    input_media = InputMediaPhoto(
+                        media=message_options.media_value,
+                        caption=message_options.html_text,
+                        parse_mode="HTML",
+                    )
+                elif (
+                    message_options.media_type == "video"
+                    and message_options.media_value
+                ):
+                    input_media = InputMediaVideo(
+                        media=message_options.media_value,
+                        caption=message_options.html_text,
+                        parse_mode="HTML",
+                    )
+                elif (
+                    message_options.media_type == "animation"
+                    and message_options.media_value
+                ):
+                    input_media = InputMediaAnimation(
+                        media=message_options.media_value,
+                        caption=message_options.html_text,
+                        parse_mode="HTML",
+                    )
 
                 if input_media:
                     await bot.edit_message_media(
                         chat_id=post.chat_id,
                         message_id=post.message_id,
                         media=input_media,
-                        reply_markup=reply_markup
+                        reply_markup=reply_markup,
                     )
                 else:
                     await bot.edit_message_caption(
@@ -459,7 +522,9 @@ async def _update_single_live_message(
         except Exception as e:
             if "message is not modified" in str(e):
                 return
-            logger.error(f"Ошибка обновления сообщения {post.message_id} в {post.chat_id}: {e}")
+            logger.error(
+                f"Ошибка обновления сообщения {post.message_id} в {post.chat_id}: {e}"
+            )
 
 
 async def update_live_messages(
@@ -476,9 +541,7 @@ async def update_live_messages(
     semaphore = asyncio.Semaphore(15)
 
     tasks = [
-        _update_single_live_message(
-            post, message_options, reply_markup, semaphore
-        )
+        _update_single_live_message(post, message_options, reply_markup, semaphore)
         for post in published_posts
     ]
     await asyncio.gather(*tasks)

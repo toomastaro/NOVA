@@ -339,9 +339,7 @@ async def cancel_value(call: types.CallbackQuery, state: FSMContext):
             await db.published_post.update_published_posts_by_post_id(
                 post_id=post.post_id or post.id, **kwargs
             )
-            post = await db.published_post.get_published_post_by_id(
-                post.id
-            )
+            post = await db.published_post.get_published_post_by_id(post.id)
         else:
             post = await db.post.update_post(
                 post_id=ensure_obj(data.get("post")).id, return_obj=True, **kwargs
@@ -473,39 +471,46 @@ async def get_value(message: types.Message, state: FSMContext):
         final_html = message.html_text
         entities = message.entities or message.caption_entities or []
         has_spoiler_entity = any(e.type == "spoiler" for e in entities)
-        
+
         logger.info(
             "Пользователь %s: захвачен HTML (длина %d). Медиа: %s. Тип сущностей: %s. Текст содержит спойлер (entity): %s, спойлер (tag): %s",
             message.from_user.id,
             len(final_html or ""),
             is_media,
-            "caption" if message.caption_entities else "text" if message.entities else "none",
+            (
+                "caption"
+                if message.caption_entities
+                else "text" if message.entities else "none"
+            ),
             has_spoiler_entity,
-            "tg-spoiler" in (final_html or "")
+            "tg-spoiler" in (final_html or ""),
         )
-        
+
         # Если это медиа и есть сущность спойлера, но нет тега в html_text - это баг aiogram/пересылки
         if has_spoiler_entity and "tg-spoiler" not in (final_html or ""):
-            logger.warning("ОБНАРУЖЕН БАГ: Сущность спойлера есть, а тега в HTML нет! Принудительно восстанавливаем.")
+            logger.warning(
+                "ОБНАРУЖЕН БАГ: Сущность спойлера есть, а тега в HTML нет! Принудительно восстанавливаем."
+            )
             from aiogram.utils.text_decorations import html_decoration
+
             text_to_format = message.text or message.caption or ""
             final_html = html_decoration.unparse(text_to_format, entities)
-            
+
             if is_media:
                 message_options.caption = final_html
             else:
                 message_options.text = final_html
-            
+
             logger.info("Восстановленный HTML: %s", final_html)
         if final_html and "<" in final_html:
             logger.debug("Захваченный HTML: %s", final_html[:500])
 
         # 1. Формируем временный объект MessageOptions для анализа
         temp_options = MessageOptions(**post.message_options)
-        
+
         if param == "text":
             temp_options.text = final_html
-            temp_options.caption = None # Сброс старого
+            temp_options.caption = None  # Сброс старого
         elif param == "media":
             if message.photo:
                 temp_options.photo = Media(file_id=message.photo[-1].file_id)
@@ -513,7 +518,7 @@ async def get_value(message: types.Message, state: FSMContext):
                 temp_options.video = Media(file_id=message.video.file_id)
             if message.animation:
                 temp_options.animation = Media(file_id=message.animation.file_id)
-            
+
             # Если есть текст, переносим его в caption если нужно (обработает ассамблер)
             text_content = temp_options.text or temp_options.caption or ""
             temp_options.caption = text_content
@@ -521,11 +526,13 @@ async def get_value(message: types.Message, state: FSMContext):
 
         # 2. Адаптивная трансформация (MediaManager + PostAssembler)
         logger.info(f"🔄 Трансформация поста {post.id} (param: {param})")
-        
+
         # Решаем, как шлем медиа
         caption_for_check = temp_options.text or temp_options.caption or ""
-        media_value, is_invisible = await MediaManager.process_media_for_post(message, caption_for_check)
-        
+        media_value, is_invisible = await MediaManager.process_media_for_post(
+            message, caption_for_check
+        )
+
         # Определяем текущий тип медиа (для ассамблера)
         current_media_type = "text"
         if temp_options.photo:
@@ -542,13 +549,13 @@ async def get_value(message: types.Message, state: FSMContext):
             media_value=media_value,
             is_invisible=is_invisible,
             buttons=post.buttons,
-            reaction=post.reaction
+            reaction=post.reaction,
         )
-        
+
         # Сливаем с существующими настройками (disable_notification и т.д.)
         final_options_dict = temp_options.model_dump()
         final_options_dict.update(assembled_options)
-        
+
         kwargs = {"message_options": final_options_dict}
 
     else:
@@ -613,6 +620,7 @@ async def get_value(message: types.Message, state: FSMContext):
         # Обновление live-сообщений если опубликовано
         if data.get("is_published") and post:
             from main_bot.utils.backup_utils import update_live_messages
+
             message_options = MessageOptions(**post.message_options)
             reply_markup = keyboards.post_kb(post=post)
             post_id_val = post.post_id or post.id

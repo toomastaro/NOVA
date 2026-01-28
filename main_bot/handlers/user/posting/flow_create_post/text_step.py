@@ -76,13 +76,17 @@ async def get_message(message: types.Message, state: FSMContext):
     # Лимит зависит от типа контента:
     # - Только текст: 4096 символов
     # - Медиа (фото/видео): 2048 символов (лимит для Premium-аккаунта)
-    
-    is_media = bool(message.photo or message.video or message.animation or message.document)
+
+    is_media = bool(
+        message.photo or message.video or message.animation or message.document
+    )
     limit = 2048 if is_media else 4096
 
     message_text_length = len(message.caption or message.text or "")
-    logger.debug("Длина текста сообщения: %d символов (лимит: %d)", message_text_length, limit)
-    
+    logger.debug(
+        "Длина текста сообщения: %d символов (лимит: %d)", message_text_length, limit
+    )
+
     if message_text_length > limit:
         logger.warning(
             "Пользователь %s: превышена длина текста (%d > %d)",
@@ -95,13 +99,15 @@ async def get_message(message: types.Message, state: FSMContext):
     # Парсинг сообщения в MessageOptions
     final_html = message.html_text
     is_media = bool(message.photo or message.video or message.animation)
-    
+
     # 1. Адаптивная трансформация
     logger.info(f"🔄 Первичная трансформация контента (User: {message.from_user.id})")
-    
+
     # Решаем, как шлем медиа (file_id vs URL)
-    media_value, is_invisible = await MediaManager.process_media_for_post(message, final_html)
-    
+    media_value, is_invisible = await MediaManager.process_media_for_post(
+        message, final_html
+    )
+
     # Определяем тип медиа
     current_media_type = "text"
     if message.photo:
@@ -132,9 +138,9 @@ async def get_message(message: types.Message, state: FSMContext):
         media_value=media_value,
         is_invisible=is_invisible,
         buttons=buttons_str,
-        reaction=None # Пока нет реакций
+        reaction=None,  # Пока нет реакций
     )
-    
+
     # Создаем финальный объект для БД
     message_options = MessageOptions(**assembled_options)
 

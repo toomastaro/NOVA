@@ -84,16 +84,26 @@ async def send(post: Post):
             message_options = MessageOptions(**post.message_options)
         except Exception as e:
             logger.error(f"Ошибка валидации MessageOptions для поста {post.id}: {e}")
-            message_options = MessageOptions() # Фоллбек
+            message_options = MessageOptions()  # Фоллбек
 
         # 2. Адаптация данных (Миграция на лету для старых постов)
-        html_text = message_options.html_text or message_options.text or message_options.caption or ""
-        media_value = message_options.media_value or message_options.photo or message_options.video or message_options.animation
+        html_text = (
+            message_options.html_text
+            or message_options.text
+            or message_options.caption
+            or ""
+        )
+        media_value = (
+            message_options.media_value
+            or message_options.photo
+            or message_options.video
+            or message_options.animation
+        )
         media_type = message_options.media_type
         is_inv = message_options.is_invisible
 
         # Если file_id обернут в Media схему - достаем строку
-        if hasattr(media_value, 'file_id'):
+        if hasattr(media_value, "file_id"):
             media_value = media_value.file_id
 
         # Авто-определение типа если не задан
@@ -107,14 +117,16 @@ async def send(post: Post):
             else:
                 media_type = "text"
 
-        logger.info(f"🚀 Старт рассылки поста {post.id}. Метод: {'Invisible' if is_inv else 'Native'}, Каналов: {len(post.chat_ids)}")
+        logger.info(
+            f"🚀 Старт рассылки поста {post.id}. Метод: {'Invisible' if is_inv else 'Native'}, Каналов: {len(post.chat_ids)}"
+        )
 
         error_send = []
         success_send = []
 
         # 3. Цикл публикации
         for chat_id in post.chat_ids:
-            async with sem: # Ограничиваем количество одновременных запросов
+            async with sem:  # Ограничиваем количество одновременных запросов
                 channel = await db.channel.get_channel_by_chat_id(chat_id)
                 if not channel or not channel.subscribe:
                     continue
@@ -122,28 +134,28 @@ async def send(post: Post):
                 try:
                     # Подготовка общих настроек
                     reply_markup = keyboards.post_kb(post=post)
-                    
+
                     # ВАРИАНТ 1: Invisible Link (Длинный пост или принудительно)
                     if is_inv or (len(html_text) > 1024 and media_type != "text"):
                         # Если это был старый длинный пост, пробуем спасти его через Invisible Link
                         # Но для полноценной работы медиа должно быть уже сохранено локально (URL).
                         # Если это file_id, Telegram покажет его как текстовую ссылку (не идеально, но лучше чем сбой).
-                        
+
                         preview_options = types.LinkPreviewOptions(
                             is_disabled=False,
                             prefer_large_media=True,
-                            show_above_text=True
+                            show_above_text=True,
                         )
-                        
+
                         post_message = await bot.send_message(
                             chat_id=chat_id,
                             text=html_text,
                             parse_mode="HTML",
                             reply_markup=reply_markup,
                             link_preview_options=preview_options,
-                            disable_notification=message_options.disable_notification
+                            disable_notification=message_options.disable_notification,
                         )
-                    
+
                     # ВАРИАНТ 2: Native Media (Короткий пост или чисто текст)
                     else:
                         if media_type == "photo":
@@ -153,7 +165,7 @@ async def send(post: Post):
                                 caption=html_text,
                                 parse_mode="HTML",
                                 reply_markup=reply_markup,
-                                disable_notification=message_options.disable_notification
+                                disable_notification=message_options.disable_notification,
                             )
                         elif media_type == "video":
                             post_message = await bot.send_video(
@@ -162,7 +174,7 @@ async def send(post: Post):
                                 caption=html_text,
                                 parse_mode="HTML",
                                 reply_markup=reply_markup,
-                                disable_notification=message_options.disable_notification
+                                disable_notification=message_options.disable_notification,
                             )
                         elif media_type == "animation":
                             post_message = await bot.send_animation(
@@ -171,58 +183,72 @@ async def send(post: Post):
                                 caption=html_text,
                                 parse_mode="HTML",
                                 reply_markup=reply_markup,
-                                disable_notification=message_options.disable_notification
+                                disable_notification=message_options.disable_notification,
                             )
-                        else: # Pure text
+                        else:  # Pure text
                             post_message = await bot.send_message(
                                 chat_id=chat_id,
                                 text=html_text,
                                 parse_mode="HTML",
                                 reply_markup=reply_markup,
                                 disable_notification=message_options.disable_notification,
-                                link_preview_options=types.LinkPreviewOptions(is_disabled=True)
+                                link_preview_options=types.LinkPreviewOptions(
+                                    is_disabled=True
+                                ),
                             )
 
-                    logger.debug(f"Пост {post.id} успешно отправлен в {chat_id} (msg: {post_message.message_id})")
-                    
+                    logger.debug(
+                        f"Пост {post.id} успешно отправлен в {chat_id} (msg: {post_message.message_id})"
+                    )
+
                     # Пин сообщения
                     if post.pin_time:
                         try:
                             await bot.pin_chat_message(
                                 chat_id=chat_id,
                                 message_id=post_message.message_id,
-                                disable_notification=message_options.disable_notification
+                                disable_notification=message_options.disable_notification,
                             )
                         except Exception as pin_err:
-                            logger.warning(f"Не удалось закрепить пост {post.id} в {chat_id}: {pin_err}")
+                            logger.warning(
+                                f"Не удалось закрепить пост {post.id} в {chat_id}: {pin_err}"
+                            )
 
                     # Сбор данных для БД
                     current_time = int(time.time())
-                    success_send.append({
-                        "post_id": post.id,
-                        "chat_id": chat_id,
-                        "message_id": post_message.message_id,
-                        "admin_id": post.admin_id,
-                        "reaction": post.reaction or None,
-                        "hide": post.hide or None,
-                        "buttons": post.buttons or None,
-                        "delete_time": (post.delete_time + current_time if post.delete_time else None),
-                        "report": post.report,
-                        "cpm_price": post.cpm_price,
-                        "message_options": post.message_options,
-                    })
+                    success_send.append(
+                        {
+                            "post_id": post.id,
+                            "chat_id": chat_id,
+                            "message_id": post_message.message_id,
+                            "admin_id": post.admin_id,
+                            "reaction": post.reaction or None,
+                            "hide": post.hide or None,
+                            "buttons": post.buttons or None,
+                            "delete_time": (
+                                post.delete_time + current_time
+                                if post.delete_time
+                                else None
+                            ),
+                            "report": post.report,
+                            "cpm_price": post.cpm_price,
+                            "message_options": post.message_options,
+                        }
+                    )
 
                 except Exception as e:
                     logger.error(f"Ошибка отправки поста {post.id} в {chat_id}: {e}")
                     error_send.append({"chat_id": chat_id, "error": str(e)})
-                
+
                 # Небольшая пауза между каналами для соблюдения лимитов
                 await asyncio.sleep(0.05)
 
         # 4. Финализация (БД и Отчеты)
         if success_send:
             await db.published_post.add_many_published_post(posts=success_send)
-            logger.info(f"✅ Успешно опубликовано: {len(success_send)} каналов для поста {post.id}")
+            logger.info(
+                f"✅ Успешно опубликовано: {len(success_send)} каналов для поста {post.id}"
+            )
 
         await db.post.clear_posts(post_ids=[post.id])
 
@@ -231,12 +257,16 @@ async def send(post: Post):
             await _send_admin_report(post, success_send, error_send)
 
     except Exception as e:
-        logger.error(f"Глобальная ошибка в планировщике для поста {post.id}: {e}", exc_info=True)
+        logger.error(
+            f"Глобальная ошибка в планировщике для поста {post.id}: {e}", exc_info=True
+        )
     finally:
         PROCESSING_POSTS.discard(post.id)
 
 
-async def _send_admin_report(post: Post, success_send: List[dict], error_send: List[dict]):
+async def _send_admin_report(
+    post: Post, success_send: List[dict], error_send: List[dict]
+):
     """Вспомогательная функция для отправки отчета админу после публикации"""
     try:
         objects = await db.channel.get_user_channels(
@@ -248,19 +278,31 @@ async def _send_admin_report(post: Post, success_send: List[dict], error_send: L
 
         success_str_inner = "\n".join(
             text("resource_title").format(html.escape(obj.title))
-            for obj in objects if obj.chat_id in success_ids[:10]
+            for obj in objects
+            if obj.chat_id in success_ids[:10]
         )
-        success_str = f"<blockquote expandable>{success_str_inner}</blockquote>" if success_str_inner else ""
+        success_str = (
+            f"<blockquote expandable>{success_str_inner}</blockquote>"
+            if success_str_inner
+            else ""
+        )
 
         error_str_inner = "\n".join(
             text("resource_title").format(html.escape(obj.title))
             + f" \n{''.join(row.get('error') for row in error_send if row.get('chat_id') == obj.chat_id)[:100]}"
-            for obj in objects if obj.chat_id in error_ids[:10]
+            for obj in objects
+            if obj.chat_id in error_ids[:10]
         )
-        error_str = f"<blockquote expandable>{error_str_inner}</blockquote>" if error_str_inner else ""
+        error_str = (
+            f"<blockquote expandable>{error_str_inner}</blockquote>"
+            if error_str_inner
+            else ""
+        )
 
         if success_send and error_send:
-            message_text = text("success_error:post:public").format(success_str, error_str)
+            message_text = text("success_error:post:public").format(
+                success_str, error_str
+            )
         elif success_send:
             message_text = text("manage:post:success:public").format(success_str)
         elif error_send:
