@@ -89,18 +89,7 @@ async def answer_post(
     message: types.Message, state: FSMContext, from_edit: bool = False
 ) -> types.Message:
     """
-    Отправляет превью поста пользователю.
-
-    Пытается загрузить превью из бэкапа, если доступно.
-    В противном случае генерирует локально.
-
-    Аргументы:
-        message (types.Message): Сообщение пользователя.
-        state (FSMContext): FSM контекст с данными поста.
-        from_edit (bool): Флаг редактирования (влияет на клавиатуру).
-
-    Возвращает:
-        types.Message: Отправленное сообщение.
+    Отправляет превью поста пользователю (Адаптивный HTML + Invisible Link).
     """
     data = await state.get_data()
 
@@ -115,21 +104,30 @@ async def answer_post(
         return await message.answer(text("story_not_found"))
 
     is_edit: bool = data.get("is_edit")
-    message_options = MessageOptions(**post.message_options)
+    try:
+        message_options = MessageOptions(**post.message_options)
+    except Exception as e:
+        logger.error(f"Ошибка валидации MessageOptions для превью {post.id}: {e}")
+        message_options = MessageOptions()
 
-    # Определяем тип сообщения и соответствующую функцию
-    if message_options.text:
-        cor = message.answer
-    elif message_options.photo:
-        cor = message.answer_photo
-        message_options.photo = message_options.photo.file_id
-    elif message_options.video:
-        cor = message.answer_video
-        message_options.video = message_options.video.file_id
-    else:
-        cor = message.answer_animation
-        message_options.animation = message_options.animation.file_id
+    # 1. Адаптация данных (Совместимость со старым форматом)
+    html_text = message_options.html_text or message_options.text or message_options.caption or ""
+    media_value = message_options.media_value or message_options.photo or message_options.video or message_options.animation
+    media_type = message_options.media_type
+    is_inv = message_options.is_invisible
 
+    # Если file_id обернут в Media схему - достаем строку
+    if hasattr(media_value, 'file_id'):
+        media_value = media_value.file_id
+
+    # Авто-определение типа если не задан
+    if not media_type:
+        if message_options.photo: media_type = "photo"
+        elif message_options.video: media_type = "video"
+        elif message_options.animation: media_type = "animation"
+        else: media_type = "text"
+
+    # 2. Выбор клавиатуры
     if from_edit:
         reply_markup = keyboards.post_kb(post=post)
     else:
@@ -137,67 +135,61 @@ async def answer_post(
             post=post, show_more=data.get("show_more"), is_edit=is_edit
         )
 
-    # Логика загрузки превью из бэкапа
-    backup_msg_id = getattr(post, "backup_message_id", None)
-    if backup_msg_id and Config.BACKUP_CHAT_ID:
-        try:
-            # Проверка на длинное описание перед копированием
-            caption = getattr(message_options, "caption", None)
-            is_media = any([getattr(message_options, "photo", None), getattr(message_options, "video", None), getattr(message_options, "animation", None)])
+    # 3. Отправка превью
+    try:
+        # ВАРИАНТ 1: Invisible Link
+        if is_inv or (len(html_text) > 1024 and media_type != "text"):
+            preview_options = types.LinkPreviewOptions(
+                is_disabled=False,
+                prefer_large_media=True,
+                show_above_text=True
+            )
             
-            if is_media and caption and len(caption) > 1024:
-                return await message.answer(
-                    text("long_caption_preview_unavailable").format(len(caption)),
-                    reply_markup=reply_markup,
-                    parse_mode="HTML"
-                )
-
-            post_message = await message.bot.copy_message(
-                chat_id=message.chat.id,
-                from_chat_id=Config.BACKUP_CHAT_ID,
-                message_id=backup_msg_id,
-                reply_markup=reply_markup,
+            return await message.answer(
+                text=html_text,
                 parse_mode="HTML",
+                reply_markup=reply_markup,
+                link_preview_options=preview_options,
+                disable_notification=message_options.disable_notification
             )
-            logger.info(
-                f"Превью для поста {post.id} загружено из бэкапа (msg {backup_msg_id})"
+        
+        # ВАРИАНТ 2: Native Media
+        if media_type == "photo":
+            return await message.answer_photo(
+                photo=media_value,
+                caption=html_text,
+                parse_mode="HTML",
+                reply_markup=reply_markup,
+                disable_notification=message_options.disable_notification
             )
-            return post_message
-        except Exception as e:
-            logger.error(
-                f"Не удалось загрузить превью из бэкапа для поста {post.id}: {e}",
-                exc_info=True,
+        elif media_type == "video":
+            return await message.answer_video(
+                video=media_value,
+                caption=html_text,
+                parse_mode="HTML",
+                reply_markup=reply_markup,
+                disable_notification=message_options.disable_notification
             )
-            # Возврат к локальной генерации
+        elif media_type == "animation":
+            return await message.answer_animation(
+                animation=media_value,
+                caption=html_text,
+                parse_mode="HTML",
+                reply_markup=reply_markup,
+                disable_notification=message_options.disable_notification
+            )
+        else: # Pure text
+            return await message.answer(
+                text=html_text,
+                parse_mode="HTML",
+                reply_markup=reply_markup,
+                disable_notification=message_options.disable_notification,
+                link_preview_options=types.LinkPreviewOptions(is_disabled=True)
+            )
 
-    # Дублируем проверку для локальной генерации на всякий случай
-    caption = getattr(message_options, "caption", None)
-    is_media = any([getattr(message_options, "photo", None), getattr(message_options, "video", None), getattr(message_options, "animation", None)])
-    if is_media and caption and len(caption) > 1024:
-        return await message.answer(
-            text("long_caption_preview_unavailable").format(len(caption)),
-            reply_markup=reply_markup,
-            parse_mode="HTML"
-        )
-
-    # Логирование перед отправкой превью
-    dumped_options = message_options.model_dump()
-    caption_preview = dumped_options.get("caption") or dumped_options.get("text")
-    logger.info(
-        "Превью поста: чат=%s, тип=%s. Спойлер в тексте: %s",
-        message.chat.id,
-        cor.__name__,
-        "tg-spoiler" in (caption_preview or "")
-    )
-    if caption_preview and "<" in caption_preview:
-        logger.debug("HTML превью: %s", caption_preview[:500])
-
-    post_message = await cor(
-        **dumped_options, reply_markup=reply_markup, parse_mode="HTML"
-    )
-    logger.info(f"Превью для поста {post.id} сгенерировано локально")
-
-    return post_message
+    except Exception as e:
+        logger.error(f"Ошибка при отправке превью поста {post.id}: {e}", exc_info=True)
+        return await message.answer(f"⚠️ Ошибка превью: {e}")
 
 
 async def answer_story(

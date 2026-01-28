@@ -17,6 +17,8 @@ from main_bot.handlers.user.menu import start_posting
 from main_bot.utils.message_utils import answer_post
 from main_bot.utils.lang.language import text
 from main_bot.utils.schemas import MessageOptions, Media
+from main_bot.utils.media_manager import MediaManager
+from main_bot.utils.post_assembler import PostAssembler
 from utils.error_handler import safe_handler
 
 logger = logging.getLogger(__name__)
@@ -91,64 +93,22 @@ async def get_message(message: types.Message, state: FSMContext):
         return await message.answer(text("error_length_text").format(limit))
 
     # Парсинг сообщения в MessageOptions
-    dump_message = message.model_dump()
-    if dump_message.get("photo"):
-        logger.debug("Обнаружено фото: file_id=%s", message.photo[-1].file_id)
-        dump_message["photo"] = Media(file_id=message.photo[-1].file_id)
-    if dump_message.get("video"):
-        logger.debug("Обнаружено видео")
-    if dump_message.get("animation"):
-        logger.debug("Обнаружена анимация")
-
-    message_options = MessageOptions(**dump_message)
-
-    # Гарантируем захват разметки и строгое разделение текста/подписи
-    # Принудительно очищаем оба поля перед установкой нового значения
-    message_options.text = None
-    message_options.caption = None
-    
-    if is_media:
-        message_options.caption = message.html_text
-        message_options.text = None
-    else:
-        message_options.text = message.html_text
-        message_options.caption = None
-
-    # Детальное логирование для отладки форматирования (спойлеров)
-    # Если html_text почему-то пуст или без тегов, пробуем проверить сущности напрямую
     final_html = message.html_text
-    entities = message.entities or message.caption_entities or []
-    has_spoiler_entity = any(e.type == "spoiler" for e in entities)
+    is_media = bool(message.photo or message.video or message.animation)
     
-    logger.warning(
-        "ПОДРОБНЫЙ ЛОГ: Пользователь %s: захвачен HTML (длина %d). Медиа: %s. Тип сущностей: %s. Текст содержит спойлер (entity): %s, спойлер (tag): %s",
-        message.from_user.id,
-        len(final_html or ""),
-        is_media,
-        "caption" if message.caption_entities else "text" if message.entities else "none",
-        has_spoiler_entity,
-        "tg-spoiler" in (final_html or "")
-    )
+    # 1. Адаптивная трансформация
+    logger.info(f"🔄 Первичная трансформация контента (User: {message.from_user.id})")
     
-    # Если это медиа и есть сущность спойлера, но нет тега в html_text - это баг aiogram/пересылки
-    if has_spoiler_entity and "tg-spoiler" not in (final_html or ""):
-        logger.warning("ОБНАРУЖЕН БАГ: Сущность спойлера есть, а тега в HTML нет! Принудительно восстанавливаем.")
-        # В aiogram 3 можно попробовать пересобрать HTML
-        from aiogram.utils.text_decorations import html_decoration
-        text_to_format = message.text or message.caption or ""
-        final_html = html_decoration.unparse(text_to_format, entities)
-        
-        if is_media:
-            message_options.caption = final_html
-        else:
-            message_options.text = final_html
-        
-        logger.info("Восстановленный HTML: %s", final_html)
+    # Решаем, как шлем медиа (file_id vs URL)
+    media_value, is_invisible = await MediaManager.process_media_for_post(message, final_html)
+    
+    # Определяем тип медиа
+    current_media_type = "text"
+    if message.photo: current_media_type = "photo"
+    elif message.video: current_media_type = "video"
+    elif message.animation: current_media_type = "animation"
 
-    if final_html and "<" in final_html:
-        logger.debug("Захваченный HTML: %s", final_html[:500])
-
-    # Парсинг inline кнопок
+    # Сборка inline кнопок (для ассамблера)
     buttons_str = None
     if message.reply_markup and message.reply_markup.inline_keyboard:
         rows = []
@@ -161,7 +121,19 @@ async def get_message(message: types.Message, state: FSMContext):
                 rows.append("|".join(buttons))
         if rows:
             buttons_str = "\n".join(rows)
-            logger.debug("Обнаружены inline-кнопки: %d строк", len(rows))
+
+    # Собираем MessageOptions через ассамблер
+    assembled_options = PostAssembler.assemble_message_options(
+        html_text=final_html,
+        media_type=current_media_type,
+        media_value=media_value,
+        is_invisible=is_invisible,
+        buttons=buttons_str,
+        reaction=None # Пока нет реакций
+    )
+    
+    # Создаем финальный объект для БД
+    message_options = MessageOptions(**assembled_options)
 
     # Создание поста в БД с выбранными каналами
     try:
@@ -187,52 +159,6 @@ async def get_message(message: types.Message, state: FSMContext):
         )
         return await message.answer(text("error_post_create"))
 
-    # Создание бекапа поста в резервном канале (для превью и редактирования)
-    from main_bot.utils.backup_utils import send_to_backup
-    from config import Config
-
-    try:
-        if not Config.BACKUP_CHAT_ID:
-            raise ValueError("BACKUP_CHAT_ID не установлен")
-
-        backup_chat_id, backup_message_id = await send_to_backup(post)
-        if backup_chat_id and backup_message_id:
-            # Обновляем в БД
-            kwargs = {
-                "backup_chat_id": backup_chat_id,
-                "backup_message_id": backup_message_id,
-            }
-            if data.get("is_published"):
-                post_id_val = getattr(post, "post_id", post.id)
-                await db.published_post.update_published_posts_by_post_id(
-                    post_id=post_id_val, **kwargs
-                )
-                post = await db.published_post.get_published_post_by_id(post.id)
-            else:
-                post = await db.post.update_post(
-                    post_id=post.id, return_obj=True, **kwargs
-                )
-            logger.info(
-                "Пользователь %s: создан бекап поста ID=%s (канал %s, msg %s)",
-                message.from_user.id,
-                post.id,
-                backup_chat_id,
-                backup_message_id,
-            )
-        else:
-            logger.warning(
-                "Пользователь %s: бекап поста ID=%s не создан (возможно, BACKUP_CHAT_ID не настроен)",
-                message.from_user.id,
-                post.id,
-            )
-    except Exception as e:
-        logger.error(
-            "Ошибка создания бекапа для поста ID=%s: %s",
-            post.id,
-            str(e),
-            exc_info=True,
-        )
-        # Продолжаем работу даже если бекап не удался
     # Обновление состояния
     await state.clear()
 

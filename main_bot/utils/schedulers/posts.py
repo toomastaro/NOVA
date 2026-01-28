@@ -33,9 +33,14 @@ from main_bot.utils.lang.language import text
 from main_bot.utils.report_signature import get_report_signatures
 from main_bot.utils.schemas import MessageOptions
 from main_bot.utils.session_manager import SessionManager
+from main_bot.utils.media_manager import MediaManager
+from main_bot.utils.post_assembler import PostAssembler
 from utils.error_handler import safe_handler
 
 logger = logging.getLogger(__name__)
+
+# Семафор для ограничения одновременных отправлений (соблюдение лимитов Telegram)
+sem = asyncio.Semaphore(10)
 
 
 async def get_views_for_batch(chat_id: int, message_ids: List[int]) -> Dict[int, int]:
@@ -72,261 +77,204 @@ PROCESSING_POSTS = set()
 
 @safe_handler("Постинг: отправка поста (Background)")
 async def send(post: Post):
-    """Отправить пост в каналы"""
+    """
+    Отправить пост в каналы (Унифицированный HTML + Invisible Link).
+    Отказ от copyMessage и бэкап-канала.
+    """
     try:
-        message_options = MessageOptions(**post.message_options)
+        # 1. Извлекаем и валидируем опции
+        try:
+            message_options = MessageOptions(**post.message_options)
+        except Exception as e:
+            logger.error(f"Ошибка валидации MessageOptions для поста {post.id}: {e}")
+            message_options = MessageOptions() # Фоллбек
 
-        if message_options.text:
-            cor = bot.send_message
-        elif message_options.photo:
-            cor = bot.send_photo
-            message_options.photo = message_options.photo.file_id
-        elif message_options.video:
-            cor = bot.send_video
-            message_options.video = message_options.video.file_id
-        else:
-            cor = bot.send_animation
-            message_options.animation = message_options.animation.file_id
+        # 2. Адаптация данных (Миграция на лету для старых постов)
+        html_text = message_options.html_text or message_options.text or message_options.caption or ""
+        media_value = message_options.media_value or message_options.photo or message_options.video or message_options.animation
+        media_type = message_options.media_type
+        is_inv = message_options.is_invisible
 
-        options = message_options.model_dump()
+        # Если file_id обернут в Media схему - достаем строку
+        if hasattr(media_value, 'file_id'):
+            media_value = media_value.file_id
 
-        # Очистка опций
-        # Грубая очистка - удаляем все конфликтующие поля в зависимости от типа, заново формируем.
-        if message_options.text:
-            for k in [
-                "photo",
-                "video",
-                "animation",
-                "show_caption_above_media",
-                "has_spoiler",
-                "caption",
-            ]:
-                options.pop(k, None)
-        elif message_options.photo:
-            for k in ["video", "animation", "text", "disable_web_page_preview"]:
-                options.pop(k, None)
-        elif message_options.video:
-            for k in ["photo", "animation", "text", "disable_web_page_preview"]:
-                options.pop(k, None)
-        else:  # animation
-            for k in ["photo", "video", "text", "disable_web_page_preview"]:
-                options.pop(k, None)
+        # Авто-определение типа если не задан
+        if not media_type:
+            if message_options.photo: media_type = "photo"
+            elif message_options.video: media_type = "video"
+            elif message_options.animation: media_type = "animation"
+            else: media_type = "text"
 
-        options["parse_mode"] = "HTML"
+        logger.info(f"🚀 Старт рассылки поста {post.id}. Метод: {'Invisible' if is_inv else 'Native'}, Каналов: {len(post.chat_ids)}")
 
         error_send = []
         success_send = []
 
-        # Логика бекапа
-        backup_message_id = post.backup_message_id
-        if Config.BACKUP_CHAT_ID:
-            if not backup_message_id:
-                try:
-                    options["chat_id"] = Config.BACKUP_CHAT_ID
-                    options["parse_mode"] = "HTML"
-
-                    backup_msg = await cor(
-                        **options, reply_markup=keyboards.post_kb(post=post)
-                    )
-                    backup_message_id = backup_msg.message_id
-
-                    await db.post.update_post(
-                        post_id=post.id,
-                        backup_chat_id=Config.BACKUP_CHAT_ID,
-                        backup_message_id=backup_message_id,
-                    )
-                    logger.info(
-                        f"Создан бэкап для поста {post.id}: chat={Config.BACKUP_CHAT_ID}, msg={backup_message_id}"
-                    )
-                except Exception as e:
-                    logger.error(
-                        f"Ошибка создания бэкапа для поста {post.id}: {e}",
-                        exc_info=True,
-                    )
-
+        # 3. Цикл публикации
         for chat_id in post.chat_ids:
-            channel = await db.channel.get_channel_by_chat_id(chat_id)
-            if not channel or not channel.subscribe:
-                continue
+            async with sem: # Ограничиваем количество одновременных запросов
+                channel = await db.channel.get_channel_by_chat_id(chat_id)
+                if not channel or not channel.subscribe:
+                    continue
 
-            try:
-                # ЛОГИКА PREMIUM ЗАГРУЗКИ (Для постов > 1024 симв.)
-                caption_to_send = message_options.caption or message_options.text
-                if caption_to_send and len(caption_to_send) > 1024 and not message_options.text:
-                    from main_bot.utils.premium_uploader import PremiumUploader
-                    
-                    media_file_id = None
-                    is_video = False
-                    is_animation = False
-                    
-                    if message_options.photo:
-                        media_file_id = message_options.photo
-                    elif message_options.video:
-                        media_file_id = message_options.video
-                        is_video = True
-                    elif message_options.animation:
-                        media_file_id = message_options.animation
-                        is_animation = True
-                    
-                    if media_file_id:
-                        logger.info(f"Использование PremiumUploader для длинной подписи (>1024) в канале {chat_id}")
-                        sent_msg_id = await PremiumUploader.upload_media(
-                            chat_id=chat_id,
-                            caption=caption_to_send,
-                            media_file_id=media_file_id,
-                            is_video=is_video,
-                            is_animation=is_animation,
-                            reply_markup=keyboards.post_kb(post=post)
-                        )
-                        if sent_msg_id:
-                            # Создаем имитацию объекта сообщения для совместимости (для пина и БД)
-                            from aiogram.types import Message
-                            from unittest.mock import MagicMock
-                            
-                            # Нам нужен только .message_id
-                            post_message = MagicMock(spec=Message)
-                            post_message.message_id = sent_msg_id
-                            
-                            logger.info(f"Успешно отправлен длинный пост {post.id} через Premium в {chat_id}")
-                        else:
-                            raise Exception("PremiumUploader failed to send message")
-                    else:
-                        # Для чистого текста до 4096 символов - обычная отправка
-                        options["chat_id"] = chat_id
-                        post_message = await cor(
-                            **options, reply_markup=keyboards.post_kb(post=post)
-                        )
-                
-                elif backup_message_id and Config.BACKUP_CHAT_ID:
-                    post_message = await bot.copy_message(
-                        chat_id=chat_id,
-                        from_chat_id=Config.BACKUP_CHAT_ID,
-                        message_id=backup_message_id,
-                        reply_markup=keyboards.post_kb(post=post),
-                        parse_mode="HTML",
-                    )
-                    logger.info(
-                        f"Скопирован пост {post.id} (бэкап {backup_message_id}) в {chat_id} (msg {post_message.message_id})"
-                    )
-                else:
-                    options["chat_id"] = chat_id
-                    post_message = await cor(
-                        **options, reply_markup=keyboards.post_kb(post=post)
-                    )
-                    logger.info(
-                        f"Напрямую отправлен пост {post.id} в {chat_id} (msg {post_message.message_id})"
-                    )
-
-                await asyncio.sleep(0.06)
-            except Exception as e:
-                logger.error(
-                    f"Ошибка отправки поста {post.id} в {chat_id}: {e}", exc_info=True
-                )
-                error_send.append({"chat_id": chat_id, "error": str(e)})
-                continue
-
-            if post.pin_time:
                 try:
-                    await bot.pin_chat_message(
-                        chat_id=chat_id,
-                        message_id=post_message.message_id,
-                        disable_notification=message_options.disable_notification,
-                    )
+                    # Подготовка общих настроек
+                    reply_markup = keyboards.post_kb(post=post)
+                    
+                    # ВАРИАНТ 1: Invisible Link (Длинный пост или принудительно)
+                    if is_inv or (len(html_text) > 1024 and media_type != "text"):
+                        # Если это был старый длинный пост, пробуем спасти его через Invisible Link
+                        # Но для полноценной работы медиа должно быть уже сохранено локально (URL).
+                        # Если это file_id, Telegram покажет его как текстовую ссылку (не идеально, но лучше чем сбой).
+                        
+                        preview_options = types.LinkPreviewOptions(
+                            is_disabled=False,
+                            prefer_large_media=True,
+                            show_above_text=True
+                        )
+                        
+                        post_message = await bot.send_message(
+                            chat_id=chat_id,
+                            text=html_text,
+                            parse_mode="HTML",
+                            reply_markup=reply_markup,
+                            link_preview_options=preview_options,
+                            disable_notification=message_options.disable_notification
+                        )
+                    
+                    # ВАРИАНТ 2: Native Media (Короткий пост или чисто текст)
+                    else:
+                        if media_type == "photo":
+                            post_message = await bot.send_photo(
+                                chat_id=chat_id,
+                                photo=media_value,
+                                caption=html_text,
+                                parse_mode="HTML",
+                                reply_markup=reply_markup,
+                                disable_notification=message_options.disable_notification
+                            )
+                        elif media_type == "video":
+                            post_message = await bot.send_video(
+                                chat_id=chat_id,
+                                video=media_value,
+                                caption=html_text,
+                                parse_mode="HTML",
+                                reply_markup=reply_markup,
+                                disable_notification=message_options.disable_notification
+                            )
+                        elif media_type == "animation":
+                            post_message = await bot.send_animation(
+                                chat_id=chat_id,
+                                animation=media_value,
+                                caption=html_text,
+                                parse_mode="HTML",
+                                reply_markup=reply_markup,
+                                disable_notification=message_options.disable_notification
+                            )
+                        else: # Pure text
+                            post_message = await bot.send_message(
+                                chat_id=chat_id,
+                                text=html_text,
+                                parse_mode="HTML",
+                                reply_markup=reply_markup,
+                                disable_notification=message_options.disable_notification,
+                                link_preview_options=types.LinkPreviewOptions(is_disabled=True)
+                            )
+
+                    logger.debug(f"Пост {post.id} успешно отправлен в {chat_id} (msg: {post_message.message_id})")
+                    
+                    # Пин сообщения
+                    if post.pin_time:
+                        try:
+                            await bot.pin_chat_message(
+                                chat_id=chat_id,
+                                message_id=post_message.message_id,
+                                disable_notification=message_options.disable_notification
+                            )
+                        except Exception as pin_err:
+                            logger.warning(f"Не удалось закрепить пост {post.id} в {chat_id}: {pin_err}")
+
+                    # Сбор данных для БД
+                    current_time = int(time.time())
+                    success_send.append({
+                        "post_id": post.id,
+                        "chat_id": chat_id,
+                        "message_id": post_message.message_id,
+                        "admin_id": post.admin_id,
+                        "reaction": post.reaction or None,
+                        "hide": post.hide or None,
+                        "buttons": post.buttons or None,
+                        "delete_time": (post.delete_time + current_time if post.delete_time else None),
+                        "report": post.report,
+                        "cpm_price": post.cpm_price,
+                        "message_options": post.message_options,
+                    })
+
                 except Exception as e:
-                    logger.error(
-                        f"Ошибка закрепления сообщения {post_message.message_id} в {chat_id}: {e}",
-                        exc_info=True,
-                    )
+                    logger.error(f"Ошибка отправки поста {post.id} в {chat_id}: {e}")
+                    error_send.append({"chat_id": chat_id, "error": str(e)})
+                
+                # Небольшая пауза между каналами для соблюдения лимитов
+                await asyncio.sleep(0.05)
 
-            current_time = int(time.time())
-            success_send.append(
-                {
-                    "post_id": post.id,
-                    "chat_id": chat_id,
-                    "message_id": post_message.message_id,
-                    "admin_id": post.admin_id,
-                    "reaction": post.reaction or None,
-                    "hide": post.hide or None,
-                    "buttons": post.buttons or None,
-                    "delete_time": (
-                        post.delete_time + current_time if post.delete_time else None
-                    ),
-                    "report": post.report,
-                    "cpm_price": post.cpm_price,
-                    "backup_chat_id": (
-                        Config.BACKUP_CHAT_ID if backup_message_id else None
-                    ),
-                    "backup_message_id": backup_message_id,
-                    "message_options": post.message_options,
-                }
-            )
-
+        # 4. Финализация (БД и Отчеты)
         if success_send:
             await db.published_post.add_many_published_post(posts=success_send)
+            logger.info(f"✅ Успешно опубликовано: {len(success_send)} каналов для поста {post.id}")
 
         await db.post.clear_posts(post_ids=[post.id])
 
-        # Если отчет выключен И нет ошибок - выходим.
-        # Если есть ошибки - отправляем отчет в любом случае (чтобы не пропустить сбои).
-        if not post.report and not error_send:
-            return
+        # Уведомление админа
+        if post.report or error_send:
+            await _send_admin_report(post, success_send, error_send)
 
+    except Exception as e:
+        logger.error(f"Глобальная ошибка в планировщике для поста {post.id}: {e}", exc_info=True)
+    finally:
+        PROCESSING_POSTS.discard(post.id)
+
+
+async def _send_admin_report(post: Post, success_send: List[dict], error_send: List[dict]):
+    """Вспомогательная функция для отправки отчета админу после публикации"""
+    try:
         objects = await db.channel.get_user_channels(
             user_id=post.admin_id, from_array=post.chat_ids
         )
 
-        # Форматирование списка успешных отправок
+        success_ids = [i.get("chat_id") for i in success_send]
+        error_ids = [i.get("chat_id") for i in error_send]
+
         success_str_inner = "\n".join(
             text("resource_title").format(html.escape(obj.title))
-            for obj in objects
-            if obj.chat_id in [i.get("chat_id") for i in success_send[:10]]
+            for obj in objects if obj.chat_id in success_ids[:10]
         )
-        success_str = (
-            f"<blockquote expandable>{success_str_inner}</blockquote>"
-            if success_str_inner
-            else ""
-        )
+        success_str = f"<blockquote expandable>{success_str_inner}</blockquote>" if success_str_inner else ""
 
-        # Форматирование списка ошибок
         error_str_inner = "\n".join(
             text("resource_title").format(html.escape(obj.title))
-            + f" \n{''.join(row.get('error') for row in error_send[:10] if row.get('chat_id') == obj.chat_id)}"
-            for obj in objects
-            if obj.chat_id in [i.get("chat_id") for i in error_send[:10]]
+            + f" \n{''.join(row.get('error') for row in error_send if row.get('chat_id') == obj.chat_id)[:100]}"
+            for obj in objects if obj.chat_id in error_ids[:10]
         )
-        error_str = (
-            f"<blockquote expandable>{error_str_inner}</blockquote>"
-            if error_str_inner
-            else ""
-        )
+        error_str = f"<blockquote expandable>{error_str_inner}</blockquote>" if error_str_inner else ""
 
         if success_send and error_send:
-            message_text = text("success_error:post:public").format(
-                success_str,
-                error_str,
-            )
+            message_text = text("success_error:post:public").format(success_str, error_str)
         elif success_send:
-            message_text = text("manage:post:success:public").format(
-                success_str,
-            )
+            message_text = text("manage:post:success:public").format(success_str)
         elif error_send:
-            message_text = text("error:post:public").format(
-                error_str,
-            )
+            message_text = text("error:post:public").format(error_str)
         else:
             message_text = text("error:post:unknown_notification")
 
-        try:
-            await bot.send_message(
-                chat_id=post.admin_id,
-                text=message_text,
-                reply_markup=keyboards.posting_menu(),
-                link_preview_options=types.LinkPreviewOptions(is_disabled=True),
-            )
-        except Exception as e:
-            logger.error(
-                f"Ошибка отправки отчета админу {post.admin_id}: {e}", exc_info=True
-            )
+        await bot.send_message(
+            chat_id=post.admin_id,
+            text=message_text,
+            reply_markup=keyboards.posting_menu(),
+            link_preview_options=types.LinkPreviewOptions(is_disabled=True),
+        )
+    except Exception as e:
+        logger.error(f"Ошибка отправки отчета админу {post.admin_id}: {e}")
 
     finally:
         PROCESSING_POSTS.discard(post.id)

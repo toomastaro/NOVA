@@ -24,6 +24,10 @@ class MessageOptions(BaseModel):
     show_caption_above_media: Optional[bool] = None
     caption: Optional[str] = None
     text: Optional[str] = None
+    html_text: Optional[str] = None # Унифицированный HTML контент
+    media_value: Optional[str] = None # file_id или URL
+    media_type: Optional[str] = None # photo, video, animation, text
+    is_invisible: bool = False # Флаг метода Invisible Link
     has_spoiler: bool = False
     disable_web_page_preview: bool = True
     disable_notification: bool = False

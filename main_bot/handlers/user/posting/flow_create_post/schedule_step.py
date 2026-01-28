@@ -22,6 +22,8 @@ from main_bot.utils.lang.language import text
 from main_bot.keyboards import keyboards
 from main_bot.keyboards.posting import ensure_obj, safe_post_from_dict
 from main_bot.states.user import Posting
+from config import Config
+from instance_bot import bot as main_bot
 from utils.error_handler import safe_handler
 
 logger = logging.getLogger(__name__)
@@ -97,16 +99,32 @@ async def finish_params(call: types.CallbackQuery, state: FSMContext):
                 invalid_channels.append(channel.title)
 
         if invalid_channels:
-            # Лимит для сообщения (4096) позволяет показать больше каналов, чем alert (200)
             limit_show = 50
             channels_text = "\n".join(f"• {title}" for title in invalid_channels[:limit_show])
             if len(invalid_channels) > limit_show:
                 channels_text += f"\n... и ещё {len(invalid_channels) - limit_show}"
 
-            await call.answer()
-            return await call.message.answer(
-                text("error_cpm_perms").format(channels_text)
+            logger.warning(
+                f"У пользователя {call.from_user.id} нет прав помощника для CPM в каналах:\n{channels_text}"
             )
+
+            # Отправка алерта админам
+            if Config.ADMIN_SUPPORT:
+                try:
+                    alert_text = (
+                        f"⚠️ <b>Внимание: Отсутствие прав помощника</b>\n\n"
+                        f"Пользователь <a href='tg://user?id={call.from_user.id}'>{call.from_user.id}</a> "
+                        f"пытается установить CPM, но помощник не имеет прав в каналах:\n"
+                        f"<blockquote>{html.escape(channels_text)}</blockquote>\n"
+                        f"<i>Рекомендуется проверить права помощников для корректного сбора статистики.</i>"
+                    )
+                    await main_bot.send_message(
+                        chat_id=Config.ADMIN_SUPPORT,
+                        text=alert_text,
+                        parse_mode="HTML"
+                    )
+                except Exception as alert_err:
+                    logger.error(f"Не удалось отправить алерт админам: {alert_err}")
 
         await state.update_data(param=temp[1])
         await call.message.delete()

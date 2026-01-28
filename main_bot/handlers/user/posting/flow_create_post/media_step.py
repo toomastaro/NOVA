@@ -16,9 +16,8 @@ from main_bot.handlers.user.posting.menu import show_create_post
 from main_bot.utils.message_utils import answer_post
 from main_bot.utils.lang.language import text
 from main_bot.utils.schemas import MessageOptions, Media
-from main_bot.utils.backup_utils import edit_backup_message, update_live_messages
-from main_bot.keyboards import keyboards
-from main_bot.keyboards.posting import ensure_obj
+from main_bot.utils.media_manager import MediaManager
+from main_bot.utils.post_assembler import PostAssembler
 from main_bot.states.user import Posting
 from utils.error_handler import safe_handler
 
@@ -498,31 +497,53 @@ async def get_value(message: types.Message, state: FSMContext):
         if final_html and "<" in final_html:
             logger.debug("Захваченный HTML: %s", final_html[:500])
 
+        # 1. Формируем временный объект MessageOptions для анализа
+        temp_options = MessageOptions(**post.message_options)
+        
         if param == "text":
-            if (
-                message_options.photo
-                or message_options.video
-                or message_options.animation
-            ):
-                message_options.caption = final_html
-                message_options.text = None
-            else:
-                message_options.text = final_html
-                message_options.caption = None
-
-        if param == "media":
+            temp_options.text = final_html
+            temp_options.caption = None # Сброс старого
+        elif param == "media":
             if message.photo:
-                message_options.photo = Media(file_id=message.photo[-1].file_id)
+                temp_options.photo = Media(file_id=message.photo[-1].file_id)
             if message.video:
-                message_options.video = Media(file_id=message.video.file_id)
+                temp_options.video = Media(file_id=message.video.file_id)
             if message.animation:
-                message_options.animation = Media(file_id=message.animation.file_id)
+                temp_options.animation = Media(file_id=message.animation.file_id)
+            
+            # Если есть текст, переносим его в caption если нужно (обработает ассамблер)
+            text_content = temp_options.text or temp_options.caption or ""
+            temp_options.caption = text_content
+            temp_options.text = None
 
-            if message_options.text:
-                message_options.caption = message_options.text
-                message_options.text = None
+        # 2. Адаптивная трансформация (MediaManager + PostAssembler)
+        logger.info(f"🔄 Трансформация поста {post.id} (param: {param})")
+        
+        # Решаем, как шлем медиа
+        caption_for_check = temp_options.text or temp_options.caption or ""
+        media_value, is_invisible = await MediaManager.process_media_for_post(message, caption_for_check)
+        
+        # Определяем текущий тип медиа (для ассамблера)
+        current_media_type = "text"
+        if temp_options.photo: current_media_type = "photo"
+        elif temp_options.video: current_media_type = "video"
+        elif temp_options.animation: current_media_type = "animation"
 
-        kwargs = {"message_options": message_options.model_dump()}
+        # Собираем финальный MessageOptions через ассамблер
+        assembled_options = PostAssembler.assemble_message_options(
+            html_text=caption_for_check,
+            media_type=current_media_type,
+            media_value=media_value,
+            is_invisible=is_invisible,
+            buttons=post.buttons,
+            reaction=post.reaction
+        )
+        
+        # Сливаем с существующими настройками (disable_notification и т.д.)
+        final_options_dict = temp_options.model_dump()
+        final_options_dict.update(assembled_options)
+        
+        kwargs = {"message_options": final_options_dict}
 
     else:
         value = message.text
@@ -575,25 +596,17 @@ async def get_value(message: types.Message, state: FSMContext):
             post_id=ensure_obj(data.get("post")).id, return_obj=True, **kwargs
         )
 
-    # Update backup message if content changed
+    # Update backup message (DEPRECATED for posts)
     if param in ["text", "media", "buttons", "reaction"]:
-        # Обновление бекапа сообщения если контент изменился
-        await edit_backup_message(post)
-
-        # Обновление объекта поста, чтобы получить новый backup_message_id если произошел фоллбек
+        # Обновление объекта поста
         if data.get("is_published"):
-            wrapped_post = ensure_obj(post)
-            post = (
-                await db.published_post.get_published_post_by_id(wrapped_post.id)
-                if post
-                else None
-            )
+            post = await db.published_post.get_published_post_by_id(ensure_obj(post).id)
         else:
-            wrapped_post = ensure_obj(post)
-            post = await db.post.get_post(wrapped_post.id) if post else None
+            post = await db.post.get_post(ensure_obj(post).id)
 
         # Обновление live-сообщений если опубликовано
-        if data.get("is_published"):
+        if data.get("is_published") and post:
+            from main_bot.utils.backup_utils import update_live_messages
             message_options = MessageOptions(**post.message_options)
             reply_markup = keyboards.post_kb(post=post)
             post_id_val = post.post_id or post.id

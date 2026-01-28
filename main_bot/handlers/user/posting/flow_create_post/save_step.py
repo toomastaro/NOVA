@@ -14,7 +14,6 @@ from aiogram.fsm.context import FSMContext
 
 from main_bot.database.db import db
 from main_bot.utils.lang.language import text
-from main_bot.utils.backup_utils import send_to_backup
 from main_bot.keyboards import keyboards
 from main_bot.keyboards.posting import safe_post_from_dict
 from main_bot.states.user import Posting
@@ -117,67 +116,24 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
     # Обновляем пост в БД
     await db.post.update_post(post_id=post.id, **kwargs)
 
-    # Отправляем в backup если еще не отправлено
-    if not post.backup_message_id:
-        try:
-            backup_chat_id, backup_message_id = await send_to_backup(post)
-            if backup_chat_id and backup_message_id:
-                await db.post.update_post(
-                    post_id=post.id,
-                    backup_chat_id=backup_chat_id,
-                    backup_message_id=backup_message_id,
-                )
-        except Exception as e:
-            logger.error(
-                "Ошибка создания fallback-бекапа для поста %s: %s",
-                post.id,
-                e,
-                exc_info=True,
-            )
+    # Обновляем пост в БД
+    await db.post.update_post(post_id=post.id, **kwargs)
 
     # --- Реализация OTLOG (отчет) ---
     from datetime import datetime
     import html
+    from main_bot.utils.message_utils import answer_post
 
-    # 1. Превью (Копия из бекапа)
-    # Пытаемся получить актуальные данные о бекапе (могли обновиться выше)
-    current_post = await db.post.get_post(post.id)
-    backup_chat_id = current_post.backup_chat_id
-    backup_message_id = current_post.backup_message_id
-
-    preview_sent = False
-    if backup_chat_id and backup_message_id:
-        try:
-            # Генерируем клавиатуру для превью, чтобы кнопки точно были
-            reply_markup = keyboards.post_kb(post=post)
-
-            await call.bot.copy_message(
-                chat_id=call.from_user.id,
-                from_chat_id=backup_chat_id,
-                message_id=backup_message_id,
-                reply_markup=reply_markup,
-            )
-            preview_sent = True
-        except Exception as e:
-            logger.warning(
-                "Не удалось скопировать превью из бэкапа (chat=%s, msg=%s): %s. Генерируем локально.",
-                backup_chat_id,
-                backup_message_id,
-                e,
-            )
-
-    if not preview_sent:
-        from main_bot.utils.message_utils import answer_post
-
-        try:
-            await answer_post(call.message, state, from_edit=True)
-        except Exception as e:
-            logger.error(
-                "Ошибка локальной генерации превью для поста %s: %s",
-                post.id,
-                e,
-                exc_info=True,
-            )
+    # 1. Превью (Локальная генерация)
+    try:
+        await answer_post(call.message, state, from_edit=True)
+    except Exception as e:
+        logger.error(
+            "Ошибка генерации превью для отчета поста %s: %s",
+            post.id,
+            e,
+            exc_info=True,
+        )
 
     # 2. Формирование текста отчета (OTLOG)
 

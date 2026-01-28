@@ -134,42 +134,8 @@ async def send_to_backup(post: Post | Story | BotPost) -> tuple[int | None, int 
         message_options = MessageOptions(**post.message_options)
         reply_markup = keyboards.post_kb(post=post)
         
-        # ЛОГИКА PREMIUM ЗАГРУЗКИ (Только для постинга)
-        caption = message_options.caption or message_options.text
-        if caption and len(caption) > 1024:
-            logger.info(f"Обнаружена длинная подпись ({len(caption)}). Используем PremiumUploader.")
-            from main_bot.utils.premium_uploader import PremiumUploader
-            
-            # Определяем file_id
-            media_file_id = None
-            is_video = False
-            is_animation = False
-            
-            if message_options.photo:
-                media_file_id = message_options.photo.file_id
-            elif message_options.video:
-                media_file_id = message_options.video.file_id
-                is_video = True
-            elif message_options.animation:
-                media_file_id = message_options.animation.file_id
-                is_animation = True
-            
-            # Если это текст без медиа - бот может отправить до 4096 сам
-            if not media_file_id:
-                pass 
-            else:
-                backup_msg_id = await PremiumUploader.upload_media(
-                    chat_id=Config.BACKUP_CHAT_ID,
-                    caption=caption,
-                    media_file_id=media_file_id,
-                    is_video=is_video,
-                    is_animation=is_animation,
-                    reply_markup=reply_markup
-                )
-                if backup_msg_id:
-                    return Config.BACKUP_CHAT_ID, backup_msg_id
-                # Если premium-загрузка не удалась, пробуем обычную (хотя она вероятно обрежет/упадет)
-                logger.warning("PremiumUploader не удался, пробуем обычную отправку")
+        # ЛОГИКА PREMIUM ЗАГРУЗКИ УДАЛЕНА И ЗАМЕНЕНА НА INVISIBLE LINK
+        logger.debug(f"Бэкап для поста {post.id} (устаревший метод)")
 
     else:
         logger.error(f"Не удалось определить тип поста для бэкапа: {type(post)}")
@@ -445,187 +411,74 @@ async def _update_single_live_message(
     message_options: MessageOptions,
     reply_markup,
     semaphore: asyncio.Semaphore,
-    local_file_path: Optional[str] = None,
 ) -> None:
     """
-    Хелпер для обновления одного живого сообщения с семафором.
-
-    Если обновление не удается, пытается восстановить сообщение из бэкапа.
-
-    Аргументы:
-        post (PublishedPost): Опубликованный пост.
-        message_options (MessageOptions): Опции сообщения.
-        reply_markup: Клавиатура.
-        semaphore (asyncio.Semaphore): Семафор для ограничения конкурентности.
-        local_file_path (str): Путь к уже скачанному файлу (для оптимизации).
+    Хелпер для обновления одного сообщения с использованием HTML и адаптивной логики.
     """
     async with semaphore:
         try:
-            if message_options.text:
+            # 1. Скрытая ссылка или Текст -> edit_message_text
+            if message_options.is_invisible or message_options.media_type == "text":
                 await bot.edit_message_text(
                     chat_id=post.chat_id,
                     message_id=post.message_id,
-                    text=message_options.text,
+                    text=message_options.html_text,
                     parse_mode="HTML",
-                    disable_web_page_preview=message_options.disable_web_page_preview,
+                    # Для скрытой ссылки preview РАЗРЕШЕН (чтобы тянулось медиа)
+                    # Для обычного текста - берем из настроек
+                    disable_web_page_preview=not message_options.is_invisible if message_options.is_invisible else message_options.disable_web_page_preview,
                     reply_markup=reply_markup,
                 )
+            # 2. Обычное медиа (file_id)
             else:
                 from aiogram.types import InputMediaPhoto, InputMediaVideo, InputMediaAnimation
                 input_media = None
-                is_video = False
-                is_animation = False
                 
-                if message_options.photo:
-                    file_id = message_options.photo.file_id if hasattr(message_options.photo, "file_id") else message_options.photo
-                    input_media = InputMediaPhoto(media=file_id, caption=message_options.caption, parse_mode="HTML")
-                elif message_options.video:
-                    file_id = message_options.video.file_id if hasattr(message_options.video, "file_id") else message_options.video
-                    input_media = InputMediaVideo(media=file_id, caption=message_options.caption, parse_mode="HTML")
-                    is_video = True
-                elif message_options.animation:
-                    file_id = message_options.animation.file_id if hasattr(message_options.animation, "file_id") else message_options.animation
-                    input_media = InputMediaAnimation(media=file_id, caption=message_options.caption, parse_mode="HTML")
-                    is_animation = True
+                if message_options.media_type == "photo" and message_options.media_value:
+                    input_media = InputMediaPhoto(media=message_options.media_value, caption=message_options.html_text, parse_mode="HTML")
+                elif message_options.media_type == "video" and message_options.media_value:
+                    input_media = InputMediaVideo(media=message_options.media_value, caption=message_options.html_text, parse_mode="HTML")
+                elif message_options.media_type == "animation" and message_options.media_value:
+                    input_media = InputMediaAnimation(media=message_options.media_value, caption=message_options.html_text, parse_mode="HTML")
 
-                if message_options.caption is not None:
-                    if len(message_options.caption) > 1024:
-                        from main_bot.utils.premium_uploader import PremiumUploader
-                        
-                        logger.info(
-                            "PremiumUploader: Редактирование длинной подписи и медиа для сообщения %s в чате %s.",
-                            post.message_id, post.chat_id
-                        )
-                        success = await PremiumUploader.edit_media(
-                            chat_id=post.chat_id,
-                            message_id=post.message_id,
-                            caption=message_options.caption,
-                            media_file_id=input_media.media if input_media and not local_file_path else None,
-                            file_path=local_file_path,
-                            is_video=is_video,
-                            is_animation=is_animation,
-                            reply_markup=reply_markup
-                        )
-                        if not success:
-                            raise Exception("Failed to edit long live caption/media via PremiumUploader")
-                        
-                        if reply_markup:
-                            await bot.edit_message_reply_markup(
-                                chat_id=post.chat_id,
-                                message_id=post.message_id,
-                                reply_markup=reply_markup
-                            )
-                    else:
-                        if input_media:
-                            await bot.edit_message_media(
-                                chat_id=post.chat_id,
-                                message_id=post.message_id,
-                                media=input_media,
-                                reply_markup=reply_markup
-                            )
-                        else:
-                            await bot.edit_message_caption(
-                                chat_id=post.chat_id,
-                                message_id=post.message_id,
-                                caption=message_options.caption,
-                                parse_mode="HTML",
-                                reply_markup=reply_markup,
-                            )
-                else:
-                    await bot.edit_message_reply_markup(
+                if input_media:
+                    await bot.edit_message_media(
                         chat_id=post.chat_id,
                         message_id=post.message_id,
+                        media=input_media,
+                        reply_markup=reply_markup
+                    )
+                else:
+                    await bot.edit_message_caption(
+                        chat_id=post.chat_id,
+                        message_id=post.message_id,
+                        caption=message_options.html_text,
+                        parse_mode="HTML",
                         reply_markup=reply_markup,
                     )
         except Exception as e:
-            logger.error(
-                f"Ошибка обновления живого сообщения {post.message_id} в {post.chat_id}: {e}. Попытка отката (удаление и репост)."
-            )
-            try:
-                # Откат: Удаление и копирование из бэкапа
-                try:
-                    await bot.delete_message(post.chat_id, post.message_id)
-                except Exception as del_e:
-                    logger.warning(
-                        f"Не удалось удалить сообщение {post.message_id} в {post.chat_id}: {del_e}"
-                    )
-
-                if post.backup_chat_id and post.backup_message_id:
-                    new_msg = await bot.copy_message(
-                        chat_id=post.chat_id,
-                        from_chat_id=post.backup_chat_id,
-                        message_id=post.backup_message_id,
-                        reply_markup=reply_markup,
-                        parse_mode="HTML",
-                    )
-
-                    # Обновление PublishedPost с новым message_id
-                    await db.published_post.update_published_post(
-                        post_id=post.id, message_id=new_msg.message_id
-                    )
-                    logger.info(
-                        f"Откат успешен: Заменено сообщение {post.message_id} на {new_msg.message_id} в {post.chat_id}"
-                    )
-                else:
-                    logger.error(
-                        f"Ошибка отката: Нет информации о бэкапе для поста {post.id}"
-                    )
-
-            except Exception as fallback_e:
-                logger.error(
-                    f"Ошибка отката для {post.chat_id}: {fallback_e}", exc_info=True
-                )
+            if "message is not modified" in str(e): return
+            logger.error(f"Ошибка обновления сообщения {post.message_id} в {post.chat_id}: {e}")
 
 
 async def update_live_messages(
     post_id: int, message_options: MessageOptions, reply_markup=None
 ) -> None:
     """
-    Обновляет все опубликованные сообщения (live/channels) для указанного поста.
-
-    Аргументы:
-        post_id (int): ID родительского поста.
-        message_options (MessageOptions): Опции сообщения.
-        reply_markup: Клавиатура (опционально).
+    Обновляет все опубликованные сообщения для указанного поста.
     """
     published_posts = await db.published_post.get_published_posts_by_post_id(post_id)
     if not published_posts:
         return
 
-    # ОПТИМИЗАЦИЯ: Если есть медиа и длинный текст, скачиваем файл заранее один раз
-    local_file_path = None
-    if not message_options.text and message_options.caption and len(message_options.caption) > 1024:
-        media_obj = message_options.photo or message_options.video or message_options.animation
-        if media_obj:
-            file_id = media_obj.file_id if hasattr(media_obj, "file_id") else media_obj
-            try:
-                from pathlib import Path
-                import os
-                file = await bot.get_file(file_id)
-                local_file_path = f"temp_mass_edit_{file_id}_{Path(file.file_path).name}"
-                await bot.download_file(file.file_path, local_file_path)
-                logger.info(f"Массовое обновление: медиа скачано один раз в {local_file_path}")
-            except Exception as e:
-                logger.error(f"Не удалось предварительно скачать медиа для массового обновления: {e}")
+    # Ограничение конкурентности
+    semaphore = asyncio.Semaphore(15)
 
-    # Ограничение конкурентности чтобы избежать флуда API Telegram
-    semaphore = asyncio.Semaphore(10)
-
-    try:
-        tasks = [
-            _update_single_live_message(
-                post, message_options, reply_markup, semaphore, local_file_path
-            )
-            for post in published_posts
-        ]
-        await asyncio.gather(*tasks)
-    finally:
-        # УДАЛЕНИЕ: Очищаем временный файл после того, как все каналы обновлены
-        if local_file_path and os.path.exists(local_file_path):
-            try:
-                os.remove(local_file_path)
-                logger.info(f"Временный файл {local_file_path} удален после обновления всех каналов")
-            except Exception as e:
-                logger.warning(f"Не удалось удалить {local_file_path}: {e}")
-
+    tasks = [
+        _update_single_live_message(
+            post, message_options, reply_markup, semaphore
+        )
+        for post in published_posts
+    ]
+    await asyncio.gather(*tasks)
     logger.info(f"Обновлено {len(published_posts)} живых сообщений для поста {post_id}")
