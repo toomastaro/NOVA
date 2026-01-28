@@ -24,13 +24,38 @@ class PremiumUploader:
     """
 
     @staticmethod
+    def _convert_buttons(reply_markup: Optional[Union[aiogram_types.InlineKeyboardMarkup, aiogram_types.ReplyKeyboardMarkup]]) -> Optional[list]:
+        """
+        Конвертирует кнопки из формата aiogram в формат Telethon.
+        ВАЖНО: User-аккаунт через Telethon может отправлять только URL-кнопки.
+        Callback-кнопки будут проигнорированы или пропущены.
+        """
+        if not reply_markup or not isinstance(reply_markup, aiogram_types.InlineKeyboardMarkup):
+            return None
+        
+        from telethon import Button
+        
+        telethon_rows = []
+        for row in reply_markup.inline_keyboard:
+            telethon_row = []
+            for btn in row:
+                if btn.url:
+                    telethon_row.append(Button.url(btn.text, btn.url))
+                # Callback кнопки нельзя отправить от имени обычного пользователя (не бота)
+            if telethon_row:
+                telethon_rows.append(telethon_row)
+        
+        return telethon_rows if telethon_rows else None
+
+    @staticmethod
     async def upload_media(
         chat_id: int,
         caption: str,
         media_file_id: Optional[str] = None,
         file_path: Optional[str] = None,
         is_video: bool = False,
-        is_animation: bool = False
+        is_animation: bool = False,
+        reply_markup: Optional[aiogram_types.InlineKeyboardMarkup] = None
     ) -> Optional[int]:
         """
         Загружает медиа в указанный чат через Telethon.
@@ -127,6 +152,7 @@ class PremiumUploader:
                     caption=text,
                     formatting_entities=entities,
                     attributes=attributes,
+                    buttons=PremiumUploader._convert_buttons(reply_markup),
                     force_document=False # Чтобы фото уходило как фото
                 )
                 
@@ -150,7 +176,8 @@ class PremiumUploader:
     async def edit_caption(
         chat_id: int,
         message_id: int,
-        caption: str
+        caption: str,
+        reply_markup: Optional[aiogram_types.InlineKeyboardMarkup] = None
     ) -> bool:
         """
         Редактирует подпись сообщения через Telethon (Premium-аккаунт).
@@ -209,7 +236,8 @@ class PremiumUploader:
                     chat_id,
                     message_id,
                     text,
-                    formatting_entities=entities
+                    formatting_entities=entities,
+                    buttons=PremiumUploader._convert_buttons(reply_markup)
                 )
                 
                 logger.info(f"Подпись успешно отредактирована через Premium в {chat_id} (msg {message_id})")
@@ -227,7 +255,8 @@ class PremiumUploader:
         media_file_id: Optional[str] = None,
         file_path: Optional[str] = None,
         is_video: bool = False,
-        is_animation: bool = False
+        is_animation: bool = False,
+        reply_markup: Optional[aiogram_types.InlineKeyboardMarkup] = None
     ) -> bool:
         """
         Редактирует медиа и подпись сообщения через Telethon (Premium-аккаунт).
@@ -294,6 +323,7 @@ class PremiumUploader:
                     file=file_path,
                     formatting_entities=entities,
                     attributes=attributes,
+                    buttons=PremiumUploader._convert_buttons(reply_markup),
                     force_document=False
                 )
                 

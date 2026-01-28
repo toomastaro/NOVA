@@ -163,7 +163,8 @@ async def send_to_backup(post: Post | Story | BotPost) -> tuple[int | None, int 
                     caption=caption,
                     media_file_id=media_file_id,
                     is_video=is_video,
-                    is_animation=is_animation
+                    is_animation=is_animation,
+                    reply_markup=reply_markup
                 )
                 if backup_msg_id:
                     return Config.BACKUP_CHAT_ID, backup_msg_id
@@ -312,7 +313,8 @@ async def edit_backup_message(
                         caption=message_options.caption,
                         media_file_id=input_media.media if input_media else None,
                         is_video=is_video,
-                        is_animation=is_animation
+                        is_animation=is_animation,
+                        reply_markup=reply_markup
                     )
                     if not success:
                         raise Exception("Failed to edit long caption and media via PremiumUploader")
@@ -341,7 +343,8 @@ async def edit_backup_message(
                     success = await PremiumUploader.edit_caption(
                         chat_id=chat_id,
                         message_id=message_id,
-                        caption=message_options.caption
+                        caption=message_options.caption,
+                        reply_markup=reply_markup
                     )
                     if not success:
                         raise Exception("Failed to edit long caption via PremiumUploader")
@@ -500,7 +503,8 @@ async def _update_single_live_message(
                             media_file_id=input_media.media if input_media and not local_file_path else None,
                             file_path=local_file_path,
                             is_video=is_video,
-                            is_animation=is_animation
+                            is_animation=is_animation,
+                            reply_markup=reply_markup
                         )
                         if not success:
                             raise Exception("Failed to edit long live caption/media via PremiumUploader")
