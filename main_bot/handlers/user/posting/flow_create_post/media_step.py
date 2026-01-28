@@ -175,7 +175,11 @@ async def manage_post(call: types.CallbackQuery, state: FSMContext):
                 and not message_options.video
                 and not message_options.animation
             ):
-                return await call.answer(text("require_media"), show_alert=True)
+                import re
+                raw_text = text("require_media")
+                # Очистка от HTML тегов для safe alert
+                clean_text = re.sub(r'<[^>]+>', '', raw_text)
+                return await call.answer(clean_text, show_alert=True)
 
             if temp[1] == "has_spoiler":
                 message_options.has_spoiler = not message_options.has_spoiler

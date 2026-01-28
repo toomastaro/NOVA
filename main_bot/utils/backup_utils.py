@@ -2,6 +2,7 @@
 Модуль утилит для работы с бэкап-каналом (резервным хранилищем постов).
 """
 
+from aiogram import types
 import asyncio
 import logging
 from typing import Any
@@ -241,7 +242,12 @@ async def edit_backup_message(
                 message_id=message_id,
                 text=message_options.text,
                 parse_mode="HTML",
-                disable_web_page_preview=message_options.disable_web_page_preview,
+                link_preview_options=types.LinkPreviewOptions(
+                    is_disabled=False,
+                    prefer_large_media=True,
+                    show_above_text=not message_options.show_caption_above_media,
+                ) if message_options.is_invisible else types.LinkPreviewOptions(is_disabled=True),
+                disable_web_page_preview=message_options.disable_web_page_preview if not message_options.is_invisible else False,
                 reply_markup=reply_markup,
             )
         else:
@@ -267,7 +273,10 @@ async def edit_backup_message(
                     else message_options.photo
                 )
                 input_media = InputMediaPhoto(
-                    media=file_id, caption=message_options.caption, parse_mode="HTML"
+                    media=file_id, 
+                    caption=message_options.caption, 
+                    parse_mode="HTML",
+                    show_caption_above_media=message_options.show_caption_above_media
                 )
             elif message_options.video:
                 file_id = (
@@ -276,7 +285,10 @@ async def edit_backup_message(
                     else message_options.video
                 )
                 input_media = InputMediaVideo(
-                    media=file_id, caption=message_options.caption, parse_mode="HTML"
+                    media=file_id, 
+                    caption=message_options.caption, 
+                    parse_mode="HTML",
+                    show_caption_above_media=message_options.show_caption_above_media
                 )
                 is_video = True
             elif message_options.animation:
@@ -286,7 +298,10 @@ async def edit_backup_message(
                     else message_options.animation
                 )
                 input_media = InputMediaAnimation(
-                    media=file_id, caption=message_options.caption, parse_mode="HTML"
+                    media=file_id, 
+                    caption=message_options.caption, 
+                    parse_mode="HTML",
+                    show_caption_above_media=message_options.show_caption_above_media
                 )
                 is_animation = True
 
@@ -484,6 +499,7 @@ async def _update_single_live_message(
                         media=message_options.media_value,
                         caption=message_options.html_text,
                         parse_mode="HTML",
+                        show_caption_above_media=message_options.show_caption_above_media,
                     )
                 elif (
                     message_options.media_type == "video"
@@ -493,6 +509,7 @@ async def _update_single_live_message(
                         media=message_options.media_value,
                         caption=message_options.html_text,
                         parse_mode="HTML",
+                        show_caption_above_media=message_options.show_caption_above_media,
                     )
                 elif (
                     message_options.media_type == "animation"
@@ -502,6 +519,7 @@ async def _update_single_live_message(
                         media=message_options.media_value,
                         caption=message_options.html_text,
                         parse_mode="HTML",
+                        show_caption_above_media=message_options.show_caption_above_media,
                     )
 
                 if input_media:

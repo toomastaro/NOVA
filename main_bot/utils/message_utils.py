@@ -143,6 +143,11 @@ async def answer_post(
         else:
             media_type = "text"
 
+    # Если текста совсем нет и это не медиа-пост, добавляем невидимый символ
+    # чтобы избежать ошибки "сообщение пустое"
+    if not html_text:
+        html_text = "\u200b"
+    
     # 2. Выбор клавиатуры
     if from_edit:
         reply_markup = keyboards.post_kb(post=post)
