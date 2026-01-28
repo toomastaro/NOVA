@@ -79,6 +79,10 @@ class Config:
 
     # Константы системы
     SOFT_DELETE_TIMESTAMP = 946684800  # 01.01.2000
+    
+    # Хранилище изображений
+    PUBLIC_IMAGES_PATH = os.path.join("public", "images")
+    PUBLIC_IMAGES_URL = f"{WEBHOOK_DOMAIN}/images/" if WEBHOOK_DOMAIN else "/images/"
 
     # Администраторы и тарифы
     ADMINS = [int(i) for i in os.getenv("ADMINS").split(",")]
