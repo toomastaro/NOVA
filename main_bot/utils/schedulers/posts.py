@@ -150,7 +150,54 @@ async def send(post: Post):
                 continue
 
             try:
-                if backup_message_id and Config.BACKUP_CHAT_ID:
+                # ЛОГИКА PREMIUM ЗАГРУЗКИ (Для постов > 1024 симв.)
+                caption_to_send = message_options.caption or message_options.text
+                if caption_to_send and len(caption_to_send) > 1024 and not message_options.text:
+                    from main_bot.utils.premium_uploader import PremiumUploader
+                    
+                    media_file_id = None
+                    is_video = False
+                    is_animation = False
+                    
+                    if message_options.photo:
+                        media_file_id = message_options.photo
+                    elif message_options.video:
+                        media_file_id = message_options.video
+                        is_video = True
+                    elif message_options.animation:
+                        media_file_id = message_options.animation
+                        is_animation = True
+                    
+                    if media_file_id:
+                        logger.info(f"Использование PremiumUploader для длинной подписи (>1024) в канале {chat_id}")
+                        sent_msg_id = await PremiumUploader.upload_media(
+                            chat_id=chat_id,
+                            caption=caption_to_send,
+                            media_file_id=media_file_id,
+                            is_video=is_video,
+                            is_animation=is_animation,
+                            reply_markup=keyboards.post_kb(post=post)
+                        )
+                        if sent_msg_id:
+                            # Создаем имитацию объекта сообщения для совместимости (для пина и БД)
+                            from aiogram.types import Message
+                            from unittest.mock import MagicMock
+                            
+                            # Нам нужен только .message_id
+                            post_message = MagicMock(spec=Message)
+                            post_message.message_id = sent_msg_id
+                            
+                            logger.info(f"Успешно отправлен длинный пост {post.id} через Premium в {chat_id}")
+                        else:
+                            raise Exception("PremiumUploader failed to send message")
+                    else:
+                        # Для чистого текста до 4096 символов - обычная отправка
+                        options["chat_id"] = chat_id
+                        post_message = await cor(
+                            **options, reply_markup=keyboards.post_kb(post=post)
+                        )
+                
+                elif backup_message_id and Config.BACKUP_CHAT_ID:
                     post_message = await bot.copy_message(
                         chat_id=chat_id,
                         from_chat_id=Config.BACKUP_CHAT_ID,
