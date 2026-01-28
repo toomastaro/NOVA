@@ -84,6 +84,13 @@ def _prepare_send_options(message_options: MessageOptions) -> tuple[Any, dict]:
             options["animation"] = message_options.animation.file_id
 
     options["parse_mode"] = "HTML"
+    
+    # Тонкая настройка show_caption_above_media для native media
+    # Telegram по умолчанию ставит медиа СВЕРХУ. 
+    # Поэтому мы передаем параметр только если пользователь ХОЧЕТ медиа СНИЗУ (True).
+    if not message_options.show_caption_above_media:
+        options.pop("show_caption_above_media", None)
+        
     return cor, options
 
 
@@ -467,12 +474,21 @@ async def _update_single_live_message(
         try:
             # 1. Скрытая ссылка или Текст -> edit_message_text
             if message_options.is_invisible or message_options.media_type == "text":
+                link_preview_options = None
+                if message_options.is_invisible:
+                    link_preview_options = types.LinkPreviewOptions(
+                        is_disabled=False,
+                        prefer_large_media=True,
+                        show_above_text=not message_options.show_caption_above_media,
+                    )
+                elif message_options.disable_web_page_preview:
+                    link_preview_options = types.LinkPreviewOptions(is_disabled=True)
+
                 await bot.edit_message_text(
                     chat_id=post.chat_id,
                     message_id=post.message_id,
                     text=message_options.html_text,
                     parse_mode="HTML",
-                    # Для скрытой ссылки preview РАЗРЕШЕН (чтобы тянулось медиа)
                     # Для обычного текста - берем из настроек
                     disable_web_page_preview=(
                         not message_options.is_invisible

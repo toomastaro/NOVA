@@ -174,6 +174,7 @@ async def manage_post(call: types.CallbackQuery, state: FSMContext):
                 not message_options.photo
                 and not message_options.video
                 and not message_options.animation
+                and not message_options.media_value
             ):
                 import re
                 raw_text = text("require_media")

@@ -218,7 +218,7 @@ class InlinePosting(InlineKeyboardBuilder):
                 ),
                 InlineKeyboardButton(
                     text=text("manage:post:media_above:button").format(
-                        "✅" if options.show_caption_above_media else "❌"
+                        "✅" if not options.show_caption_above_media else "❌"
                     ),
                     callback_data=f"ManagePost|media_above|{post.id}",
                 ),
