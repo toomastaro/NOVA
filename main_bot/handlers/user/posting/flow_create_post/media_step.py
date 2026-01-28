@@ -20,6 +20,7 @@ from main_bot.utils.media_manager import MediaManager
 from main_bot.utils.post_assembler import PostAssembler
 from main_bot.keyboards import keyboards
 from main_bot.keyboards.posting import ensure_obj
+from main_bot.utils.backup_utils import edit_backup_message, update_live_messages
 from main_bot.states.user import Posting
 from utils.error_handler import safe_handler
 
@@ -527,9 +528,12 @@ async def get_value(message: types.Message, state: FSMContext):
         
         # Определяем текущий тип медиа (для ассамблера)
         current_media_type = "text"
-        if temp_options.photo: current_media_type = "photo"
-        elif temp_options.video: current_media_type = "video"
-        elif temp_options.animation: current_media_type = "animation"
+        if temp_options.photo:
+            current_media_type = "photo"
+        elif temp_options.video:
+            current_media_type = "video"
+        elif temp_options.animation:
+            current_media_type = "animation"
 
         # Собираем финальный MessageOptions через ассамблер
         assembled_options = PostAssembler.assemble_message_options(

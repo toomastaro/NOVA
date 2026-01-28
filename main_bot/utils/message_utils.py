@@ -122,10 +122,14 @@ async def answer_post(
 
     # Авто-определение типа если не задан
     if not media_type:
-        if message_options.photo: media_type = "photo"
-        elif message_options.video: media_type = "video"
-        elif message_options.animation: media_type = "animation"
-        else: media_type = "text"
+        if message_options.photo:
+            media_type = "photo"
+        elif message_options.video:
+            media_type = "video"
+        elif message_options.animation:
+            media_type = "animation"
+        else:
+            media_type = "text"
 
     # 2. Выбор клавиатуры
     if from_edit:
@@ -462,7 +466,7 @@ async def reload_main_menu(message: types.Message, delete_trigger: bool = True) 
     try:
         # Отправляем короткое сообщение, чтобы зафиксировать клавиатуру
         await message.answer(
-            f"🏠 Главное меню",
+            "🏠 Главное меню",
             reply_markup=Reply.menu(),
             parse_mode="HTML",
         )

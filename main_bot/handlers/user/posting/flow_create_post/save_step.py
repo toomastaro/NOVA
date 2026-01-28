@@ -13,6 +13,7 @@ from aiogram import types
 from aiogram.fsm.context import FSMContext
 
 from main_bot.database.db import db
+from main_bot.utils.message_utils import answer_post
 from main_bot.utils.lang.language import text
 from main_bot.keyboards import keyboards
 from main_bot.keyboards.posting import safe_post_from_dict
@@ -122,7 +123,6 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
     # --- Реализация OTLOG (отчет) ---
     from datetime import datetime
     import html
-    from main_bot.utils.message_utils import answer_post
 
     # 1. Превью (Локальная генерация)
     try:

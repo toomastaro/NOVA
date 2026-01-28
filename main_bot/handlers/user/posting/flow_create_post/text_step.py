@@ -16,7 +16,7 @@ from main_bot.database.db import db
 from main_bot.handlers.user.menu import start_posting
 from main_bot.utils.message_utils import answer_post
 from main_bot.utils.lang.language import text
-from main_bot.utils.schemas import MessageOptions, Media
+from main_bot.utils.schemas import MessageOptions
 from main_bot.utils.media_manager import MediaManager
 from main_bot.utils.post_assembler import PostAssembler
 from utils.error_handler import safe_handler
@@ -104,9 +104,12 @@ async def get_message(message: types.Message, state: FSMContext):
     
     # Определяем тип медиа
     current_media_type = "text"
-    if message.photo: current_media_type = "photo"
-    elif message.video: current_media_type = "video"
-    elif message.animation: current_media_type = "animation"
+    if message.photo:
+        current_media_type = "photo"
+    elif message.video:
+        current_media_type = "video"
+    elif message.animation:
+        current_media_type = "animation"
 
     # Сборка inline кнопок (для ассамблера)
     buttons_str = None

@@ -21,7 +21,6 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from sqlalchemy import select, update
 
-from config import Config
 from instance_bot import bot
 from main_bot.database.db import db
 from main_bot.database.post.model import Post
@@ -33,8 +32,6 @@ from main_bot.utils.lang.language import text
 from main_bot.utils.report_signature import get_report_signatures
 from main_bot.utils.schemas import MessageOptions
 from main_bot.utils.session_manager import SessionManager
-from main_bot.utils.media_manager import MediaManager
-from main_bot.utils.post_assembler import PostAssembler
 from utils.error_handler import safe_handler
 
 logger = logging.getLogger(__name__)
@@ -101,10 +98,14 @@ async def send(post: Post):
 
         # Авто-определение типа если не задан
         if not media_type:
-            if message_options.photo: media_type = "photo"
-            elif message_options.video: media_type = "video"
-            elif message_options.animation: media_type = "animation"
-            else: media_type = "text"
+            if message_options.photo:
+                media_type = "photo"
+            elif message_options.video:
+                media_type = "video"
+            elif message_options.animation:
+                media_type = "animation"
+            else:
+                media_type = "text"
 
         logger.info(f"🚀 Старт рассылки поста {post.id}. Метод: {'Invisible' if is_inv else 'Native'}, Каналов: {len(post.chat_ids)}")
 

@@ -4,7 +4,7 @@
 
 import asyncio
 import logging
-from typing import Any, Optional
+from typing import Any
 
 from config import Config
 from instance_bot import bot
@@ -457,7 +457,8 @@ async def _update_single_live_message(
                         reply_markup=reply_markup,
                     )
         except Exception as e:
-            if "message is not modified" in str(e): return
+            if "message is not modified" in str(e):
+                return
             logger.error(f"Ошибка обновления сообщения {post.message_id} в {post.chat_id}: {e}")
 
 
