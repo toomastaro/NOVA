@@ -111,20 +111,23 @@ async def generate_cpm_report(user, post_id, related_posts, bot) -> str:
     # 24ч
     r24 = round(float(cpm_price * float(sum_24 / 1000)), 2)
     report_text += text("cpm:report:stats_block").format(
-        "24ч", f"{sum_24:,}", cpm_price, f"{r24:,.2f}", f"{round(r24 / usd_rate, 2):,}", exch_update
+        "24ч", f"{sum_24:,}", cpm_price, f"{r24:,.2f}", f"{round(r24 / usd_rate, 2):,}"
     )
     
     # 48ч
     r48 = round(float(cpm_price * float(sum_48 / 1000)), 2)
     report_text += text("cpm:report:stats_block").format(
-        "48ч", f"{sum_48:,}", cpm_price, f"{r48:,.2f}", f"{round(r48 / usd_rate, 2):,}", exch_update
+        "48ч", f"{sum_48:,}", cpm_price, f"{r48:,.2f}", f"{round(r48 / usd_rate, 2):,}"
     )
     
     # 72ч
     r72 = round(float(cpm_price * float(sum_72 / 1000)), 2)
     report_text += text("cpm:report:stats_block").format(
-        "72ч", f"{sum_72:,}", cpm_price, f"{r72:,.2f}", f"{round(r72 / usd_rate, 2):,}", exch_update
+        "72ч", f"{sum_72:,}", cpm_price, f"{r72:,.2f}", f"{round(r72 / usd_rate, 2):,}"
     )
+    
+    # Инфо об обновлении курса один раз в конце
+    report_text += text("cpm:report:exch_update_note").format(exch_update)
 
     # Подписи
     report_text += await get_report_signatures(user, "cpm", bot)
