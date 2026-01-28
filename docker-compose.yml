@@ -94,7 +94,7 @@ services:
       - ./nova_website:/var/www/nova_website
     depends_on:
       app:
-        condition: service_healthy
+        condition: service_started
     healthcheck:
       test: [ "CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1/health || exit 1" ]
       interval: 30s

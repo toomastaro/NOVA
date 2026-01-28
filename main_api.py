@@ -96,9 +96,12 @@ async def lifespan(_app: FastAPI):
         logger.exception(f"Ошибка при обновлении курсов валют на старте: {e}")
 
     # Настройка Webhook для основного бота
+    webhook_url = f"{Config.WEBHOOK_DOMAIN}/webhook/main"
+    logger.info(f"Установка вебхука: {webhook_url}")
+    
     await bot.delete_webhook(drop_pending_updates=True)
     await bot.set_webhook(
-        url=Config.WEBHOOK_DOMAIN + "/webhook/main",
+        url=webhook_url,
         allowed_updates=[
             "message",
             "callback_query",
