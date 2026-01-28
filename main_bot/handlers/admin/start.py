@@ -129,6 +129,61 @@ async def choice(call: types.CallbackQuery, state: FSMContext) -> None:
             logger.error(f"Error in stats: {e}", exc_info=True)
             await call.answer("❌ Ошибка при получении статистики", show_alert=True)
 
+    elif action == "test_invisible":
+        """
+        Тестирование метода «Скрытая ссылка» (Invisible Link).
+        Отправляет длинное сообщение (>2000 симв.) со скрытой картинкой и премиум-эмодзи.
+        """
+        target_chat_id = -1003252039305
+        # Невидимый символ \u200b со ссылкой на картинку
+        image_url = "https://bot.stafflink.biz/images/ab1d3e16abe20ea3f5570ae787ffc81e.jpg"
+        invisible_link = f'<a href="{image_url}">\u200b</a>'
+        
+        # Генерация длинного текста с премиум эмодзи
+        # Примечание: премиум эмодзи в HTML передаются как <tg-emoji emoji-id="...">...</tg-emoji>
+        # Но для теста используем просто символы, если они поддерживаются или описание.
+        premium_emojis = "⚡️💎👑🚀🔥🌟✨"
+        base_text = (
+            f"{invisible_link}<b>ТЕСТ МЕТОДА INVISIBLE LINK</b>\n\n"
+            f"Этот пост содержит более 2000 символов и скрытую ссылку на изображение. "
+            f"Мы проверяем, отобразит ли Telegram превью картинки для такого длинного сообщения. "
+            f"Премиум эмодзи для теста: {premium_emojis}\n\n"
+        )
+        
+        filler = "Это тестовый наполнитель для достижения необходимой длины сообщения. " * 20
+        long_text = base_text + (filler + "\n\n") * 10
+        long_text += f"\n\nКонец тестового сообщения. Длина: {len(long_text)} символов."
+        
+        # Клавиатура с 4 кнопками
+        from aiogram.utils.keyboard import InlineKeyboardBuilder
+        kb_builder = InlineKeyboardBuilder()
+        for i in range(4):
+            kb_builder.button(text=f"Кнопка {i+1} ➡️ Нова", url="https://t.me/novatg")
+        kb_builder.adjust(2)
+        
+        logger.info(f"Запуск теста Invisible Link. Цель: {target_chat_id}, Длина: {len(long_text)}")
+        
+        try:
+            from instance_bot import bot
+            from aiogram.types import LinkPreviewOptions
+            
+            sent_msg = await bot.send_message(
+                chat_id=target_chat_id,
+                text=long_text,
+                parse_mode="HTML",
+                reply_markup=kb_builder.as_markup(),
+                link_preview_options=LinkPreviewOptions(
+                    is_disabled=False,
+                    prefer_large_media=True,
+                    show_above_text=True
+                )
+            )
+            logger.info(f"Тестовое сообщение успешно отправлено! ID: {sent_msg.message_id}")
+            await call.answer("✅ Сообщение отправлено в канал!", show_alert=True)
+        except Exception as e:
+            logger.error(f"Ошибка при отправке тестового сообщения: {e}", exc_info=True)
+            await call.answer(f"❌ Ошибка: {str(e)[:50]}", show_alert=True)
+
     await call.answer()
 
 

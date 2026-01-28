@@ -29,6 +29,7 @@ class InlineAdmin(InlineKeyboardBuilder):
         kb.button(text="🎁 Создать промокод", callback_data="Admin|promo")
         kb.button(text="🦋 Рекламные ссылки", callback_data="Admin|ads")
         kb.button(text="👤 Сессии", callback_data="Admin|session")
+        kb.button(text="🧪 Тест: Скрытая ссылка", callback_data="Admin|test_invisible")
 
         kb.adjust(2, 1)  # Финансы и Аналитика в ряд, остальные по одному
         return kb.as_markup()
