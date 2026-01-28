@@ -145,7 +145,7 @@ async def send(post: Post):
                         preview_options = types.LinkPreviewOptions(
                             is_disabled=False,
                             prefer_large_media=True,
-                            show_above_text=True,
+                            show_above_text=not message_options.show_caption_above_media,
                         )
 
                         post_message = await bot.send_message(
@@ -166,6 +166,7 @@ async def send(post: Post):
                                 caption=html_text,
                                 parse_mode="HTML",
                                 reply_markup=reply_markup,
+                                show_caption_above_media=message_options.show_caption_above_media,
                                 disable_notification=message_options.disable_notification,
                             )
                         elif media_type == "video":
@@ -175,6 +176,7 @@ async def send(post: Post):
                                 caption=html_text,
                                 parse_mode="HTML",
                                 reply_markup=reply_markup,
+                                show_caption_above_media=message_options.show_caption_above_media,
                                 disable_notification=message_options.disable_notification,
                             )
                         elif media_type == "animation":
@@ -184,6 +186,7 @@ async def send(post: Post):
                                 caption=html_text,
                                 parse_mode="HTML",
                                 reply_markup=reply_markup,
+                                show_caption_above_media=message_options.show_caption_above_media,
                                 disable_notification=message_options.disable_notification,
                             )
                         else:  # Pure text
