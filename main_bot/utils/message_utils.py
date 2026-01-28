@@ -158,7 +158,7 @@ async def answer_post(
             preview_options = types.LinkPreviewOptions(
                 is_disabled=False, 
                 prefer_large_media=True, 
-                show_above_text=message_options.show_caption_above_media
+                show_above_text=not message_options.show_caption_above_media
             )
 
             return await message.answer(

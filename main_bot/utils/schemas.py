@@ -21,7 +21,7 @@ class MessageOptions(BaseModel):
     animation: Optional[Media | str] = None
     video: Optional[Media | str] = None
     photo: Optional[Media | str] = None
-    show_caption_above_media: Optional[bool] = None
+    show_caption_above_media: bool = False
     caption: Optional[str] = None
     text: Optional[str] = None
     html_text: Optional[str] = None # Унифицированный HTML контент
