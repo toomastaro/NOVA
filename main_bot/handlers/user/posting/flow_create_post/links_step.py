@@ -12,10 +12,10 @@ from aiogram import types
 from aiogram.fsm.context import FSMContext
 
 from main_bot.database.db import db
-from main_bot.database.post.model import Post
 from main_bot.utils.lang.language import text
 from main_bot.utils.schemas import Hide, React
 from main_bot.keyboards import keyboards
+from main_bot.keyboards.posting import ensure_obj
 from main_bot.states.user import AddHide
 from utils.error_handler import safe_handler
 
@@ -159,7 +159,7 @@ async def get_for_member_text(message: types.Message, state: FSMContext):
 
     await state.update_data(hide_for_member_text=message.text)
     data = await state.get_data()
-    post: Post = data.get("post")
+    post = ensure_obj(data.get("post"))
 
     if post.hide is None:
         post.hide = []
