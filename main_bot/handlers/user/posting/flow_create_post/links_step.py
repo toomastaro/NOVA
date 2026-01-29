@@ -70,7 +70,7 @@ async def back_input_button_name(call: types.CallbackQuery, state: FSMContext):
         return await call.message.delete()
 
     await state.clear()
-    await state.update_data(data)
+    await state.set_data(data)
     await call.message.delete()
 
     hide_step = data.get("hide_step")
@@ -159,27 +159,38 @@ async def get_for_member_text(message: types.Message, state: FSMContext):
 
     await state.update_data(hide_for_member_text=message.text)
     data = await state.get_data()
-    post = ensure_obj(data.get("post"))
+    post_dict = data.get("post")
 
-    if post.hide is None:
-        post.hide = []
+    if not post_dict:
+        await message.answer(text("keys_data_error"))
+        return
 
-    post.hide.append(
+    # Работаем со словарем напрямую для гарантии сериализации
+    hide_list = post_dict.get("hide") or []
+    
+    # Добавляем новый элемент
+    hide_list = list(hide_list)  # Копируем список на всякий случай
+    hide_list.append(
         {
-            "id": len(post.hide) + 1,
+            "id": len(hide_list) + 1,
             "button_name": data.get("hide_button_name"),
             "for_member": data.get("hide_for_member_text"),
             "not_member": data.get("hide_not_member_text"),
         }
     )
 
-    post = await db.post.update_post(post_id=post.id, return_obj=True, hide=post.hide)
+    # Обновляем в БД
+    await db.post.update_post(post_id=post_dict["id"], hide=hide_list)
 
-    await state.clear()
-    await state.update_data(post=post, show_more=data.get("show_more"), param="hide")
+    # Обновляем словарь в данных состояния
+    post_dict["hide"] = hide_list
+
+    # Выходим из состояний AddHide и возвращаемся к управлению хайдом
+    await state.set_state(None)
+    await state.update_data(post=post_dict, show_more=data.get("show_more"), param="hide")
 
     await message.answer(
-        text("manage:post:new:hide"), reply_markup=keyboards.param_hide(post=post)
+        text("manage:post:new:hide"), reply_markup=keyboards.param_hide(post=post_dict)
     )
 
 
