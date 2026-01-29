@@ -21,16 +21,16 @@ class MessageOptions(BaseModel):
     animation: Optional[Media | str] = None
     video: Optional[Media | str] = None
     photo: Optional[Media | str] = None
-    show_caption_above_media: bool = False
+    show_caption_above_media: Optional[bool] = False
     caption: Optional[str] = None
     text: Optional[str] = None
     html_text: Optional[str] = None # Унифицированный HTML контент
     media_value: Optional[str] = None # file_id или URL
     media_type: Optional[str] = None # photo, video, animation, text
-    is_invisible: bool = False # Флаг метода Invisible Link
-    has_spoiler: bool = False
-    disable_web_page_preview: bool = True
-    disable_notification: bool = False
+    is_invisible: Optional[bool] = False # Флаг метода Invisible Link
+    has_spoiler: Optional[bool] = False
+    disable_web_page_preview: Optional[bool] = True
+    disable_notification: Optional[bool] = False
     buttons: Optional[dict | str | list] = None
     reaction: Optional[dict] = None
 
