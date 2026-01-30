@@ -75,12 +75,13 @@ async def get_message(message: types.Message, state: FSMContext):
     # Проверка длины текста
     # Лимит зависит от типа контента:
     # - Только текст: 4096 символов
-    # - Медиа (фото/видео): 2048 символов (лимит для Premium-аккаунта)
+    # - Медиа (фото/видео): 4096 символов (использование невидимых ссылок)
+    # - Только текст: 4096 символов
 
     is_media = bool(
         message.photo or message.video or message.animation or message.document
     )
-    limit = 2048 if is_media else 4096
+    limit = 4096
 
     message_text_length = len(message.caption or message.text or "")
     logger.debug(
@@ -98,7 +99,6 @@ async def get_message(message: types.Message, state: FSMContext):
 
     # Парсинг сообщения в MessageOptions
     final_html = message.html_text
-    is_media = bool(message.photo or message.video or message.animation)
 
     # 1. Адаптивная трансформация
     logger.info(f"🔄 Первичная трансформация контента (User: {message.from_user.id})")

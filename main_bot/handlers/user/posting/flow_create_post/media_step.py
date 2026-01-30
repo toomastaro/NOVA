@@ -439,8 +439,7 @@ async def get_value(message: types.Message, state: FSMContext):
             return await message.answer(text("error_value"))
 
         # Лимиты текста
-        is_media = bool(message.photo or message.video or message.animation or current_options.media_value)
-        limit = 2048 if is_media else 4096
+        limit = 4096
         input_text = message.html_text or message.caption or ""
         
         if len(input_text) > limit:
