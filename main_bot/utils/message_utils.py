@@ -517,3 +517,29 @@ async def reload_main_menu(message: types.Message, delete_trigger: bool = True) 
                 pass
     except Exception as e:
         logger.error(f"Ошибка при обновлении главного меню: {e}")
+
+
+async def safe_delete_message(
+    message: Union[types.Message, types.CallbackQuery]
+) -> bool:
+    """
+    Безопасно удаляет сообщение, подавляя ошибки (например, если сообщение слишком старое).
+    Может принимать как объект Message, так и CallbackQuery.
+
+    Аргументы:
+        message (Union[types.Message, types.CallbackQuery]): Объект для удаления.
+
+    Возвращает:
+        bool: True, если успешно удалено, иначе False.
+    """
+    try:
+        if isinstance(message, types.CallbackQuery):
+            if message.message:
+                await message.message.delete()
+                return True
+        elif isinstance(message, types.Message):
+            await message.delete()
+            return True
+    except Exception as e:
+        logger.debug(f"Не удалось удалить сообщение: {e}")
+    return False

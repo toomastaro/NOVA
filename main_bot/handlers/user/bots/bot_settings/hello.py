@@ -18,6 +18,7 @@ from main_bot.handlers.user.bots.bot_settings.menu import (
     show_channel_setting,
     show_hello,
 )
+from main_bot.utils.message_utils import safe_delete_message
 from main_bot.states.user import Hello
 from main_bot.utils.lang.language import text
 from main_bot.keyboards import keyboards
@@ -68,7 +69,7 @@ async def choice(
         db_obj (Database): БД бота.
     """
     temp = call.data.split("|")
-    await call.message.delete()
+    await safe_delete_message(call)
 
     if temp[1] == "cancel":
         await show_channel_setting(call.message, db_obj, state)
@@ -111,7 +112,7 @@ async def manage_hello_message(call: types.CallbackQuery, state: FSMContext) -> 
 
         cs = await db.channel_bot_settings.get_channel_bot_setting(data.get("chat_id"))
 
-        await call.message.delete()
+        await safe_delete_message(call)
         await show_hello(call.message, cs)
         return
 
@@ -126,12 +127,12 @@ async def manage_hello_message(call: types.CallbackQuery, state: FSMContext) -> 
             is_active=not hello_message.is_active,
         )
 
-        await call.message.delete()
+        await safe_delete_message(call)
         await show_manage_hello_message(call.message, state)
         return
 
     if temp[1] == "delay":
-        await call.message.delete()
+        await safe_delete_message(call)
         await call.message.answer(
             text("application:delay"),
             reply_markup=keyboards.choice_hello_message_delay(
@@ -150,12 +151,12 @@ async def manage_hello_message(call: types.CallbackQuery, state: FSMContext) -> 
             text_with_name=not hello_message.text_with_name,
         )
 
-        await call.message.delete()
+        await safe_delete_message(call)
         await show_manage_hello_message(call.message, state)
         return
 
     if temp[1] == "change":
-        await call.message.delete()
+        await safe_delete_message(call)
 
         post_id = await answer_message(
             call.message, MessageOptionsHello(**hello_message.message)
@@ -185,13 +186,17 @@ async def manage_hello_message_post(
 
     if temp[1] == "cancel":
         await state.update_data(is_edit=None)
-        await call.bot.delete_message(call.from_user.id, data.get("post_id"))
+        if data.get("post_id"):
+            try:
+                await call.bot.delete_message(call.from_user.id, data.get("post_id"))
+            except Exception:
+                pass
 
-        await call.message.delete()
+        await safe_delete_message(call)
         await show_manage_hello_message(call.message, state)
         return
 
-    await call.message.delete()
+    await safe_delete_message(call)
 
     if temp[1] == "url_buttons":
         await call.message.answer(
@@ -226,7 +231,7 @@ async def choice_hello_message_delay(
     data = await state.get_data()
 
     if temp[1] == "cancel":
-        await call.message.delete()
+        await safe_delete_message(call)
         await show_manage_hello_message(call.message, state)
         return
 
@@ -235,7 +240,7 @@ async def choice_hello_message_delay(
         message_id=data.get("hello_message_id"), return_obj=True, delay=delay
     )
 
-    await call.message.delete()
+    await safe_delete_message(call)
     await call.message.answer(
         text("application:delay"),
         reply_markup=keyboards.choice_hello_message_delay(current=hello_message.delay),
@@ -257,7 +262,7 @@ async def back(call: types.CallbackQuery, state: FSMContext) -> None:
     await state.clear()
     await state.update_data(**data)
 
-    await call.message.delete()
+    await safe_delete_message(call)
 
     if data.get("is_edit"):
         await call.message.answer(
@@ -308,7 +313,11 @@ async def get_message(message: types.Message, state: FSMContext) -> None:
             message=message_options.model_dump(),
         )
 
-        await message.bot.delete_message(message.from_user.id, data.get("post_id"))
+        if data.get("post_id"):
+            try:
+                await message.bot.delete_message(message.from_user.id, data.get("post_id"))
+            except Exception:
+                pass
         post_id = await answer_message(message, message_options)
 
         data.pop("post_id")
@@ -353,7 +362,7 @@ async def get_buttons(message: types.Message, state: FSMContext) -> None:
     try:
         reply_markup = keyboards.hello_kb(message.text)
         r = await message.answer("...", reply_markup=reply_markup)
-        await r.delete()
+        await safe_delete_message(r)
     except Exception as e:
         logger.error(f"Error parsing buttons: {e}", exc_info=True)
         await message.answer(text("error_input"))
@@ -371,7 +380,11 @@ async def get_buttons(message: types.Message, state: FSMContext) -> None:
         message_id=hello_obj.id, message=hello_message.model_dump()
     )
 
-    await message.bot.delete_message(message.from_user.id, data.get("post_id"))
+    if data.get("post_id"):
+        try:
+            await message.bot.delete_message(message.from_user.id, data.get("post_id"))
+        except Exception:
+            pass
     post_id = await answer_message(message, hello_message)
 
     data.pop("post_id")
