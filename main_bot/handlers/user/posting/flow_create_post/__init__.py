@@ -28,6 +28,8 @@ from .schedule_step import (
     choice_delete_time,
     cancel_send_time,
     get_send_time,
+    choice_publication_date,
+    choice_publication_time,
 )
 from .save_step import accept
 
@@ -83,6 +85,14 @@ def get_router():
         cancel_send_time, F.data.split("|")[0] == "BackSendTimePost"
     )
     router.message.register(get_send_time, Posting.input_send_time, F.text)
+
+    # Календарь
+    router.callback_query.register(
+        choice_publication_date, F.data.split("|")[0] == "ChoicePublicationDate"
+    )
+    router.callback_query.register(
+        choice_publication_time, F.data.split("|")[0] == "ChoicePublicationTime"
+    )
 
     # Подтверждение и сохранение
     router.callback_query.register(accept, F.data.split("|")[0] == "AcceptPost")

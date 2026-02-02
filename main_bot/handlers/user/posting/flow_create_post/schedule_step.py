@@ -26,6 +26,10 @@ from config import Config
 from instance_bot import bot as main_bot
 from utils.error_handler import safe_handler
 
+# Импорты для расширенного календаря
+from main_bot.keyboards.calendar import InlineCalendar
+from main_bot.utils.recent_times import save_recent_time
+
 logger = logging.getLogger(__name__)
 
 
@@ -142,12 +146,30 @@ async def finish_params(call: types.CallbackQuery, state: FSMContext):
             reply_markup=keyboards.choice_delete_time(),
         )
 
-    # Выбор времени отправки
+    # Выбор времени отправки (Календарь)
     if temp[1] == "send_time":
-        await call.message.delete()
-        await call.message.answer(
-            text("manage:post:new:send_time"),
-            reply_markup=keyboards.back(data="BackSendTimePost"),
+        now = datetime.now()
+        await state.update_data(
+            calendar_year=now.year,
+            calendar_month=now.month,
+            selected_date=now.strftime("%d.%m.%Y"),
+            selected_time="--:--",
+        )
+        
+        kb = await InlineCalendar.create(
+            year=now.year,
+            month=now.month,
+            selected_date=now,
+            user_id=call.from_user.id
+        )
+        
+        await call.message.edit_text(
+            text("manage:post:calendar:title").format(
+                now.strftime("%d.%m.%Y"),
+                "--:--"
+            ),
+            reply_markup=kb,
+            parse_mode="HTML"
         )
         await state.set_state(Posting.input_send_time)
         return
@@ -373,6 +395,9 @@ async def get_send_time(message: types.Message, state: FSMContext):
     if time.time() > send_time:
         return await message.answer(text("error_time_value"))
 
+    # Сохраняем время в Redis как последнее использованное
+    await save_recent_time(message.from_user.id, date.strftime("%H:%M"))
+
     data = await state.get_data()
     is_edit: bool = data.get("is_edit")
     post: Post = safe_post_from_dict(data.get("post"))
@@ -449,6 +474,161 @@ async def get_send_time(message: types.Message, state: FSMContext):
     await message.answer(
         text("manage:post:accept:date").format(
             full_date_str, channels_block, delete_str
+        ),
+        reply_markup=keyboards.accept_date(),
+        parse_mode="HTML",
+        link_preview_options=types.LinkPreviewOptions(is_disabled=True),
+    )
+
+
+@safe_handler("Навигация по календарю")
+async def choice_publication_date(call: types.CallbackQuery, state: FSMContext):
+    """
+    Обработка навигации по месяцам и выбора дня в календаре.
+    """
+    temp = call.data.split("|")
+    action = temp[1]
+    
+    data = await state.get_data()
+    year = int(temp[2])
+    month = int(temp[3])
+    
+    if action == "prev_month":
+        month -= 1
+        if month < 1:
+            month = 12
+            year -= 1
+    elif action == "next_month":
+        month += 1
+        if month > 12:
+            month = 1
+            year += 1
+    elif action == "select_day":
+        day = int(temp[4])
+        selected_date = datetime(year, month, day)
+        await state.update_data(
+            selected_date=selected_date.strftime("%d.%m.%Y")
+        )
+        # Обновляем сообщение с выбранной датой
+        selected_time = data.get("selected_time", "--:--")
+        
+        kb = await InlineCalendar.create(
+            year=year,
+            month=month,
+            selected_date=selected_date,
+            user_id=call.from_user.id
+        )
+        
+        try:
+            await call.message.edit_text(
+                text("manage:post:calendar:title").format(
+                    selected_date.strftime("%d.%m.%Y"),
+                    selected_time
+                ),
+                reply_markup=kb,
+                parse_mode="HTML"
+            )
+        except Exception:
+            pass # Если текст не изменился
+        return
+
+    # Навигация по месяцам
+    kb = await InlineCalendar.create(
+        year=year,
+        month=month,
+        user_id=call.from_user.id
+    )
+    
+    try:
+        await call.message.edit_text(
+            text("manage:post:calendar:title").format(
+                data.get("selected_date", "--.--.----"),
+                data.get("selected_time", "--:--")
+            ),
+            reply_markup=kb,
+            parse_mode="HTML"
+        )
+    except Exception:
+        pass
+    await call.answer()
+
+
+@safe_handler("Выбор времени публикации")
+async def choice_publication_time(call: types.CallbackQuery, state: FSMContext):
+    """
+    Обработка выбора времени публикации и переход к подтверждению.
+    """
+    selected_time = call.data.split("|")[1]
+    data = await state.get_data()
+    
+    selected_date_str = data.get("selected_date")
+    if not selected_date_str:
+        return await call.answer("Сначала выберите дату!", show_alert=True)
+    
+    try:
+        # Собираем полную дату и время
+        full_date_str = f"{selected_date_str} {selected_time}"
+        date = datetime.strptime(full_date_str, "%d.%m.%Y %H:%M")
+        send_time = time.mktime(date.timetuple())
+        
+        # Проверка что время в будущем
+        if time.time() > send_time:
+            return await call.answer(text("error_time_value"), show_alert=True)
+            
+    except Exception as e:
+        logger.error(f"Ошибка парсинга даты/времени из календаря: {e}")
+        return await call.answer(text("error_format"), show_alert=True)
+
+    # Сохраняем время в Redis как последнее использованное
+    await save_recent_time(call.from_user.id, selected_time)
+
+    # Форматируем данные для шага подтверждения
+    weekday = text("weekdays")[str(date.weekday())]
+    month = text("month")[str(date.month)]
+    day = date.day
+    year = date.year
+    _time = date.strftime("%H:%M")
+    date_values = (
+        weekday,
+        day,
+        month,
+        year,
+        _time,
+    )
+
+    await state.update_data(send_time=send_time, date_values=date_values)
+    
+    # Переход к подтверждению (аналогично get_send_time)
+    post = safe_post_from_dict(data.get("post"))
+    chosen: list = data.get("chosen")
+    
+    display_objects = await db.channel.get_user_channels(
+        user_id=call.from_user.id, from_array=chosen
+    )
+
+    channels_str = "\n".join(
+        text("resource_title").format(html.escape(obj.title)) for obj in display_objects
+    )
+    channels_block = f"<blockquote expandable>{channels_str}</blockquote>"
+
+    delete_str = text("manage:post:del_time:not")
+    if post.delete_time:
+        if post.delete_time < 3600:
+            delete_str = f"{int(post.delete_time / 60)} {text('minutes_short')}"
+        else:
+            delete_str = f"{int(post.delete_time / 3600)} {text('hours_short')}"
+
+    await call.message.delete()
+    
+    # Force refresh main menu
+    from main_bot.keyboards.common import Reply
+    await call.message.answer(text("time_accepted"), reply_markup=Reply.menu())
+
+    full_date_display = f"{_time}, {date.strftime('%d.%m.%Y')}"
+
+    await call.message.answer(
+        text("manage:post:accept:date").format(
+            full_date_display, channels_block, delete_str
         ),
         reply_markup=keyboards.accept_date(),
         parse_mode="HTML",
