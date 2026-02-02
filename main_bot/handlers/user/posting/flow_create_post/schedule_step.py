@@ -10,7 +10,7 @@
 import time
 import logging
 import html
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from aiogram import types
 from aiogram.fsm.context import FSMContext

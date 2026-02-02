@@ -151,7 +151,6 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
     await db.post.update_post(post_id=post.id, **kwargs)
 
     # --- Реализация OTLOG (отчет) ---
-    from datetime import datetime
     import html
 
     # 1. Превью (Локальная генерация)
