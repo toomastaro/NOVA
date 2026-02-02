@@ -19,6 +19,8 @@ from main_bot.keyboards import keyboards
 from main_bot.keyboards.posting import safe_post_from_dict
 from main_bot.states.user import Posting
 from utils.error_handler import safe_handler
+from main_bot.keyboards.calendar import InlineCalendar
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -62,11 +64,39 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
             "Пользователь %s отменил подтверждение публикации", call.from_user.id
         )
         if send_time:
-            # Возврат к вводу времени
+            # Возврат к календарю
             await state.update_data(send_time=None)
-            message_text = text("manage:post:new:send_time")
-            reply_markup = keyboards.back(data="BackSendTimePost")
-            await state.set_state(Posting.input_send_time)
+            
+            cal_year = data.get("calendar_year")
+            cal_month = data.get("calendar_month")
+            sel_date_str = data.get("selected_date")
+            sel_time = data.get("selected_time", "--:--")
+            
+            if not cal_year or not cal_month:
+                now = datetime.now()
+                cal_year, cal_month = now.year, now.month
+                sel_date_str = now.strftime("%d.%m.%Y")
+            
+            try:
+                sel_date = datetime.strptime(sel_date_str, "%d.%m.%Y")
+            except Exception:
+                sel_date = datetime.now()
+
+            kb = await InlineCalendar.create(
+                year=cal_year,
+                month=cal_month,
+                selected_date=sel_date,
+                user_id=call.from_user.id
+            )
+            
+            return await call.message.edit_text(
+                text("manage:post:calendar:title").format(
+                    sel_date_str,
+                    sel_time
+                ),
+                reply_markup=kb,
+                parse_mode="HTML"
+            )
         else:
             # Возврат к финальным параметрам
             message_text = text("manage:post:finish_params").format(
