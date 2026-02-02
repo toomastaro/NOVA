@@ -160,6 +160,7 @@ async def join(call: types.ChatJoinRequest, db: Database):
         call (types.ChatJoinRequest): Объект запроса от Telegram.
         db (Database): Объект базы данных текущего бота.
     """
+    logger.info(f"ХЕНДЛЕР JOIN ВЫЗВАН: пользователь {call.from_user.id} стучится в чат {call.chat.id}")
     user_id = call.from_user.id
     chat_id = call.chat.id
     invite_url = (
@@ -255,6 +256,10 @@ async def join(call: types.ChatJoinRequest, db: Database):
         channel_settings.auto_approve
         if enable_auto_approve is None
         else enable_auto_approve
+    )
+
+    logger.info(
+        f"ОТЛАДКА: Пользователь {user_id}, Чат {chat_id}, Настройка: {channel_settings.auto_approve}, Флаг ссылки: {enable_auto_approve}, Итог: {should_approve}"
     )
 
     if should_approve:

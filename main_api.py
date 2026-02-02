@@ -32,6 +32,7 @@ from main_bot.database.db_types import PaymentMethod, Service
 from main_bot.database.user_bot.model import UserBot
 from main_bot.handlers import dp, set_main_routers, set_scheduler
 from main_bot.utils.lang.language import text
+from main_bot.utils.bot_manager import BotManager
 from main_bot.utils.logger import setup_logging
 from main_bot.utils.schedulers import update_exchange_rates_in_db
 from main_bot.utils.subscribe_service import grant_subscription
@@ -66,6 +67,32 @@ def set_dispatcher(db_bot: UserBot):
     dispatchers[db_bot.token] = other_dp
 
     return other_dp
+
+
+async def refresh_all_bot_webhooks():
+    """
+    Принудительно обновляет вебхуки для всех активных ботов в базе данных.
+    Это необходимо для обновления списка allowed_updates (добавление chat_join_request).
+    """
+    logger.info("Начало принудительного обновления вебхуков всех ботов...")
+    try:
+        bots = await db.user_bot.get_all_bots()
+        logger.info(f"Найдено {len(bots)} ботов для обновления.")
+        for bot_data in bots:
+            try:
+                # Используем BotManager для установки вебхука
+                # Он автоматически добавит chat_join_request в allowed_updates
+                async with BotManager(bot_data.token) as manager:
+                    success = await manager.set_webhook()
+                    if success:
+                        logger.info(f"Вебхук успешно обновлен для бота @{bot_data.username}")
+                    else:
+                        logger.warning(f"Не удалось обновить вебхук для бота @{bot_data.username}")
+            except Exception as e:
+                logger.error(f"Ошибка при работе с BotManager для бота {bot_data.username}: {e}")
+    except Exception as e:
+        logger.error(f"Критическая ошибка при получении списка ботов: {e}")
+    logger.info("Принудительное обновление вебхуков завершено.")
 
 
 @asynccontextmanager
@@ -108,8 +135,13 @@ async def lifespan(_app: FastAPI):
             "pre_checkout_query",
             "chat_member",
             "my_chat_member",
+            "chat_join_request",
         ],
     )
+
+    # 3. Обновляем вебхуки для всех пользовательских ботов (фоновая задача)
+    # Это форсирует обновление allowed_updates для всех существующих ботов
+    asyncio.create_task(refresh_all_bot_webhooks())
 
     yield
 
@@ -155,6 +187,12 @@ async def main_update(request: Request):
     """
     data = await request.json()
     update = types.Update.model_validate(data)
+
+    if update.chat_join_request:
+        cjr = update.chat_join_request
+        logger.info(f"ОСНОВНОЙ БОТ: Получен chat_join_request от {cjr.from_user.id} в чат {cjr.chat.id}")
+    elif update.message:
+        logger.debug(f"ОСНОВНОЙ БОТ: Получено сообщение от {update.message.from_user.id}")
 
     await dp.feed_update(bot=bot, update=update)
 
@@ -425,8 +463,13 @@ async def other_update(request: Request, token: str):
     data = await request.json()
     update = types.Update.model_validate(data)
 
+    if update.chat_join_request:
+        cjr = update.chat_join_request
+        logger.info(f"ЮЗЕРБОТ ({token[:10]}...): Получен chat_join_request от {cjr.from_user.id} в чат {cjr.chat.id}")
+
     exist = await db.user_bot.get_bot_by_token(token)
     if not exist:
+        logger.warning(f"Получен апдейт для несуществующего в БД бота: {token[:10]}...")
         return
 
     try:
