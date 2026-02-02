@@ -377,10 +377,22 @@ async def get_send_time(message: types.Message, state: FSMContext):
         elif len(parts) == 2 and ":" in parts[0] and len(parts[1].split(".")) == 3:
             date = datetime.strptime(f"{parts[1]} {parts[0]}", "%d.%m.%Y %H:%M")
 
-        # Формат: HH:MM (только время, используем сегодняшнюю дату)
+        # Формат: HH:MM (только время)
         elif len(parts) == 1 and ":" in parts[0]:
-            today = datetime.now().strftime("%d.%m.%Y")
-            date = datetime.strptime(f"{today} {parts[0]}", "%d.%m.%Y %H:%M")
+            data = await state.get_data()
+            selected_date_str = data.get("selected_date")
+            
+            if selected_date_str:
+                # Используем дату из календаря
+                date = datetime.strptime(f"{selected_date_str} {parts[0]}", "%d.%m.%Y %H:%M")
+            else:
+                # Используем сегодняшнюю дату
+                today = datetime.now()
+                date = datetime.strptime(f"{today.strftime('%d.%m.%Y')} {parts[0]}", "%d.%m.%Y %H:%M")
+                
+                # Если время уже прошло сегодня, переносим на завтра
+                if date < datetime.now():
+                    date += timedelta(days=1)
 
         else:
             raise ValueError(text("error_format"))
@@ -573,7 +585,12 @@ async def choice_publication_time(call: types.CallbackQuery, state: FSMContext):
         
         # Проверка что время в будущем
         if time.time() > send_time:
-            return await call.answer(text("error_time_value"), show_alert=True)
+            # Если время прошло СЕГОДНЯ, автоматически переносим на завтра
+            if selected_date_str == datetime.now().strftime("%d.%m.%Y"):
+                date += timedelta(days=1)
+                send_time = time.mktime(date.timetuple())
+            else:
+                return await call.answer(text("error_time_value"), show_alert=True)
             
     except Exception as e:
         logger.error(f"Ошибка парсинга даты/времени из календаря: {e}")
