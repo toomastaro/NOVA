@@ -149,11 +149,18 @@ async def join(call: types.ChatJoinRequest, db: Database):
     """
     Обрабатывает заявку на вступление в канал.
 
-    Проверяет настройки канала, отправляет капчу или приветствие,
-    и при необходимости автоматически одобряет заявку.
-    """
-    logger.debug(f"Запрос на вступление: {call.from_user.id} в чат {call.chat.id}")
+    Выполняет следующие шаги:
+    1. Регистрация или обновление данных пользователя (сброс статуса одобрения).
+    2. Получение настроек канала.
+    3. Обработка флагов инвайт-ссылки.
+    4. Отправка капчи или приветствия (фоновые задачи).
+    5. Автоматическое одобрение заявки с учетом задержки (независимо от капчи).
 
+    Аргументы:
+        call (types.ChatJoinRequest): Объект запроса от Telegram.
+        db (Database): Объект базы данных текущего бота.
+    """
+    user_id = call.from_user.id
     chat_id = call.chat.id
     invite_url = (
         call.invite_link.name.lower()
@@ -161,21 +168,37 @@ async def join(call: types.ChatJoinRequest, db: Database):
         else ""
     )
 
-    user = await db.get_user(call.from_user.id)
+    logger.debug(
+        f"Получен запрос на вступление: пользователь {user_id}, чат {chat_id}, ссылка '{invite_url}'"
+    )
+
+    # Регистрация или обновление пользователя
+    # КРИТИЧНО: Сбрасываем is_approved в False при каждой новой заявке, 
+    # чтобы счетчик накопленных заявок работал корректно
+    user = await db.get_user(user_id)
     if not user:
+        logger.info(f"Новый пользователь {user_id} регистрируется через заявку")
         await db.add_user(
-            id=call.from_user.id, channel_id=chat_id, invite_url=invite_url
+            id=user_id, channel_id=chat_id, invite_url=invite_url, is_approved=False
+        )
+    else:
+        logger.debug(f"Пользователь {user_id} обновляет заявку для канала {chat_id}")
+        await db.update_user(
+            user_id=user_id,
+            channel_id=chat_id,
+            invite_url=invite_url,
+            is_approved=False,  # Сбрасываем статус одобрения для новой заявки
         )
 
+    # Получаем настройки из основной БД
     channel_settings = await main_db.channel_bot_settings.get_channel_bot_setting(
         chat_id=chat_id
     )
     if not channel_settings:
+        logger.warning(f"Настройки для чата {chat_id} не найдены")
         return
 
-    logger.debug(f"Channel settings: {channel_settings}")
-    logger.debug(f"Invite URL: {invite_url}")
-
+    # Обработка переопределений в ссылках (AON/AOFF, CON/COFF, PON/POFF)
     if "(aon)" in invite_url or "(aoff)" in invite_url:
         enable_auto_approve = "(aon)" in invite_url
     else:
@@ -191,65 +214,78 @@ async def join(call: types.ChatJoinRequest, db: Database):
     else:
         enable_hello = None
 
-    logger.debug(
-        f"Flags -> Captcha: {enable_captcha}, Hello: {enable_hello}, AutoApprove: {enable_auto_approve}"
-    )
-
+    # Отправка капчи (если настроена)
     if channel_settings.active_captcha_id:
         if enable_captcha is None or enable_captcha:
             captcha = await main_db.channel_bot_captcha.get_captcha(
                 message_id=channel_settings.active_captcha_id
             )
-
             if captcha:
+                logger.info(f"Запуск задачи капчи для пользователя {user_id}")
                 asyncio.create_task(
                     send_captcha(
                         user_bot=call.bot,
-                        user_id=call.from_user.id,
+                        user_id=user_id,
                         db_obj=db,
                         captcha=captcha,
                     )
                 )
 
+    # Отправка приветственных сообщений (если есть)
     active_hello_messages = await main_db.channel_bot_hello.get_hello_messages(
         chat_id=chat_id, active=True
     )
-    logger.debug(f"Active hello messages: {active_hello_messages}")
-
     if active_hello_messages:
         if enable_hello is None or enable_hello:
+            logger.info(
+                f"Запуск задач приветствия ({len(active_hello_messages)}) для пользователя {user_id}"
+            )
             for hello_message in active_hello_messages:
                 asyncio.create_task(
                     send_hello(
                         user_bot=call.bot,
-                        user_id=call.from_user.id,
+                        user_id=user_id,
                         db_obj=db,
                         hello_message=hello_message,
                     )
                 )
 
-    if channel_settings.auto_approve or enable_auto_approve:
-        if channel_settings.auto_approve and channel_settings.delay_approve:
-            if channel_settings.delay_approve == 1:
-                logger.debug(
-                    f"Ожидание капчи перед одобрением заявки {call.from_user.id}"
-                )
-                await event_manager.wait_for(db.schema, call.from_user.id)
+    # Логика автоматического одобрения (теперь НЕЗАВИСИМА от капчи)
+    should_approve = (
+        channel_settings.auto_approve
+        if enable_auto_approve is None
+        else enable_auto_approve
+    )
 
-            await asyncio.sleep(channel_settings.delay_approve)
+    if should_approve:
+        logger.info(f"Начинается процесс авто-одобрения для пользователя {user_id}")
 
+        # Если настроена задержка
+        if channel_settings.delay_approve > 0:
+            delay = channel_settings.delay_approve
+            # Если выбрано "После капчи" (1), трактуем как минимальную задержку 1 сек
+            if delay == 1:
+                delay = 1
+                logger.info("Задержка 'После капчи' заменена на 1 сек (независимое одобрение)")
+            
+            logger.info(f"Задержка одобрения {delay} сек для пользователя {user_id}")
+            await asyncio.sleep(delay)
+
+        # Одобрение заявки
         try:
             await call.approve()
             await db.update_user(
-                user_id=call.from_user.id,
+                user_id=user_id,
                 is_approved=True,
                 time_approved=int(time.time()),
             )
             logger.info(
-                f"Заявка пользователя {call.from_user.id} одобрена в канале {chat_id}"
+                f"Заявка пользователя {user_id} УСПЕШНО одобрена в чате {chat_id}"
             )
         except Exception as e:
-            logger.error(f"Ошибка при одобрении заявки: {e}")
+            logger.error(f"ОШИБКА при одобрении заявки пользователя {user_id}: {e}")
+    else:
+        logger.info(f"Авто-одобрение отключено для запроса пользователя {user_id}")
 
 
 @safe_handler("Канал: выход пользователя")

@@ -156,13 +156,22 @@ class UserCrud(DatabaseMixin):
             "conversion": conversion,
         }
 
-    async def get_count_not_approve_users(self, chat_id: int):
-        """Возвращает количество пользователей, ожидающих подтверждения."""
-        return await self.fetchrow(
+    async def get_count_not_approve_users(self, chat_id: int) -> int:
+        """
+        Возвращает количество пользователей, ожидающих подтверждения в конкретном канале.
+        
+        Аргументы:
+            chat_id (int): ID канала.
+            
+        Возвращает:
+            int: Количество неодобренных пользователей.
+        """
+        res = await self.fetchrow(
             select(func.count(User.id)).where(
                 User.channel_id == chat_id, User.is_approved.is_(False)
             )
         )
+        return res or 0
 
     async def get_not_approve_users_by_chat_id(
         self,
@@ -171,8 +180,22 @@ class UserCrud(DatabaseMixin):
         limit: int = None,
         invite_url: str = None,
     ):
-        """Получает список пользователей, ожидающих подтверждения."""
-        stmt = select(User).where(User.channel_id == chat_id)
+        """
+        Получает список пользователей, ожидающих подтверждения.
+        
+        Аргументы:
+            chat_id (int): ID канала.
+            get_url (bool): Флаг (не используется в текущей логике, оставлен для совместимости).
+            limit (int): Ограничение количества записей.
+            invite_url (str): Фильтр по ссылке приглашения.
+            
+        Возвращает:
+            list[User]: Список объектов пользователей.
+        """
+        stmt = select(User).where(
+            User.channel_id == chat_id, 
+            User.is_approved.is_(False)  # ОБЯЗАТЕЛЬНО: только неодобренные
+        )
 
         if invite_url:
             stmt = stmt.where(User.invite_url == invite_url)
