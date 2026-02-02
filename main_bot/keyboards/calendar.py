@@ -105,7 +105,7 @@ class InlineCalendar(InlineKeyboardBuilder):
         kb.row(
             *[
                 InlineKeyboardButton(
-                    text=t, callback_data=f"ChoicePublicationTime|{t}"
+                    text=f"⏰ {t}", callback_data=f"ChoicePublicationTime|{t}"
                 )
                 for t in time_presets
             ]
