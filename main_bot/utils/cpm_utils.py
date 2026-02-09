@@ -41,7 +41,7 @@ async def generate_cpm_report(user, post_id, related_posts, bot) -> str:
     opts = main_pp.message_options or {}
     raw_text = opts.get("text") or opts.get("caption") or text("post:no_text")
     clean_text = re.sub(r"<[^>]+>", "", raw_text)
-    preview_text = clean_text[:40] + "..." if len(clean_text) > 40 else clean_text
+    preview_text = clean_text[:30] + "..." if len(clean_text) > 30 else clean_text
     
     # Дата публикации (из первого поста)
     pub_date = datetime.fromtimestamp(main_pp.created_timestamp)
@@ -49,24 +49,26 @@ async def generate_cpm_report(user, post_id, related_posts, bot) -> str:
     time_str = pub_date.strftime("%H:%M")
 
     # Заголовок
-    main_views = max(main_pp.views_24h or 0, main_pp.views_48h or 0, main_pp.views_72h or 0)
-    # Используем chat_id для генерации ссылки
-    chat_id_str = str(main_channel.chat_id)
-    main_link = f"https://t.me/c/{chat_id_str[4:] if chat_id_str.startswith('-100') else chat_id_str}"
-    
     report_text = text("cpm:report:header").format(
         html.escape(preview_text),
         date_str,
-        time_str,
-        html.escape(main_channel.title),
+        time_str
+    )
+
+    # Список каналов
+    # Сначала основной канал
+    main_views = max(main_pp.views_24h or 0, main_pp.views_48h or 0, main_pp.views_72h or 0)
+    chat_id_str = str(main_channel.chat_id)
+    main_link = f"https://t.me/c/{chat_id_str[4:] if chat_id_str.startswith('-100') else chat_id_str}"
+    
+    report_text += "\n" + text("cpm:report:channel_row").format(
         main_link,
+        html.escape(main_channel.title),
         main_views
     )
 
-    # Список скопированных каналов
+    # Остальные каналы
     if len(related_posts) > 1:
-        report_text += text("cpm:report:copy_header")
-        
         # Берем остальные посты (кроме первого)
         other_posts = related_posts[1:]
         max_display = 20
@@ -81,12 +83,9 @@ async def generate_cpm_report(user, post_id, related_posts, bot) -> str:
             ch_link = f"https://t.me/c/{ch_id_str[4:] if ch_id_str.startswith('-100') else ch_id_str}"
             ch_views = max(p.views_24h or 0, p.views_48h or 0, p.views_72h or 0)
             
-            # Обрезка длинных названий для компактности как в примере
-            ch_title = ch.title[:20] + "..." if len(ch.title) > 23 else ch.title
-            
             report_text += "\n" + text("cpm:report:channel_row").format(
-                html.escape(ch_title),
                 ch_link,
+                html.escape(ch.title),
                 ch_views
             )
             

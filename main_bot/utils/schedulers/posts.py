@@ -487,7 +487,15 @@ async def check_cpm_reports():
                 sum_72 += p.views_72h or 0
 
                 title = channel_titles.get(p.chat_id, f"Channel {p.chat_id}")
-                channels_info.append(f"{html.escape(title)} - 👀 {current_views}")
+                
+                chat_id_str = str(p.chat_id)
+                link = f"https://t.me/c/{chat_id_str[4:] if chat_id_str.startswith('-100') else chat_id_str}"
+                
+                channels_info.append(
+                    text("cpm:report:channel_row").format(
+                        link, html.escape(title), current_views
+                    )
+                )
 
             # Форматирование самого сообщения
             user = await db.user.get_user(admin_id)
@@ -505,9 +513,14 @@ async def check_cpm_reports():
             raw_text = opts.get("text") or opts.get("caption") or text("post:no_text")
             clean_text = re.sub(r"<[^>]+>", "", raw_text)
             preview_text_raw = (
-                clean_text[:50] + "..." if len(clean_text) > 50 else clean_text
+                clean_text[:30] + "..." if len(clean_text) > 30 else clean_text
             )
             preview_text = f"«{html.escape(preview_text_raw)}»"
+
+            # Дата публикации
+            pub_date = datetime.fromtimestamp(representative.created_timestamp)
+            date_str = pub_date.strftime("%d") + " " + text("month").get(str(pub_date.month)) + " " + pub_date.strftime("%Y г.")
+            time_str = pub_date.strftime("%H:%M")
 
             # Сборка строк истории (как в контент плане)
             history_lines = []
@@ -536,13 +549,15 @@ async def check_cpm_reports():
                 )
             )
 
-            full_report = text("cpm:report:header").format(preview_text, period) + "\n"
+            full_report = text("cpm:report:header").format(
+                preview_text, date_str, time_str
+            ) + "\n"
             full_report += f"💸 <b>CPM:</b> {cpm_price}₽\n"
             full_report += "".join(history_lines)
             full_report += f"\n\nℹ️ <i>Курс: 1 USDT = {round(usd_rate, 2)}₽</i>"
 
             channels_text = "\n".join(channels_info)
-            full_report += f"\n\n<blockquote expandable>{channels_text}</blockquote>"
+            full_report += f"\n\n{channels_text}"
 
             # Добавляем подпись
             full_report += await get_report_signatures(user, "cpm", bot)
