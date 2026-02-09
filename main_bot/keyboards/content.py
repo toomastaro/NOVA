@@ -35,7 +35,7 @@ class InlineContent(InlineKeyboardBuilder):
         is_inside_folder: bool = False,
     ):
         kb = cls()
-        count_rows = 10
+        count_rows = 12
 
         # Переключатели вида
         if not is_inside_folder and folders:
@@ -170,7 +170,7 @@ class InlineContent(InlineKeyboardBuilder):
         is_inside_folder: bool = False,
     ):
         kb = cls()
-        count_rows = 10
+        count_rows = 12
 
         folders_text = "✅ Папки" if view_mode == "folders" else "📁 Папки"
         channels_text = "✅ Все каналы" if view_mode == "channels" else "📢 Все каналы"
@@ -290,7 +290,7 @@ class InlineContent(InlineKeyboardBuilder):
         Используется для контент-плана и других сценариев выбора одной цели.
         """
         kb = cls()
-        count_rows = 10
+        count_rows = 12
 
         # Переключатели вида (только если есть папки и мы не внутри папки)
         if not is_inside_folder and folders:
@@ -364,7 +364,7 @@ class InlineContent(InlineKeyboardBuilder):
         remover: int = 0,
     ):
         kb = cls()
-        count_rows = 10
+        count_rows = 12
 
         for a, idx in enumerate(range(remover, len(channels))):
             if isinstance(channels[idx], Channel):
