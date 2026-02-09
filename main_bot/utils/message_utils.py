@@ -53,38 +53,86 @@ async def answer_bot_post(
     is_edit: bool = data.get("is_edit")
     message_options = MessageOptionsHello(**post.message)
 
-    # Определяем тип сообщения и соответствующую функцию
-    if message_options.text:
-        cor = message.answer
-    elif message_options.photo:
-        cor = message.answer_photo
-        message_options.photo = message_options.photo.file_id
-    elif message_options.video:
-        cor = message.answer_video
-        message_options.video = message_options.video.file_id
-    else:
-        cor = message.answer_animation
-        message_options.animation = message_options.animation.file_id
-
     if not from_edit:
         reply_markup = keyboards.manage_bot_post(post=post, is_edit=is_edit)
         message_options.reply_markup = reply_markup
+    else:
+        reply_markup = keyboards.bot_post_kb(post=post)
 
-    # Если это медиа с длинным описанием (> 1024), бот не сможет его показать
-    caption = message_options.caption
-    is_media = any(
-        [message_options.photo, message_options.video, message_options.animation]
-    )
-    if is_media and caption and len(caption) > 1024:
-        return await message.answer(
-            text("long_caption_preview_unavailable").format(len(caption)),
-            reply_markup=message_options.reply_markup,
-            parse_mode="HTML",
-        )
+    # 1. Адаптация данных
+    html_text = message_options.html_text or message_options.text or message_options.caption or ""
+    media_value = message_options.media_value or message_options.photo or message_options.video or message_options.animation
+    media_type = message_options.media_type
+    
+    if hasattr(media_value, "file_id"):
+        media_value = media_value.file_id
 
-    post_message = await cor(**message_options.model_dump(), parse_mode="HTML")
+    if not media_type:
+        if message_options.photo: media_type = "photo"
+        elif message_options.video: media_type = "video"
+        elif message_options.animation: media_type = "animation"
+        else: media_type = "text"
 
-    return post_message
+    if not html_text:
+        html_text = "\u200b"
+
+    # 2. Логика отправки (поддержка Invisible Link и длинных текстов)
+    extra_params = {}
+    if message_options.show_caption_above_media:
+        extra_params["show_caption_above_media"] = True
+
+    try:
+        # Если текст > 1024 и есть медиа - используем Invisible Link
+        if (len(html_text) > 1024 and media_type != "text") or message_options.is_invisible:
+             preview_options = types.LinkPreviewOptions(
+                is_disabled=False, 
+                prefer_large_media=True, 
+                show_above_text=not message_options.show_caption_above_media
+            )
+             return await message.answer(
+                text=html_text,
+                parse_mode="HTML",
+                reply_markup=reply_markup,
+                link_preview_options=preview_options,
+            )
+
+        if media_type == "photo":
+            return await message.answer_photo(
+                photo=media_value,
+                caption=html_text,
+                parse_mode="HTML",
+                reply_markup=reply_markup,
+                has_spoiler=message_options.has_spoiler,
+                **extra_params
+            )
+        elif media_type == "video":
+            return await message.answer_video(
+                video=media_value,
+                caption=html_text,
+                parse_mode="HTML",
+                reply_markup=reply_markup,
+                has_spoiler=message_options.has_spoiler,
+                **extra_params
+            )
+        elif media_type == "animation":
+            return await message.answer_animation(
+                animation=media_value,
+                caption=html_text,
+                parse_mode="HTML",
+                reply_markup=reply_markup,
+                has_spoiler=message_options.has_spoiler,
+                **extra_params
+            )
+        else:
+            return await message.answer(
+                text=html_text,
+                parse_mode="HTML",
+                reply_markup=reply_markup,
+                link_preview_options=types.LinkPreviewOptions(is_disabled=True)
+            )
+    except Exception as e:
+        logger.error(f"Ошибка превью бот-поста: {e}")
+        return await message.answer(f"⚠️ Ошибка превью: {e}")
 
 
 async def answer_post(
@@ -303,128 +351,87 @@ async def answer_message_bot(
 ) -> Optional[types.Message]:
     """
     Отправляет сообщение через бота в указанный чат.
-
-    Скачивает медиафайлы если необходимо, отправляет сообщение,
-    затем удаляет временные файлы.
-
-    Аргументы:
-        bot (Bot): Экземпляр бота для отправки.
-        chat_id (int): ID чата для отправки.
-        message_options (Union[MessageOptionsHello, MessageOptionsCaptcha]): Опции сообщения.
-
-    Возвращает:
-        Optional[types.Message]: Отправленное сообщение или None при ошибке.
     """
-    # Определяем тип сообщения
-    if message_options.text:
-        cor = bot.send_message
-    elif message_options.photo:
-        cor = bot.send_photo
-    elif message_options.video:
-        cor = bot.send_video
-    else:
-        cor = bot.send_animation
+    # 1. Адаптация контента
+    html_text = message_options.html_text or message_options.text or message_options.caption or ""
+    media_value = message_options.media_value or message_options.photo or message_options.video or message_options.animation
+    media_type = message_options.media_type
 
-    # Ищем file_id медиафайла
-    attrs = ["photo", "video", "animation"]
-    file_id = next(
-        (
-            getattr(message_options, attr).file_id
-            for attr in attrs
-            if getattr(message_options, attr)
-        ),
-        None,
-    )
+    if hasattr(media_value, "file_id"):
+        media_value = media_value.file_id
 
-    # Скачиваем медиафайл если есть
+    if not media_type:
+        if message_options.photo: media_type = "photo"
+        elif message_options.video: media_type = "video"
+        elif message_options.animation: media_type = "animation"
+        else: media_type = "text"
+
+    # Скачивание медиа если нужно (для ботов это часто требуется при смене токена)
     filepath = None
     try:
-        if file_id:
-            get_file = await main_bot_obj.get_file(file_id)
-            # Используем pathlib для формирования безопасного пути
-            filename = f"hello_message_media_{pathlib.Path(get_file.file_path).name}"
-            # Используем общий TEMP_DIR
+        if media_value and media_type != "text":
+            get_file = await main_bot_obj.get_file(media_value)
+            filename = f"bot_media_{pathlib.Path(get_file.file_path).name}"
             filepath_obj = TEMP_DIR / filename
             filepath = str(filepath_obj)
-
-            await main_bot_obj.download(file_id, filepath)
+            await main_bot_obj.download(media_value, filepath)
     except Exception as e:
-        logger.error(f"Ошибка при скачивании медиафайла: {e}")
-        return None
+        logger.error(f"Ошибка скачивания медиа для бота: {e}")
 
-    dump = message_options.model_dump()
-    dump["chat_id"] = chat_id
-    dump["parse_mode"] = "HTML"
+    # Подготовка параметров
+    dump = {
+        "chat_id": chat_id,
+        "parse_mode": "HTML",
+        "reply_markup": message_options.reply_markup
+    }
 
-    # Удаляем специфичные поля для капчи
-    if isinstance(message_options, MessageOptionsCaptcha):
-        resize = dump.pop("resize_markup", None)
-        if (
-            resize
-            and message_options.reply_markup
-            and isinstance(message_options.reply_markup, types.ReplyKeyboardMarkup)
-        ):
-            message_options.reply_markup.resize_keyboard = True
+    if message_options.show_caption_above_media:
+        dump["show_caption_above_media"] = True
 
-    # Обработка превью ссылок (общая для всех, поппинг поля из дампа)
-    if hasattr(message_options, "disable_web_page_preview"):
-        if getattr(message_options, "disable_web_page_preview", False):
-            # LinkPreviewOptions поддерживается в основном для text (sendMessage)
-            if message_options.text:
-                dump["link_preview_options"] = types.LinkPreviewOptions(
-                    is_disabled=True
-                )
-        dump.pop("disable_web_page_preview", None)
-
-    # Удаляем неиспользуемые поля в зависимости от типа сообщения
-    if message_options.text:
-        dump.pop("photo", None)
-        dump.pop("video", None)
-        dump.pop("animation", None)
-        dump.pop("caption", None)
-
-    elif message_options.photo:
-        if filepath:
-            dump["photo"] = types.FSInputFile(filepath)
-
-        dump.pop("video", None)
-        dump.pop("animation", None)
-        dump.pop("text", None)
-
-    elif message_options.video:
-        if filepath:
-            dump["video"] = types.FSInputFile(filepath)
-
-        dump.pop("photo", None)
-        dump.pop("animation", None)
-        dump.pop("text", None)
-    # animation
-    else:
-        if filepath:
-            dump["animation"] = types.FSInputFile(filepath)
-
-        dump.pop("photo", None)
-        dump.pop("video", None)
-        dump.pop("text", None)
-
-    # Отправляем сообщение
-    post_message = None
     try:
-        # Добавляем reply_markup, если он есть в message_options
-        dump["reply_markup"] = message_options.reply_markup
-        post_message = await cor(**dump)
+        # Invisible Link
+        if (len(html_text) > 1024 and media_type != "text") or message_options.is_invisible:
+            dump["text"] = html_text
+            dump["link_preview_options"] = types.LinkPreviewOptions(
+                is_disabled=False,
+                prefer_large_media=True,
+                show_above_text=not message_options.show_caption_above_media
+            )
+            res = await bot.send_message(**dump)
+        
+        elif media_type == "photo":
+            dump["photo"] = types.FSInputFile(filepath) if filepath else media_value
+            dump["caption"] = html_text
+            dump["has_spoiler"] = message_options.has_spoiler
+            res = await bot.send_photo(**dump)
+        elif media_type == "video":
+            dump["video"] = types.FSInputFile(filepath) if filepath else media_value
+            dump["caption"] = html_text
+            dump["has_spoiler"] = message_options.has_spoiler
+            res = await bot.send_video(**dump)
+        elif media_type == "animation":
+            dump["animation"] = types.FSInputFile(filepath) if filepath else media_value
+            dump["caption"] = html_text
+            dump["has_spoiler"] = message_options.has_spoiler
+            res = await bot.send_animation(**dump)
+        else:
+            dump["text"] = html_text
+            # Обработка disable_web_page_preview
+            if getattr(message_options, "disable_web_page_preview", True):
+                dump["link_preview_options"] = types.LinkPreviewOptions(is_disabled=True)
+            res = await bot.send_message(**dump)
+        
+        return res
+
     except Exception as e:
-        logger.error(f"Ошибка при отправке сообщения: {e}")
-        # Не возвращаем сразу, чтобы сработал finally/cleanup (здесь явного finally нет, но есть блок ниже)
-
-    # Удаляем временный файл
-    if filepath and os.path.exists(filepath):
-        try:
-            os.remove(filepath)
-        except Exception as e:
-            logger.warning(f"Не удалось удалить временный файл {filepath}: {e}")
-
-    return post_message
+        logger.error(f"Ошибка отправки через бота: {e}")
+        return None
+    finally:
+        if filepath and os.path.exists(filepath):
+            try:
+                os.remove(filepath)
+            except:
+                pass
 
 
 async def answer_message(
@@ -433,62 +440,76 @@ async def answer_message(
 ) -> types.Message:
     """
     Отвечает на сообщение пользователя с указанными опциями.
-
-    Аргументы:
-        message (types.Message): Сообщение пользователя.
-        message_options (Union[MessageOptionsHello, MessageOptionsCaptcha]): Опции сообщения.
-
-    Возвращает:
-        types.Message: Отправленное сообщение.
     """
-    # Определяем тип сообщения
-    if message_options.text:
-        cor = message.answer
-    elif message_options.photo:
-        cor = message.answer_photo
-        message_options.photo = message_options.photo.file_id
-    elif message_options.video:
-        cor = message.answer_video
-        message_options.video = message_options.video.file_id
+    # Унифицированная отправка (как в answer_bot_post, но без FSM)
+    html_text = message_options.html_text or message_options.text or message_options.caption or ""
+    media_value = message_options.media_value or message_options.photo or message_options.video or message_options.animation
+    media_type = message_options.media_type
+
+    if hasattr(media_value, "file_id"):
+        media_value = media_value.file_id
+
+    if not media_type:
+        if message_options.photo: media_type = "photo"
+        elif message_options.video: media_type = "video"
+        elif message_options.animation: media_type = "animation"
+        else: media_type = "text"
+
+    if not html_text:
+        html_text = "\u200b"
+
+    extra_params = {}
+    if message_options.show_caption_above_media:
+        extra_params["show_caption_above_media"] = True
+
+    # Invisible Link
+    if (len(html_text) > 1024 and media_type != "text") or message_options.is_invisible:
+         preview_options = types.LinkPreviewOptions(
+            is_disabled=False, 
+            prefer_large_media=True, 
+            show_above_text=not message_options.show_caption_above_media
+        )
+         return await message.answer(
+            text=html_text,
+            parse_mode="HTML",
+            reply_markup=message_options.reply_markup,
+            link_preview_options=preview_options,
+        )
+
+    if media_type == "photo":
+        return await message.answer_photo(
+            photo=media_value,
+            caption=html_text,
+            parse_mode="HTML",
+            reply_markup=message_options.reply_markup,
+            has_spoiler=message_options.has_spoiler,
+            **extra_params
+        )
+    elif media_type == "video":
+        return await message.answer_video(
+            video=media_value,
+            caption=html_text,
+            parse_mode="HTML",
+            reply_markup=message_options.reply_markup,
+            has_spoiler=message_options.has_spoiler,
+            **extra_params
+        )
+    elif media_type == "animation":
+        return await message.answer_animation(
+            animation=media_value,
+            caption=html_text,
+            parse_mode="HTML",
+            reply_markup=message_options.reply_markup,
+            has_spoiler=message_options.has_spoiler,
+            **extra_params
+        )
     else:
-        cor = message.answer_animation
-        message_options.animation = message_options.animation.file_id
-
-    dump = message_options.model_dump()
-    dump["parse_mode"] = "HTML"
-
-    # Обработка превью ссылок (общая для всех, поппинг поля из дампа)
-    if hasattr(message_options, "disable_web_page_preview"):
-        if getattr(message_options, "disable_web_page_preview", False):
-            # LinkPreviewOptions поддерживается в основном для text (sendMessage)
-            if message_options.text:
-                dump["link_preview_options"] = types.LinkPreviewOptions(
-                    is_disabled=True
-                )
-        dump.pop("disable_web_page_preview", None)
-
-    # Удаляем поля, которые могут вызвать конфликт или ошибку
-    if message_options.text:
-        dump.pop("photo", None)
-        dump.pop("video", None)
-        dump.pop("animation", None)
-        dump.pop("caption", None)
-    elif message_options.photo:
-        dump.pop("video", None)
-        dump.pop("animation", None)
-        dump.pop("text", None)
-    elif message_options.video:
-        dump.pop("photo", None)
-        dump.pop("animation", None)
-        dump.pop("text", None)
-    else:
-        dump.pop("photo", None)
-        dump.pop("video", None)
-        dump.pop("text", None)
-
-    post_message = await cor(**dump)
-
-    return post_message
+        return await message.answer(
+            text=html_text,
+            parse_mode="HTML",
+            reply_markup=message_options.reply_markup,
+            link_preview_options=types.LinkPreviewOptions(is_disabled=True)
+        )
 
 
 async def reload_main_menu(message: types.Message, delete_trigger: bool = True) -> None:

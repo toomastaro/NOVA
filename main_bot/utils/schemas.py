@@ -74,8 +74,14 @@ class MessageOptionsCaptcha(BaseModel):
     animation: Optional[Media | str] = None
     video: Optional[Media | str] = None
     photo: Optional[Media | str] = None
+    show_caption_above_media: Optional[bool] = False
+    has_spoiler: Optional[bool] = False
+    is_invisible: Optional[bool] = False
     caption: Optional[str] = None
     text: Optional[str] = None
+    html_text: Optional[str] = None
+    media_value: Optional[str] = None
+    media_type: Optional[str] = None
     reply_markup: Optional[ReplyKeyboardMarkup] = None
     resize_markup: Optional[bool] = True
 
@@ -95,8 +101,14 @@ class MessageOptionsHello(BaseModel):
     animation: Optional[Media | str] = None
     video: Optional[Media | str] = None
     photo: Optional[Media | str] = None
+    show_caption_above_media: Optional[bool] = False
+    has_spoiler: Optional[bool] = False
+    is_invisible: Optional[bool] = False
     caption: Optional[str] = None
     text: Optional[str] = None
+    html_text: Optional[str] = None
+    media_value: Optional[str] = None
+    media_type: Optional[str] = None
     reply_markup: Optional[InlineKeyboardMarkup] = None
     disable_web_page_preview: bool = True
 
