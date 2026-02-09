@@ -41,10 +41,11 @@ async def msg_handler(message: types.Message, db: Database):
         if user.captcha_message_id:
             try:
                 await message.bot.delete_message(
-                    chat_id=message.from_user.id,
-                    message_id=user.captcha_message_id
+                    chat_id=message.from_user.id, message_id=user.captcha_message_id
                 )
-                logger.info(f"Удалено сообщение капчи {user.captcha_message_id} для пользователя {message.from_user.id}")
+                logger.info(
+                    f"Удалено сообщение капчи {user.captcha_message_id} для пользователя {message.from_user.id}"
+                )
             except Exception as e:
                 logger.warning(f"Не удалось удалить сообщение капчи: {e}")
 
@@ -80,19 +81,23 @@ async def send_captcha(
         await asyncio.sleep(captcha.start_delay)
 
     message_options = MessageOptionsCaptcha(**captcha.message)
-    
+
     # Обработка плейсхолдеров
     try:
         user_info = await user_bot.get_chat(user_id)
         full_name = user_info.full_name or user_info.first_name or "Пользователь"
-        
+
         for attr in ["text", "caption", "html_text"]:
             val = getattr(message_options, attr, None)
             if val and ("{name}" in val or "{{name}}" in val):
-                new_val = val.replace("{{name}}", full_name).replace("{name}", full_name)
+                new_val = val.replace("{{name}}", full_name).replace(
+                    "{name}", full_name
+                )
                 setattr(message_options, attr, new_val)
     except Exception as e:
-        logger.warning(f"Не удалось получить данные пользователя для капчи {user_id}: {e}")
+        logger.warning(
+            f"Не удалось получить данные пользователя для капчи {user_id}: {e}"
+        )
 
     if captcha.delay:
         while True:
@@ -110,17 +115,13 @@ async def send_captcha(
                 return
 
             # Шлем напоминание, так как капча все еще не пройдена
-            sent_msg = await answer_message_bot(
-                user_bot, user_id, message_options
-            )
+            sent_msg = await answer_message_bot(user_bot, user_id, message_options)
             if sent_msg:
                 await db_obj.update_user(
                     user_id=user_id, captcha_message_id=sent_msg.message_id
                 )
 
-    sent_msg = await answer_message_bot(
-        user_bot, user_id, message_options
-    )
+    sent_msg = await answer_message_bot(user_bot, user_id, message_options)
     if sent_msg:
         await db_obj.update_user(
             user_id=user_id, captcha_message_id=sent_msg.message_id
@@ -137,16 +138,18 @@ async def send_hello(
     try:
         user_info = await user_bot.get_chat(user_id)
         full_name = user_info.full_name or user_info.first_name or "Пользователь"
-        
+
         # 1. Проверяем наличие плейсхолдеров
         has_placeholders = False
         for attr in ["text", "caption", "html_text"]:
             val = getattr(message_options, attr, None)
             if val and ("{name}" in val or "{{name}}" in val):
                 has_placeholders = True
-                new_val = val.replace("{{name}}", full_name).replace("{name}", full_name)
+                new_val = val.replace("{{name}}", full_name).replace(
+                    "{name}", full_name
+                )
                 setattr(message_options, attr, new_val)
-        
+
         # 2. Если плейсхолдеров нет, но включен флаг text_with_name — используем старую логику
         if not has_placeholders and hello_message.text_with_name:
             added_text = f"{full_name}\n\n"
@@ -156,9 +159,11 @@ async def send_hello(
                 message_options.caption = added_text + message_options.caption
             if message_options.html_text:
                 message_options.html_text = added_text + message_options.html_text
-                
+
     except Exception as e:
-        logger.warning(f"Не удалось получить данные пользователя для приветствия {user_id}: {e}")
+        logger.warning(
+            f"Не удалось получить данные пользователя для приветствия {user_id}: {e}"
+        )
 
     if hello_message.delay and hello_message.delay == 1:
         logger.debug(
@@ -192,7 +197,9 @@ async def join(call: types.ChatJoinRequest, db: Database):
         call (types.ChatJoinRequest): Объект запроса от Telegram.
         db (Database): Объект базы данных текущего бота.
     """
-    logger.info(f"ХЕНДЛЕР JOIN ВЫЗВАН: пользователь {call.from_user.id} стучится в чат {call.chat.id}")
+    logger.info(
+        f"ХЕНДЛЕР JOIN ВЫЗВАН: пользователь {call.from_user.id} стучится в чат {call.chat.id}"
+    )
     user_id = call.from_user.id
     chat_id = call.chat.id
     invite_url = (
@@ -206,7 +213,7 @@ async def join(call: types.ChatJoinRequest, db: Database):
     )
 
     # Регистрация или обновление пользователя
-    # КРИТИЧНО: Сбрасываем is_approved в False при каждой новой заявке, 
+    # КРИТИЧНО: Сбрасываем is_approved в False при каждой новой заявке,
     # чтобы счетчик накопленных заявок работал корректно
     user = await db.get_user(user_id)
     if not user:
@@ -303,8 +310,10 @@ async def join(call: types.ChatJoinRequest, db: Database):
             # Если выбрано "После капчи" (1), трактуем как минимальную задержку 1 сек
             if delay == 1:
                 delay = 1
-                logger.info("Задержка 'После капчи' заменена на 1 сек (независимое одобрение)")
-            
+                logger.info(
+                    "Задержка 'После капчи' заменена на 1 сек (независимое одобрение)"
+                )
+
             logger.info(f"Задержка одобрения {delay} сек для пользователя {user_id}")
             await asyncio.sleep(delay)
 
@@ -354,15 +363,21 @@ async def leave(call: types.ChatMemberUpdated, db: Database):
     message_options = bye.message
     if message_options:
         try:
-            full_name = call.from_user.full_name or call.from_user.first_name or "Пользователь"
-            
+            full_name = (
+                call.from_user.full_name or call.from_user.first_name or "Пользователь"
+            )
+
             for attr in ["text", "caption", "html_text"]:
                 val = getattr(message_options, attr, None)
                 if val and ("{name}" in val or "{{name}}" in val):
-                    new_val = val.replace("{{name}}", full_name).replace("{name}", full_name)
+                    new_val = val.replace("{{name}}", full_name).replace(
+                        "{name}", full_name
+                    )
                     setattr(message_options, attr, new_val)
         except Exception as e:
-            logger.warning(f"Не удалось подготовить данные для прощания пользователя {call.from_user.id}: {e}")
+            logger.warning(
+                f"Не удалось подготовить данные для прощания пользователя {call.from_user.id}: {e}"
+            )
 
     await answer_message_bot(call.bot, call.from_user.id, message_options)
 

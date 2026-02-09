@@ -46,9 +46,7 @@ async def show_manage_captcha(message: types.Message, state: FSMContext) -> None
     # --- ПРЕВЬЮ ---
     if captcha and captcha.message:
         try:
-            await answer_message(
-                message, MessageOptionsCaptcha(**captcha.message)
-            )
+            await answer_message(message, MessageOptionsCaptcha(**captcha.message))
         except Exception as e:
             logger.error(f"Ошибка при показе превью капчи: {e}")
 
@@ -205,7 +203,9 @@ async def manage_hello_message_post(
         except Exception:
             pass
 
-        await call.message.answer(text("welcome:menu_returned"), reply_markup=keyboards.menu())
+        await call.message.answer(
+            text("welcome:menu_returned"), reply_markup=keyboards.menu()
+        )
 
         await call.message.delete()
         await show_manage_captcha(call.message, state)
@@ -368,9 +368,7 @@ async def back(call: types.CallbackQuery, state: FSMContext, db_obj: Any) -> Non
 
 
 @safe_handler("Боты: получение сообщения капчи")
-async def get_message(
-    message: types.Message, state: FSMContext, db_obj: Any
-) -> None:
+async def get_message(message: types.Message, state: FSMContext, db_obj: Any) -> None:
     """
     Обработка ввода сообщения капчи.
     Сохраняет новое сообщение или обновляет существующее.
@@ -380,7 +378,9 @@ async def get_message(
         state (FSMContext): Контекст состояния.
         db_obj (Database): БД бота.
     """
-    is_media = bool(message.photo or message.video or message.animation or message.document)
+    is_media = bool(
+        message.photo or message.video or message.animation or message.document
+    )
     limit = 1024 if is_media else 4096
 
     message_text_length = len(message.caption or message.text or "")

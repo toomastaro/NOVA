@@ -279,7 +279,9 @@ async def show_bye(message: types.Message, setting: ChannelBotSetting) -> None:
     # --- ПРЕВЬЮ ---
     if hello.message:
         try:
-            await answer_message(message, MessageOptionsHello(**hello.message.model_dump()))
+            await answer_message(
+                message, MessageOptionsHello(**hello.message.model_dump())
+            )
         except Exception as e:
             logger.error(f"Ошибка при показе превью прощания: {e}")
 

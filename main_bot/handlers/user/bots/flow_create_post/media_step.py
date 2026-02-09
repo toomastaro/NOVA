@@ -68,6 +68,10 @@ class DictObj:
         for key, val in in_dict.items():
             setattr(self, key, val)
 
+    def __getattr__(self, name: str) -> Any:
+        """Возвращает None вместо AttributeError, если атрибут не найден."""
+        return None
+
 
 def ensure_bot_post_obj(
     post: Union[BotPost, Dict[str, Any]],
@@ -113,9 +117,11 @@ async def get_message(message: types.Message, state: FSMContext) -> None:
         message (types.Message): Сообщение с контентом.
         state (FSMContext): Контекст состояния.
     """
-    is_media = bool(message.photo or message.video or message.animation or message.document)
+    is_media = bool(
+        message.photo or message.video or message.animation or message.document
+    )
     limit = 1024 if is_media else 4096
-    
+
     message_text_length = len(message.caption or message.text or "")
     if message_text_length > limit:
         await message.answer(text("error_length_text").format(limit))

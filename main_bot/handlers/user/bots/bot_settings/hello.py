@@ -48,13 +48,11 @@ async def show_manage_hello_message(message: types.Message, state: FSMContext) -
     hello_message = await db.channel_bot_hello.get_hello_message(
         message_id=data.get("hello_message_id")
     )
-    
+
     # --- ПРЕВЬЮ ---
     if hello_message and hello_message.message:
         try:
-            await answer_message(
-                message, MessageOptionsHello(**hello_message.message)
-            )
+            await answer_message(message, MessageOptionsHello(**hello_message.message))
         except Exception as e:
             logger.error(f"Ошибка при показе превью приветствия: {e}")
 
@@ -118,7 +116,11 @@ async def manage_hello_message(call: types.CallbackQuery, state: FSMContext) -> 
             await db.channel_bot_hello.delete_hello_message(
                 data.get("hello_message_id")
             )
-            logger.info("Пользователь %s удалил приветствие %s", call.from_user.id, data.get("hello_message_id"))
+            logger.info(
+                "Пользователь %s удалил приветствие %s",
+                call.from_user.id,
+                data.get("hello_message_id"),
+            )
 
         cs = await db.channel_bot_settings.get_channel_bot_setting(data.get("chat_id"))
 
@@ -295,7 +297,9 @@ async def get_message(message: types.Message, state: FSMContext) -> None:
         message (types.Message): Сообщение от пользователя.
         state (FSMContext): Контекст состояния.
     """
-    is_media = bool(message.photo or message.video or message.animation or message.document)
+    is_media = bool(
+        message.photo or message.video or message.animation or message.document
+    )
     limit = 1024 if is_media else 4096
 
     message_text_length = len(message.caption or message.text or "")
@@ -325,7 +329,9 @@ async def get_message(message: types.Message, state: FSMContext) -> None:
 
         if data.get("post_id"):
             try:
-                await message.bot.delete_message(message.from_user.id, data.get("post_id"))
+                await message.bot.delete_message(
+                    message.from_user.id, data.get("post_id")
+                )
             except Exception:
                 pass
         post_id = await answer_message(message, message_options)

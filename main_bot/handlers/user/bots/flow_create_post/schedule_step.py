@@ -36,6 +36,10 @@ class DictObj:
         for key, val in in_dict.items():
             setattr(self, key, val)
 
+    def __getattr__(self, name: str) -> Any:
+        """Возвращает None вместо AttributeError, если атрибут не найден."""
+        return None
+
 
 def ensure_bot_post_obj(
     post: Union[BotPost, Dict[str, Any]],
@@ -72,7 +76,7 @@ async def finish_params(call: types.CallbackQuery, state: FSMContext) -> None:
         await call.message.delete()
         return
 
-    chosen: list = data.get("chosen", post.chat_ids)
+    chosen: list = data.get("chosen", getattr(post, "chat_ids", []))
 
     channels = await db.channel_bot_settings.get_bot_channels(call.from_user.id)
     objects = await db.channel.get_user_channels(
@@ -157,7 +161,7 @@ async def choice_delete_time(call: types.CallbackQuery, state: FSMContext) -> No
     post: BotPost = ensure_bot_post_obj(data.get("post"))
     available: int = data.get("available")
 
-    delete_time = post.delete_time
+    delete_time = getattr(post, "delete_time", None)
     if temp[1].isdigit():
         delete_time = int(temp[1])
     if temp[1] == "off":
@@ -175,8 +179,10 @@ async def choice_delete_time(call: types.CallbackQuery, state: FSMContext) -> No
         send_date_values = data.get("send_date_values")
         username = text("unknown")
         try:
-            username = (await call.bot.get_chat(post.admin_id)).username or text("unknown")
-        except Exception:
+            admin_chat = await call.bot.get_chat(post.admin_id)
+            username = admin_chat.username or admin_chat.first_name or text("unknown")
+        except Exception as e:
+            logger.debug(f"Не удалось получить данные админа {post.admin_id}: {e}")
             pass
 
         await call.message.edit_text(
@@ -378,7 +384,9 @@ async def get_send_time(message: types.Message, state: FSMContext) -> None:
 
         # Получаем username автора
         try:
-            author = (await message.bot.get_chat(post.admin_id)).username or text("unknown")
+            author = (await message.bot.get_chat(post.admin_id)).username or text(
+                "unknown"
+            )
         except Exception:
             author = text("unknown")
 
