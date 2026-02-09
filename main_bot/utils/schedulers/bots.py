@@ -150,6 +150,12 @@ async def send_bot_messages(
         "show_caption_above_media",
         "disable_web_page_preview",
         "has_spoiler",
+        "is_invisible",
+        "media_type",
+        "media_value",
+        "html_text",
+        "buttons",
+        "reaction",
     ]
     for key in keys_to_remove:
         options.pop(key, None)
@@ -177,9 +183,11 @@ async def send_bot_messages(
     for user in users:
         try:
             options["chat_id"] = user
-            name_placeholder = "{{name}}"
-            has_placeholder = (message_options.text and name_placeholder in message_options.text) or (
-                message_options.caption and name_placeholder in message_options.caption
+            name_placeholders = ["{{name}}", "{name}"]
+            has_placeholder = any(
+                (message_options.text and p in message_options.text) or 
+                (message_options.caption and p in message_options.caption)
+                for p in name_placeholders
             )
 
             if bot_post.text_with_name or has_placeholder:
@@ -193,21 +201,23 @@ async def send_bot_messages(
 
                 if message_options.text:
                     text_content = message_options.text
-                    if name_placeholder in text_content:
-                        options["text"] = text_content.replace(
-                            name_placeholder, name_part
-                        )
-                    elif bot_post.text_with_name:
+                    for p in name_placeholders:
+                        text_content = text_content.replace(p, name_part)
+                    
+                    if bot_post.text_with_name and not any(p in message_options.text for p in name_placeholders):
                         options["text"] = f"{name_part}!\n\n{text_content}"
+                    else:
+                        options["text"] = text_content
 
                 if message_options.caption:
                     caption_content = message_options.caption
-                    if name_placeholder in caption_content:
-                        options["caption"] = caption_content.replace(
-                            name_placeholder, name_part
-                        )
-                    elif bot_post.text_with_name:
+                    for p in name_placeholders:
+                        caption_content = caption_content.replace(p, name_part)
+                        
+                    if bot_post.text_with_name and not any(p in message_options.caption for p in name_placeholders):
                         options["caption"] = f"{name_part}!\n\n{caption_content}"
+                    else:
+                        options["caption"] = caption_content
 
             message = await cor(**options)
             message_ids.append({"message_id": message.message_id, "chat_id": user})

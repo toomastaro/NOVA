@@ -30,28 +30,40 @@ def _prepare_send_options(message_options: MessageOptions) -> tuple[Any, dict]:
     Возвращает:
         tuple[Any, dict]: Метод отправки (coroutine) и словарь параметров.
     """
+    # Общий список исключений для всех методов отправки (внутренние поля + те, что передаются явно)
+    common_exclude = {
+        "is_invisible",
+        "media_type",
+        "media_value",
+        "html_text",
+        "buttons",
+        "reaction",
+        "reply_markup",
+    }
+
     if message_options.text:
         cor = bot.send_message
         options = message_options.model_dump(
             exclude={
+                *common_exclude,
                 "photo",
                 "video",
                 "animation",
                 "show_caption_above_media",
                 "has_spoiler",
                 "caption",
-                "reply_markup",
+                "disable_web_page_preview",
             }
         )
     elif message_options.photo:
         cor = bot.send_photo
         options = message_options.model_dump(
             exclude={
+                *common_exclude,
                 "video",
                 "animation",
                 "text",
                 "disable_web_page_preview",
-                "reply_markup",
             }
         )
         if hasattr(message_options.photo, "file_id"):
@@ -60,11 +72,11 @@ def _prepare_send_options(message_options: MessageOptions) -> tuple[Any, dict]:
         cor = bot.send_video
         options = message_options.model_dump(
             exclude={
+                *common_exclude,
                 "photo",
                 "animation",
                 "text",
                 "disable_web_page_preview",
-                "reply_markup",
             }
         )
         if hasattr(message_options.video, "file_id"):
@@ -73,11 +85,11 @@ def _prepare_send_options(message_options: MessageOptions) -> tuple[Any, dict]:
         cor = bot.send_animation
         options = message_options.model_dump(
             exclude={
+                *common_exclude,
                 "photo",
                 "video",
                 "text",
                 "disable_web_page_preview",
-                "reply_markup",
             }
         )
         if hasattr(message_options.animation, "file_id"):
@@ -86,8 +98,6 @@ def _prepare_send_options(message_options: MessageOptions) -> tuple[Any, dict]:
     options["parse_mode"] = "HTML"
     
     # Тонкая настройка show_caption_above_media для native media
-    # Telegram по умолчанию ставит медиа СВЕРХУ. 
-    # Поэтому мы передаем параметр только если пользователь ХОЧЕТ медиа СНИЗУ (True).
     if not message_options.show_caption_above_media:
         options.pop("show_caption_above_media", None)
         
