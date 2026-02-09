@@ -39,7 +39,7 @@ async def generate_cpm_report(user, post_id, related_posts, bot) -> str:
     
     # Резюме контента
     opts = main_pp.message_options or {}
-    raw_text = opts.get("text") or opts.get("caption")
+    raw_text = opts.get("html_text") or opts.get("text") or opts.get("caption")
     if not raw_text:
         preview_text = text("post:no_text")
     else:

@@ -687,11 +687,10 @@ class InlinePosting(InlineKeyboardBuilder):
             text=text("cpm:report:view_button"),
             callback_data="ManagePublishedPost|cpm_report",
         )
-        # Кнопка для теста отчета шедулера
-        kb.button(
-            text="📊 Тест (Шедулер)",
-            callback_data="ManagePublishedPost|test_report",
-        )
+        # kb.button(
+        #     text="📊 Тест (Шедулер)",
+        #     callback_data="ManagePublishedPost|test_report",
+        # )
         kb.button(text=text("back:button"), callback_data="ManagePublishedPost|cancel")
         kb.adjust(1)
         return kb.as_markup()

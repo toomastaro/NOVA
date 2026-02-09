@@ -511,7 +511,7 @@ async def check_cpm_reports():
             # Превью текста
             representative = records[0]
             opts = representative.message_options or {}
-            raw_text = opts.get("text") or opts.get("caption")
+            raw_text = opts.get("html_text") or opts.get("text") or opts.get("caption")
             if not raw_text:
                 preview_text = text("post:no_text")
             else:
@@ -569,6 +569,7 @@ async def check_cpm_reports():
             await bot.send_message(
                 chat_id=admin_id,
                 text=full_report,
+                parse_mode="HTML",
                 link_preview_options=types.LinkPreviewOptions(is_disabled=True),
             )
         except Exception as e:
