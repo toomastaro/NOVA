@@ -39,9 +39,15 @@ async def generate_cpm_report(user, post_id, related_posts, bot) -> str:
     
     # Резюме контента
     opts = main_pp.message_options or {}
-    raw_text = opts.get("text") or opts.get("caption") or text("post:no_text")
-    clean_text = re.sub(r"<[^>]+>", "", raw_text)
-    preview_text = clean_text[:30] + "..." if len(clean_text) > 30 else clean_text
+    raw_text = opts.get("text") or opts.get("caption")
+    if not raw_text:
+        preview_text = text("post:no_text")
+    else:
+        clean_text = re.sub(r"<[^>]+>", "", raw_text)
+        preview_text = (
+            clean_text[:30] + "..." if len(clean_text) > 30 else clean_text
+        )
+        preview_text = f"«{preview_text}»"
     
     # Дата публикации (из первого поста)
     pub_date = datetime.fromtimestamp(main_pp.created_timestamp)
@@ -97,7 +103,7 @@ async def generate_cpm_report(user, post_id, related_posts, bot) -> str:
     max_del_time = 0
     for p in related_posts:
         if p.delete_time and p.created_timestamp:
-            max_del_time = max(max_del_time, (p.delete_time - p.created_timestamp) // 3600)
+            max_del_time = max(max_del_time, round((p.delete_time - p.created_timestamp) / 3600))
     
     if max_del_time > 0:
         report_text += text("cpm:report:delete_timer").format(int(max_del_time))

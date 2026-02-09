@@ -234,6 +234,7 @@ async def send(post: Post):
                                 if post.delete_time
                                 else None
                             ),
+                            "created_timestamp": current_time,
                             "report": post.report,
                             "cpm_price": post.cpm_price,
                             "message_options": post.message_options,
@@ -510,12 +511,15 @@ async def check_cpm_reports():
             # Превью текста
             representative = records[0]
             opts = representative.message_options or {}
-            raw_text = opts.get("text") or opts.get("caption") or text("post:no_text")
-            clean_text = re.sub(r"<[^>]+>", "", raw_text)
-            preview_text_raw = (
-                clean_text[:30] + "..." if len(clean_text) > 30 else clean_text
-            )
-            preview_text = f"«{html.escape(preview_text_raw)}»"
+            raw_text = opts.get("text") or opts.get("caption")
+            if not raw_text:
+                preview_text = text("post:no_text")
+            else:
+                clean_text = re.sub(r"<[^>]+>", "", raw_text)
+                preview_text_raw = (
+                    clean_text[:30] + "..." if len(clean_text) > 30 else clean_text
+                )
+                preview_text = f"«{html.escape(preview_text_raw)}»"
 
             # Дата публикации
             pub_date = datetime.fromtimestamp(representative.created_timestamp)

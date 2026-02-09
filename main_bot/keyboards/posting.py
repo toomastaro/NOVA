@@ -661,12 +661,13 @@ class InlinePosting(InlineKeyboardBuilder):
 
         if not dt:
             timer_text = text("manage:post:del_time:not")
-        elif dt % 3600 == 0:
-            timer_text = f"{int(dt / 3600)} {text('hours_short')}"
+        elif round(dt / 3600) * 3600 == round(dt / 60) * 60 and dt >= 3600:
+            # Если время близко к целому часу (с точностью до минуты)
+            timer_text = f"{int(round(dt / 3600))} {text('hours_short')}"
         elif dt > 3600:
-            timer_text = f"{int(dt // 3600)} {text('hours_short')} {int((dt % 3600) / 60)} {text('minutes_short')}"
+            timer_text = f"{int(dt // 3600)} {text('hours_short')} {int(round((dt % 3600) / 60))} {text('minutes_short')}"
         else:
-            timer_text = f"{int(dt / 60)} {text('minutes_short')}"
+            timer_text = f"{int(round(dt / 60))} {text('minutes_short')}"
 
         kb.button(
             text=text("manage:post:del_time:button").format(timer_text),
