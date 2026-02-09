@@ -25,7 +25,7 @@ from main_bot.handlers.user.bots.flow_create_post.media_step import (
     serialize_bot_post,
 )
 from utils.error_handler import safe_handler
-from main_bot.utils.backup_utils import send_to_backup, edit_backup_message
+from main_bot.utils.message_utils import answer_bot_post
 
 logger = logging.getLogger(__name__)
 
@@ -147,21 +147,12 @@ async def accept(call: types.CallbackQuery, state: FSMContext) -> None:
     await state.update_data(post=serialize_bot_post(post))
     post = ensure_bot_post_obj(serialize_bot_post(post))
 
-    # Отправляем в backup если еще не отправлено
-    if not post.backup_message_id:
-        backup_chat_id, backup_message_id = await send_to_backup(post)
-        if backup_chat_id and backup_message_id:
-            await db.bot_post.update_bot_post(
-                post_id=post.id,
-                backup_chat_id=backup_chat_id,
-                backup_message_id=backup_message_id,
-            )
-            # Обновляем локальный объект
-            post.backup_chat_id = backup_chat_id
-            post.backup_message_id = backup_message_id
-    else:
-        # Если бэкап уже есть, обновляем его (для редактирования запланированных рассылок)
-        await edit_backup_message(post)
+    # --- ПРЕВЬЮ (Прямой рендеринг из БД) ---
+    try:
+        # Отправляем превью пользователю напрямую из данных поста
+        await answer_bot_post(call.message, state, from_edit=True)
+    except Exception as e:
+        logger.error(f"Ошибка при генерации превью бот-поста {post.id}: {e}", exc_info=True)
 
     # После нажатия "Запланировать" показываем сообщение об успехе
     await state.clear()

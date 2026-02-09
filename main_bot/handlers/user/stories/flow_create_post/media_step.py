@@ -75,14 +75,7 @@ async def get_message(message: types.Message, state: FSMContext):
         send_time=0,  # <<< ЧЕРНОВИК
     )
 
-    # Отправляем в бэкап канал асинхронно
-    try:
-        from main_bot.utils.backup_service import send_to_backup_task
-        import asyncio
-
-        asyncio.create_task(send_to_backup_task(post.id))
-    except Exception as e:
-        logger.error(f"Ошибка запуска бэкап задачи: {e}", exc_info=True)
+    await state.update_data(chosen=chosen, post_id=post.id)
 
     await state.update_data(chosen=chosen, post_id=post.id)
 
@@ -198,11 +191,6 @@ async def manage_post(call: types.CallbackQuery, state: FSMContext):
             story_options=story_options.model_dump(),
         )
 
-        # Обновляем бекап сообщения
-        from main_bot.utils.backup_utils import edit_backup_message
-
-        await edit_backup_message(post)
-
         # Преобразуем в dict перед сохранением
         post_dict = {
             col.name: getattr(post, col.name) for col in post.__table__.columns
@@ -280,11 +268,6 @@ async def cancel_value(call: types.CallbackQuery, state: FSMContext):
 
         post = await db.story.update_story(post_id=post.id, return_obj=True, **kwargs)
 
-        # Обновляем бекап сообщения
-        from main_bot.utils.backup_utils import edit_backup_message
-
-        await edit_backup_message(post)
-
         # Синхронизируем post в data
         post_dict = {
             col.name: getattr(post, col.name) for col in post.__table__.columns
@@ -338,14 +321,6 @@ async def get_value(message: types.Message, state: FSMContext):
     kwargs = {"story_options": message_options.model_dump()}
 
     post = await db.story.update_story(post_id=post.id, return_obj=True, **kwargs)
-
-    # Обновляем бекап сообщения
-    from main_bot.utils.backup_utils import edit_backup_message
-
-    await edit_backup_message(post)
-
-    # Обновляем объект поста, чтобы получить новый backup_message_id если произошел фоллбек
-    post = await db.story.get_story(post.id)
 
     # Преобразуем объект post в dict для сохранения в FSM
     post_dict = {col.name: getattr(post, col.name) for col in post.__table__.columns}

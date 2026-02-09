@@ -24,7 +24,6 @@ from main_bot.handlers.user.bots.menu import show_content
 from main_bot.keyboards import keyboards
 from main_bot.utils.functions import answer_bot_post
 from main_bot.utils.lang.language import text
-from main_bot.utils.backup_utils import send_to_backup
 from main_bot.handlers.user.common_content import serialize_channel
 from main_bot.handlers.user.bots.bot_content import (
     serialize_bot_post,
@@ -221,45 +220,8 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext) -> No
         post=serialize_bot_post(post), send_date_values=send_date_values, is_edit=True
     )
 
-    # Если нет бэкапа - создаем
-    if not post.backup_message_id:
-        backup_chat_id, backup_message_id = await send_to_backup(post)
-        if backup_chat_id and backup_message_id:
-            await db.bot_post.update_bot_post(
-                post_id=post.id,
-                backup_chat_id=backup_chat_id,
-                backup_message_id=backup_message_id,
-            )
-            post.backup_chat_id = backup_chat_id
-            post.backup_message_id = backup_message_id
-
-    # Показываем превью (через CopyMessage из бэкапа)
-    post_message = None
-    if post.backup_chat_id and post.backup_message_id:
-        try:
-            options = post.message
-            caption = options.get("caption")
-            is_media = any(
-                [options.get("photo"), options.get("video"), options.get("animation")]
-            )
-
-            if is_media and caption and len(caption) > 1024:
-                # Отключаем превью для длинных описаний
-                post_message = await answer_bot_post(
-                    call.message, state, from_edit=True
-                )
-            else:
-                post_message = await call.bot.copy_message(
-                    chat_id=call.from_user.id,
-                    from_chat_id=post.backup_chat_id,
-                    message_id=post.backup_message_id,
-                    # Без reply_markup - показываем только контент поста
-                )
-        except Exception:
-            # Fallback если копирование не удалось
-            post_message = await answer_bot_post(call.message, state, from_edit=True)
-    else:
-        post_message = await answer_bot_post(call.message, state, from_edit=True)
+    # Показываем превью напрямую из БД
+    post_message = await answer_bot_post(call.message, state, from_edit=True)
 
     if post_message:
         await state.update_data(
