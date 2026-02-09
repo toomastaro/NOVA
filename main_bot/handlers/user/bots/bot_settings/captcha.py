@@ -43,6 +43,15 @@ async def show_manage_captcha(message: types.Message, state: FSMContext) -> None
         message_id=data.get("captcha_id")
     )
 
+    # --- ПРЕВЬЮ ---
+    if captcha and captcha.message:
+        try:
+            await answer_message(
+                message, MessageOptionsCaptcha(**captcha.message)
+            )
+        except Exception as e:
+            logger.error(f"Ошибка при показе превью капчи: {e}")
+
     await message.answer(
         text("manage_captcha"), reply_markup=keyboards.manage_captcha(captcha=captcha)
     )

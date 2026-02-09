@@ -48,6 +48,16 @@ async def show_manage_hello_message(message: types.Message, state: FSMContext) -
     hello_message = await db.channel_bot_hello.get_hello_message(
         message_id=data.get("hello_message_id")
     )
+    
+    # --- ПРЕВЬЮ ---
+    if hello_message and hello_message.message:
+        try:
+            await answer_message(
+                message, MessageOptionsHello(**hello_message.message)
+            )
+        except Exception as e:
+            logger.error(f"Ошибка при показе превью приветствия: {e}")
+
     await message.answer(
         text("manage_hello_message").format(data.get("idx")),
         reply_markup=keyboards.manage_hello_message(hello_message=hello_message),

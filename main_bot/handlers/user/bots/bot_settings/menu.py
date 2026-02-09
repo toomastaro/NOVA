@@ -18,7 +18,8 @@ from main_bot.database.db import db
 from main_bot.handlers.user.bots.settings import show_bot_manage
 from main_bot.utils.lang.language import text
 from main_bot.keyboards import keyboards
-from main_bot.utils.schemas import HelloAnswer, ByeAnswer
+from main_bot.utils.schemas import HelloAnswer, ByeAnswer, MessageOptionsHello
+from main_bot.utils.functions import answer_message
 from utils.error_handler import safe_handler
 
 logger = logging.getLogger(__name__)
@@ -274,6 +275,13 @@ async def show_bye(message: types.Message, setting: ChannelBotSetting) -> None:
         setting (ChannelBotSetting): Настройки канала.
     """
     hello = ByeAnswer(**setting.bye)
+
+    # --- ПРЕВЬЮ ---
+    if hello.message:
+        try:
+            await answer_message(message, MessageOptionsHello(**hello.message.model_dump()))
+        except Exception as e:
+            logger.error(f"Ошибка при показе превью прощания: {e}")
 
     await message.answer(
         text("bye_text").format(
