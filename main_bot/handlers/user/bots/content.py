@@ -238,10 +238,10 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext) -> No
 
         try:
             author_obj = await call.bot.get_chat(post.admin_id)
-            author = author_obj.username or "Неизвестно"
+            author = author_obj.username or text("unknown")
         except Exception as e:
             logger.warning("Не удалось получить автора: %s", e)
-            author = "Неизвестно"
+            author = text("unknown")
 
         options = post.message
         message_text = (
@@ -536,10 +536,10 @@ async def accept_delete_row_content(
         # Получаем username автора
         try:
             author_chat = await call.bot.get_chat(post.admin_id)
-            author = author_chat.username or "Неизвестно"
+            author = author_chat.username or text("unknown")
         except Exception as e:
             logger.warning("Не удалось получить автора: %s", e)
-            author = "Неизвестно"
+            author = text("unknown")
 
         send_date = datetime.fromtimestamp(post.send_time or post.start_timestamp)
 

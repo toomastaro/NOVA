@@ -385,9 +385,9 @@ async def get_send_time(message: types.Message, state: FSMContext) -> None:
         await message.answer(
             text("bot_post:content").format(
                 (
-                    "Нет"
+                    text("no_label")
                     if not post.delete_time
-                    else f"{int(post.delete_time / 3600)} час."
+                    else f"{int(post.delete_time / 3600)} {text('hours_short')}"
                 ),
                 send_date_values[0],  # день
                 send_date_values[1],  # месяц
