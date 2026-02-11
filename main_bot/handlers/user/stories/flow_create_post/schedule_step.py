@@ -42,8 +42,11 @@ async def get_story_report_text(chosen, objects):
     target_ids = chosen
     target_objects = [obj for obj in objects if obj.chat_id in target_ids]
 
-    for obj in target_objects:
+    for obj in target_objects[:15]:
         lines.append(text("resource_title").format(obj.title))
+
+    if len(target_objects) > 15:
+        lines.append(f"<i>... и ещё {len(target_objects) - 15}</i>")
 
     return "\n".join(lines)
 
@@ -110,8 +113,7 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
     temp = call.data.split("|")
     data = await state.get_data()
     if not data:
-        await call.answer(text("keys_data_error"))
-        return await call.message.delete()
+        return await call.answer(text("keys_data_error")[:200])
 
     chosen: list = data.get("chosen")
     chosen_folders: list = data.get("chosen_folders")
@@ -187,7 +189,7 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
 
     if temp[1] == "next_step":
         if not chosen:
-            return await call.answer(text("error_min_choice"))
+            return await call.answer(text("error_min_choice")[:200])
 
         # Сохраняем выбранные каналы
         await state.update_data(chosen=chosen)
@@ -278,7 +280,7 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
                     channels_list += f"\n... и ещё {len(channels_without_sub) - 5}"
 
                 return await call.answer(
-                    text("error_choice_all_no_sub_detailed").format(channels_list),
+                    text("error_choice_all_no_sub_detailed").format(channels_list)[:200],
                     show_alert=True,
                 )
 
@@ -293,7 +295,7 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
                     f"• {title}" for title in channels_without_session
                 )
                 return await call.answer(
-                    text("error_choice_all_no_session_detailed").format(channels_list),
+                    text("error_choice_all_no_session_detailed").format(channels_list)[:200],
                     show_alert=True,
                 )
 
@@ -337,13 +339,13 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
                 channel = await db.channel.get_channel_by_chat_id(resource_id)
                 if not channel.subscribe:
                     return await call.answer(
-                        text("error_sub_channel").format(channel.title), show_alert=True
+                        text("error_sub_channel").format(channel.title)[:200], show_alert=True
                     )
 
                 # Проверка на наличие MTProto сессии для сторис
                 if not channel.session_path:
                     return await call.answer(
-                        text("error_story_session").format(channel.title),
+                        text("error_story_session").format(channel.title)[:200],
                         show_alert=True,
                     )
 
@@ -371,6 +373,9 @@ async def choice_channels(call: types.CallbackQuery, state: FSMContext):
         )
     )
 
+    if len(msg_text) > 4000:
+        msg_text = msg_text[:4000] + "\n..."
+
     await call.message.edit_text(
         msg_text,
         reply_markup=keyboards.choice_objects(
@@ -394,7 +399,7 @@ async def finish_params(call: types.CallbackQuery, state: FSMContext):
     temp = call.data.split("|")
     data = await state.get_data()
     if not data:
-        await call.answer(text("keys_data_error"))
+        await call.answer(text("keys_data_error")[:200])
         return await call.message.delete()
 
     # Lazy load post
@@ -477,7 +482,7 @@ async def choice_delete_time(call: types.CallbackQuery, state: FSMContext):
     temp = call.data.split("|")
     data = await state.get_data()
     if not data:
-        await call.answer(text("keys_data_error"))
+        await call.answer(text("keys_data_error")[:200])
         return await call.message.delete()
 
     # Lazy load post
