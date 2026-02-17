@@ -253,12 +253,15 @@ async def platega_webhook(request: Request):
 
     logger.info(f"Platega: Обработка заказа {order_id} со статусом {status}")
 
-    if status == "CONFIRMED":
+    if status.upper() in ["CONFIRMED", "SUCCESS"]:
+        logger.info(f"Platega: Платеж {order_id} подтвержден. Начинаем начисление.")
         await db.payment_link.update_payment_link_status(order_id, "PAID")
 
         await process_successful_payment(
             user_id=int(payment_link.user_id), payload=payment_link.payload
         )
+    else:
+        logger.warning(f"Platega: Получен статус {status} для заказа {order_id}, игнорируем.")
 
     return {"status": "ok"}
 
@@ -308,13 +311,15 @@ async def process_successful_payment(user_id: int, payload: dict, amount: float 
 
     # Логика подписки
     elif payment_type == "subscribe":
-        logger.info(f"Выдача подписки пользователю {user_id}")
-
         chosen = payload.get("chosen")
         total_days = payload.get("total_days")
         service_name = payload.get("service")
         object_type = payload.get("object_type")
         total_price = payload.get("total_price")
+
+        logger.info(
+            f"Выдача подписки пользователю {user_id}: объектов={len(chosen) if chosen else 0}, тип={object_type}, дней={total_days}"
+        )
 
         await grant_subscription(user_id, chosen, total_days, service_name, object_type)
 

@@ -26,7 +26,7 @@ async def grant_subscription(
         service: Тип сервиса (например, 'subscribe' или 'stories')
         object_type: Тип объекта ('channels' или 'bots')
     """
-    added_seconds = 86400 * total_days
+    added_seconds = 86400 * int(total_days)
     now = int(time.time())
 
     logger.info(
@@ -34,6 +34,7 @@ async def grant_subscription(
     )
 
     for obj_id in chosen:
+        obj_id = int(obj_id)  # Принудительное приведение для JSON-данных
         try:
             if object_type == "channels":
                 channel = await db.channel.get_channel_by_chat_id(chat_id=obj_id)
@@ -47,7 +48,7 @@ async def grant_subscription(
                 await db.channel.update_channel_by_chat_id(
                     chat_id=obj_id, subscribe=new_sub
                 )
-                logger.debug(f"Подписка канала {obj_id} продлена до {new_sub}")
+                logger.info(f"Подписка канала {obj_id} ({channel.title}) продлена до {new_sub}")
 
             else:  # bots
                 user_bot = await db.user_bot.get_bot_by_id(row_id=obj_id)
@@ -61,7 +62,7 @@ async def grant_subscription(
                 await db.user_bot.update_bot_by_id(
                     row_id=obj_id, subscribe=new_sub
                 )
-                logger.debug(f"Подписка бота {obj_id} продлена до {new_sub}")
+                logger.info(f"Подписка бота {obj_id} ({user_bot.title}) продлена до {new_sub}")
 
         except Exception as e:
             logger.error(

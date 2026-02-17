@@ -303,6 +303,8 @@ async def choice(call: types.CallbackQuery, state: FSMContext, user: User):
 
     # Stars
     elif method == PaymentMethod.STARS:
+        await state.set_state(Subscribe.pay_stars)
+        await state.update_data(stars_payment=True, payment_to="subscribe")
         stars_amount = int(total_price / 1.2)  # Курс: 1 Star = 1.2₽
         prices = [LabeledPrice(label="XTR", amount=stars_amount)]
         order_id = str(random.randint(1, 999))
