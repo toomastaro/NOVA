@@ -284,6 +284,10 @@ class InlineAdmin(InlineKeyboardBuilder):
             text="➕ Продлить подписку",
             callback_data=f"AdminChannels|extend|{channel_id}",
         )
+        kb.button(
+                text="🤖 Добавить помощника",
+                callback_data=f"AdminChannels|add_helper|{channel_id}",
+            )
         kb.button(text="◀️ К списку", callback_data="AdminChannels|list|0")
 
         kb.adjust(1)
@@ -381,4 +385,19 @@ class InlineAdmin(InlineKeyboardBuilder):
         kb = cls()
         kb.button(text="◀️ К списку", callback_data="AdminUsers|list|0")
         kb.adjust(1)
+        return kb.as_markup()
+
+    @classmethod
+    def admin_assistants_list(cls, channel_id: int, assistants: list):
+        """
+        Список доступных помощников для приглашения в канал.
+        """
+        kb = cls()
+        for helper in assistants:
+            kb.button(
+                text=f"🤖 {helper.alias or helper.id}",
+                callback_data=f"AdminChannels|set_helper|{channel_id}|{helper.id}"
+            )
+        kb.adjust(1)
+        kb.row(InlineKeyboardButton(text="◀️ Отмена", callback_data=f"AdminChannels|view|{channel_id}"))
         return kb.as_markup()

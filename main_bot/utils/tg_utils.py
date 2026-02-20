@@ -372,3 +372,93 @@ async def background_join_channel(chat_id: int, user_id: int = None):
 
     # Если все попытки исчерпаны
     logger.error(f"Все попытки добавления клиента в канал {chat_id} исчерпаны")
+
+async def invite_specific_helper(chat_id: int, client_id: int):
+    """
+    Пригласить конкретного помощника в канал.
+    
+    Аргументы:
+        chat_id (int): ID канала.
+        client_id (int): ID клиента (MtClient).
+    
+    Возвращает:
+        dict: Результат операции (success, joined, me).
+    """
+    # 1. Проверяем права основного бота
+    bot_is_admin = False
+    try:
+        bot_info = await main_bot_obj.get_me()
+        bot_member = await main_bot_obj.get_chat_member(chat_id, bot_info.id)
+        if bot_member.status in [ChatMemberStatus.ADMINISTRATOR, ChatMemberStatus.CREATOR]:
+            bot_is_admin = True
+    except Exception as e:
+        logger.warning(f"Не удалось проверить статус бота в {chat_id}: {e}")
+
+    if not bot_is_admin:
+        return {"error": "Bot Not Admin", "message": "Бот не является администратором канала."}
+
+    # 2. Получаем клиента
+    client = await db.mt_client.get_mt_client(client_id)
+    if not client:
+        return {"error": "Client Not Found", "message": "Клиент не найден в базе данных."}
+
+    session_path = Path(client.session_path)
+    if not session_path.exists():
+        return {"error": "Session File Not Found", "message": "Файл сессии не найден."}
+
+    # 3. Создаем инвайт-ссылку
+    try:
+        invite = await main_bot_obj.create_chat_invite_link(
+            chat_id=chat_id, name=f"Nova Helper {client.alias}", creates_join_request=False
+        )
+        invite_link = invite.invite_link
+    except Exception as e:
+        logger.error(f"Ошибка создания ссылки приглашения: {e}")
+        return {"error": "Invite Creation Failed", "message": str(e)}
+
+    # 4. Процесс вступления
+    async with SessionManager(session_path) as manager:
+        if not manager.client:
+            return {"error": "Session Manager Failed"}
+
+        me = await manager.me()
+        if not me:
+            return {"error": "Failed to Get User Info"}
+
+        join_success = await manager.join(invite_link, max_attempts=5)
+        
+        if me.username:
+            await db.mt_client.update_mt_client(client.id, alias=me.username)
+
+        # 5. Привязка в БД
+        await db.mt_client_channel.get_or_create_mt_client_channel(client.id, chat_id)
+        
+        # Проверяем права
+        is_admin = False
+        can_stories = False
+        perms = await manager.check_permissions(chat_id)
+        if not perms.get("error"):
+            is_admin = perms.get("is_admin", False)
+            can_stories = perms.get("can_post_stories", False)
+
+        await db.mt_client_channel.set_membership(
+            client_id=client.id,
+            channel_id=chat_id,
+            is_member=perms.get("is_member", join_success),
+            is_admin=is_admin,
+            can_post_messages=perms.get("can_post_messages", False),
+            can_post_stories=can_stories,
+            last_joined_at=int(time.time()),
+            preferred_for_stats=True, # При ручном выборе делаем его основным
+        )
+
+        # Обновление канала
+        await db.channel.update_channel_by_chat_id(
+            chat_id=chat_id, session_path=str(session_path), last_client_id=client.id
+        )
+
+        return {
+            "success": True,
+            "joined": join_success,
+            "me": me
+        }

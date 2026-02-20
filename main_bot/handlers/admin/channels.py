@@ -279,6 +279,63 @@ async def extend_channel_subscription_process(call: types.CallbackQuery) -> None
     await view_channel_details(call)
 
 
+
+@safe_handler("Admin Add Helper List")
+async def admin_add_helper_list(call: types.CallbackQuery) -> None:
+    """Отображает список доступных помощников."""
+    channel_id = int(call.data.split("|")[2])
+    
+    # Получаем список всех внутренних помощников
+    assistants = await db.mt_client.get_mt_clients_by_pool("internal")
+    
+    if not assistants:
+        return await call.answer("❌ В пуле 'internal' нет доступных помощников", show_alert=True)
+
+    await call.message.edit_text(
+        "🤖 <b>Выбор помощника</b>\n\nВыберите помощника из списка 'internal' для приглашения в канал:",
+        reply_markup=keyboards.admin_assistants_list(channel_id, assistants),
+        parse_mode="HTML"
+    )
+    await call.answer()
+
+
+@safe_handler("Admin Set Helper Process")
+async def admin_set_helper_process(call: types.CallbackQuery) -> None:
+    """Запускает процесс приглашения выбранного помощника."""
+    data = call.data.split("|")
+    channel_id = int(data[2])
+    client_id = int(data[3])
+
+    channel = await db.channel.get_channel_by_id(channel_id)
+    if not channel:
+        return await call.answer("❌ Канал не найден", show_alert=True)
+
+    await call.message.edit_text("⏳ <b>Процесс приглашения запущен...</b>", parse_mode="HTML")
+    
+    from main_bot.utils.tg_utils import invite_specific_helper
+    result = await invite_specific_helper(channel.chat_id, client_id)
+
+    if result.get("success"):
+        import html
+        me = result["me"]
+        username = me.username or me.first_name
+        
+        msg = (
+            f"✅ <b>Помощник успешно добавлен!</b>\n\n"
+            f"Бот: <code>{html.escape(username)}</code>\n\n"
+            f"Теперь убедитесь, что ему выданы права администратора в канале."
+        )
+        await call.message.answer(msg, parse_mode="HTML")
+        await view_channel_details(call)
+    else:
+        error_msg = result.get("message", "Неизвестная ошибка")
+        await call.message.edit_text(
+            f"❌ <b>Ошибка приглашения:</b>\n{error_msg}",
+            reply_markup=keyboards.back(data=f"AdminChannels|view|{channel_id}"),
+            parse_mode="HTML"
+        )
+
+
 @safe_handler("Admin Channels Callback")
 async def channels_callback_handler(
     call: types.CallbackQuery, state: FSMContext
@@ -305,6 +362,10 @@ async def channels_callback_handler(
         await extend_channel_subscription_start(call)
     elif action == "ext_proc":
         await extend_channel_subscription_process(call)
+    elif action == "add_helper":
+        await admin_add_helper_list(call)
+    elif action == "set_helper":
+        await admin_set_helper_process(call)
 
 
 def get_router() -> Router:
