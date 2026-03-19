@@ -216,7 +216,7 @@ async def back_to_main(message: types.Message) -> None:
     """
     from main_bot.keyboards.common import Reply
 
-    await message.answer(text("main_menu_label"), reply_markup=Reply.menu(message.from_user.id))
+    await message.answer(text("main_menu_label"), reply_markup=Reply.menu(message.chat.id))
 
 
 def get_router() -> Router:

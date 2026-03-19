@@ -164,7 +164,7 @@ async def show_subscription_success(
         success_text, reply_markup=keyboards.subscription_menu(), parse_mode="HTML"
     )
     # Перезагрузка главного меню
-    await message.answer("Главное меню", reply_markup=Reply.menu(message.from_user.id))
+    await message.answer("Главное меню", reply_markup=Reply.menu(message.chat.id))
 
 
 @safe_handler(
@@ -438,7 +438,7 @@ async def align_subscribe(call: types.CallbackQuery, state: FSMContext, user: Us
             parse_mode="HTML",
         )
         # Перезагрузка главного меню
-        await call.message.answer("Главное меню", reply_markup=Reply.menu(call.from_user.id))
+        await call.message.answer("Главное меню", reply_markup=Reply.menu(call.message.chat.id))
         return
 
     if temp[1] == "choice_all":
@@ -561,7 +561,7 @@ async def back_to_method(call: types.CallbackQuery, state: FSMContext):
         parse_mode="HTML",
     )
     # Перезагрузка главного меню
-    await call.message.answer("Главное меню", reply_markup=Reply.menu(call.from_user.id))
+    await call.message.answer("Главное меню", reply_markup=Reply.menu(call.message.chat.id))
 
 
 @safe_handler(

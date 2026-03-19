@@ -271,7 +271,7 @@ async def get_exchange_rate_of_custom_amount(
 
         await message.answer(
             msg_text,
-            reply_markup=Reply.menu(message.from_user.id),
+            reply_markup=Reply.menu(message.chat.id),
             parse_mode="HTML",
             link_preview_options=types.LinkPreviewOptions(is_disabled=True),
         )
@@ -288,7 +288,7 @@ async def back_to_main_menu(call: types.CallbackQuery) -> None:
         call (types.CallbackQuery): Callback запрос.
     """
     await call.message.delete()
-    await call.message.answer("Главное меню", reply_markup=Reply.menu(call.from_user.id))
+    await call.message.answer("Главное меню", reply_markup=Reply.menu(call.message.chat.id))
 
 
 def get_router() -> Router:
