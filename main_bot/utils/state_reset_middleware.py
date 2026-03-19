@@ -12,6 +12,7 @@ from aiogram import BaseMiddleware
 from aiogram.types import Update, Message
 
 from main_bot.keyboards.common import Reply
+from config import Config
 
 logger = logging.getLogger(__name__)
 
