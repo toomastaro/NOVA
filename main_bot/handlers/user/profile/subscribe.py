@@ -352,7 +352,9 @@ async def choice_object_subscribe(
         return await call.message.answer(
             pay_info_text,
             reply_markup=keyboards.choice_payment_method(
-                data="ChoicePaymentMethodSubscribe", is_subscribe=True
+                data="ChoicePaymentMethodSubscribe",
+                user_id=call.from_user.id,
+                is_subscribe=True,
             ),
         )
 

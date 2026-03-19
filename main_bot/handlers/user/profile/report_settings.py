@@ -38,6 +38,7 @@ async def show_report_settings_menu(call: types.CallbackQuery):
     await call.message.answer(
         text("report_settings_text"),
         reply_markup=InlineProfile.report_settings_menu(
+            user_id=call.from_user.id,
             cpm_active=user.cpm_signature_active,
             exchange_active=user.exchange_signature_active,
             referral_active=user.referral_signature_active,

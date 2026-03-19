@@ -71,6 +71,7 @@ class InlineProfile(InlineKeyboardBuilder):
     def choice_payment_method(
         cls,
         data: str,
+        user_id: int = 0,
         has_promo: bool = False,
         is_subscribe: bool = False,
         show_promo: bool = False,
@@ -88,6 +89,14 @@ class InlineProfile(InlineKeyboardBuilder):
         if not is_subscribe and not has_promo:
             kb.button(text=text("payment:method:promo"), callback_data=f"{data}|promo")
             adjust.extend([1])
+
+        # Если не админ и это пополнение баланса - скрываем остальные методы
+        is_admin = user_id in Config.ADMINS
+        if not is_admin and not is_subscribe:
+            kb.button(text=text("back:button"), callback_data=f"{data}|back")
+            adjust.extend([1])
+            kb.adjust(*adjust)
+            return kb.as_markup()
 
         kb.button(text=text("payment:method:stars"), callback_data=f"{data}|stars")
         kb.button(
@@ -605,16 +614,18 @@ class InlineProfile(InlineKeyboardBuilder):
 
     @classmethod
     def report_settings_menu(
-        cls, cpm_active: bool, exchange_active: bool, referral_active: bool
+        cls, user_id: int, cpm_active: bool, exchange_active: bool, referral_active: bool
     ):
         kb = cls()
 
-        kb.button(
-            text=text("report:cpm:button").format(
-                text("report:toggle:on") if cpm_active else text("report:toggle:off")
-            ),
-            callback_data="ReportSetting|cpm",
-        )
+        if user_id in Config.ADMINS:
+            kb.button(
+                text=text("report:cpm:button").format(
+                    text("report:toggle:on") if cpm_active else text("report:toggle:off")
+                ),
+                callback_data="ReportSetting|cpm",
+            )
+        
         kb.button(
             text=text("report:exchange:button").format(
                 text("report:toggle:on")

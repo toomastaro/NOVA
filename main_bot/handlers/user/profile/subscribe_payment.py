@@ -499,7 +499,9 @@ async def cancel(call: types.CallbackQuery, state: FSMContext, user: User):
     await call.message.answer(
         pay_info_text,
         reply_markup=keyboards.choice_payment_method(
-            data="ChoicePaymentMethodSubscribe", is_subscribe=True
+            data="ChoicePaymentMethodSubscribe",
+            user_id=call.from_user.id,
+            is_subscribe=True,
         ),
     )
 
@@ -614,7 +616,10 @@ async def get_promo(message: types.Message, state: FSMContext, user: User):
     await message.answer(
         pay_info_text,
         reply_markup=keyboards.choice_payment_method(
-            data="ChoicePaymentMethodSubscribe", is_subscribe=True, has_promo=True
+            data="ChoicePaymentMethodSubscribe",
+            user_id=message.from_user.id,
+            is_subscribe=True,
+            has_promo=True,
         ),
     )
 

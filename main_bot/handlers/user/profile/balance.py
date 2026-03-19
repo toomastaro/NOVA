@@ -43,7 +43,9 @@ async def show_top_up(message: types.Message, state: FSMContext):
     await state.update_data(payment_to="balance")
     await message.answer(
         text("choice_top_up_method"),
-        reply_markup=keyboards.choice_payment_method(data="ChoicePaymentMethod"),
+        reply_markup=keyboards.choice_payment_method(
+            data="ChoicePaymentMethod", user_id=message.from_user.id
+        ),
     )
 
 
