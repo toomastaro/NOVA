@@ -25,6 +25,7 @@ from main_bot.utils.schedulers import (
 from utils.error_handler import safe_handler
 from main_bot.utils.user_settings import get_user_view_mode, set_user_view_mode
 
+
 logger = logging.getLogger(__name__)
 
 
