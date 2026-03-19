@@ -171,7 +171,7 @@ async def back_to_main(message: types.Message):
     from main_bot.keyboards.common import Reply
 
     await message.delete()
-    await message.answer(text("reply_menu:main"), reply_markup=Reply.menu())
+    await message.answer(text("reply_menu:main"), reply_markup=Reply.menu(message.from_user.id))
 
 
 def get_router():

@@ -13,30 +13,58 @@ class Reply:
     """Reply-клавиатуры (главное меню, капча)"""
 
     @classmethod
-    def menu(cls):
+    def menu(cls, user_id: int):
+        """
+        Создает главное меню бота.
+        Для администраторов отображается полный список функций.
+        Для обычных пользователей - сокращенный список согласно ТЗ.
+
+        Аргументы:
+            user_id (int): ID пользователя в Telegram.
+
+        Возвращает:
+            ReplyKeyboardMarkup: Объект клавиатуры.
+        """
         kb = ReplyKeyboardBuilder()
+        is_admin = user_id in Config.ADMINS
 
-        # Первый ряд: Постинг - Истории - Рассылка
-        kb.button(text=text("reply_menu:posting"))
-        kb.button(text=text("reply_menu:story"))
-        kb.button(text=text("reply_menu:bots"))
+        if is_admin:
+            # Полное меню для администраторов (сетка 3x3)
+            # Первый ряд: Постинг - Истории - Рассылка
+            kb.button(text=text("reply_menu:posting"))
+            kb.button(text=text("reply_menu:story"))
+            kb.button(text=text("reply_menu:bots"))
 
-        # Второй ряд: Приветка - NovaStat - Закуп
-        kb.button(text=text("reply_menu:privetka"))
-        kb.button(text=text("reply_menu:novastat"))
+            # Второй ряд: Приветка - NovaStat - Закуп/Настройки (в зависимости от флага)
+            kb.button(text=text("reply_menu:privetka"))
+            kb.button(text=text("reply_menu:novastat"))
 
-        if Config.ENABLE_AD_BUY_MODULE:
-            kb.button(text="🛒 Закуп")
-        else:
-            # Если модуль рекламы выключен, добавляем пустую кнопку для симметрии
+            if Config.ENABLE_AD_BUY_MODULE:
+                kb.button(text="🛒 Закуп")
+            else:
+                kb.button(text=text("reply_menu:profile"))
+
+            # Третий ряд: Курс USDT - Подписка - Настройки/Ничего
+            kb.button(text=text("reply_menu:exchange_rate"))
+            kb.button(text=text("reply_menu:subscription"))
             kb.button(text=text("reply_menu:profile"))
 
-        # Третий ряд: Курс USDT - Подписка - Настройки
-        kb.button(text=text("reply_menu:exchange_rate"))
-        kb.button(text=text("reply_menu:subscription"))
-        kb.button(text=text("reply_menu:profile"))
+            kb.adjust(3, 3, 3)
+        else:
+            # Сокращенное меню для обычных пользователей (сетка 2x3)
+            # Постинг | Курс USDT
+            kb.button(text=text("reply_menu:posting"))
+            kb.button(text=text("reply_menu:exchange_rate"))
 
-        kb.adjust(3, 3, 3)  # 3 кнопки в каждом ряду
+            # Рассылка | Приветка
+            kb.button(text=text("reply_menu:bots"))
+            kb.button(text=text("reply_menu:privetka"))
+
+            # Подписка | Настройки
+            kb.button(text=text("reply_menu:subscription"))
+            kb.button(text=text("reply_menu:profile"))
+
+            kb.adjust(2, 2, 2)
 
         return kb.as_markup(resize_keyboard=True, is_persistent=True)
 

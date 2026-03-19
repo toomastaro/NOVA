@@ -351,7 +351,7 @@ async def privetka_choice_channel(call: types.CallbackQuery, state: FSMContext) 
 
     if temp[1] == "cancel":
         await call.message.delete()
-        await call.message.answer("Главное меню", reply_markup=Reply.menu())
+        await call.message.answer("Главное меню", reply_markup=Reply.menu(call.from_user.id))
         return
 
     if temp[1] in ["next", "back"]:

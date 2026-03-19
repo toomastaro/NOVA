@@ -68,7 +68,7 @@ async def start(message: types.Message, state: FSMContext) -> None:
         text("start_text") + f"\n\n{version_text}"
         f"📄 <a href='{text('info:terms:url')}'>{text('start:terms:text')}</a>\n"
         f"🔒 <a href='{text('info:privacy:url')}'>{text('start:privacy:text')}</a>",
-        reply_markup=keyboards.menu(),
+        reply_markup=keyboards.menu(message.from_user.id),
         parse_mode="HTML",
         disable_web_page_preview=True,
     )

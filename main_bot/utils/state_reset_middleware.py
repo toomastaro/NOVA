@@ -29,10 +29,22 @@ class StateResetMiddleware(BaseMiddleware):
 
     def _load_menu_texts(self):
         try:
-            # Генерация разметки меню
-            markup = Reply.menu()
-            if markup.keyboard:
-                for row in markup.keyboard:
+            # Нам нужно собрать все возможные тексты кнопок для сброса состояния.
+            # Собираем кнопки для администратора и для обычного пользователя.
+            
+            # 1. Кнопки администратора
+            admin_id = Config.ADMINS[0] if Config.ADMINS else 0
+            markup_admin = Reply.menu(admin_id)
+            if markup_admin.keyboard:
+                for row in markup_admin.keyboard:
+                    for button in row:
+                        if button.text:
+                            self._main_menu_texts.add(button.text)
+
+            # 2. Кнопки обычного пользователя
+            markup_user = Reply.menu(0)
+            if markup_user.keyboard:
+                for row in markup_user.keyboard:
                     for button in row:
                         if button.text:
                             self._main_menu_texts.add(button.text)
