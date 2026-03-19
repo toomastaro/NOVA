@@ -409,7 +409,7 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
             info_text = await generate_post_info_text(post, is_published=True)
 
             await call.message.answer(
-                info_text, reply_markup=keyboards.manage_published_post(post=post)
+                info_text, reply_markup=keyboards.manage_published_post(post=post, user_id=call.from_user.id)
             )
             return
 
@@ -438,7 +438,7 @@ async def choice_row_content(call: types.CallbackQuery, state: FSMContext):
     info_text = await generate_post_info_text(post, is_published=False)
 
     await call.message.answer(
-        info_text, reply_markup=keyboards.manage_remain_post(post=post)
+        info_text, reply_markup=keyboards.manage_remain_post(post=post, user_id=call.from_user.id)
     )
 
 
@@ -551,7 +551,7 @@ async def manage_remain_post(call: types.CallbackQuery, state: FSMContext):
             await call.message.delete()
             return await call.message.answer(
                 text("manage:post:finish_params").format(len(chosen), channels_list),
-                reply_markup=keyboards.finish_params(obj=post),
+                reply_markup=keyboards.finish_params(obj=post, user_id=call.from_user.id),
                 parse_mode="HTML",
             )
 
@@ -661,7 +661,7 @@ async def accept_delete_row_content(call: types.CallbackQuery, state: FSMContext
         return await call.message.edit_text(
             info_text,
             reply_markup=keyboards.manage_remain_post(
-                post=post, is_published=data.get("is_published")
+                post=post, is_published=data.get("is_published"), user_id=call.from_user.id
             ),
         )
 

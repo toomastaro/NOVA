@@ -267,7 +267,7 @@ async def choice_delete_time(call: types.CallbackQuery, state: FSMContext):
             info_text = await generate_post_info_text(post, is_published=True)
             return await call.message.edit_text(
                 info_text,
-                reply_markup=keyboards.manage_remain_post(post=post, is_published=True),
+                reply_markup=keyboards.manage_remain_post(post=post, is_published=True, user_id=call.from_user.id),
             )
         else:
             # Для запланированных постов используем стандартный формат
@@ -278,7 +278,7 @@ async def choice_delete_time(call: types.CallbackQuery, state: FSMContext):
                     ensure_obj(data.get("channel")).title,
                 ),
                 reply_markup=keyboards.manage_remain_post(
-                    post=post, is_published=False
+                    post=post, is_published=False, user_id=call.from_user.id
                 ),
             )
 
@@ -297,7 +297,7 @@ async def choice_delete_time(call: types.CallbackQuery, state: FSMContext):
                 if obj.chat_id in chosen
             ),
         ),
-        reply_markup=keyboards.finish_params(obj=safe_post_from_dict(data.get("post"))),
+        reply_markup=keyboards.finish_params(obj=safe_post_from_dict(data.get("post")), user_id=call.from_user.id),
     )
 
 
@@ -326,7 +326,7 @@ async def cancel_send_time(call: types.CallbackQuery, state: FSMContext):
                 data.get("channel").title,
             ),
             reply_markup=keyboards.manage_remain_post(
-                post=ensure_obj(data.get("post")), is_published=data.get("is_published")
+                post=ensure_obj(data.get("post")), is_published=data.get("is_published"), user_id=call.from_user.id
             ),
         )
 
@@ -345,7 +345,7 @@ async def cancel_send_time(call: types.CallbackQuery, state: FSMContext):
                 if obj.chat_id in chosen
             ),
         ),
-        reply_markup=keyboards.finish_params(obj=safe_post_from_dict(data.get("post"))),
+        reply_markup=keyboards.finish_params(obj=safe_post_from_dict(data.get("post")), user_id=call.from_user.id),
     )
 
 

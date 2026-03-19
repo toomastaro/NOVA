@@ -107,7 +107,7 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
                     if obj.chat_id in chosen
                 ),
             )
-            reply_markup = keyboards.finish_params(obj=post)
+            reply_markup = keyboards.finish_params(obj=post, user_id=call.from_user.id)
 
         # Если редактируем опубликованный пост
         if is_edit:
@@ -117,7 +117,7 @@ async def accept(call: types.CallbackQuery, state: FSMContext):
                 data.get("channel").title,
             )
             reply_markup = keyboards.manage_remain_post(
-                post=data.get("post"), is_published=data.get("is_published")
+                post=data.get("post"), is_published=data.get("is_published"), user_id=call.from_user.id
             )
 
         return await call.message.edit_text(message_text, reply_markup=reply_markup)

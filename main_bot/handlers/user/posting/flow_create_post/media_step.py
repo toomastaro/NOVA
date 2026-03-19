@@ -74,7 +74,7 @@ async def manage_post(call: types.CallbackQuery, state: FSMContext):
                 info_text = await generate_post_info_text(post, is_published=True)
 
                 return await call.message.answer(
-                    info_text, reply_markup=keyboards.manage_published_post(post=post)
+                    info_text, reply_markup=keyboards.manage_published_post(post=post, user_id=call.from_user.id)
                 )
             else:
                 # Возврат к черновикам/отложенным
@@ -87,7 +87,7 @@ async def manage_post(call: types.CallbackQuery, state: FSMContext):
                 return await call.message.answer(
                     info_text,
                     reply_markup=keyboards.manage_remain_post(
-                        post=post, is_published=False
+                        post=post, is_published=False, user_id=call.from_user.id
                     ),
                 )
 
@@ -111,7 +111,7 @@ async def manage_post(call: types.CallbackQuery, state: FSMContext):
                     data.get("channel").title,
                 ),
                 reply_markup=keyboards.manage_remain_post(
-                    post=post, is_published=data.get("is_published")
+                    post=post, is_published=data.get("is_published"), user_id=call.from_user.id
                 ),
             )
 
@@ -144,7 +144,7 @@ async def manage_post(call: types.CallbackQuery, state: FSMContext):
 
         return await call.message.answer(
             text("manage:post:finish_params").format(len(chosen), channels_list),
-            reply_markup=keyboards.finish_params(obj=post),
+            reply_markup=keyboards.finish_params(obj=post, user_id=call.from_user.id),
             parse_mode="HTML",
         )
 
@@ -375,7 +375,7 @@ async def cancel_value(call: types.CallbackQuery, state: FSMContext):
 
             info_text = await generate_post_info_text(post, is_published=True)
             return await call.message.answer(
-                info_text, reply_markup=keyboards.manage_published_post(post=post)
+                info_text, reply_markup=keyboards.manage_published_post(post=post, user_id=call.from_user.id)
             )
 
         # Handle difference between Post (chat_ids) and PublishedPost (chat_id)
@@ -398,7 +398,7 @@ async def cancel_value(call: types.CallbackQuery, state: FSMContext):
                     text("resource_title").format(obj.title) for obj in display_objects
                 ),
             ),
-            reply_markup=keyboards.finish_params(obj=post),
+            reply_markup=keyboards.finish_params(obj=post, user_id=call.from_user.id),
         )
 
     await answer_post(call.message, state)
@@ -549,7 +549,7 @@ async def get_value(message: types.Message, state: FSMContext):
                     text("resource_title").format(obj.title) for obj in display_objects
                 ),
             ),
-            reply_markup=keyboards.finish_params(obj=post),
+            reply_markup=keyboards.finish_params(obj=post, user_id=call.from_user.id),
         )
 
     await answer_post(message, state)

@@ -14,6 +14,7 @@ from main_bot.database.story.model import Story
 from main_bot.utils.lang.language import text
 from main_bot.utils.schemas import Hide, React, MessageOptions, StoryOptions
 from main_bot.keyboards.base import _parse_button
+from config import Config
 
 
 class ObjWrapper:
@@ -428,7 +429,7 @@ class InlinePosting(InlineKeyboardBuilder):
         return kb.as_markup()
 
     @classmethod
-    def finish_params(cls, obj: Post | Story, data: str = "FinishPostParams"):
+    def finish_params(cls, obj: Post | Story, data: str = "FinishPostParams", user_id: int = 0):
         """
         Главное меню финализации поста (таймер, публикация, CPM).
         """
@@ -459,7 +460,7 @@ class InlinePosting(InlineKeyboardBuilder):
             callback_data=f"{data}|delete_time",
         )
 
-        if not is_story:
+        if not is_story and user_id in Config.ADMINS:
             cpm_price = getattr(obj, "cpm_price", None)
             kb.button(
                 text=text("manage:post:add:cpm:button").format(
@@ -565,7 +566,7 @@ class InlinePosting(InlineKeyboardBuilder):
         return kb.as_markup()
 
     @classmethod
-    def manage_remain_post(cls, post: Post, is_published: bool = False):
+    def manage_remain_post(cls, post: Post, is_published: bool = False, user_id: int = 0):
         """
         Управление запланированным (или черновиком) постом из контент-плана.
         Если пост опубликован, вызывает manage_published_post.
@@ -601,12 +602,13 @@ class InlinePosting(InlineKeyboardBuilder):
                 text=text("manage:post:del_time:button").format(del_time_text),
                 callback_data="FinishPostParams|delete_time",
             )
-            kb.button(
-                text=text("manage:post:add:cpm:button").format(
-                    f"{post.cpm_price}₽" if post.cpm_price else "❌"
-                ),
-                callback_data="FinishPostParams|cpm_price",
-            )
+            if user_id in Config.ADMINS:
+                kb.button(
+                    text=text("manage:post:add:cpm:button").format(
+                        f"{post.cpm_price}₽" if post.cpm_price else "❌"
+                    ),
+                    callback_data="FinishPostParams|cpm_price",
+                )
             kb.button(
                 text=text("manage:post:send_time").format(
                     datetime.fromtimestamp(post.send_time).strftime("%d.%m %H:%M")
@@ -625,10 +627,10 @@ class InlinePosting(InlineKeyboardBuilder):
             kb.adjust(1)
             return kb.as_markup()
         else:
-            return cls.manage_published_post(post)
+            return cls.manage_published_post(post, user_id=user_id)
 
     @classmethod
-    def manage_published_post(cls, post: PublishedPost):
+    def manage_published_post(cls, post: PublishedPost, user_id: int = 0):
         """
         Управление уже опубликованным постом.
 
@@ -640,10 +642,11 @@ class InlinePosting(InlineKeyboardBuilder):
         is_deleted = getattr(post, "status", "active") == "deleted"
 
         if is_deleted:
-            kb.button(
-                text=text("cpm:report:view_button"),
-                callback_data="ManagePublishedPost|cpm_report",
-            )
+            if user_id in Config.ADMINS:
+                kb.button(
+                    text=text("cpm:report:view_button"),
+                    callback_data="ManagePublishedPost|cpm_report",
+                )
             kb.button(
                 text=text("back:button"), callback_data="ManagePublishedPost|cancel"
             )
@@ -673,20 +676,22 @@ class InlinePosting(InlineKeyboardBuilder):
             text=text("manage:post:del_time:button").format(timer_text),
             callback_data="ManagePublishedPost|timer",
         )
-        kb.button(
-            text=text("manage:post:add:cpm:button").format(
-                f"{post.cpm_price}₽" if post.cpm_price else "❌"
-            ),
-            callback_data="ManagePublishedPost|cpm",
-        )
+        if user_id in Config.ADMINS:
+            kb.button(
+                text=text("manage:post:add:cpm:button").format(
+                    f"{post.cpm_price}₽" if post.cpm_price else "❌"
+                ),
+                callback_data="ManagePublishedPost|cpm",
+            )
         kb.button(
             text=text("manage:post:delete:button"),
             callback_data="ManagePublishedPost|delete",
         )
-        kb.button(
-            text=text("cpm:report:view_button"),
-            callback_data="ManagePublishedPost|cpm_report",
-        )
+        if user_id in Config.ADMINS:
+            kb.button(
+                text=text("cpm:report:view_button"),
+                callback_data="ManagePublishedPost|cpm_report",
+            )
         # kb.button(
         #     text="📊 Тест (Шедулер)",
         #     callback_data="ManagePublishedPost|test_report",
