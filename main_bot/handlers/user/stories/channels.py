@@ -114,6 +114,8 @@ async def render_channel_info(
         status_welcome = "❓"
         assistant_header = f"🤖 <b>{text('assistant_status')}:</b> {text('error')}\n"
 
+    is_admin = call.from_user.id in getattr(Config, "ADMINS", [])
+
     info_text = text("channel_info").format(
         channel.title,
         creator_name,
@@ -123,20 +125,21 @@ async def render_channel_info(
         Config.BOT_USERNAME,
     )
 
-    info_text += (
-        f"\n\n{assistant_header}"
-        f"├ {text('posting_label').format(status_post)}\n"
-        f"├ {text('stories_label').format(status_story)}\n"
-        f"├ {text('mailing_label').format(status_mail)}\n"
-        f"└ {text('welcome_label').format(status_welcome)}"
-    )
-
-    from aiogram.exceptions import TelegramBadRequest
+    if is_admin:
+        info_text += (
+            f"\n\n{assistant_header}"
+            f"├ {text('posting_label').format(status_post)}\n"
+            f"├ {text('stories_label').format(status_story)}\n"
+            f"├ {text('mailing_label').format(status_mail)}\n"
+            f"└ {text('welcome_label').format(status_welcome)}"
+        )
 
     try:
         await call.message.edit_text(
             text=info_text,
-            reply_markup=keyboards.manage_channel("ManageChannelStories"),
+            reply_markup=keyboards.manage_channel(
+                "ManageChannelStories", user_id=call.from_user.id
+            ),
             parse_mode="HTML",
         )
     except TelegramBadRequest as e:
@@ -299,7 +302,9 @@ async def manage_channel(call: types.CallbackQuery, state: FSMContext):
                 await call.message.edit_text(
                     text=msg,
                     parse_mode="HTML",
-                    reply_markup=keyboards.manage_channel("ManageChannelStories"),
+                    reply_markup=keyboards.manage_channel(
+                        "ManageChannelStories", user_id=call.from_user.id
+                    ),
                 )
 
             else:

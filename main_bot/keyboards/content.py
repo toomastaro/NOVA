@@ -19,6 +19,7 @@ from main_bot.database.user_folder.model import UserFolder
 from main_bot.database.db_types import Status
 from main_bot.utils.lang.language import text
 from main_bot.utils.text_utils import clean_html_text
+from config import Config
 
 
 class InlineContent(InlineKeyboardBuilder):
@@ -135,21 +136,25 @@ class InlineContent(InlineKeyboardBuilder):
         return kb.as_markup()
 
     @classmethod
-    def manage_channel(cls, data: str = "ManageChannelPost"):
+    def manage_channel(cls, data: str = "ManageChannelPost", user_id: int = 0):
         kb = cls()
 
-        kb.button(
-            text=(
-                text("channel:check_permissions:button")
-                if text("channel:check_permissions:button")
-                != "channel:check_permissions:button"
-                else "🔄 Проверить права помощника"
-            ),
-            callback_data=f"{data}|check_permissions",
-        )
-        kb.button(
-            text="➕ Пригласить помощника", callback_data=f"{data}|invite_assistant"
-        )
+        is_admin = user_id in getattr(Config, "ADMINS", [])
+
+        if is_admin:
+            kb.button(
+                text=(
+                    text("channel:check_permissions:button")
+                    if text("channel:check_permissions:button")
+                    != "channel:check_permissions:button"
+                    else "🔄 Проверить права помощника"
+                ),
+                callback_data=f"{data}|check_permissions",
+            )
+            kb.button(
+                text="➕ Пригласить помощника", callback_data=f"{data}|invite_assistant"
+            )
+
         kb.button(text=text("channel:delete:button"), callback_data=f"{data}|delete")
         kb.button(text=text("back:button"), callback_data=f"{data}|cancel")
 

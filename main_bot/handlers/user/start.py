@@ -58,14 +58,17 @@ async def start(message: types.Message, state: FSMContext) -> None:
             except (ValueError, IndexError):
                 pass
 
+    is_admin = message.from_user.id in getattr(Config, "ADMINS", [])
+    start_key = "start_text" if is_admin else "start_text_user"
+    
     version_text = (
         f"Версия: {Config.VERSION}\n\n"
-        if message.from_user.id in getattr(Config, "ADMINS", [])
+        if is_admin
         else ""
     )
 
     await message.answer(
-        text("start_text") + f"\n\n{version_text}"
+        text(start_key) + f"\n\n{version_text}"
         f"📄 <a href='{text('info:terms:url')}'>{text('start:terms:text')}</a>\n"
         f"🔒 <a href='{text('info:privacy:url')}'>{text('start:privacy:text')}</a>",
         reply_markup=keyboards.menu(message.from_user.id),

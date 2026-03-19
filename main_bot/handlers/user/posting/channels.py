@@ -24,6 +24,7 @@ from main_bot.utils.schedulers import (
 )
 from utils.error_handler import safe_handler
 from main_bot.utils.user_settings import get_user_view_mode, set_user_view_mode
+from config import Config
 
 
 logger = logging.getLogger(__name__)
@@ -202,26 +203,34 @@ async def render_channel_info(
         status_welcome = "❓"
         assistant_header = text("assistant_error_data") + "\n"
 
+    is_admin = call.from_user.id in getattr(Config, "ADMINS", [])
+
     info_text = (
         f"{text('channel_info_title')}\n\n"
         f"{text('owner_label').format(creator_name)}\n"
         f"{text('subscribers_label').format(members_count)}\n"
         f"{text('added_label').format(created_str)}\n"
         f"{text('subscription_label').format(subscribe_str)}\n\n"
-        f"{text('editors_label')}\n{editors_str}\n\n"
-        f"{text('nova_bot_status_label')}\n"
-        f"├ {text('posting_label').format(status_bot_post)}\n"
-        f"├ {text('mailing_label').format(status_bot_mail)}\n"
-        f"└ {text('welcome_label').format(status_welcome)}\n\n"
-        f"{assistant_header}"
-        f"├ {text('stats_label').format(status_assistant_stats)}\n"
-        f"└ {text('stories_label').format(status_assistant_story)}"
+        f"{text('editors_label')}\n{editors_str}"
     )
+
+    if is_admin:
+        info_text += (
+            f"\n\n{text('nova_bot_status_label')}\n"
+            f"├ {text('posting_label').format(status_bot_post)}\n"
+            f"├ {text('mailing_label').format(status_bot_mail)}\n"
+            f"└ {text('welcome_label').format(status_welcome)}\n\n"
+            f"{assistant_header}"
+            f"├ {text('stats_label').format(status_assistant_stats)}\n"
+            f"└ {text('stories_label').format(status_assistant_story)}"
+        )
 
     try:
         await call.message.edit_text(
             text=info_text,
-            reply_markup=keyboards.manage_channel("ManageChannelPost"),
+            reply_markup=keyboards.manage_channel(
+                "ManageChannelPost", user_id=call.from_user.id
+            ),
             parse_mode="HTML",
         )
     except TelegramBadRequest as e:
@@ -442,7 +451,9 @@ async def manage_channel(call: types.CallbackQuery, state: FSMContext):
                 await call.message.edit_text(
                     text=msg,
                     parse_mode="HTML",
-                    reply_markup=keyboards.manage_channel("ManageChannelPost"),
+                    reply_markup=keyboards.manage_channel(
+                        "ManageChannelPost", user_id=call.from_user.id
+                    ),
                 )
 
             else:
