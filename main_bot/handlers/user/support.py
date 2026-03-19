@@ -116,13 +116,13 @@ async def get_support_message(message: types.Message) -> None:
             photo=message.photo[-1].file_id,
             chat_id=user_id,
             caption=text("support_answer").format(message.caption),
-            reply_markup=Reply.menu(),
+            reply_markup=Reply.menu(int(user_id)),
         )
     else:
         await message.bot.send_message(
             chat_id=user_id,
             text=text("support_answer").format(message.text),
-            reply_markup=Reply.menu(),
+            reply_markup=Reply.menu(int(user_id)),
         )
 
 

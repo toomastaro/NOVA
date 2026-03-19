@@ -715,7 +715,7 @@ async def delete_posts():
                 chat_id=admin_id,
                 text=report_text,
                 link_preview_options=types.LinkPreviewOptions(is_disabled=True),
-                reply_markup=Reply.menu(),
+                reply_markup=Reply.menu(admin_id),
             )
         except Exception as e:
             logger.error(

@@ -708,7 +708,7 @@ async def get_send_time(message: types.Message, state: FSMContext):
     # Перезагружаем главное меню
     from main_bot.keyboards.common import Reply
 
-    await message.answer(text("time_accepted"), reply_markup=Reply.menu())
+    await message.answer(text("time_accepted"), reply_markup=Reply.menu(message.from_user.id))
 
     await message.answer(
         text("manage:story:accept:date").format(

@@ -199,7 +199,7 @@ async def back_to_main(message: types.Message) -> None:
     Аргументы:
         message (types.Message): Сообщение пользователя.
     """
-    await message.answer("Главное меню", reply_markup=Reply.menu())
+    await message.answer("Главное меню", reply_markup=Reply.menu(message.from_user.id))
 
 
 def get_router() -> Router:

@@ -13,7 +13,7 @@ class Reply:
     """Reply-клавиатуры (главное меню, капча)"""
 
     @classmethod
-    def menu(cls, user_id: int):
+    def menu(cls, user_id: int = 0):
         """
         Создает главное меню бота.
         Для администраторов отображается полный список функций.

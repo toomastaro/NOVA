@@ -198,7 +198,7 @@ async def finish_params(call: types.CallbackQuery, state: FSMContext):
         # Force refresh main menu
         from main_bot.keyboards.common import Reply
 
-        await call.message.answer(text("publishing_msg"), reply_markup=Reply.menu())
+        await call.message.answer(text("publishing_msg"), reply_markup=Reply.menu(call.from_user.id))
 
         await call.message.answer(
             text("manage:post:accept:public").format(channels_block, delete_str),
@@ -479,7 +479,7 @@ async def get_send_time(message: types.Message, state: FSMContext):
 
     from main_bot.keyboards.common import Reply
 
-    await message.answer(text("time_accepted"), reply_markup=Reply.menu())
+    await message.answer(text("time_accepted"), reply_markup=Reply.menu(message.from_user.id))
 
     full_date_str = f"{_time}, {date.strftime('%d.%m.%Y')}"
 
@@ -639,7 +639,7 @@ async def choice_publication_time(call: types.CallbackQuery, state: FSMContext):
     
     # Force refresh main menu
     from main_bot.keyboards.common import Reply
-    await call.message.answer(text("time_accepted"), reply_markup=Reply.menu())
+    await call.message.answer(text("time_accepted"), reply_markup=Reply.menu(call.from_user.id))
 
     full_date_display = f"{_time}, {date.strftime('%d.%m.%Y')}"
 

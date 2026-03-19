@@ -204,7 +204,7 @@ async def manage_hello_message_post(
             pass
 
         await call.message.answer(
-            text("welcome:menu_returned"), reply_markup=keyboards.menu()
+            text("welcome:menu_returned"), reply_markup=keyboards.menu(call.from_user.id)
         )
 
         await call.message.delete()

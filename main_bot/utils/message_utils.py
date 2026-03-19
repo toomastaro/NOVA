@@ -512,7 +512,9 @@ async def answer_message(
         )
 
 
-async def reload_main_menu(message: types.Message, delete_trigger: bool = True) -> None:
+async def reload_main_menu(
+    message: types.Message, delete_trigger: bool = True, user_id: int = None
+) -> None:
     """
     Обновляет главное меню (Reply Keyboard).
 
@@ -523,10 +525,13 @@ async def reload_main_menu(message: types.Message, delete_trigger: bool = True) 
     from main_bot.keyboards.common import Reply
 
     try:
+        # Если user_id не передан, берем ID чата (в приватных чатах это ID пользователя)
+        target_user_id = user_id or message.chat.id
+        
         # Отправляем короткое сообщение, чтобы зафиксировать клавиатуру
         await message.answer(
             "🏠 Главное меню",
-            reply_markup=Reply.menu(),
+            reply_markup=Reply.menu(target_user_id),
             parse_mode="HTML",
         )
 

@@ -63,7 +63,7 @@ async def choose_donor(call: types.CallbackQuery, state: FSMContext, user: User)
             parse_mode="HTML",
         )
         # Перезагрузка главного меню
-        await call.message.answer("Главное меню", reply_markup=Reply.menu())
+        await call.message.answer("Главное меню", reply_markup=Reply.menu(call.from_user.id))
         return
 
     # Навигация
@@ -289,7 +289,7 @@ async def execute_transfer(
         reply_markup=keyboards.subscription_menu(),
     )
     # Перезагрузка главного меню
-    await call.message.answer("Главное меню", reply_markup=Reply.menu())
+    await call.message.answer("Главное меню", reply_markup=Reply.menu(call.from_user.id))
 
 
 def get_router():

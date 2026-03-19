@@ -84,7 +84,7 @@ async def novastat_exit(call: types.CallbackQuery, state: FSMContext) -> None:
     """
     await state.clear()
     await call.message.delete()
-    await call.message.answer(text("start_text"), reply_markup=keyboards.menu())
+    await call.message.answer(text("start_text"), reply_markup=keyboards.menu(call.from_user.id))
 
 
 # --- Settings ---

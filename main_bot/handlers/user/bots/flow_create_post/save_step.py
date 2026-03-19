@@ -195,4 +195,4 @@ async def accept(call: types.CallbackQuery, state: FSMContext) -> None:
         message_text, reply_markup=keyboards.create_finish(data="MenuBots")
     )
     # Reload Main Menu (Reply) to ensure navigation is available
-    await call.message.answer(text("main_menu_label"), reply_markup=Reply.menu())
+    await call.message.answer(text("main_menu_label"), reply_markup=Reply.menu(call.from_user.id))

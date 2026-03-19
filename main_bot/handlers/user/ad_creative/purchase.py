@@ -420,7 +420,7 @@ async def cancel_purchase(call: CallbackQuery, state: FSMContext) -> None:
     await state.clear()
     await call.message.delete()
     await call.message.answer(
-        text("ad_purchase:create:cancelled"), reply_markup=Reply.menu()
+        text("ad_purchase:create:cancelled"), reply_markup=Reply.menu(message.from_user.id)
     )
 
 

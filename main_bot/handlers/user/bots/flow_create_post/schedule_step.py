@@ -434,7 +434,7 @@ async def get_send_time(message: types.Message, state: FSMContext) -> None:
     # Перезагружаем главное меню
     from main_bot.keyboards.common import Reply
 
-    await message.answer(text("time_accepted"), reply_markup=Reply.menu())
+    await message.answer(text("time_accepted"), reply_markup=Reply.menu(message.from_user.id))
 
     # Если меняем время (уже было запланировано), сразу возвращаемся на экран "Готов к рассылке"
     if is_changing_time:

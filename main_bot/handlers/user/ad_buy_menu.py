@@ -105,7 +105,7 @@ async def back_to_main(call: types.CallbackQuery) -> None:
         call (types.CallbackQuery): Callback запрос.
     """
     await call.message.delete()
-    await call.message.answer("Главное меню", reply_markup=Reply.menu())
+    await call.message.answer("Главное меню", reply_markup=Reply.menu(call.from_user.id))
 
 
 def get_router() -> Router:

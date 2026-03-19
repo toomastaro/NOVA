@@ -139,7 +139,7 @@ async def manage_post(call: types.CallbackQuery, state: FSMContext):
         from main_bot.keyboards.common import Reply
 
         await call.message.answer(
-            text("manage_post_settings"), reply_markup=Reply.menu()
+            text("manage_post_settings"), reply_markup=Reply.menu(message.from_user.id)
         )
 
         return await call.message.answer(

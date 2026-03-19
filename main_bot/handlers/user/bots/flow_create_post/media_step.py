@@ -153,7 +153,7 @@ async def get_message(message: types.Message, state: FSMContext) -> None:
     # Перезагружаем главное меню
     from main_bot.keyboards.common import Reply
 
-    await message.answer(text("content_accepted"), reply_markup=Reply.menu())
+    await message.answer(text("content_accepted"), reply_markup=Reply.menu(message.from_user.id))
 
     await answer_bot_post(message, state)
 
@@ -419,6 +419,6 @@ async def get_value(message: types.Message, state: FSMContext) -> None:
     # Перезагружаем главное меню
     from main_bot.keyboards.common import Reply
 
-    await message.answer(text("changes_saved"), reply_markup=Reply.menu())
+    await message.answer(text("changes_saved"), reply_markup=Reply.menu(message.from_user.id))
 
     await answer_bot_post(message, state)
