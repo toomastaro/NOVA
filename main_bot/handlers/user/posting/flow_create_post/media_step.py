@@ -449,7 +449,7 @@ async def get_value(message: types.Message, state: FSMContext):
             new_html = input_text
         
     elif param == "buttons":
-        new_buttons = message.text
+        new_buttons = message.text or message.caption
         
     elif param == "reaction":
         # Парсинг реакций
