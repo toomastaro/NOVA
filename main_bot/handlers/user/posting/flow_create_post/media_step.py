@@ -440,7 +440,7 @@ async def get_value(message: types.Message, state: FSMContext):
 
         # Лимиты текста
         limit = 4096
-        input_text = message.html_text or message.caption or ""
+        input_text = message.html_text or message.as_html() or ""
         
         if len(input_text) > limit:
             return await message.answer(text("error_length_text").format(limit))
